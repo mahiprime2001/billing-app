@@ -1,0 +1,1196 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import BillingLayout from "@/components/billing-layout"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Plus,
+  X,
+  ShoppingCart,
+  Search,
+  Minus,
+  Trash2,
+  Receipt,
+  User,
+  Phone,
+  CreditCard,
+  Banknote,
+  Smartphone,
+  FileText,
+  AlertCircle,
+} from "lucide-react"
+
+interface Product {
+  id: string
+  name: string
+  price: number
+  category: string
+  stock: number
+  barcode?: string
+  description?: string
+}
+
+interface CartItem {
+  productId: string
+  productName: string
+  quantity: number
+  price: number
+  total: number
+}
+
+interface Customer {
+  name?: string
+  phone?: string
+  email?: string
+  address?: string
+}
+
+interface BillTab {
+  id: string
+  name: string
+  cart: CartItem[]
+  customer: Customer
+  subtotal: number
+  discountPercentage: number
+  discountAmount: number
+  taxPercentage: number
+  taxAmount: number
+  total: number
+  paymentMethod: string
+  notes: string
+  hasUnsavedChanges: boolean
+}
+
+interface AdminUser {
+  name: string
+  email: string
+  role: "super_admin" | "billing_user" | "temporary_user"
+  assignedStores?: string[]
+}
+
+interface SystemSettings {
+  gstin: string
+  taxPercentage: number
+  companyName: string
+  companyAddress: string
+  companyPhone: string
+  companyEmail: string
+}
+
+interface SystemStore {
+  id: string
+  name: string
+  address: string
+  phone?: string
+  status: string
+}
+
+interface BillFormat {
+  width: number
+  height: number | "auto"
+  margins: {
+    top: number
+    bottom: number
+    left: number
+    right: number
+  }
+  unit: string
+}
+
+export default function BillingPage() {
+  const router = useRouter()
+  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null)
+  const [products, setProducts] = useState<Product[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [tabs, setTabs] = useState<BillTab[]>([])
+  const [activeTabId, setActiveTabId] = useState<string>("")
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false)
+  const [isConfirmCloseDialogOpen, setIsConfirmCloseDialogOpen] = useState(false)
+  const [tabToClose, setTabToClose] = useState<string>("")
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>({
+    gstin: "27AAFCV2449G1Z7",
+    taxPercentage: 18,
+    companyName: "SIRI ART JEWELLERY",
+    companyAddress: "123 Jewelry Street, Diamond District, Mumbai, Maharashtra 400001",
+    companyPhone: "+91 98765 43210",
+    companyEmail: "info@siriartjewellery.com",
+  })
+  const [stores, setStores] = useState<SystemStore[]>([])
+  const [selectedStore, setSelectedStore] = useState<SystemStore | null>(null)
+  const [billFormats, setBillFormats] = useState<Record<string, BillFormat>>({})
+  const [storeFormats, setStoreFormats] = useState<Record<string, string>>({})
+  const [selectedBillFormat, setSelectedBillFormat] = useState("A4")
+
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem("adminLoggedIn")
+    const userData = localStorage.getItem("adminUser")
+
+    if (isLoggedIn !== "true" || !userData) {
+      router.push("/")
+      return
+    }
+
+    const user = JSON.parse(userData)
+    setCurrentUser(user)
+
+    // Load system settings
+    const savedSettings = localStorage.getItem("systemSettings")
+    if (savedSettings) {
+      setSystemSettings(JSON.parse(savedSettings))
+    }
+
+    // Load bill formats
+    const savedBillFormats = localStorage.getItem("billFormats")
+    if (savedBillFormats) {
+      setBillFormats(JSON.parse(savedBillFormats))
+    } else {
+      // Default formats
+      const defaultFormats = {
+        A4: { width: 210, height: 297, margins: { top: 20, bottom: 20, left: 20, right: 20 }, unit: "mm" },
+        Thermal_80mm: { width: 80, height: "auto", margins: { top: 5, bottom: 5, left: 5, right: 5 }, unit: "mm" },
+        Thermal_58mm: { width: 58, height: "auto", margins: { top: 3, bottom: 3, left: 3, right: 3 }, unit: "mm" },
+      }
+      setBillFormats(defaultFormats)
+    }
+
+    // Load store formats
+    const savedStoreFormats = localStorage.getItem("storeFormats")
+    if (savedStoreFormats) {
+      setStoreFormats(JSON.parse(savedStoreFormats))
+    }
+
+    // Load stores
+    const savedStores = localStorage.getItem("stores")
+    if (savedStores) {
+      const allStores = JSON.parse(savedStores)
+      const activeStores = allStores.filter((store: SystemStore) => store.status === "active")
+      setStores(activeStores)
+
+      if (user.role === "billing_user" && user.assignedStores) {
+        const userStores = activeStores.filter((store: SystemStore) => user.assignedStores?.includes(store.id))
+        if (userStores.length > 0) {
+          setSelectedStore(userStores[0])
+        }
+      } else if (activeStores.length > 0) {
+        setSelectedStore(activeStores[0])
+      }
+    }
+
+    loadProducts()
+    initializeTabs()
+  }, [router])
+
+  useEffect(() => {
+    if (searchTerm) {
+      const filtered = products.filter(
+        (product) =>
+          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (product.barcode && product.barcode.includes(searchTerm)),
+      )
+      setFilteredProducts(filtered)
+    } else {
+      setFilteredProducts(products.slice(0, 20))
+    }
+  }, [searchTerm, products])
+
+  const loadProducts = () => {
+    const savedProducts = localStorage.getItem("products")
+    if (savedProducts) {
+      setProducts(JSON.parse(savedProducts))
+    }
+  }
+
+  const initializeTabs = () => {
+    const initialTab: BillTab = {
+      id: "tab-1",
+      name: "Bill #1",
+      cart: [],
+      customer: {},
+      subtotal: 0,
+      discountPercentage: 0,
+      discountAmount: 0,
+      taxPercentage: systemSettings.taxPercentage,
+      taxAmount: 0,
+      total: 0,
+      paymentMethod: "cash",
+      notes: "",
+      hasUnsavedChanges: false,
+    }
+    setTabs([initialTab])
+    setActiveTabId(initialTab.id)
+  }
+
+  const createNewTab = () => {
+    const newTabNumber = tabs.length + 1
+    const newTab: BillTab = {
+      id: `tab-${Date.now()}`,
+      name: `Bill #${newTabNumber}`,
+      cart: [],
+      customer: {},
+      subtotal: 0,
+      discountPercentage: 0,
+      discountAmount: 0,
+      taxPercentage: systemSettings.taxPercentage,
+      taxAmount: 0,
+      total: 0,
+      paymentMethod: "cash",
+      notes: "",
+      hasUnsavedChanges: false,
+    }
+    setTabs([...tabs, newTab])
+    setActiveTabId(newTab.id)
+  }
+
+  const closeTab = (tabId: string) => {
+    const tab = tabs.find((t) => t.id === tabId)
+    if (tab?.hasUnsavedChanges) {
+      setTabToClose(tabId)
+      setIsConfirmCloseDialogOpen(true)
+      return
+    }
+
+    if (tabs.length === 1) {
+      resetTab(tabId)
+      return
+    }
+
+    const newTabs = tabs.filter((t) => t.id !== tabId)
+    setTabs(newTabs)
+
+    if (activeTabId === tabId) {
+      const currentIndex = tabs.findIndex((t) => t.id === tabId)
+      const nextTab = newTabs[currentIndex] || newTabs[currentIndex - 1] || newTabs[0]
+      setActiveTabId(nextTab.id)
+    }
+  }
+
+  const confirmCloseTab = () => {
+    if (tabs.length === 1) {
+      resetTab(tabToClose)
+    } else {
+      const newTabs = tabs.filter((t) => t.id !== tabToClose)
+      setTabs(newTabs)
+
+      if (activeTabId === tabToClose) {
+        const currentIndex = tabs.findIndex((t) => t.id === tabToClose)
+        const nextTab = newTabs[currentIndex] || newTabs[currentIndex - 1] || newTabs[0]
+        setActiveTabId(nextTab.id)
+      }
+    }
+
+    setIsConfirmCloseDialogOpen(false)
+    setTabToClose("")
+  }
+
+  const resetTab = (tabId: string) => {
+    setTabs(
+      tabs.map((tab) =>
+        tab.id === tabId
+          ? {
+              ...tab,
+              cart: [],
+              customer: {},
+              subtotal: 0,
+              discountPercentage: 0,
+              discountAmount: 0,
+              taxAmount: 0,
+              total: 0,
+              notes: "",
+              hasUnsavedChanges: false,
+            }
+          : tab,
+      ),
+    )
+  }
+
+  const updateTab = (tabId: string, updates: Partial<BillTab>) => {
+    setTabs(
+      tabs.map((tab) =>
+        tab.id === tabId
+          ? {
+              ...tab,
+              ...updates,
+              hasUnsavedChanges: true,
+            }
+          : tab,
+      ),
+    )
+  }
+
+  const getActiveTab = (): BillTab | undefined => {
+    return tabs.find((tab) => tab.id === activeTabId)
+  }
+
+  const addToCart = (product: Product) => {
+    const activeTab = getActiveTab()
+    if (!activeTab) return
+
+    if (product.stock <= 0) {
+      alert("Product is out of stock")
+      return
+    }
+
+    const existingItem = activeTab.cart.find((item) => item.productId === product.id)
+
+    let newCart: CartItem[]
+    if (existingItem) {
+      if (existingItem.quantity >= product.stock) {
+        alert(`Cannot add more. Maximum available: ${product.stock}`)
+        return
+      }
+      newCart = activeTab.cart.map((item) =>
+        item.productId === product.id
+          ? {
+              ...item,
+              quantity: item.quantity + 1,
+              total: (item.quantity + 1) * item.price,
+            }
+          : item,
+      )
+    } else {
+      newCart = [
+        ...activeTab.cart,
+        {
+          productId: product.id,
+          productName: product.name,
+          quantity: 1,
+          price: product.price,
+          total: product.price,
+        },
+      ]
+    }
+
+    // Calculate totals for the updated cart
+    const subtotal = newCart.reduce((sum, item) => sum + item.total, 0)
+    const discountAmount = (subtotal * activeTab.discountPercentage) / 100
+    const taxableAmount = subtotal - discountAmount
+    const taxAmount = (taxableAmount * activeTab.taxPercentage) / 100
+    const total = taxableAmount + taxAmount
+
+    updateTab(activeTabId, {
+      cart: newCart,
+      subtotal,
+      discountAmount,
+      taxAmount,
+      total,
+    })
+  }
+
+  const updateCartItemQuantity = (productId: string, quantity: number) => {
+    const activeTab = getActiveTab()
+    if (!activeTab) return
+
+    if (quantity <= 0) {
+      removeFromCart(productId)
+      return
+    }
+
+    const product = products.find((p) => p.id === productId)
+    if (product && quantity > product.stock) {
+      alert(`Cannot exceed available stock: ${product.stock}`)
+      return
+    }
+
+    const newCart = activeTab.cart.map((item) =>
+      item.productId === productId
+        ? {
+            ...item,
+            quantity,
+            total: quantity * item.price,
+          }
+        : item,
+    )
+
+    // Calculate totals for the updated cart
+    const subtotal = newCart.reduce((sum, item) => sum + item.total, 0)
+    const discountAmount = (subtotal * activeTab.discountPercentage) / 100
+    const taxableAmount = subtotal - discountAmount
+    const taxAmount = (taxableAmount * activeTab.taxPercentage) / 100
+    const total = taxableAmount + taxAmount
+
+    updateTab(activeTabId, {
+      cart: newCart,
+      subtotal,
+      discountAmount,
+      taxAmount,
+      total,
+    })
+  }
+
+  const removeFromCart = (productId: string) => {
+    const activeTab = getActiveTab()
+    if (!activeTab) return
+
+    const newCart = activeTab.cart.filter((item) => item.productId !== productId)
+
+    // Calculate totals for the updated cart
+    const subtotal = newCart.reduce((sum, item) => sum + item.total, 0)
+    const discountAmount = (subtotal * activeTab.discountPercentage) / 100
+    const taxableAmount = subtotal - discountAmount
+    const taxAmount = (taxableAmount * activeTab.taxPercentage) / 100
+    const total = taxableAmount + taxAmount
+
+    updateTab(activeTabId, {
+      cart: newCart,
+      subtotal,
+      discountAmount,
+      taxAmount,
+      total,
+    })
+  }
+
+  const updateDiscount = (percentage: number) => {
+    const activeTab = getActiveTab()
+    if (!activeTab) return
+
+    const validPercentage = Math.max(0, Math.min(100, percentage))
+    const discountAmount = (activeTab.subtotal * validPercentage) / 100
+    const taxableAmount = activeTab.subtotal - discountAmount
+    const taxAmount = (taxableAmount * activeTab.taxPercentage) / 100
+    const total = taxableAmount + taxAmount
+
+    updateTab(activeTabId, {
+      discountPercentage: validPercentage,
+      discountAmount,
+      taxAmount,
+      total,
+    })
+  }
+
+  const updateTotal = (newTotal: number) => {
+    const activeTab = getActiveTab()
+    if (!activeTab || activeTab.subtotal === 0) return
+
+    // Calculate what the discount should be based on the new total
+    const expectedTotal = activeTab.subtotal + activeTab.taxAmount
+    const discountAmount = Math.max(0, expectedTotal - newTotal)
+    const discountPercentage = activeTab.subtotal > 0 ? (discountAmount / activeTab.subtotal) * 100 : 0
+
+    updateTab(activeTabId, {
+      total: newTotal,
+      discountAmount,
+      discountPercentage,
+    })
+  }
+
+  const updateCustomer = (customer: Customer) => {
+    const activeTab = getActiveTab()
+    if (!activeTab) return
+
+    updateTab(activeTabId, { customer })
+    setIsCustomerDialogOpen(false)
+  }
+
+  const processPayment = () => {
+    const activeTab = getActiveTab()
+    if (!activeTab || activeTab.cart.length === 0 || !selectedStore) return
+
+    // Get the bill format for this store
+    const formatName = storeFormats[selectedStore.id] || selectedBillFormat
+    const format = billFormats[formatName] || billFormats.A4
+
+    const bill = {
+      id: `INV-${Date.now()}`,
+      storeId: selectedStore.id,
+      storeName: selectedStore.name,
+      storeAddress: selectedStore.address,
+      storePhone: selectedStore.phone,
+      customerName: activeTab.customer.name || "",
+      customerPhone: activeTab.customer.phone || "",
+      customerEmail: activeTab.customer.email || "",
+      customerAddress: activeTab.customer.address || "",
+      items: activeTab.cart,
+      subtotal: activeTab.subtotal,
+      taxPercentage: activeTab.taxPercentage,
+      taxAmount: activeTab.taxAmount,
+      discountPercentage: activeTab.discountPercentage,
+      discountAmount: activeTab.discountAmount,
+      total: activeTab.total,
+      paymentMethod: activeTab.paymentMethod,
+      timestamp: new Date().toISOString(),
+      notes: activeTab.notes,
+      gstin: systemSettings.gstin,
+      companyName: systemSettings.companyName,
+      companyAddress: systemSettings.companyAddress,
+      companyPhone: systemSettings.companyPhone,
+      companyEmail: systemSettings.companyEmail,
+      billFormat: formatName,
+      createdBy: currentUser?.name || "Unknown",
+    }
+
+    // Save to localStorage
+    const existingBills = JSON.parse(localStorage.getItem("bills") || "[]")
+    localStorage.setItem("bills", JSON.stringify([...existingBills, bill]))
+
+    // Print receipt with format
+    printReceipt(bill, format)
+
+    // Reset the tab
+    resetTab(activeTabId)
+    setIsPaymentDialogOpen(false)
+  }
+
+  const printReceipt = (bill: any, format: BillFormat) => {
+    const printWindow = window.open("", "_blank")
+    if (!printWindow) return
+
+    const isThermal = format.width <= 80
+    const maxWidth = isThermal ? "80mm" : "210mm"
+
+    const receiptHTML = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Receipt - ${bill.id}</title>
+        <style>
+          @page {
+            size: ${format.width}mm ${format.height === "auto" ? "auto" : `${format.height}mm`};
+            margin: ${format.margins.top}mm ${format.margins.right}mm ${format.margins.bottom}mm ${format.margins.left}mm;
+          }
+          body { 
+            font-family: monospace; 
+            max-width: ${maxWidth}; 
+            margin: 0 auto; 
+            padding: 0;
+            font-size: ${isThermal ? "12px" : "14px"};
+            line-height: 1.4;
+          }
+          .header { text-align: center; margin-bottom: 15px; }
+          .company-name { font-weight: bold; font-size: ${isThermal ? "14px" : "16px"}; }
+          .store-info { font-size: ${isThermal ? "10px" : "12px"}; margin-top: 3px; }
+          .receipt-id { margin: 8px 0; font-size: ${isThermal ? "10px" : "12px"}; }
+          .customer-info { margin: 10px 0; font-size: ${isThermal ? "10px" : "12px"}; border-top: 1px dashed #000; padding-top: 8px; }
+          .items { margin: 15px 0; }
+          .item { display: flex; justify-content: space-between; margin: 3px 0; font-size: ${isThermal ? "10px" : "12px"}; }
+          .item-name { flex: 1; margin-right: 10px; }
+          .totals { border-top: 1px dashed #000; padding-top: 8px; margin-top: 10px; }
+          .total-line { display: flex; justify-content: space-between; margin: 2px 0; font-size: ${isThermal ? "10px" : "12px"}; }
+          .final-total { font-weight: bold; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
+          .footer { text-align: center; margin-top: 15px; font-size: ${isThermal ? "8px" : "10px"}; }
+          .gstin { font-size: ${isThermal ? "8px" : "10px"}; margin-top: 3px; }
+          @media print {
+            body { -webkit-print-color-adjust: exact; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">${bill.companyName}</div>
+          <div class="store-info">${bill.storeName}</div>
+          <div class="store-info">${bill.storeAddress}</div>
+          ${bill.storePhone ? `<div class="store-info">Phone: ${bill.storePhone}</div>` : ""}
+          <div class="gstin">GSTIN: ${bill.gstin}</div>
+          <div class="receipt-id">Invoice: ${bill.id}</div>
+          <div class="receipt-id">Date: ${new Date(bill.timestamp).toLocaleString()}</div>
+          <div class="receipt-id">Cashier: ${bill.createdBy}</div>
+        </div>
+        
+        ${
+          bill.customerName || bill.customerPhone
+            ? `
+        <div class="customer-info">
+          <strong>Customer Details:</strong><br>
+          ${bill.customerName ? `Name: ${bill.customerName}<br>` : ""}
+          ${bill.customerPhone ? `Phone: ${bill.customerPhone}<br>` : ""}
+          ${bill.customerEmail ? `Email: ${bill.customerEmail}<br>` : ""}
+          ${bill.customerAddress ? `Address: ${bill.customerAddress}<br>` : ""}
+        </div>
+        `
+            : ""
+        }
+        
+        <div class="items">
+          ${bill.items
+            .map(
+              (item: any) => `
+            <div class="item">
+              <span class="item-name">${item.productName} x${item.quantity}</span>
+              <span>₹${item.total.toFixed(2)}</span>
+            </div>
+          `,
+            )
+            .join("")}
+        </div>
+        
+        <div class="totals">
+          <div class="total-line">
+            <span>Subtotal:</span>
+            <span>₹${bill.subtotal.toFixed(2)}</span>
+          </div>
+          ${
+            bill.discountAmount > 0
+              ? `
+          <div class="total-line">
+            <span>Discount (${bill.discountPercentage.toFixed(1)}%):</span>
+            <span>-₹${bill.discountAmount.toFixed(2)}</span>
+          </div>
+          `
+              : ""
+          }
+          <div class="total-line">
+            <span>Tax (${bill.taxPercentage}%):</span>
+            <span>₹${bill.taxAmount.toFixed(2)}</span>
+          </div>
+          <div class="total-line final-total">
+            <span>TOTAL:</span>
+            <span>₹${bill.total.toFixed(2)}</span>
+          </div>
+          <div class="total-line">
+            <span>Payment:</span>
+            <span>${bill.paymentMethod.toUpperCase()}</span>
+          </div>
+        </div>
+        
+        ${
+          bill.notes
+            ? `
+        <div class="customer-info">
+          <strong>Notes:</strong><br>
+          ${bill.notes}
+        </div>
+        `
+            : ""
+        }
+        
+        <div class="footer">
+          <p>Thank you for your business!</p>
+          <p>Visit us again</p>
+          <p>${bill.companyPhone}</p>
+          <p>${bill.companyEmail}</p>
+        </div>
+      </body>
+    </html>
+  `
+
+    printWindow.document.write(receiptHTML)
+    printWindow.document.close()
+    printWindow.print()
+  }
+
+  const activeTab = getActiveTab()
+
+  return (
+    <BillingLayout>
+      <div className="h-full flex flex-col">
+        {/* Browser-style Tabs */}
+        <div className="flex items-center bg-gray-100 border-b border-gray-200 px-2 py-1">
+          <div className="flex items-center space-x-1 flex-1 overflow-x-auto">
+            {tabs.map((tab) => (
+              <div
+                key={tab.id}
+                className={`
+                  relative flex items-center px-4 py-2 min-w-0 max-w-48 cursor-pointer group
+                  ${
+                    activeTabId === tab.id
+                      ? "bg-white border-t-2 border-blue-500 text-blue-600"
+                      : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                  }
+                  rounded-t-lg border-l border-r border-gray-300 mr-1
+                  transition-all duration-200
+                `}
+                style={{
+                  clipPath:
+                    activeTabId === tab.id
+                      ? "polygon(8px 100%, 0 0, calc(100% - 8px) 0, 100% 100%)"
+                      : "polygon(4px 100%, 0 0, calc(100% - 4px) 0, 100% 100%)",
+                }}
+                onClick={() => setActiveTabId(tab.id)}
+              >
+                <div className="flex items-center space-x-2 flex-1 min-w-0">
+                  <FileText className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate text-sm font-medium">{tab.name}</span>
+                  {tab.cart.length > 0 && (
+                    <Badge variant="secondary" className="h-5 text-xs">
+                      {tab.cart.length}
+                    </Badge>
+                  )}
+                  {tab.hasUnsavedChanges && (
+                    <div className="h-2 w-2 bg-orange-500 rounded-full flex-shrink-0" title="Unsaved changes" />
+                  )}
+                </div>
+                {tabs.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0 ml-2 opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600 flex-shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      closeTab(tab.id)
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={createNewTab}
+            className="ml-2 h-8 w-8 p-0 bg-gray-200 hover:bg-gray-300 rounded-full"
+            title="New Tab"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab && (
+          <div className="flex-1 flex overflow-hidden">
+            {/* Left Panel - Products */}
+            <div className="w-1/2 border-r border-gray-200 flex flex-col">
+              <div className="p-4 border-b border-gray-200">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search products by name, category, or barcode..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <ScrollArea className="flex-1">
+                <div className="p-4 space-y-2">
+                  {filteredProducts.map((product) => (
+                    <Card
+                      key={product.id}
+                      className="cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => addToCart(product)}
+                    >
+                      <CardContent className="p-3">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-sm">{product.name}</h3>
+                            <p className="text-xs text-gray-600 mt-1">{product.category}</p>
+                            {product.barcode && (
+                              <p className="text-xs text-gray-500 mt-1">Barcode: {product.barcode}</p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-green-600">₹{product.price.toFixed(2)}</p>
+                            <p className="text-xs text-gray-500">Stock: {product.stock}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {filteredProducts.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Search className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No products found</p>
+                      <p className="text-sm">Try adjusting your search terms</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* Right Panel - Cart & Billing */}
+            <div className="w-1/2 flex flex-col">
+              {/* Cart Header */}
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold flex items-center">
+                    <ShoppingCart className="h-5 w-5 mr-2" />
+                    {activeTab.name}
+                  </h2>
+                  <div className="flex items-center space-x-2">
+                    <Button variant="outline" size="sm" onClick={() => setIsCustomerDialogOpen(true)}>
+                      <User className="h-4 w-4 mr-1" />
+                      Customer
+                    </Button>
+                    {activeTab.cart.length > 0 && (
+                      <Button size="sm" onClick={() => setIsPaymentDialogOpen(true)}>
+                        <Receipt className="h-4 w-4 mr-1" />
+                        Checkout
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Customer Info */}
+                {(activeTab.customer.name || activeTab.customer.phone) && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                    <div className="flex items-center space-x-2 text-sm">
+                      <User className="h-4 w-4 text-blue-600" />
+                      <span className="font-medium">{activeTab.customer.name || "Customer"}</span>
+                      {activeTab.customer.phone && (
+                        <>
+                          <Phone className="h-3 w-3 text-gray-500" />
+                          <span className="text-gray-600">{activeTab.customer.phone}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Cart Items */}
+              <ScrollArea className="flex-1">
+                <div className="p-4">
+                  {activeTab.cart.length > 0 ? (
+                    <div className="space-y-3">
+                      {activeTab.cart.map((item) => (
+                        <Card key={item.productId}>
+                          <CardContent className="p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-sm">{item.productName}</h4>
+                                <p className="text-xs text-gray-600">₹{item.price.toFixed(2)} each</p>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => updateCartItemQuantity(item.productId, item.quantity - 1)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => updateCartItemQuantity(item.productId, item.quantity + 1)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => removeFromCart(item.productId)}
+                                  className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center mt-2">
+                              <span className="text-sm text-gray-600">Total:</span>
+                              <span className="font-bold">₹{item.total.toFixed(2)}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <ShoppingCart className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>Cart is empty</p>
+                      <p className="text-sm">Add products from the left panel</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+
+              {/* Cart Summary */}
+              {activeTab.cart.length > 0 && (
+                <div className="p-4 border-t border-gray-200 bg-gray-50">
+                  <div className="space-y-3">
+                    {/* Discount */}
+                    <div className="flex items-center space-x-2">
+                      <Label className="text-sm">Discount %:</Label>
+                      <Input
+                        type="number"
+                        value={activeTab.discountPercentage}
+                        onChange={(e) => updateDiscount(Number(e.target.value))}
+                        className="w-20 h-8"
+                        min="0"
+                        max="100"
+                      />
+                      <span className="text-sm text-gray-600">(-₹{activeTab.discountAmount.toFixed(2)})</span>
+                    </div>
+
+                    {/* Totals */}
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>₹{activeTab.subtotal.toFixed(2)}</span>
+                      </div>
+                      {activeTab.discountAmount > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <span>Discount:</span>
+                          <span>-₹{activeTab.discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span>Tax ({activeTab.taxPercentage}%):</span>
+                        <span>₹{activeTab.taxAmount.toFixed(2)}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between font-bold text-lg">
+                        <span>Total:</span>
+                        <div className="flex items-center space-x-2">
+                          <span>₹</span>
+                          <Input
+                            type="number"
+                            value={activeTab.total.toFixed(2)}
+                            onChange={(e) => updateTotal(Number(e.target.value))}
+                            className="w-24 h-8 text-right font-bold"
+                            step="0.01"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <Label className="text-sm">Notes:</Label>
+                      <Textarea
+                        value={activeTab.notes}
+                        onChange={(e) => updateTab(activeTabId, { notes: e.target.value })}
+                        placeholder="Add notes for this bill..."
+                        className="mt-1 h-16 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Customer Dialog */}
+        <Dialog open={isCustomerDialogOpen} onOpenChange={setIsCustomerDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
+                <User className="h-5 w-5 mr-2" />
+                Customer Information
+              </DialogTitle>
+              <DialogDescription>Add customer details for this bill</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="customerName">Name</Label>
+                <Input id="customerName" defaultValue={activeTab?.customer.name || ""} placeholder="Customer name" />
+              </div>
+              <div>
+                <Label htmlFor="customerPhone">Phone</Label>
+                <Input id="customerPhone" defaultValue={activeTab?.customer.phone || ""} placeholder="Phone number" />
+              </div>
+              <div>
+                <Label htmlFor="customerEmail">Email</Label>
+                <Input id="customerEmail" defaultValue={activeTab?.customer.email || ""} placeholder="Email address" />
+              </div>
+              <div>
+                <Label htmlFor="customerAddress">Address</Label>
+                <Textarea
+                  id="customerAddress"
+                  defaultValue={activeTab?.customer.address || ""}
+                  placeholder="Customer address"
+                  className="h-20"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCustomerDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  const name = (document.getElementById("customerName") as HTMLInputElement)?.value
+                  const phone = (document.getElementById("customerPhone") as HTMLInputElement)?.value
+                  const email = (document.getElementById("customerEmail") as HTMLInputElement)?.value
+                  const address = (document.getElementById("customerAddress") as HTMLTextAreaElement)?.value
+                  updateCustomer({ name, phone, email, address })
+                }}
+              >
+                Save Customer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Payment Dialog */}
+        <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
+                <CreditCard className="h-5 w-5 mr-2" />
+                Process Payment
+              </DialogTitle>
+              <DialogDescription>Complete the transaction and select bill format</DialogDescription>
+            </DialogHeader>
+            {activeTab && (
+              <div className="space-y-4">
+                {/* Bill Format Selection */}
+                <div>
+                  <Label className="text-sm font-medium">Bill Format</Label>
+                  <Select value={selectedBillFormat} onValueChange={setSelectedBillFormat}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(billFormats).map(([formatName, format]) => (
+                        <SelectItem key={formatName} value={formatName}>
+                          {formatName.replace("_", " ")} ({format.width}×
+                          {format.height === "auto" ? "Auto" : format.height}mm)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Bill Summary */}
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Items:</span>
+                        <span>
+                          {activeTab.cart.length} ({activeTab.cart.reduce((sum, item) => sum + item.quantity, 0)} qty)
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>₹{activeTab.subtotal.toFixed(2)}</span>
+                      </div>
+                      {activeTab.discountAmount > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <span>Discount ({activeTab.discountPercentage.toFixed(1)}%):</span>
+                          <span>-₹{activeTab.discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span>Tax ({activeTab.taxPercentage}%):</span>
+                        <span>₹{activeTab.taxAmount.toFixed(2)}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between font-bold text-lg">
+                        <span>Total:</span>
+                        <span>₹{activeTab.total.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Payment Method */}
+                <div>
+                  <Label className="text-sm font-medium">Payment Method</Label>
+                  <Select
+                    value={activeTab.paymentMethod}
+                    onValueChange={(value) => updateTab(activeTabId, { paymentMethod: value })}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">
+                        <div className="flex items-center">
+                          <Banknote className="h-4 w-4 mr-2" />
+                          Cash
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="card">
+                        <div className="flex items-center">
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Card
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="upi">
+                        <div className="flex items-center">
+                          <Smartphone className="h-4 w-4 mr-2" />
+                          UPI
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Store Info */}
+                {selectedStore && (
+                  <Card>
+                    <CardContent className="p-3">
+                      <div className="text-sm">
+                        <div className="font-medium">Store: {selectedStore.name}</div>
+                        <div className="text-gray-600 mt-1">{selectedStore.address}</div>
+                        {selectedStore.phone && <div className="text-gray-600">Phone: {selectedStore.phone}</div>}
+                        <div className="text-gray-600">GSTIN: {systemSettings.gstin}</div>
+                        <div className="text-gray-600">Tax Rate: {systemSettings.taxPercentage}%</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Customer Info */}
+                {(activeTab.customer.name || activeTab.customer.phone) && (
+                  <Card>
+                    <CardContent className="p-3">
+                      <div className="text-sm">
+                        <div className="font-medium flex items-center">
+                          <User className="h-4 w-4 mr-2" />
+                          Customer Details
+                        </div>
+                        <div className="mt-2 space-y-1 text-gray-600">
+                          {activeTab.customer.name && <div>Name: {activeTab.customer.name}</div>}
+                          {activeTab.customer.phone && <div>Phone: {activeTab.customer.phone}</div>}
+                          {activeTab.customer.email && <div>Email: {activeTab.customer.email}</div>}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={processPayment} className="bg-green-600 hover:bg-green-700">
+                <Receipt className="h-4 w-4 mr-2" />
+                Complete Payment
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Confirm Close Tab Dialog */}
+        <Dialog open={isConfirmCloseDialogOpen} onOpenChange={setIsConfirmCloseDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
+                <AlertCircle className="h-5 w-5 mr-2 text-orange-500" />
+                Unsaved Changes
+              </DialogTitle>
+              <DialogDescription>This tab has unsaved changes. Are you sure you want to close it?</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsConfirmCloseDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={confirmCloseTab}>
+                Close Tab
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </BillingLayout>
+  )
+}
