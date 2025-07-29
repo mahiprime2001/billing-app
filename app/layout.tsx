@@ -10,7 +10,6 @@ export const metadata: Metadata = {
   description:
     "Advanced admin panel with secure login, role-based access, billing system, product management, barcode scanning, and user management capabilities.",
   keywords: "admin panel, billing system, inventory management, barcode scanning, user management, role-based access",
-    generator: 'v0.dev'
 }
 
 export default function RootLayout({
