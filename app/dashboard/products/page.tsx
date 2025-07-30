@@ -1,8 +1,9 @@
 "use client"
 
-import type React from "react"
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import useSWR from "swr";
+import type { Product } from "@/lib/types";
 import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -30,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   Plus,
   Edit,
@@ -43,19 +44,8 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-} from "lucide-react"
+} from "lucide-react";
 
-interface Product {
-  id: string
-  name: string
-  price: number
-  barcodes: string[]
-  stock: number
-  category?: string
-  description?: string
-  createdAt: string
-  updatedAt: string
-}
 
 interface AdminUser {
   name: string
@@ -71,10 +61,12 @@ interface SystemStore {
   status: string
 }
 
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export default function ProductsPage() {
-  const router = useRouter()
-  const [products, setProducts] = useState<Product[]>([])
-  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null)
+  const router = useRouter();
+  const { data: products = [], mutate } = useSWR<Product[]>("/api/products", fetcher);
+  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [assignedStores, setAssignedStores] = useState<SystemStore[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
@@ -104,45 +96,25 @@ export default function ProductsPage() {
     const userData = localStorage.getItem("adminUser")
 
     if (isLoggedIn !== "true" || !userData) {
-      router.push("/")
-      return
+      router.push("/");
+      return;
     }
 
-    const user = JSON.parse(userData)
-    setCurrentUser(user)
+    const user = JSON.parse(userData);
+    setCurrentUser(user);
 
     // Load assigned stores for billing users
     if (user.role === "billing_user" && user.assignedStores) {
-      const savedStores = localStorage.getItem("stores")
+      const savedStores = localStorage.getItem("stores");
       if (savedStores) {
-        const allStores = JSON.parse(savedStores)
+        const allStores = JSON.parse(savedStores);
         const userStores = allStores.filter(
-          (store: SystemStore) => user.assignedStores?.includes(store.id) && store.status === "active",
-        )
-        setAssignedStores(userStores)
+          (store: SystemStore) => user.assignedStores?.includes(store.id) && store.status === "active"
+        );
+        setAssignedStores(userStores);
       }
     }
-
-    loadProducts()
-  }, [router])
-
-  const loadProducts = () => {
-    const savedProducts = localStorage.getItem("products")
-    if (savedProducts) {
-      const parsedProducts = JSON.parse(savedProducts)
-      // Ensure all products have a barcodes array
-      const safeProducts = parsedProducts.map((product: Product) => ({
-        ...product,
-        barcodes: product.barcodes || [],
-      }))
-      setProducts(safeProducts)
-    }
-  }
-
-  const saveProducts = (updatedProducts: Product[]) => {
-    setProducts(updatedProducts)
-    localStorage.setItem("products", JSON.stringify(updatedProducts))
-  }
+  }, [router]);
 
   const resetForm = () => {
     setFormData({
@@ -196,90 +168,126 @@ export default function ProductsPage() {
     return barcode.length >= 1 && barcode.length <= 80
   }
 
-  const handleAddProduct = () => {
+  const handleAddProduct = async () => {
     if (!formData.name || !formData.price || !formData.stock) {
-      alert("Please fill in all required fields")
-      return
+      alert("Please fill in all required fields");
+      return;
     }
 
-    const validBarcodes = formData.barcodes.filter((barcode) => barcode.trim() !== "")
+    const validBarcodes = formData.barcodes.filter((barcode) => barcode.trim() !== "");
 
     if (validBarcodes.length === 0) {
-      alert("Please add at least one barcode")
-      return
+      alert("Please add at least one barcode");
+      return;
     }
 
     // Check for duplicate barcodes
-    const existingBarcodes = products.flatMap((p) => p.barcodes || [])
-    const duplicates = validBarcodes.filter((barcode) => existingBarcodes.includes(barcode))
+    const existingBarcodes = products.flatMap((p) => p.barcodes || []);
+    const duplicates = validBarcodes.filter((barcode) => existingBarcodes.includes(barcode));
 
     if (duplicates.length > 0) {
-      alert(`Barcode(s) already exist: ${duplicates.join(", ")}`)
-      return
+      alert(`Barcode(s) already exist: ${duplicates.join(", ")}`);
+      return;
     }
 
-    const newProduct: Product = {
-      id: Date.now().toString(),
+    const newProduct: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
       name: formData.name,
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
       category: formData.category || "Other",
       description: formData.description,
       barcodes: validBarcodes,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      const response = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newProduct),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to add product");
+      }
+
+      mutate(); // Re-fetch the products list
+      resetForm();
+      setIsAddDialogOpen(false);
+    } catch (error) {
+      console.error("Error adding product:", error);
+      alert("Failed to add product.");
     }
+  };
 
-    saveProducts([...products, newProduct])
-    resetForm()
-    setIsAddDialogOpen(false)
-  }
-
-  const handleEditProduct = () => {
+  const handleEditProduct = async () => {
     if (!editingProduct || !formData.name || !formData.price || !formData.stock) {
-      alert("Please fill in all required fields")
-      return
+      alert("Please fill in all required fields");
+      return;
     }
 
-    const validBarcodes = formData.barcodes.filter((barcode) => barcode.trim() !== "")
+    const validBarcodes = formData.barcodes.filter((barcode) => barcode.trim() !== "");
 
     if (validBarcodes.length === 0) {
-      alert("Please add at least one barcode")
-      return
+      alert("Please add at least one barcode");
+      return;
     }
 
     // Check for duplicate barcodes (excluding current product's barcodes)
-    const otherProducts = products.filter((p) => p.id !== editingProduct.id)
-    const existingBarcodes = otherProducts.flatMap((p) => p.barcodes || [])
-    const duplicates = validBarcodes.filter((barcode) => existingBarcodes.includes(barcode))
+    const otherProducts = products.filter((p) => p.id !== editingProduct.id);
+    const existingBarcodes = otherProducts.flatMap((p) => p.barcodes || []);
+    const duplicates = validBarcodes.filter((barcode) => existingBarcodes.includes(barcode));
 
     if (duplicates.length > 0) {
-      alert(`Barcode(s) already exist: ${duplicates.join(", ")}`)
-      return
+      alert(`Barcode(s) already exist: ${duplicates.join(", ")}`);
+      return;
     }
 
-    const updatedProduct: Product = {
-      ...editingProduct,
+    const updatedProduct: Partial<Product> = {
       name: formData.name,
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
       category: formData.category || "Other",
       description: formData.description,
       barcodes: validBarcodes,
-      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      const response = await fetch(`/api/products/${editingProduct.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedProduct),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update product");
+      }
+
+      mutate(); // Re-fetch the products list
+      resetForm();
+      setEditingProduct(null);
+      setIsEditDialogOpen(false);
+    } catch (error) {
+      console.error("Error updating product:", error);
+      alert("Failed to update product.");
     }
+  };
 
-    const updatedProducts = products.map((p) => (p.id === editingProduct.id ? updatedProduct : p))
-    saveProducts(updatedProducts)
-    resetForm()
-    setEditingProduct(null)
-    setIsEditDialogOpen(false)
-  }
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: "DELETE",
+      });
 
-  const handleDeleteProduct = (productId: string) => {
-    const updatedProducts = products.filter((p) => p.id !== productId)
-    saveProducts(updatedProducts)
-  }
+      if (!response.ok) {
+        throw new Error("Failed to delete product");
+      }
+
+      mutate(); // Re-fetch the products list
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      alert("Failed to delete product.");
+    }
+  };
 
   const openEditDialog = (product: Product) => {
     setEditingProduct(product)
@@ -448,50 +456,59 @@ export default function ProductsPage() {
   };
 
   const exportProducts = () => {
-    const dataStr = JSON.stringify(products, null, 2)
-    const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr)
-    const exportFileDefaultName = `products_${new Date().toISOString().split("T")[0]}.json`
+    const dataStr = JSON.stringify(products, null, 2);
+    const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
+    const exportFileDefaultName = `products_${new Date().toISOString().split("T")[0]}.json`;
 
-    const linkElement = document.createElement("a")
-    linkElement.setAttribute("href", dataUri)
-    linkElement.setAttribute("download", exportFileDefaultName)
-    linkElement.click()
-  }
+    const linkElement = document.createElement("a");
+    linkElement.setAttribute("href", dataUri);
+    linkElement.setAttribute("download", exportFileDefaultName);
+    linkElement.click();
+  };
 
-  const importProducts = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+  const importProducts = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    const reader = new FileReader()
-    reader.onload = (e) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
       try {
-        const importedProducts = JSON.parse(e.target?.result as string)
+        const importedProducts = JSON.parse(e.target?.result as string);
         if (Array.isArray(importedProducts)) {
-          saveProducts([...products, ...importedProducts])
-          alert(`Successfully imported ${importedProducts.length} products`)
+          // Here you might want to call a bulk-add API endpoint
+          // For simplicity, we'll add them one by one.
+          for (const product of importedProducts) {
+            await fetch("/api/products", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(product),
+            });
+          }
+          mutate(); // Re-fetch the products list
+          alert(`Successfully imported ${importedProducts.length} products`);
         } else {
-          alert("Invalid file format")
+          alert("Invalid file format");
         }
       } catch (error) {
-        alert("Error reading file")
+        alert("Error reading file");
       }
-    }
-    reader.readAsText(file)
-  }
+    };
+    reader.readAsText(file);
+  };
 
-  const filteredProducts = products.filter((product) => {
+  const filteredProducts = products.filter((product: Product) => {
     const matchesSearch =
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.barcodes || []).some((barcode) => barcode.includes(searchTerm))
-    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
+      (product.barcodes || []).some((barcode: string) => barcode.includes(searchTerm));
+    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
     const matchesStock =
       stockFilter === "all" ||
       (stockFilter === "low" && product.stock <= 5) ||
       (stockFilter === "out" && product.stock === 0) ||
-      (stockFilter === "available" && product.stock > 5)
+      (stockFilter === "available" && product.stock > 5);
 
-    return matchesSearch && matchesCategory && matchesStock
-  })
+    return matchesSearch && matchesCategory && matchesStock;
+  });
 
   const getStockStatus = (stock: number) => {
     if (stock === 0) return { label: "Out of Stock", variant: "destructive" as const, icon: XCircle }
@@ -500,18 +517,18 @@ export default function ProductsPage() {
   }
 
   const toggleProductSelection = (productId: string) => {
-    setSelectedProducts((prev) =>
-      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId],
-    )
-  }
+    setSelectedProducts((prev: string[]) =>
+      prev.includes(productId) ? prev.filter((id: string) => id !== productId) : [...prev, productId]
+    );
+  };
 
   const selectAllProducts = () => {
     if (selectedProducts.length === filteredProducts.length) {
-      setSelectedProducts([])
+      setSelectedProducts([]);
     } else {
-      setSelectedProducts(filteredProducts.map((p) => p.id))
+      setSelectedProducts(filteredProducts.map((p: Product) => p.id));
     }
-  }
+  };
 
   return (
     <DashboardLayout>

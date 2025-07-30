@@ -1,0 +1,41 @@
+[
+  {
+    "name": "ring",
+    "price": 123,
+    "stock": 129,
+    "category": "Other",
+    "description": "",
+    "barcodes": [
+      "1753777122851694"
+    ],
+    "id": "1753777414835",
+    "createdAt": "2025-07-29T08:23:34.835Z",
+    "updatedAt": "2025-07-29T18:25:04.036Z"
+  },
+  {
+    "name": "ering",
+    "price": 230,
+    "stock": 59,
+    "category": "Other",
+    "description": "",
+    "barcodes": [
+      "1753857166087180"
+    ],
+    "id": "1753857168362",
+    "createdAt": "2025-07-30T06:32:48.362Z",
+    "updatedAt": "2025-07-30T06:32:48.363Z"
+  },
+  {
+    "name": "necklace",
+    "price": 1280,
+    "stock": 50,
+    "category": "Other",
+    "description": "",
+    "barcodes": [
+      "1753870967315229"
+    ],
+    "id": "1753870969476",
+    "createdAt": "2025-07-30T10:22:49.476Z",
+    "updatedAt": "2025-07-30T10:22:49.476Z"
+  }
+]

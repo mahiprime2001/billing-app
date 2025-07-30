@@ -17,9 +17,48 @@ import {
   DollarSign,
 } from "lucide-react"
 
+interface ProductSale {
+  name: string;
+  quantity: number;
+  revenue: number;
+}
+
+interface Bill {
+  id: string;
+  date: string;
+  total: number;
+  items: Array<{
+    productId: string;
+    productName: string;
+    quantity: number;
+    total: number;
+  }>;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  stock: number;
+  minStock: number;
+}
+
+interface Store {
+  id: string;
+  name: string;
+  status: string;
+}
+
+interface User {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState({
     totalRevenue: 0,
     totalBills: 0,
@@ -27,8 +66,8 @@ export default function DashboardPage() {
     totalStores: 0,
     totalUsers: 0,
     lowStockProducts: 0,
-    recentBills: [] as any[],
-    topProducts: [] as any[],
+    recentBills: [] as Bill[],
+    topProducts: [] as ProductSale[],
   })
 
   useEffect(() => {
@@ -42,70 +81,93 @@ export default function DashboardPage() {
 
     const currentUser = JSON.parse(userData)
     setUser(currentUser)
-    loadDashboardData()
+    
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        await loadDashboardData()
+      } catch (err) {
+        console.error('Error loading dashboard data:', err)
+        setError('Failed to load dashboard data. Please try again later.')
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadData()
   }, [router])
 
-  const loadDashboardData = () => {
-    // Load bills
-    const savedBills = localStorage.getItem("bills")
-    const bills = savedBills ? JSON.parse(savedBills) : []
+  const loadDashboardData = async () => {
+    try {
+      // Fetch data from API endpoints
+      const [billsResponse, productsResponse, storesResponse, usersResponse] = await Promise.all([
+        fetch('/api/bills'),
+        fetch('/api/products'),
+        fetch('/api/stores'),
+        fetch('/api/users')
+      ]);
 
-    // Load products
-    const savedProducts = localStorage.getItem("products")
-    const products = savedProducts ? JSON.parse(savedProducts) : []
+      if (!billsResponse.ok || !productsResponse.ok || !storesResponse.ok || !usersResponse.ok) {
+        throw new Error('Failed to fetch data');
+      }
 
-    // Load stores
-    const savedStores = localStorage.getItem("stores")
-    const stores = savedStores ? JSON.parse(savedStores) : []
+      const [bills, products, stores, users] = await Promise.all([
+        billsResponse.json() as Promise<Bill[]>,
+        productsResponse.json() as Promise<Product[]>,
+        storesResponse.json() as Promise<Store[]>,
+        usersResponse.json() as Promise<User[]>
+      ]);
 
-    // Load users
-    const savedUsers = localStorage.getItem("systemUsers")
-    const users = savedUsers ? JSON.parse(savedUsers) : []
+      // Calculate stats
+      const totalRevenue = bills.reduce((sum, bill) => sum + bill.total, 0);
+      const totalBills = bills.length;
+      const totalProducts = products.length;
+      const totalStores = stores.filter(store => store.status === "active").length;
+      const totalUsers = users.filter(user => user.isActive).length;
+      const lowStockProducts = products.filter(product => product.stock <= product.minStock).length;
 
-    // Calculate stats
-    const totalRevenue = bills.reduce((sum: number, bill: any) => sum + bill.total, 0)
-    const totalBills = bills.length
-    const totalProducts = products.length
-    const totalStores = stores.filter((store: any) => store.status === "active").length
-    const totalUsers = users.filter((user: any) => user.isActive).length
-    const lowStockProducts = products.filter((product: any) => product.stock <= product.minStock).length
+      // Recent bills (last 5)
+      const recentBills = [...bills]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 5);
 
-    // Recent bills (last 5)
-    const recentBills = bills
-      .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5)
-
-    // Top products by quantity sold
-    const productSales: { [key: string]: { name: string; quantity: number; revenue: number } } = {}
-    bills.forEach((bill: any) => {
-      bill.items.forEach((item: any) => {
-        if (productSales[item.productId]) {
-          productSales[item.productId].quantity += item.quantity
-          productSales[item.productId].revenue += item.total
-        } else {
-          productSales[item.productId] = {
-            name: item.productName,
-            quantity: item.quantity,
-            revenue: item.total,
+      // Top products by quantity sold
+      const productSales: Record<string, ProductSale> = {};
+      
+      bills.forEach(bill => {
+        bill.items.forEach(item => {
+          if (productSales[item.productId]) {
+            productSales[item.productId].quantity += item.quantity;
+            productSales[item.productId].revenue += item.total;
+          } else {
+            productSales[item.productId] = {
+              name: item.productName,
+              quantity: item.quantity,
+              revenue: item.total,
+            };
           }
-        }
-      })
-    })
+        });
+      });
 
-    const topProducts = Object.values(productSales)
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 5)
+      const topProducts = Object.values(productSales)
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5);
 
-    setStats({
-      totalRevenue,
-      totalBills,
-      totalProducts,
-      totalStores,
-      totalUsers,
-      lowStockProducts,
-      recentBills,
-      topProducts,
-    })
+      setStats({
+        totalRevenue,
+        totalBills,
+        totalProducts,
+        totalStores,
+        totalUsers,
+        lowStockProducts,
+        recentBills,
+        topProducts,
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      throw error; // Re-throw to be caught by the caller
+    }
   }
 
   if (!user) {

@@ -1,0 +1,142 @@
+-- Users Table
+CREATE TABLE Users (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255),
+    email VARCHAR(255) UNIQUE,
+    password VARCHAR(255),
+    role VARCHAR(50),
+    status VARCHAR(50),
+    sessionDuration INT,
+    createdAt DATETIME,
+    updatedAt DATETIME
+);
+
+-- Stores Table
+CREATE TABLE Stores (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255),
+    address TEXT,
+    phone VARCHAR(255),
+    status VARCHAR(50),
+    createdAt DATETIME,
+    updatedAt DATETIME
+);
+
+-- UserStores Table (for many-to-many relationship between users and stores)
+CREATE TABLE UserStores (
+    userId VARCHAR(255),
+    storeId VARCHAR(255),
+    PRIMARY KEY (userId, storeId),
+    FOREIGN KEY (userId) REFERENCES Users(id),
+    FOREIGN KEY (storeId) REFERENCES Stores(id)
+);
+
+-- Customers Table
+CREATE TABLE Customers (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255),
+    phone VARCHAR(255) UNIQUE,
+    email VARCHAR(255) UNIQUE,
+    address TEXT,
+    createdAt DATETIME,
+    updatedAt DATETIME
+);
+
+-- Categories Table
+CREATE TABLE Categories (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) UNIQUE,
+    description TEXT,
+    createdAt DATETIME,
+    updatedAt DATETIME
+);
+
+-- Products Table
+CREATE TABLE Products (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255),
+    price DECIMAL(10, 2),
+    stock INT,
+    description TEXT,
+    createdAt DATETIME,
+    updatedAt DATETIME
+);
+-- Product Categories Table
+CREATE TABLE ProductCategories (
+    productId VARCHAR(255),
+    categoryId VARCHAR(255),
+    PRIMARY KEY (productId, categoryId),
+    FOREIGN KEY (productId) REFERENCES Products(id),
+    FOREIGN KEY (categoryId) REFERENCES Categories(id)
+);
+
+-- Product Barcodes Table
+CREATE TABLE ProductBarcodes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    productId VARCHAR(255),
+    barcode VARCHAR(255),
+    FOREIGN KEY (productId) REFERENCES Products(id)
+);
+
+-- Bills Table
+CREATE TABLE Bills (
+    id VARCHAR(255) PRIMARY KEY,
+    storeId VARCHAR(255),
+    storeName VARCHAR(255),
+    storeAddress TEXT,
+    customerName VARCHAR(255),
+    customerPhone VARCHAR(255),
+    customerEmail VARCHAR(255),
+    customerAddress TEXT,
+    customerId VARCHAR(255),
+    subtotal DECIMAL(10, 2),
+    taxPercentage DECIMAL(5, 2),
+    taxAmount DECIMAL(10, 2),
+    discountPercentage DECIMAL(5, 2),
+    discountAmount DECIMAL(10, 2),
+    total DECIMAL(10, 2),
+    paymentMethod VARCHAR(50),
+    timestamp DATETIME,
+    notes TEXT,
+    gstin VARCHAR(255),
+    companyName VARCHAR(255),
+    companyAddress TEXT,
+    companyPhone VARCHAR(255),
+    companyEmail VARCHAR(255),
+    billFormat VARCHAR(50),
+    createdBy VARCHAR(255),
+    FOREIGN KEY (storeId) REFERENCES Stores(id),
+    FOREIGN KEY (createdBy) REFERENCES Users(id),
+    FOREIGN KEY (customerId) REFERENCES Customers(id)
+);
+
+-- Bill Items Table
+CREATE TABLE BillItems (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    billId VARCHAR(255),
+    productId VARCHAR(255),
+    productName VARCHAR(255),
+    quantity INT,
+    price DECIMAL(10, 2),
+    total DECIMAL(10, 2),
+    FOREIGN KEY (billId) REFERENCES Bills(id),
+    FOREIGN KEY (productId) REFERENCES Products(id)
+);
+
+-- System Settings Table
+CREATE TABLE SystemSettings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    gstin VARCHAR(255),
+    taxPercentage DECIMAL(5, 2),
+    companyName VARCHAR(255),
+    companyAddress TEXT,
+    companyPhone VARCHAR(255),
+    companyEmail VARCHAR(255)
+);
+
+-- Bill Formats Table
+CREATE TABLE BillFormats (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) UNIQUE,
+    format JSON
+);

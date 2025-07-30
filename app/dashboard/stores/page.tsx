@@ -3,6 +3,15 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+// Helper function to normalize store IDs
+const normalizeStoreId = (id: string): string => {
+  // If the ID is in the format 'store_1', convert it to 'STR-1722255700000'
+  if (id === 'store_1') return 'STR-1722255700000';
+  // If the ID is in the format 'STR-1722255700000', keep it as is
+  if (id.startsWith('STR-')) return id;
+  // For any other format, return as is
+  return id;
+};
 import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -84,49 +93,29 @@ export default function StoresPage() {
     loadData()
   }, [router])
 
-  const loadData = () => {
-    // Load stores
-    const savedStores = localStorage.getItem("stores")
-    if (savedStores) {
-      setStores(JSON.parse(savedStores))
-    } else {
-      // Initialize with sample stores
-      const sampleStores: StoreType[] = [
-        {
-          id: "1",
-          name: "Siri Art Jewellery - Main Branch",
-          address: "123 Jewelry Street, Diamond District, Mumbai, Maharashtra 400001",
-          phone: "+91 98765 43210",
-          email: "main@siriartjewellery.com",
-          manager: "Rajesh Kumar",
-          status: "active",
-          createdDate: new Date().toISOString(),
-          totalRevenue: 0,
-          totalBills: 0,
-          lastBillDate: "",
-        },
-        {
-          id: "2",
-          name: "Siri Art Jewellery - Mall Branch",
-          address: "Shop 45, Phoenix Mall, Pune, Maharashtra 411001",
-          phone: "+91 98765 43211",
-          email: "mall@siriartjewellery.com",
-          manager: "Priya Sharma",
-          status: "active",
-          createdDate: new Date().toISOString(),
-          totalRevenue: 0,
-          totalBills: 0,
-          lastBillDate: "",
-        },
-      ]
-      setStores(sampleStores)
-      localStorage.setItem("stores", JSON.stringify(sampleStores))
-    }
+  const loadData = async () => {
+    try {
+      // Load stores from API
+      const [storesResponse, billsResponse] = await Promise.all([
+        fetch("/api/stores"),
+        fetch("/api/bills")
+      ]);
 
-    // Load bills to calculate store analytics
-    const savedBills = localStorage.getItem("bills")
-    if (savedBills) {
-      setBills(JSON.parse(savedBills))
+      if (storesResponse.ok) {
+        const storesData = await storesResponse.json();
+        setStores(storesData);
+      } else {
+        console.error("Failed to fetch stores");
+      }
+
+      if (billsResponse.ok) {
+        const billsData = await billsResponse.json();
+        setBills(billsData);
+      } else {
+        console.error("Failed to fetch bills");
+      }
+    } catch (error) {
+      console.error("Error loading data:", error);
     }
   }
 
@@ -142,23 +131,7 @@ export default function StoresPage() {
     return { totalRevenue, totalBills, lastBillDate }
   }
 
-  const saveStores = (updatedStores: StoreType[]) => {
-    // Update analytics for each store
-    const storesWithAnalytics = updatedStores.map((store) => {
-      const analytics = calculateStoreAnalytics(store.id)
-      return {
-        ...store,
-        totalRevenue: analytics.totalRevenue || 0,
-        totalBills: analytics.totalBills || 0,
-        lastBillDate: analytics.lastBillDate || "",
-      }
-    })
-
-    setStores(storesWithAnalytics)
-    localStorage.setItem("stores", JSON.stringify(storesWithAnalytics))
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!formData.name || !formData.address) {
@@ -166,30 +139,43 @@ export default function StoresPage() {
       return
     }
 
-    const storeData: StoreType = {
-      id: editingStore?.id || Date.now().toString(),
+    const storeData = {
       name: formData.name,
       address: formData.address,
       phone: formData.phone,
       email: formData.email,
       manager: formData.manager,
       status: formData.status,
-      createdDate: editingStore?.createdDate || new Date().toISOString(),
-      totalRevenue: editingStore?.totalRevenue || 0,
-      totalBills: editingStore?.totalBills || 0,
-      lastBillDate: editingStore?.lastBillDate || "",
     }
 
-    let updatedStores: StoreType[]
-    if (editingStore) {
-      updatedStores = stores.map((s) => (s.id === editingStore.id ? storeData : s))
-    } else {
-      updatedStores = [...stores, storeData]
-    }
+    try {
+      let response
+      if (editingStore) {
+        response = await fetch(`/api/stores/${editingStore.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(storeData),
+        })
+      } else {
+        response = await fetch("/api/stores", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(storeData),
+        })
+      }
 
-    saveStores(updatedStores)
-    resetForm()
-    setIsDialogOpen(false)
+      if (response.ok) {
+        await loadData()
+        resetForm()
+        setIsDialogOpen(false)
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to save store: ${errorData.message}`)
+      }
+    } catch (error) {
+      console.error("Error saving store:", error)
+      alert("An error occurred while saving the store.")
+    }
   }
 
   const handleEdit = (store: StoreType) => {
@@ -205,25 +191,53 @@ export default function StoresPage() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     // Check if store has associated bills
-    const storeBills = bills.filter((bill) => bill.storeId === id)
+    const normalizedId = normalizeStoreId(id);
+    const storeBills = bills.filter((bill) => normalizeStoreId(bill.storeId) === normalizedId)
     if (storeBills.length > 0) {
       alert(`Cannot delete store. It has ${storeBills.length} associated bills. Please deactivate instead.`)
       return
     }
 
     if (confirm("Are you sure you want to delete this store? This action cannot be undone.")) {
-      const updatedStores = stores.filter((s) => s.id !== id)
-      saveStores(updatedStores)
+      try {
+        const response = await fetch(`/api/stores/${id}`, { method: "DELETE" })
+        if (response.ok) {
+          await loadData()
+        } else {
+          const errorData = await response.json()
+          alert(`Failed to delete store: ${errorData.message}`)
+        }
+      } catch (error) {
+        console.error("Error deleting store:", error)
+        alert("An error occurred while deleting the store.")
+      }
     }
   }
 
-  const toggleStoreStatus = (id: string) => {
-    const updatedStores = stores.map((s) =>
-      s.id === id ? { ...s, status: s.status === "active" ? "inactive" : "active" } : s,
-    )
-    saveStores(updatedStores)
+  const toggleStoreStatus = async (id: string) => {
+    const store = stores.find((s) => s.id === id)
+    if (!store) return
+
+    const newStatus = store.status === "active" ? "inactive" : "active"
+    try {
+      const response = await fetch(`/api/stores/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (response.ok) {
+        await loadData()
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to update status: ${errorData.message}`)
+      }
+    } catch (error) {
+      console.error("Error updating status:", error)
+      alert("An error occurred while updating the store status.")
+    }
   }
 
   const resetForm = () => {
@@ -247,18 +261,20 @@ export default function StoresPage() {
   }
 
   const filteredStores = stores.filter((store) => {
+    if (!store) return false;
+    const searchTermLower = searchTerm.toLowerCase();
     const matchesSearch =
-      store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      store.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      store.manager.toLowerCase().includes(searchTerm.toLowerCase())
+      (store.name?.toLowerCase() || '').includes(searchTermLower) ||
+      (store.address?.toLowerCase() || '').includes(searchTermLower) ||
+      (store.manager?.toLowerCase() || '').includes(searchTermLower);
 
-    return matchesSearch
+    return matchesSearch;
   })
 
-  // Calculate total analytics with null checks
-  const totalRevenue = stores.reduce((sum, store) => sum + (store.totalRevenue || 0), 0)
-  const totalBills = stores.reduce((sum, store) => sum + (store.totalBills || 0), 0)
-  const activeStores = stores.filter((store) => store.status === "active").length
+  // Calculate total analytics
+  const totalRevenue = bills.reduce((sum, bill) => sum + (bill.total || 0), 0);
+  const totalBills = bills.length;
+  const activeStores = stores.filter((store) => store.status === "active").length;
 
   return (
     <DashboardLayout>
@@ -496,14 +512,24 @@ export default function StoresPage() {
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            <div className="text-sm font-medium">₹{(store.totalRevenue || 0).toFixed(2)}</div>
-                            <div className="text-xs text-gray-500">{store.totalBills || 0} bills</div>
-                            {store.lastBillDate && (
-                              <div className="text-xs text-gray-400 flex items-center">
-                                <Calendar className="h-3 w-3 mr-1" />
-                                Last: {new Date(store.lastBillDate).toLocaleDateString()}
-                              </div>
-                            )}
+                            {(() => {
+                              // Filter bills for the current store using normalized IDs
+                              const storeBills = bills.filter(bill => {
+                                const billStoreId = normalizeStoreId(bill.storeId);
+                                const storeId = normalizeStoreId(store.id);
+                                return billStoreId === storeId;
+                              });
+                              
+                              // Calculate total revenue
+                              const storeRevenue = storeBills.reduce((sum, bill) => sum + (bill.total || 0), 0);
+                              
+                              return (
+                                <>
+                                  <div className="text-sm font-medium">₹{storeRevenue.toFixed(2)}</div>
+                                  <div className="text-xs text-gray-500">{storeBills.length} bills</div>
+                                </>
+                              );
+                            })()}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -511,7 +537,6 @@ export default function StoresPage() {
                             <Switch
                               checked={store.status === "active"}
                               onCheckedChange={() => toggleStoreStatus(store.id)}
-                              size="sm"
                             />
                             {getStatusBadge(store.status)}
                           </div>
@@ -526,7 +551,7 @@ export default function StoresPage() {
                               size="sm"
                               onClick={() => handleDelete(store.id)}
                               className="text-red-600 hover:text-red-700"
-                              disabled={bills.filter((bill) => bill.storeId === store.id).length > 0}
+                              disabled={bills.filter((bill) => normalizeStoreId(bill.storeId) === normalizeStoreId(store.id)).length > 0}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

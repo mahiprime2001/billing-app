@@ -62,24 +62,17 @@ export default function SettingsPage() {
   const router = useRouter()
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null)
   const [settings, setSettings] = useState<SystemSettings>({
-    gstin: "27AAFCV2449G1Z7",
-    taxPercentage: 10,
-    companyName: "SIRI ART JEWELLERY",
-    companyAddress: "123 Jewelry Street, Mumbai, Maharashtra 400001",
-    companyPhone: "+91 98765 43210",
-    companyEmail: "info@siriartjewellery.com",
+    gstin: "",
+    taxPercentage: 0,
+    companyName: "",
+    companyAddress: "",
+    companyPhone: "",
+    companyEmail: "",
   })
-  const [billFormats, setBillFormats] = useState<Record<string, BillFormat>>({
-    A4: { width: 210, height: 297, margins: { top: 20, bottom: 20, left: 20, right: 20 }, unit: "mm" },
-    Thermal_80mm: { width: 80, height: "auto", margins: { top: 5, bottom: 5, left: 5, right: 5 }, unit: "mm" },
-    Thermal_58mm: { width: 58, height: "auto", margins: { top: 3, bottom: 3, left: 3, right: 3 }, unit: "mm" },
-    A5: { width: 148, height: 210, margins: { top: 15, bottom: 15, left: 15, right: 15 }, unit: "mm" },
-    Custom: { width: 210, height: 297, margins: { top: 20, bottom: 20, left: 20, right: 20 }, unit: "mm" },
-  })
+  const [billFormats, setBillFormats] = useState<Record<string, BillFormat>>({})
   const [storeFormats, setStoreFormats] = useState<Record<string, string>>({})
   const [selectedFormat, setSelectedFormat] = useState("A4")
   const [showPreview, setShowPreview] = useState(false)
-  const [stores, setStores] = useState<SystemStore[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -100,44 +93,38 @@ export default function SettingsPage() {
     }
 
     loadSettings()
-    loadStores()
-    loadBillFormats()
   }, [router])
 
-  const loadSettings = () => {
-    const savedSettings = localStorage.getItem("systemSettings")
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings))
-    }
-  }
-
-  const loadStores = () => {
-    const savedStores = localStorage.getItem("stores")
-    if (savedStores) {
-      const allStores = JSON.parse(savedStores)
-      setStores(allStores.filter((store: SystemStore) => store.status === "active"))
-    }
-  }
-
-  const loadBillFormats = () => {
-    const savedBillFormats = localStorage.getItem("billFormats")
-    const savedStoreFormats = localStorage.getItem("storeFormats")
-
-    if (savedBillFormats) {
-      setBillFormats(JSON.parse(savedBillFormats))
-    }
-
-    if (savedStoreFormats) {
-      setStoreFormats(JSON.parse(savedStoreFormats))
+  const loadSettings = async () => {
+    try {
+      const response = await fetch("/api/settings")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.systemSettings) setSettings(data.systemSettings)
+        if (data.billFormats) setBillFormats(data.billFormats)
+        if (data.storeFormats) setStoreFormats(data.storeFormats)
+      }
+    } catch (error) {
+      console.error("Failed to load settings:", error)
     }
   }
 
   const saveSettings = async () => {
     setIsLoading(true)
     try {
-      localStorage.setItem("systemSettings", JSON.stringify(settings))
-      localStorage.setItem("billFormats", JSON.stringify(billFormats))
-      localStorage.setItem("storeFormats", JSON.stringify(storeFormats))
+      const response = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemSettings: settings,
+          billFormats,
+          storeFormats,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to save settings")
+      }
 
       toast({
         title: "Settings Saved",
@@ -549,18 +536,17 @@ export default function SettingsPage() {
                     Assign specific bill formats to different stores. Each store can have its own printing format.
                   </div>
 
-                  {stores.map((store) => (
-                    <Card key={store.id}>
+                  {Object.keys(storeFormats).map((storeId) => (
+                    <Card key={storeId}>
                       <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h4 className="font-medium">{store.name}</h4>
-                            <p className="text-sm text-gray-500">{store.address}</p>
+                            <h4 className="font-medium">{storeId}</h4>
                           </div>
                           <div className="w-48">
                             <Select
-                              value={storeFormats[store.id] || "A4"}
-                              onValueChange={(value) => assignFormatToStore(store.id, value)}
+                              value={storeFormats[storeId] || "A4"}
+                              onValueChange={(value) => assignFormatToStore(storeId, value)}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Select format" />
@@ -578,14 +564,6 @@ export default function SettingsPage() {
                       </CardContent>
                     </Card>
                   ))}
-
-                  {stores.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <Building className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p>No active stores found</p>
-                      <p className="text-sm">Add stores to assign bill formats</p>
-                    </div>
-                  )}
                 </div>
               </TabsContent>
 

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "1",
+    "name": "Super Admin",
+    "email": "admin@siriart.com",
+    "password": "admin123",
+    "role": "super_admin",
+    "createdAt": "2023-01-01T00:00:00.000Z",
+    "updatedAt": "2023-01-01T00:00:00.000Z",
+    "status": "active"
+  },
+  {
+    "id": "2",
+    "name": "Billing User",
+    "email": "billing@siriart.com",
+    "password": "billing123",
+    "role": "billing_user",
+    "assignedStores": [
+      "STR-1722255700000"
+    ],
+    "createdAt": "2023-01-01T00:00:00.000Z",
+    "updatedAt": "2025-07-29T14:25:07.271Z",
+    "status": "active"
+  },
+  {
+    "id": "3",
+    "name": "Temporary User",
+    "email": "temp@siriart.com",
+    "password": "temp123",
+    "role": "temporary_user",
+    "sessionDuration": 24,
+    "createdAt": "2023-01-01T00:00:00.000Z",
+    "updatedAt": "2023-01-01T00:00:00.000Z",
+    "status": "active"
+  },
+  {
+    "id": "1753793882308",
+    "name": "prime",
+    "email": "19jn1a0596@gmail.com",
+    "password": "Simhamahi@01",
+    "role": "super_admin",
+    "status": "active",
+    "createdAt": "2025-07-29T12:58:02.308Z",
+    "updatedAt": "2025-07-29T12:58:02.309Z"
+  }
+]
