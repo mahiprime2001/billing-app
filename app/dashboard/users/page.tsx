@@ -98,61 +98,32 @@ export default function UsersPage() {
     loadStores()
   }, [router])
 
-  const loadUsers = () => {
-    const savedUsers = localStorage.getItem("adminUsers")
-    if (savedUsers) {
-      setUsers(JSON.parse(savedUsers))
-    } else {
-      // Initialize with default users
-      const defaultUsers: AdminUser[] = [
-        {
-          id: "1",
-          name: "Super Admin",
-          email: "admin@siriart.com",
-          password: "admin123",
-          role: "super_admin",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          status: "active",
-        },
-        {
-          id: "2",
-          name: "Billing User",
-          email: "billing@siriart.com",
-          password: "billing123",
-          role: "billing_user",
-          assignedStores: ["store1"],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          status: "active",
-        },
-        {
-          id: "3",
-          name: "Temporary User",
-          email: "temp@siriart.com",
-          password: "temp123",
-          role: "temporary_user",
-          sessionDuration: 24,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          status: "active",
-        },
-      ]
-      setUsers(defaultUsers)
-      localStorage.setItem("adminUsers", JSON.stringify(defaultUsers))
+  const loadUsers = async () => {
+    try {
+      const response = await fetch("/api/users")
+      if (response.ok) {
+        const data = await response.json()
+        setUsers(data)
+      } else {
+        console.error("Failed to fetch users")
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error)
     }
   }
 
-  const loadStores = () => {
-    const savedStores = localStorage.getItem("stores")
-    if (savedStores) {
-      setStores(JSON.parse(savedStores))
+  const loadStores = async () => {
+    try {
+      const response = await fetch("/api/stores")
+      if (response.ok) {
+        const data = await response.json()
+        setStores(data)
+      } else {
+        console.error("Failed to fetch stores")
+      }
+    } catch (error) {
+      console.error("Error fetching stores:", error)
     }
-  }
-
-  const saveUsers = (updatedUsers: AdminUser[]) => {
-    setUsers(updatedUsers)
-    localStorage.setItem("adminUsers", JSON.stringify(updatedUsers))
   }
 
   const resetForm = () => {
@@ -168,7 +139,7 @@ export default function UsersPage() {
   }
 
   const generatePassword = () => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*();'./,?<>"
     let password = ""
     for (let i = 0; i < 8; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length))
@@ -176,88 +147,111 @@ export default function UsersPage() {
     setFormData({ ...formData, password })
   }
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!formData.name || !formData.email || !formData.password) {
       alert("Please fill in all required fields")
       return
     }
 
-    // Check for duplicate email
-    if (users.some((user) => user.email === formData.email)) {
-      alert("Email already exists")
-      return
-    }
-
     // Validate store assignment for billing users
     if (formData.role === "billing_user" && formData.assignedStores.length === 0) {
       alert("Please assign at least one store for billing users")
       return
     }
 
-    const newUser: AdminUser = {
-      id: Date.now().toString(),
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-      role: formData.role,
-      assignedStores: formData.role === "billing_user" ? formData.assignedStores : undefined,
-      sessionDuration: formData.role === "temporary_user" ? formData.sessionDuration : undefined,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: formData.status,
-    }
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+          assignedStores: formData.role === "billing_user" ? formData.assignedStores : undefined,
+          sessionDuration: formData.role === "temporary_user" ? formData.sessionDuration : undefined,
+          status: formData.status,
+        }),
+      })
 
-    saveUsers([...users, newUser])
-    resetForm()
-    setIsAddDialogOpen(false)
+      if (response.ok) {
+        loadUsers()
+        resetForm()
+        setIsAddDialogOpen(false)
+      } else {
+        const error = await response.json()
+        alert(error.message || "Failed to add user")
+      }
+    } catch (error) {
+      console.error("Error adding user:", error)
+      alert("An error occurred while adding the user")
+    }
   }
 
-  const handleEditUser = () => {
+  const handleEditUser = async () => {
     if (!editingUser || !formData.name || !formData.email || !formData.password) {
       alert("Please fill in all required fields")
       return
     }
 
-    // Check for duplicate email (excluding current user)
-    if (users.some((user) => user.email === formData.email && user.id !== editingUser.id)) {
-      alert("Email already exists")
-      return
-    }
-
     // Validate store assignment for billing users
     if (formData.role === "billing_user" && formData.assignedStores.length === 0) {
       alert("Please assign at least one store for billing users")
       return
     }
 
-    const updatedUser: AdminUser = {
-      ...editingUser,
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-      role: formData.role,
-      assignedStores: formData.role === "billing_user" ? formData.assignedStores : undefined,
-      sessionDuration: formData.role === "temporary_user" ? formData.sessionDuration : undefined,
-      status: formData.status,
-      updatedAt: new Date().toISOString(),
-    }
+    try {
+      const response = await fetch(`/api/users/${editingUser.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+          assignedStores: formData.role === "billing_user" ? formData.assignedStores : undefined,
+          sessionDuration: formData.role === "temporary_user" ? formData.sessionDuration : undefined,
+          status: formData.status,
+        }),
+      })
 
-    const updatedUsers = users.map((user) => (user.id === editingUser.id ? updatedUser : user))
-    saveUsers(updatedUsers)
-    resetForm()
-    setEditingUser(null)
-    setIsEditDialogOpen(false)
+      if (response.ok) {
+        loadUsers()
+        resetForm()
+        setEditingUser(null)
+        setIsEditDialogOpen(false)
+      } else {
+        const error = await response.json()
+        alert(error.message || "Failed to update user")
+      }
+    } catch (error) {
+      console.error("Error updating user:", error)
+      alert("An error occurred while updating the user")
+    }
   }
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     // Prevent deleting the current user
     if (currentUser?.email === users.find((u) => u.id === userId)?.email) {
       alert("You cannot delete your own account")
       return
     }
 
-    const updatedUsers = users.filter((user) => user.id !== userId)
-    saveUsers(updatedUsers)
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        loadUsers()
+      } else {
+        const error = await response.json()
+        alert(error.message || "Failed to delete user")
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error)
+      alert("An error occurred while deleting the user")
+    }
   }
 
   const openEditDialog = (user: AdminUser) => {
@@ -608,14 +602,15 @@ export default function UsersPage() {
                         <td className="p-4">
                           {user.assignedStores && user.assignedStores.length > 0 ? (
                             <div className="space-y-1">
-                              {user.assignedStores.slice(0, 2).map((storeId) => {
-                                const store = stores.find((s) => s.id === storeId)
-                                return store ? (
-                                  <div key={storeId} className="text-xs bg-gray-100 px-2 py-1 rounded">
-                                    {store.name}
-                                  </div>
-                                ) : null
-                              })}
+                              {user.assignedStores.map((storeId) => {
+  const store = stores.find((s) => s.id === storeId)
+  return store ? (
+    <div key={storeId} className="text-xs bg-gray-100 px-2 py-1 rounded">
+      {store.name}
+    </div>
+  ) : null
+})}
+
                               {user.assignedStores.length > 2 && (
                                 <span className="text-xs text-gray-500">+{user.assignedStores.length - 2} more</span>
                               )}

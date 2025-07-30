@@ -91,85 +91,7 @@ export default function LoginPage() {
   }, [router])
 
   const initializeDefaultAdmin = () => {
-    try {
-      // Always reinitialize for demo purposes to ensure users exist
-      const defaultUsers: AdminUser[] = [
-        {
-          id: "admin_1",
-          username: "admin",
-          name: "System Administrator",
-          email: "admin@siriartjewellery.com",
-          phone: "+91 98765 43210",
-          role: "super_admin",
-          permissions: ["all"],
-          password: "admin123",
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: "billing_1",
-          username: "billing",
-          name: "Billing User",
-          email: "billing@siriartjewellery.com",
-          phone: "+91 98765 43211",
-          role: "billing_user",
-          permissions: ["billing", "products"],
-          assignedStores: ["store_1"],
-          password: "billing123",
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: "manager_1",
-          username: "manager",
-          name: "Store Manager",
-          email: "manager@siriartjewellery.com",
-          phone: "+91 98765 43212",
-          role: "billing_user",
-          permissions: ["billing", "products", "reports"],
-          assignedStores: ["store_1", "store_2"],
-          password: "manager123",
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: "temp_1",
-          username: "temp",
-          name: "Temporary User",
-          email: "temp@siriart.com",
-          phone: "+91 98765 43213",
-          role: "temporary_user",
-          permissions: ["billing"],
-          password: "temp123",
-          createdAt: new Date().toISOString(),
-          isTemporary: true,
-        },
-      ]
-
-      localStorage.setItem("adminUsers", JSON.stringify(defaultUsers))
-
-      // Initialize default stores
-      const defaultStores = [
-        {
-          id: "store_1",
-          name: "Main Store",
-          address: "123 Jewellery Street, City",
-          status: "active",
-        },
-        {
-          id: "store_2",
-          name: "Branch Store",
-          address: "456 Market Road, City",
-          status: "active",
-        },
-        {
-          id: "store3",
-          name: "SIRI ART JEWELLERY - Mall",
-          address: "789 Mall Complex, City",
-          status: "active",
-        },
-      ]
-      localStorage.setItem("stores", JSON.stringify(defaultStores))
-    } catch (error) {
-      console.error("Error initializing default admin:", error)
-    }
+    // This function is no longer needed as we are using the API
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -179,12 +101,10 @@ export default function LoginPage() {
     setSuccess("")
 
     try {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
       // Validate input
       if (!email || !password || !email.trim() || !password.trim()) {
         setError("Please enter both email and password")
+        setIsLoading(false)
         return
       }
 
@@ -192,56 +112,24 @@ export default function LoginPage() {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(email)) {
         setError("Please enter a valid email address")
+        setIsLoading(false)
         return
       }
 
-      // Get users from localStorage
-      const usersData = localStorage.getItem("adminUsers")
-
-      if (!usersData) {
-        initializeDefaultAdmin()
-      }
-
-      const users: AdminUser[] = JSON.parse(localStorage.getItem("adminUsers") || "[]")
-
-      // Find user by email
-      const user = users.find((u) => {
-        if (!u || !u.email || u.isTemporary) {
-          return false
-        }
-        return u.email.toLowerCase() === email.toLowerCase()
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       })
 
-      if (!user) {
-        setError("Invalid email or password")
+      if (!response.ok) {
+        const errorData = await response.json()
+        setError(errorData.message || "Invalid email or password")
+        setIsLoading(false)
         return
       }
 
-      // Check password
-      let isValidPassword = false
-
-      if (user.password) {
-        isValidPassword = user.password === password
-      } else {
-        // Fallback to default passwords based on role
-        const defaultPasswords: Record<string, string> = {
-          "admin@siriartjewellery.com": "admin123",
-          "billing@siriartjewellery.com": "billing123",
-          "manager@siriartjewellery.com": "manager123",
-          "temp@siriart.com": "temp123",
-        }
-        isValidPassword = defaultPasswords[user.email.toLowerCase()] === password
-      }
-
-      if (!isValidPassword) {
-        setError("Invalid email or password")
-        return
-      }
-
-      // Update last login
-      user.lastLogin = new Date().toISOString()
-      const updatedUsers = users.map((u) => (u.id === user.id ? user : u))
-      localStorage.setItem("adminUsers", JSON.stringify(updatedUsers))
+      const user = await response.json()
 
       // Handle remember email
       if (rememberEmail) {
@@ -418,7 +306,6 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="email"
                     type="email"
@@ -639,14 +526,14 @@ export default function LoginPage() {
                     <Shield className="h-3 w-3 text-blue-600 mr-2" />
                     <span className="font-medium">Super Admin</span>
                   </div>
-                  <div className="text-gray-600">admin@siriartjewellery.com / admin123</div>
+                  <div className="text-gray-600">admin@siriart.com / admin123</div>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-white rounded border">
                   <div className="flex items-center">
                     <User className="h-3 w-3 text-green-600 mr-2" />
                     <span className="font-medium">Billing User</span>
                   </div>
-                  <div className="text-gray-600">billing@siriartjewellery.com / billing123</div>
+                  <div className="text-gray-600">billing@siriart.com / billing123</div>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-white rounded border">
                   <div className="flex items-center">

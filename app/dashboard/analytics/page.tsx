@@ -55,8 +55,8 @@ interface Bill {
     total: number
   }>
   subtotal: number
-  tax: number
-  discount: number
+  taxAmount: number
+  discountAmount: number
   total: number
   timestamp: string
   createdBy: string
@@ -130,6 +130,7 @@ export default function AnalyticsPage() {
   const [storeAnalytics, setStoreAnalytics] = useState<StoreAnalytics[]>([])
   const [productAnalytics, setProductAnalytics] = useState<ProductAnalytics[]>([])
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
   const [selectedStore, setSelectedStore] = useState<string>("all")
   const [selectedProduct, setSelectedProduct] = useState<string>("all")
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -161,28 +162,44 @@ export default function AnalyticsPage() {
     }
   }, [bills, dateRange])
 
-  const loadData = () => {
+  const loadData = async () => {
     setLoading(true)
+    
+    try {
+      console.log('Fetching data from API endpoints...')
+      const [billsResponse, storesResponse, productsResponse] = await Promise.all([
+        fetch('/api/bills'),
+        fetch('/api/stores'),
+        fetch('/api/products')
+      ])
 
-    // Load bills
-    const savedBills = localStorage.getItem("bills")
-    if (savedBills) {
-      setBills(JSON.parse(savedBills))
+      if (!billsResponse.ok) throw new Error('Failed to fetch bills')
+      if (!storesResponse.ok) throw new Error('Failed to fetch stores')
+      if (!productsResponse.ok) throw new Error('Failed to fetch products')
+
+      const [billsData, storesData, productsData] = await Promise.all([
+        billsResponse.json(),
+        storesResponse.json(),
+        productsResponse.json()
+      ])
+
+      console.log('Fetched data:', {
+        bills: billsData.length,
+        stores: storesData.length,
+        products: productsData.length
+      })
+      console.log('Sample store IDs:', storesData.map((s: any) => s.id))
+      console.log('Sample bill store IDs:', [...new Set(billsData.map((b: any) => b.storeId))])
+
+      setBills(billsData)
+      setStores(storesData)
+      setProducts(productsData)
+    } catch (error) {
+      console.error('Error loading data:', error)
+      alert('Failed to load analytics data. Please try again.')
+    } finally {
+      setLoading(false)
     }
-
-    // Load stores
-    const savedStores = localStorage.getItem("stores")
-    if (savedStores) {
-      setStores(JSON.parse(savedStores))
-    }
-
-    // Load products
-    const savedProducts = localStorage.getItem("products")
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts))
-    }
-
-    setLoading(false)
   }
 
   const filterBillsByDateRange = (bills: Bill[]) => {
@@ -194,23 +211,34 @@ export default function AnalyticsPage() {
     })
   }
 
+  const normalizeStoreId = (id: string): string => {
+    if (id === 'store_1') return 'STR-1722255700000'
+    if (id.startsWith('STR-')) return id
+    if (id.startsWith('store_')) {
+      return `STR-${id.replace('store_', '')}000000`
+    }
+    return id
+  }
+
   const calculateAnalytics = () => {
     const filteredBills = filterBillsByDateRange(bills)
 
-    // Calculate store analytics
     const storeStats: { [key: string]: StoreAnalytics } = {}
 
     stores.forEach((store) => {
-      const storeBills = filteredBills.filter((bill) => bill.storeId === store.id)
+      const storeId = normalizeStoreId(store.id)
+      const storeBills = filteredBills.filter((bill) => {
+        const billStoreId = normalizeStoreId(bill.storeId)
+        return billStoreId === storeId
+      })
       const totalRevenue = storeBills.reduce((sum, bill) => sum + bill.total, 0)
       const totalBills = storeBills.length
       const totalItems = storeBills.reduce(
         (sum, bill) => sum + bill.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
-        0,
+        0
       )
       const averageBillValue = totalBills > 0 ? totalRevenue / totalBills : 0
 
-      // Calculate product performance for this store
       const productStats: { [key: string]: { quantity: number; revenue: number; name: string } } = {}
       storeBills.forEach((bill) => {
         bill.items.forEach((item) => {
@@ -222,17 +250,16 @@ export default function AnalyticsPage() {
         })
       })
 
-      const topProducts = Object.entries(productStats)
+      const topProducts = [...Object.entries(productStats)
         .map(([productId, stats]) => ({
           productId,
           productName: stats.name,
           quantity: stats.quantity,
           revenue: stats.revenue,
         }))
-        .sort((a, b) => b.revenue - a.revenue)
+        .sort((a, b) => b.revenue - a.revenue)]
         .slice(0, 5)
 
-      // Calculate monthly trend
       const monthlyStats: { [key: string]: { revenue: number; bills: number } } = {}
       storeBills.forEach((bill) => {
         const month = format(new Date(bill.timestamp), "MMM yyyy")
@@ -247,7 +274,6 @@ export default function AnalyticsPage() {
         .map(([month, stats]) => ({ month, ...stats }))
         .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime())
 
-      // Calculate growth (comparing with previous period)
       const currentPeriodRevenue = totalRevenue
       const previousPeriodStart = new Date(dateRange?.from || new Date())
       previousPeriodStart.setMonth(previousPeriodStart.getMonth() - 1)
@@ -283,7 +309,6 @@ export default function AnalyticsPage() {
 
     setStoreAnalytics(Object.values(storeStats))
 
-    // Calculate product analytics
     const productStats: { [key: string]: ProductAnalytics } = {}
 
     products.forEach((product) => {
@@ -325,7 +350,6 @@ export default function AnalyticsPage() {
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 5)
 
-      // Calculate monthly trend
       const monthlyStats: { [key: string]: { quantity: number; revenue: number } } = {}
       productBills.forEach((bill) => {
         const month = format(new Date(bill.timestamp), "MMM yyyy")
@@ -345,7 +369,6 @@ export default function AnalyticsPage() {
         .map(([month, stats]) => ({ month, ...stats }))
         .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime())
 
-      // Calculate growth
       const currentQuantity = totalQuantitySold
       const currentRevenue = totalRevenue
 
@@ -394,64 +417,270 @@ export default function AnalyticsPage() {
     setProductAnalytics(Object.values(productStats).filter((p) => p.totalQuantitySold > 0))
   }
 
-  const exportAnalytics = async () => {
+  const exportAnalytics = async (options: { sheets?: string[] } = {}) => {
+    setExporting(true)
     try {
-      // Dynamically import SheetJS and handle both ESM/CJS default exports
+      // Dynamically import SheetJS
       const XLSXMod = await import("xlsx")
       const XLSX = (XLSXMod as any).default ?? XLSXMod
 
-      /* ---------- Build Workbook Data ---------- */
-      const storeData = storeAnalytics.map((store) => ({
-        "Store Name": store.storeName,
-        "Total Revenue": store.totalRevenue.toFixed(2),
-        "Total Bills": store.totalBills,
-        "Total Items Sold": store.totalItems,
-        "Average Bill Value": store.averageBillValue.toFixed(2),
-        "Revenue Growth %": store.revenueGrowth.toFixed(2),
-        "Bills Growth %": store.billsGrowth.toFixed(2),
-      }))
+      // Validate data before export
+      if (!storeAnalytics.length && !productAnalytics.length) {
+        throw new Error("No analytics data available to export")
+      }
 
-      const productData = productAnalytics.map((product) => ({
-        "Product Name": product.productName,
-        "Total Quantity Sold": product.totalQuantitySold,
-        "Total Revenue": product.totalRevenue.toFixed(2),
-        "Average Price": product.averagePrice.toFixed(2),
-        "Total Bills": product.totalBills,
-        "Quantity Growth %": product.quantityGrowth.toFixed(2),
-        "Revenue Growth %": product.revenueGrowth.toFixed(2),
-      }))
+      // Calculate totals with rounding
+      const totalRevenue = Number(storeAnalytics.reduce((sum, store) => sum + store.totalRevenue, 0).toFixed(2))
+      const totalBills = storeAnalytics.reduce((sum, store) => sum + store.totalBills, 0)
+      const totalItems = storeAnalytics.reduce((sum, store) => sum + store.totalItems, 0)
+      const averageBillValue = totalBills > 0 ? Number((totalRevenue / totalBills).toFixed(2)) : 0
 
-      const topProductsData: any[] = []
-      storeAnalytics.forEach((store) => {
-        store.topProducts.forEach((product, index) => {
-          topProductsData.push({
-            "Store Name": store.storeName,
-            Rank: index + 1,
-            "Product Name": product.productName,
-            "Quantity Sold": product.quantity,
-            Revenue: product.revenue.toFixed(2),
+      // Define available sheets
+      const availableSheets = {
+        summary: true,
+        storeAnalytics: true,
+        productAnalytics: true,
+        topProducts: true,
+        monthlyTrends: true,
+        billDetails: true,
+      }
+
+      // Filter sheets based on options
+      const sheetsToExport = options.sheets
+        ? Object.fromEntries(
+            Object.entries(availableSheets).filter(([key]) => options.sheets!.includes(key))
+          )
+        : availableSheets
+
+      // Helper function to apply header styling
+      const styleHeaders = (ws: any, range: any) => {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: range.s.r, c: C })
+          if (ws[cellAddress]) {
+            ws[cellAddress].s = {
+              font: { bold: true, color: { rgb: "FFFFFF" } },
+              fill: { fgColor: { rgb: "4B0082" } }, // Indigo background
+              alignment: { horizontal: "center", vertical: "center" },
+              border: {
+                top: { style: "thin", color: { rgb: "000000" } },
+                bottom: { style: "thin", color: { rgb: "000000" } },
+                left: { style: "thin", color: { rgb: "000000" } },
+                right: { style: "thin", color: { rgb: "000000" } },
+              },
+            }
+          }
+        }
+      }
+
+      // Helper function to auto-size columns
+      const autoSizeColumns = (ws: any, data: any[]) => {
+        const colWidths = data.reduce((acc, row) => {
+          Object.keys(row).forEach((key, i) => {
+            const value = row[key] ? row[key].toString() : ""
+            acc[i] = Math.max(acc[i] || 10, value.length + 2)
+          })
+          return acc
+        }, [])
+        ws["!cols"] = colWidths.map((w: number) => ({ wch: Math.min(w, 40) }))
+      }
+
+      // Helper function to apply number formatting
+      const applyFormats = (ws: any, range: any, currencyCols: number[], percentCols: number[]) => {
+        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+          for (const col of currencyCols) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R, c: col - 1 })
+            if (ws[cellAddress]) {
+              ws[cellAddress].z = '"₹"#,##0.00'
+            }
+          }
+          for (const col of percentCols) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R, c: col - 1 })
+            if (ws[cellAddress]) {
+              ws[cellAddress].z = '0.00%'
+            }
+          }
+        }
+      }
+
+      // Helper function for conditional formatting
+      const applyConditionalFormatting = (ws: any, range: any, columns: number[]) => {
+        const cf: any[] = []
+        columns.forEach(col => {
+          cf.push({
+            type: "color_scale",
+            criteria: "color_scale",
+            min_type: "num",
+            mid_type: "num",
+            max_type: "num",
+            min_value: -100,
+            mid_value: 0,
+            max_value: 100,
+            min_color: { rgb: "FF6347" }, // Tomato red for negative
+            mid_color: { rgb: "FFFFFF" }, // White for zero
+            max_color: { rgb: "32CD32" }, // Lime green for positive
+            range: `${XLSX.utils.encode_col(col - 1)}${range.s.r + 2}:${XLSX.utils.encode_col(col - 1)}${range.e.r + 1}`
           })
         })
-      })
+        ws["!conditionalFormatting"] = cf
+      }
 
-      /* ---------- Create Workbook ---------- */
+      // Create workbook
       const wb = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(storeData), "Store Analytics")
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productData), "Product Analytics")
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(topProductsData), "Top Products by Store")
 
-      /* ---------- Generate File In-Memory ---------- */
-      const wbArrayBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" })
-      const blob = new Blob([wbArrayBuffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      })
+      // Summary sheet
+      if (sheetsToExport.summary) {
+        const summaryData = [
+          { Key: "Analytics Report", Value: "Store and Product Performance" },
+          { Key: "", Value: "" },
+          { Key: "Report Generated", Value: format(new Date(), "yyyy-MM-dd HH:mm:ss") },
+          { Key: "Date Range", Value: dateRange?.from && dateRange?.to 
+            ? `${format(dateRange.from, "yyyy-MM-dd")} to ${format(dateRange.to, "yyyy-MM-dd")}` 
+            : "Current Month" },
+          { Key: "Selected Store", Value: selectedStore === "all" ? "All Stores" : stores.find(s => s.id === selectedStore)?.name || "All Stores" },
+          { Key: "Selected Product", Value: selectedProduct === "all" ? "All Products" : products.find(p => p.id === selectedProduct)?.name || "All Products" },
+          { Key: "Total Stores", Value: storeAnalytics.length },
+          { Key: "Total Products", Value: productAnalytics.length },
+          { Key: "Total Revenue", Value: totalRevenue },
+          { Key: "Total Bills", Value: totalBills },
+          { Key: "Total Items Sold", Value: totalItems },
+          { Key: "Average Bill Value", Value: averageBillValue },
+          { Key: "", Value: "" },
+          { Key: "Data Source", Value: "Generated from store billing system" },
+        ]
 
-      /* ---------- Trigger Browser Download ---------- */
+        const summaryWs = XLSX.utils.json_to_sheet(summaryData)
+        summaryWs["!rows"] = [{ hpt: 30 }, ...Array(summaryData.length - 1).fill({ hpt: 20 })] // Title row taller
+        autoSizeColumns(summaryWs, summaryData)
+        styleHeaders(summaryWs, XLSX.utils.decode_range(summaryWs["!ref"] || "A1:B1"))
+        applyFormats(summaryWs, XLSX.utils.decode_range(summaryWs["!ref"] || "A1:B1"), [5, 8], [])
+        summaryWs["!freeze"] = { xSplit: 0, ySplit: 1 }
+        XLSX.utils.book_append_sheet(wb, summaryWs, "Summary")
+      }
+
+      // Store analytics sheet
+      if (sheetsToExport.storeAnalytics) {
+        const storeData = storeAnalytics.map((store) => ({
+          "Store Name": store.storeName,
+          "Total Revenue": Number(store.totalRevenue.toFixed(2)),
+          "Total Bills": store.totalBills,
+          "Total Items Sold": store.totalItems,
+          "Average Bill Value": Number(store.averageBillValue.toFixed(2)),
+          "Revenue Growth %": store.revenueGrowth / 100,
+          "Bills Growth %": store.billsGrowth / 100,
+          "Status": store.totalBills === 0 ? "No Activity" : "Active",
+        }))
+
+        const storeWs = XLSX.utils.json_to_sheet(storeData)
+        autoSizeColumns(storeWs, storeData)
+        styleHeaders(storeWs, XLSX.utils.decode_range(storeWs["!ref"] || "A1:H1"))
+        applyFormats(storeWs, XLSX.utils.decode_range(storeWs["!ref"] || "A1:H1"), [2, 5], [6, 7])
+        applyConditionalFormatting(storeWs, XLSX.utils.decode_range(storeWs["!ref"] || "A1:H1"), [6, 7])
+        storeWs["!freeze"] = { xSplit: 0, ySplit: 1 }
+        XLSX.utils.book_append_sheet(wb, storeWs, "Store Analytics")
+      }
+
+      // Product analytics sheet
+      if (sheetsToExport.productAnalytics) {
+        const productData = productAnalytics.map((product) => ({
+          "Product Name": product.productName,
+          "Total Quantity Sold": product.totalQuantitySold,
+          "Total Revenue": Number(product.totalRevenue.toFixed(2)),
+          "Average Price": Number(product.averagePrice.toFixed(2)),
+          "Total Bills": product.totalBills,
+          "Quantity Growth %": product.quantityGrowth / 100,
+          "Revenue Growth %": product.revenueGrowth / 100,
+          "Top Store": product.topStores[0]?.storeName || "N/A",
+        }))
+
+        const productWs = XLSX.utils.json_to_sheet(productData)
+        autoSizeColumns(productWs, productData)
+        styleHeaders(productWs, XLSX.utils.decode_range(productWs["!ref"] || "A1:H1"))
+        applyFormats(productWs, XLSX.utils.decode_range(productWs["!ref"] || "A1:H1"), [3, 4], [6, 7])
+        applyConditionalFormatting(productWs, XLSX.utils.decode_range(productWs["!ref"] || "A1:H1"), [6, 7])
+        productWs["!freeze"] = { xSplit: 0, ySplit: 1 }
+        XLSX.utils.book_append_sheet(wb, productWs, "Product Analytics")
+      }
+
+      // Top products by store
+      if (sheetsToExport.topProducts) {
+        const topProductsData: any[] = []
+        storeAnalytics.forEach((store) => {
+          store.topProducts.forEach((product, index) => {
+            topProductsData.push({
+              "Store Name": store.storeName,
+              Rank: index + 1,
+              "Product Name": product.productName,
+              "Quantity Sold": product.quantity,
+              Revenue: Number(product.revenue.toFixed(2)),
+            })
+          })
+        })
+
+        const topProductsWs = XLSX.utils.json_to_sheet(topProductsData)
+        autoSizeColumns(topProductsWs, topProductsData)
+        styleHeaders(topProductsWs, XLSX.utils.decode_range(topProductsWs["!ref"] || "A1:E1"))
+        applyFormats(topProductsWs, XLSX.utils.decode_range(topProductsWs["!ref"] || "A1:E1"), [5], [])
+        topProductsWs["!freeze"] = { xSplit: 0, ySplit: 1 }
+        XLSX.utils.book_append_sheet(wb, topProductsWs, "Top Products by Store")
+      }
+
+      // Monthly trends sheet
+      if (sheetsToExport.monthlyTrends) {
+        const monthlyTrendData: any[] = []
+        storeAnalytics.forEach((store) => {
+          store.monthlyTrend.forEach((trend) => {
+            monthlyTrendData.push({
+              "Store Name": store.storeName,
+              Month: trend.month,
+              Revenue: Number(trend.revenue.toFixed(2)),
+              Bills: trend.bills,
+            })
+          })
+        })
+
+        const monthlyTrendWs = XLSX.utils.json_to_sheet(monthlyTrendData)
+        autoSizeColumns(monthlyTrendWs, monthlyTrendData)
+        styleHeaders(monthlyTrendWs, XLSX.utils.decode_range(monthlyTrendWs["!ref"] || "A1:D1"))
+        applyFormats(monthlyTrendWs, XLSX.utils.decode_range(monthlyTrendWs["!ref"] || "A1:D1"), [3], [])
+        monthlyTrendWs["!freeze"] = { xSplit: 0, ySplit: 1 }
+        XLSX.utils.book_append_sheet(wb, monthlyTrendWs, "Monthly Trends")
+      }
+
+      // Bill details sheet
+      if (sheetsToExport.billDetails) {
+        const billDetailsData = filterBillsByDateRange(bills).map((bill) => ({
+          "Bill ID": bill.id,
+          "Store Name": bill.storeName,
+          "Customer Name": bill.customerName || "N/A",
+          "Date": format(new Date(bill.timestamp), "yyyy-MM-dd HH:mm:ss"),
+          "Items": bill.items.map(item => `${item.productName} (Qty: ${item.quantity})`).join(", "),
+          "Subtotal": Number((bill.subtotal || 0).toFixed(2)),
+          "Tax": Number((bill.taxAmount || 0).toFixed(2)),
+          "Discount": Number((bill.discountAmount || 0).toFixed(2)),
+          "Total": Number((bill.total || 0).toFixed(2)),
+          "Created By": bill.createdBy,
+        }))
+
+        const billDetailsWs = XLSX.utils.json_to_sheet(billDetailsData)
+        autoSizeColumns(billDetailsWs, billDetailsData)
+        styleHeaders(billDetailsWs, XLSX.utils.decode_range(billDetailsWs["!ref"] || "A1:J1"))
+        applyFormats(billDetailsWs, XLSX.utils.decode_range(billDetailsWs["!ref"] || "A1:J1"), [6, 7, 8, 9], [])
+        billDetailsWs["!freeze"] = { xSplit: 0, ySplit: 1 }
+        XLSX.utils.book_append_sheet(wb, billDetailsWs, "Bill Details")
+      }
+
+      // Generate file
       const dateStr =
         dateRange?.from && dateRange?.to
           ? `${format(dateRange.from, "yyyy-MM-dd")}_to_${format(dateRange.to, "yyyy-MM-dd")}`
           : format(new Date(), "yyyy-MM-dd")
-      const filename = `Analytics-Report-${dateStr}.xlsx`
+      const storeStr = selectedStore === "all" ? "" : `-${stores.find(s => s.id === selectedStore)?.name.replace(/\s+/g, '-') || 'store'}`
+      const filename = `Analytics-Report${storeStr}-${dateStr}.xlsx`
+
+      const wbArrayBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" })
+      const blob = new Blob([wbArrayBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      })
 
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
@@ -461,9 +690,19 @@ export default function AnalyticsPage() {
       link.click()
       link.remove()
       URL.revokeObjectURL(url)
-    } catch (error) {
+
+      alert("Analytics report exported successfully!")
+    } catch (error: any) {
       console.error("Error exporting analytics:", error)
-      alert("Error exporting analytics. Please try again.")
+      let errorMessage = "Failed to export analytics. Please try again."
+      if (error.message.includes("No analytics data")) {
+        errorMessage = "No data available to export. Please ensure data is loaded."
+      } else if (error.message.includes("SheetJS")) {
+        errorMessage = "Failed to load export library. Please check your connection."
+      }
+      alert(errorMessage)
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -513,7 +752,6 @@ export default function AnalyticsPage() {
       ? productAnalytics
       : productAnalytics.filter((product) => product.productId === selectedProduct)
 
-  // Calculate totals
   const totalRevenue = storeAnalytics.reduce((sum, store) => sum + store.totalRevenue, 0)
   const totalBills = storeAnalytics.reduce((sum, store) => sum + store.totalBills, 0)
   const totalItems = storeAnalytics.reduce((sum, store) => sum + store.totalItems, 0)
@@ -532,25 +770,28 @@ export default function AnalyticsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        {/* Header */}
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-4xl font-bold text-gray-900">Analytics Dashboard</h1>
             <p className="text-gray-600 mt-2">Comprehensive insights into store and product performance</p>
           </div>
           <div className="flex space-x-3">
-            <Button onClick={exportAnalytics} variant="outline" className="bg-green-50 hover:bg-green-100">
+            <Button 
+              onClick={() => exportAnalytics()} 
+              variant="outline" 
+              className="bg-green-50 hover:bg-green-100"
+              disabled={exporting}
+            >
               <Download className="h-4 w-4 mr-2" />
-              Export Report
+              {exporting ? "Exporting..." : "Export Report"}
             </Button>
-            <Button onClick={loadData} variant="outline">
+            <Button onClick={loadData} variant="outline" disabled={exporting}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh Data
             </Button>
           </div>
         </div>
 
-        {/* Filters */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -617,7 +858,6 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        {/* Overview Cards */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -661,7 +901,6 @@ export default function AnalyticsPage() {
           </Card>
         </div>
 
-        {/* Main Analytics Tabs */}
         <Tabs defaultValue="stores" className="space-y-4">
           <TabsList>
             <TabsTrigger value="stores">Store Analytics</TabsTrigger>
@@ -669,9 +908,7 @@ export default function AnalyticsPage() {
             <TabsTrigger value="trends">Trends & Insights</TabsTrigger>
           </TabsList>
 
-          {/* Store Analytics Tab */}
           <TabsContent value="stores" className="space-y-6">
-            {/* Store Performance Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredStoreAnalytics.map((store) => (
                 <Card key={store.storeId}>
@@ -716,7 +953,6 @@ export default function AnalyticsPage() {
                         </div>
                       </div>
 
-                      {/* Top Products */}
                       <div>
                         <p className="text-sm font-medium mb-2">Top Products</p>
                         <div className="space-y-1">
@@ -731,7 +967,6 @@ export default function AnalyticsPage() {
                         </div>
                       </div>
 
-                      {/* Monthly Trend Chart */}
                       {store.monthlyTrend.length > 0 && (
                         <div>
                           <p className="text-sm font-medium mb-2">Revenue Trend</p>
@@ -757,7 +992,6 @@ export default function AnalyticsPage() {
               ))}
             </div>
 
-            {/* Store Comparison Chart */}
             <Card>
               <CardHeader>
                 <CardTitle>Store Revenue Comparison</CardTitle>
@@ -777,9 +1011,7 @@ export default function AnalyticsPage() {
             </Card>
           </TabsContent>
 
-          {/* Product Analytics Tab */}
           <TabsContent value="products" className="space-y-6">
-            {/* Product Performance Table */}
             <Card>
               <CardHeader>
                 <CardTitle>Product Performance</CardTitle>
@@ -830,7 +1062,6 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            {/* Top Products Chart */}
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader>
@@ -844,7 +1075,7 @@ export default function AnalyticsPage() {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="totalRevenue"
@@ -878,9 +1109,7 @@ export default function AnalyticsPage() {
             </div>
           </TabsContent>
 
-          {/* Trends & Insights Tab */}
           <TabsContent value="trends" className="space-y-6">
-            {/* Revenue Trend */}
             <Card>
               <CardHeader>
                 <CardTitle>Revenue Trend Over Time</CardTitle>
@@ -908,7 +1137,6 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            {/* Key Insights */}
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader>
@@ -917,7 +1145,7 @@ export default function AnalyticsPage() {
                 <CardContent>
                   {storeAnalytics.length > 0 && (
                     <div className="space-y-4">
-                      {storeAnalytics
+                      {[...storeAnalytics]
                         .sort((a, b) => b.totalRevenue - a.totalRevenue)
                         .slice(0, 1)
                         .map((store) => (

@@ -111,10 +111,11 @@ export default function BillingHistoryPage() {
     setCurrentUser(user)
 
     // Load system settings
-    const savedSettings = localStorage.getItem("systemSettings")
-    if (savedSettings) {
-      setSystemSettings(JSON.parse(savedSettings))
-    }
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.systemSettings) setSystemSettings(data.systemSettings)
+      })
 
     loadSales()
   }, [router])
@@ -123,15 +124,18 @@ export default function BillingHistoryPage() {
     filterSales()
   }, [sales, searchTerm, paymentMethodFilter, dateRange])
 
-  const loadSales = () => {
-    const savedSales = localStorage.getItem("sales")
-    if (savedSales) {
-      const parsedSales = JSON.parse(savedSales)
-      // Sort by timestamp descending (newest first)
-      const sortedSales = parsedSales.sort(
-        (a: Sale, b: Sale) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-      )
-      setSales(sortedSales)
+  const loadSales = async () => {
+    try {
+      const response = await fetch("/api/bills")
+      if (response.ok) {
+        const data = await response.json()
+        const sortedSales = data.sort(
+          (a: Sale, b: Sale) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+        )
+        setSales(sortedSales)
+      }
+    } catch (error) {
+      console.error("Failed to load sales:", error)
     }
   }
 

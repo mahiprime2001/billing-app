@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import BillingLayout from "@/components/billing-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,16 +37,8 @@ import {
   FileText,
   AlertCircle,
 } from "lucide-react"
+import { Product } from "@/lib/types"
 
-interface Product {
-  id: string
-  name: string
-  price: number
-  category: string
-  stock: number
-  barcode?: string
-  description?: string
-}
 
 interface CartItem {
   productId: string
@@ -114,25 +107,28 @@ interface BillFormat {
   unit: string
 }
 
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export default function BillingPage() {
-  const router = useRouter()
-  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null)
-  const [products, setProducts] = useState<Product[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
+  const router = useRouter();
+  const { data: products = [] } = useSWR<Product[]>("/api/products", fetcher);
+  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [tabs, setTabs] = useState<BillTab[]>([])
   const [activeTabId, setActiveTabId] = useState<string>("")
+  const [bills, setBills] = useState<any[]>([])
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false)
   const [isConfirmCloseDialogOpen, setIsConfirmCloseDialogOpen] = useState(false)
   const [tabToClose, setTabToClose] = useState<string>("")
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
-    gstin: "27AAFCV2449G1Z7",
-    taxPercentage: 18,
-    companyName: "SIRI ART JEWELLERY",
-    companyAddress: "123 Jewelry Street, Diamond District, Mumbai, Maharashtra 400001",
-    companyPhone: "+91 98765 43210",
-    companyEmail: "info@siriartjewellery.com",
+    gstin: "",
+    taxPercentage: 0,
+    companyName: "",
+    companyAddress: "",
+    companyPhone: "",
+    companyEmail: "",
   })
   const [stores, setStores] = useState<SystemStore[]>([])
   const [selectedStore, setSelectedStore] = useState<SystemStore | null>(null)
@@ -153,59 +149,51 @@ export default function BillingPage() {
     setCurrentUser(user)
 
     // Load system settings
-    const savedSettings = localStorage.getItem("systemSettings")
-    if (savedSettings) {
-      setSystemSettings(JSON.parse(savedSettings))
-    }
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.systemSettings) setSystemSettings(data.systemSettings)
+        if (data.billFormats) setBillFormats(data.billFormats)
+        if (data.storeFormats) setStoreFormats(data.storeFormats)
+      })
 
-    // Load bill formats
-    const savedBillFormats = localStorage.getItem("billFormats")
-    if (savedBillFormats) {
-      setBillFormats(JSON.parse(savedBillFormats))
-    } else {
-      // Default formats
-      const defaultFormats = {
-        A4: { width: 210, height: 297, margins: { top: 20, bottom: 20, left: 20, right: 20 }, unit: "mm" },
-        Thermal_80mm: { width: 80, height: "auto", margins: { top: 5, bottom: 5, left: 5, right: 5 }, unit: "mm" },
-        Thermal_58mm: { width: 58, height: "auto", margins: { top: 3, bottom: 3, left: 3, right: 3 }, unit: "mm" },
-      }
-      setBillFormats(defaultFormats)
-    }
-
-    // Load store formats
-    const savedStoreFormats = localStorage.getItem("storeFormats")
-    if (savedStoreFormats) {
-      setStoreFormats(JSON.parse(savedStoreFormats))
-    }
+    // Load bills
+    fetch("/api/bills")
+      .then((res) => res.json())
+      .then((data) => {
+        const sortedBills = data.sort(
+          (a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+        )
+        setBills(sortedBills)
+      })
 
     // Load stores
-    const savedStores = localStorage.getItem("stores")
-    if (savedStores) {
-      const allStores = JSON.parse(savedStores)
-      const activeStores = allStores.filter((store: SystemStore) => store.status === "active")
-      setStores(activeStores)
+    fetch("/api/stores")
+      .then((res) => res.json())
+      .then((allStores) => {
+        const activeStores = allStores.filter((store: SystemStore) => store.status === "active")
+        setStores(activeStores)
 
-      if (user.role === "billing_user" && user.assignedStores) {
-        const userStores = activeStores.filter((store: SystemStore) => user.assignedStores?.includes(store.id))
-        if (userStores.length > 0) {
-          setSelectedStore(userStores[0])
+        if (user.role === "billing_user" && user.assignedStores) {
+          const userStores = activeStores.filter((store: SystemStore) => user.assignedStores?.includes(store.id))
+          if (userStores.length > 0) {
+            setSelectedStore(userStores[0])
+          }
+        } else if (activeStores.length > 0) {
+          setSelectedStore(activeStores[0])
         }
-      } else if (activeStores.length > 0) {
-        setSelectedStore(activeStores[0])
-      }
-    }
+      })
 
-    loadProducts()
-    initializeTabs()
-  }, [router])
+    initializeTabs();
+  }, [router]);
 
   useEffect(() => {
     if (searchTerm) {
       const filtered = products.filter(
         (product) =>
           product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (product.barcode && product.barcode.includes(searchTerm)),
+          (product.category && product.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (product.barcodes && product.barcodes.some(b => b.includes(searchTerm))),
       )
       setFilteredProducts(filtered)
     } else {
@@ -213,12 +201,38 @@ export default function BillingPage() {
     }
   }, [searchTerm, products])
 
-  const loadProducts = () => {
-    const savedProducts = localStorage.getItem("products")
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts))
+  useEffect(() => {
+    if (systemSettings.taxPercentage > 0) {
+      setTabs((prevTabs) => {
+        if (prevTabs.length === 0) {
+          return prevTabs
+        }
+        const needsUpdate = prevTabs.some(
+          (tab) => tab.taxPercentage !== systemSettings.taxPercentage,
+        )
+        if (!needsUpdate) {
+          return prevTabs
+        }
+        return prevTabs.map((tab) => {
+          if (tab.taxPercentage !== systemSettings.taxPercentage) {
+            const newSubtotal = tab.subtotal
+            const newDiscountAmount = (newSubtotal * tab.discountPercentage) / 100
+            const taxableAmount = newSubtotal - newDiscountAmount
+            const newTaxAmount = (taxableAmount * systemSettings.taxPercentage) / 100
+            const newTotal = taxableAmount + newTaxAmount
+
+            return {
+              ...tab,
+              taxPercentage: systemSettings.taxPercentage,
+              taxAmount: newTaxAmount,
+              total: newTotal,
+            }
+          }
+          return tab
+        })
+      })
     }
-  }
+  }, [systemSettings.taxPercentage])
 
   const initializeTabs = () => {
     const initialTab: BillTab = {
@@ -501,7 +515,7 @@ export default function BillingPage() {
     setIsCustomerDialogOpen(false)
   }
 
-  const processPayment = () => {
+  const processPayment = async () => {
     const activeTab = getActiveTab()
     if (!activeTab || activeTab.cart.length === 0 || !selectedStore) return
 
@@ -538,9 +552,34 @@ export default function BillingPage() {
       createdBy: currentUser?.name || "Unknown",
     }
 
-    // Save to localStorage
-    const existingBills = JSON.parse(localStorage.getItem("bills") || "[]")
-    localStorage.setItem("bills", JSON.stringify([...existingBills, bill]))
+    // Save to json file via api
+    try {
+      await fetch("/api/bills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bill),
+      })
+    } catch (error) {
+      console.error("Failed to save bill:", error)
+      // Handle error appropriately
+    }
+
+    // Update stock
+    for (const item of activeTab.cart) {
+      const product = products.find((p) => p.id === item.productId)
+      if (product) {
+        const newStock = product.stock - item.quantity
+        try {
+          await fetch(`/api/products/${item.productId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stock: newStock }),
+          })
+        } catch (error) {
+          console.error(`Failed to update stock for product ${item.productId}:`, error)
+        }
+      }
+    }
 
     // Print receipt with format
     printReceipt(bill, format)
@@ -551,141 +590,197 @@ export default function BillingPage() {
   }
 
   const printReceipt = (bill: any, format: BillFormat) => {
-    const printWindow = window.open("", "_blank")
-    if (!printWindow) return
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) return;
 
-    const isThermal = format.width <= 80
-    const maxWidth = isThermal ? "80mm" : "210mm"
+  const isLetter = format.width === 216 && format.height === 279;
+  const isA4 = format.width === 210 && format.height === 297;
+  const isThermal = format.width <= 80;
+  const maxWidth = isThermal ? "80mm" : isLetter ? "216mm" : isA4 ? "210mm" : `${format.width}mm`;
 
-    const receiptHTML = `
+  const receiptHTML = `
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Receipt - ${bill.id}</title>
+        <title>Invoice - ${bill.id}</title>
         <style>
           @page {
-            size: ${format.width}mm ${format.height === "auto" ? "auto" : `${format.height}mm`};
+            size: ${isLetter ? "letter" : isA4 ? "A4" : `${format.width}mm ${format.height === "auto" ? "auto" : `${format.height}mm`}`};
             margin: ${format.margins.top}mm ${format.margins.right}mm ${format.margins.bottom}mm ${format.margins.left}mm;
           }
-          body { 
-            font-family: monospace; 
-            max-width: ${maxWidth}; 
-            margin: 0 auto; 
-            padding: 0;
-            font-size: ${isThermal ? "12px" : "14px"};
-            line-height: 1.4;
+          body {
+            font-family: 'Arial', sans-serif;
+            max-width: ${maxWidth};
+            margin: 0 auto;
+            font-size: 13px;
+            color: #000;
           }
-          .header { text-align: center; margin-bottom: 15px; }
-          .company-name { font-weight: bold; font-size: ${isThermal ? "14px" : "16px"}; }
-          .store-info { font-size: ${isThermal ? "10px" : "12px"}; margin-top: 3px; }
-          .receipt-id { margin: 8px 0; font-size: ${isThermal ? "10px" : "12px"}; }
-          .customer-info { margin: 10px 0; font-size: ${isThermal ? "10px" : "12px"}; border-top: 1px dashed #000; padding-top: 8px; }
-          .items { margin: 15px 0; }
-          .item { display: flex; justify-content: space-between; margin: 3px 0; font-size: ${isThermal ? "10px" : "12px"}; }
-          .item-name { flex: 1; margin-right: 10px; }
-          .totals { border-top: 1px dashed #000; padding-top: 8px; margin-top: 10px; }
-          .total-line { display: flex; justify-content: space-between; margin: 2px 0; font-size: ${isThermal ? "10px" : "12px"}; }
-          .final-total { font-weight: bold; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
-          .footer { text-align: center; margin-top: 15px; font-size: ${isThermal ? "8px" : "10px"}; }
-          .gstin { font-size: ${isThermal ? "8px" : "10px"}; margin-top: 3px; }
-          @media print {
-            body { -webkit-print-color-adjust: exact; }
+          .header, .footer {
+            text-align: center;
+            padding: 10px 0;
+          }
+          .company-name {
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+          }
+          .invoice-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+          }
+          .section {
+            margin: 20px 0;
+          }
+          .section-title {
+            font-weight: bold;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 5px;
+          }
+          .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+          }
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+          }
+          .items-table th, .items-table td {
+            border: 1px solid #ccc;
+            padding: 6px 8px;
+            text-align: left;
+          }
+          .items-table th {
+            background-color: #f2f2f2;
+          }
+          .totals {
+            margin-top: 10px;
+            width: 100%;
+          }
+          .totals td {
+            padding: 6px;
+          }
+          .totals .label {
+            text-align: right;
+            font-weight: bold;
+          }
+          .totals .value {
+            text-align: right;
+            width: 100px;
           }
         </style>
       </head>
       <body>
         <div class="header">
           <div class="company-name">${bill.companyName}</div>
-          <div class="store-info">${bill.storeName}</div>
-          <div class="store-info">${bill.storeAddress}</div>
-          ${bill.storePhone ? `<div class="store-info">Phone: ${bill.storePhone}</div>` : ""}
-          <div class="gstin">GSTIN: ${bill.gstin}</div>
-          <div class="receipt-id">Invoice: ${bill.id}</div>
-          <div class="receipt-id">Date: ${new Date(bill.timestamp).toLocaleString()}</div>
-          <div class="receipt-id">Cashier: ${bill.createdBy}</div>
+          <div>${bill.companyAddress}</div>
+          <div>Phone: ${bill.companyPhone}</div>
+          <div>Email: ${bill.companyEmail}</div>
+          <div class="invoice-title">INVOICE</div>
         </div>
-        
+
+        <div class="section">
+          <div class="row">
+            <div><strong>Invoice ID:</strong> ${bill.id}</div>
+            <div><strong>Date:</strong> ${new Date(bill.timestamp).toLocaleString()}</div>
+          </div>
+          ${bill.gstin ? `<div><strong>GSTIN:</strong> ${bill.gstin}</div>` : ""}
+        </div>
+
         ${
           bill.customerName || bill.customerPhone
             ? `
-        <div class="customer-info">
-          <strong>Customer Details:</strong><br>
-          ${bill.customerName ? `Name: ${bill.customerName}<br>` : ""}
-          ${bill.customerPhone ? `Phone: ${bill.customerPhone}<br>` : ""}
-          ${bill.customerEmail ? `Email: ${bill.customerEmail}<br>` : ""}
-          ${bill.customerAddress ? `Address: ${bill.customerAddress}<br>` : ""}
-        </div>
-        `
+        <div class="section">
+          <div class="section-title">Customer Details</div>
+          ${bill.customerName ? `<div>Name: ${bill.customerName}</div>` : ""}
+          ${bill.customerPhone ? `<div>Phone: ${bill.customerPhone}</div>` : ""}
+          ${bill.customerEmail ? `<div>Email: ${bill.customerEmail}</div>` : ""}
+          ${bill.customerAddress ? `<div>Address: ${bill.customerAddress}</div>` : ""}
+        </div>`
             : ""
         }
-        
-        <div class="items">
-          ${bill.items
-            .map(
-              (item: any) => `
-            <div class="item">
-              <span class="item-name">${item.productName} x${item.quantity}</span>
-              <span>₹${item.total.toFixed(2)}</span>
-            </div>
-          `,
-            )
-            .join("")}
+
+        <div class="section">
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Rate</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${bill.items
+                .map(
+                  (item: any, i: number) => `
+                <tr>
+                  <td>${i + 1}</td>
+                  <td>${item.productName}</td>
+                  <td>${item.quantity}</td>
+                  <td>₹${item.price.toFixed(2)}</td>
+                  <td>₹${item.total.toFixed(2)}</td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
         </div>
-        
-        <div class="totals">
-          <div class="total-line">
-            <span>Subtotal:</span>
-            <span>₹${bill.subtotal.toFixed(2)}</span>
-          </div>
-          ${
-            bill.discountAmount > 0
-              ? `
-          <div class="total-line">
-            <span>Discount (${bill.discountPercentage.toFixed(1)}%):</span>
-            <span>-₹${bill.discountAmount.toFixed(2)}</span>
-          </div>
-          `
-              : ""
-          }
-          <div class="total-line">
-            <span>Tax (${bill.taxPercentage}%):</span>
-            <span>₹${bill.taxAmount.toFixed(2)}</span>
-          </div>
-          <div class="total-line final-total">
-            <span>TOTAL:</span>
-            <span>₹${bill.total.toFixed(2)}</span>
-          </div>
-          <div class="total-line">
-            <span>Payment:</span>
-            <span>${bill.paymentMethod.toUpperCase()}</span>
-          </div>
+
+        <div class="section">
+          <table class="totals">
+            <tr>
+              <td class="label">Subtotal:</td>
+              <td class="value">₹${bill.subtotal.toFixed(2)}</td>
+            </tr>
+            ${
+              bill.discountAmount > 0
+                ? `<tr>
+                    <td class="label">Discount (${bill.discountPercentage.toFixed(1)}%):</td>
+                    <td class="value">-₹${bill.discountAmount.toFixed(2)}</td>
+                  </tr>`
+                : ""
+            }
+            <tr>
+              <td class="label">Tax (${bill.taxPercentage}%):</td>
+              <td class="value">₹${bill.taxAmount.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td class="label">Total:</td>
+              <td class="value"><strong>₹${bill.total.toFixed(2)}</strong></td>
+            </tr>
+            <tr>
+              <td class="label">Payment:</td>
+              <td class="value">${bill.paymentMethod.toUpperCase()}</td>
+            </tr>
+          </table>
         </div>
-        
+
         ${
           bill.notes
-            ? `
-        <div class="customer-info">
-          <strong>Notes:</strong><br>
-          ${bill.notes}
-        </div>
-        `
+            ? `<div class="section">
+                <div class="section-title">Notes</div>
+                <div>${bill.notes}</div>
+              </div>`
             : ""
         }
-        
+
         <div class="footer">
           <p>Thank you for your business!</p>
-          <p>Visit us again</p>
-          <p>${bill.companyPhone}</p>
-          <p>${bill.companyEmail}</p>
         </div>
       </body>
     </html>
-  `
+  `;
 
-    printWindow.document.write(receiptHTML)
-    printWindow.document.close()
-    printWindow.print()
-  }
+  printWindow.document.write(receiptHTML);
+  printWindow.document.close();
+  printWindow.print();
+};
+
 
   const activeTab = getActiveTab()
 
@@ -784,9 +879,9 @@ export default function BillingPage() {
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <h3 className="font-medium text-sm">{product.name}</h3>
-                            <p className="text-xs text-gray-600 mt-1">{product.category}</p>
-                            {product.barcode && (
-                              <p className="text-xs text-gray-500 mt-1">Barcode: {product.barcode}</p>
+                            {product.category && <p className="text-xs text-gray-600 mt-1">{product.category}</p>}
+                            {product.barcodes && product.barcodes.length > 0 && (
+                              <p className="text-xs text-gray-500 mt-1">Barcode: {product.barcodes[0]}</p>
                             )}
                           </div>
                           <div className="text-right">
@@ -831,7 +926,6 @@ export default function BillingPage() {
                     )}
                   </div>
                 </div>
-
                 {/* Customer Info */}
                 {(activeTab.customer.name || activeTab.customer.phone) && (
                   <div className="mt-3 p-3 bg-blue-50 rounded-lg">
@@ -909,7 +1003,7 @@ export default function BillingPage() {
               </ScrollArea>
 
               {/* Cart Summary */}
-              {activeTab.cart.length > 0 && (
+              {activeTab.cart.length > 0 ? (
                 <div className="p-4 border-t border-gray-200 bg-gray-50">
                   <div className="space-y-3">
                     {/* Discount */}
@@ -969,6 +1063,27 @@ export default function BillingPage() {
                       />
                     </div>
                   </div>
+                </div>
+              ) : (
+                <div className="p-4">
+                  <h3 className="font-semibold mb-2">Recent Bills</h3>
+                  <ScrollArea className="h-64">
+                    <div className="space-y-2">
+                      {bills.slice(0, 10).map((bill) => (
+                        <Card key={bill.id}>
+                          <CardContent className="p-3 text-sm">
+                            <div className="flex justify-between">
+                              <span className="font-medium">{bill.id}</span>
+                              <span className="font-bold">₹{bill.total.toFixed(2)}</span>
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {new Date(bill.timestamp).toLocaleString()}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </div>
               )}
             </div>

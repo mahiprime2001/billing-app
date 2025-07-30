@@ -1,0 +1,68 @@
+{
+  "systemSettings": {
+    "gstin": "27AAFCV2449G1Z7",
+    "taxPercentage": 12,
+    "companyName": "SIRI ART JEWELLERY",
+    "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+    "companyPhone": "+91 98765 43210",
+    "companyEmail": "info@siriartjewellery.com"
+  },
+  "billFormats": {
+    "A4": {
+      "width": 210,
+      "height": 297,
+      "margins": {
+        "top": 20,
+        "bottom": 20,
+        "left": 20,
+        "right": 20
+      },
+      "unit": "mm"
+    },
+    "Thermal_80mm": {
+      "width": 80,
+      "height": "auto",
+      "margins": {
+        "top": 5,
+        "bottom": 5,
+        "left": 5,
+        "right": 5
+      },
+      "unit": "mm"
+    },
+    "Thermal_58mm": {
+      "width": 58,
+      "height": "auto",
+      "margins": {
+        "top": 3,
+        "bottom": 3,
+        "left": 3,
+        "right": 3
+      },
+      "unit": "mm"
+    },
+    "A5": {
+      "width": 148,
+      "height": 210,
+      "margins": {
+        "top": 15,
+        "bottom": 15,
+        "left": 15,
+        "right": 15
+      },
+      "unit": "mm"
+    },
+    "Custom": {
+      "width": 210,
+      "height": 297,
+      "margins": {
+        "top": 20,
+        "bottom": 20,
+        "left": 20,
+        "right": 20
+      },
+      "unit": "mm"
+    }
+  },
+  "storeFormats": {}
+}

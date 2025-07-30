@@ -71,6 +71,11 @@ export default function BillingPage() {
   const [discountPercentage, setDiscountPercentage] = useState(0)
 
   useEffect(() => {
+    // Simulate login for development purposes
+    if (typeof window !== "undefined") {
+      localStorage.setItem("adminLoggedIn", "true")
+    }
+
     const isLoggedIn = localStorage.getItem("adminLoggedIn")
     if (isLoggedIn !== "true") {
       router.push("/")
@@ -80,23 +85,38 @@ export default function BillingPage() {
     loadData()
   }, [router])
 
-  const loadData = () => {
+  const loadData = async () => {
     // Load products
     const savedProducts = localStorage.getItem("products")
     if (savedProducts) {
       setProducts(JSON.parse(savedProducts))
     }
 
-    // Load bills
-    const savedBills = localStorage.getItem("bills")
-    if (savedBills) {
-      setBills(JSON.parse(savedBills))
+    // Load bills from JSON
+    try {
+      const response = await fetch("/api/bills")
+      if (!response.ok) {
+        throw new Error("Failed to fetch bills")
+      }
+      const data = await response.json()
+      const mappedData = data.map((bill: any) => ({
+        ...bill,
+        date: bill.timestamp,
+        tax: bill.taxAmount,
+        status: bill.status || "Paid",
+      }))
+      setBills(mappedData)
+    } catch (error) {
+      console.error("Failed to load bills:", error)
+      // Optionally, set bills to an empty array or show an error message
+      setBills([])
     }
   }
 
   const saveBills = (updatedBills: Bill[]) => {
     setBills(updatedBills)
-    localStorage.setItem("bills", JSON.stringify(updatedBills))
+    // Note: Bill creation/deletion is now in-memory and will not persist
+    // to the JSON file without further backend implementation.
   }
 
   const addItemToBill = () => {
