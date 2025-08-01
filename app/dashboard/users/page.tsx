@@ -254,18 +254,40 @@ export default function UsersPage() {
     }
   }
 
-  const openEditDialog = (user: AdminUser) => {
+  const openEditDialog = async (user: AdminUser) => {
     setEditingUser(user)
-    setFormData({
-      name: user.name,
-      email: user.email,
-      password: user.password,
-      role: user.role,
-      assignedStores: user.assignedStores || [],
-      sessionDuration: user.sessionDuration || 24,
-      status: user.status,
-    })
     setIsEditDialogOpen(true)
+
+    // Fetch the decrypted password
+    try {
+      const response = await fetch(`/api/users/${user.id}/password`)
+      if (response.ok) {
+        const data = await response.json()
+        setFormData({
+          name: user.name,
+          email: user.email,
+          password: data.password,
+          role: user.role,
+          assignedStores: user.assignedStores || [],
+          sessionDuration: user.sessionDuration || 24,
+          status: user.status,
+        })
+      } else {
+        console.error("Failed to fetch decrypted password")
+        // Fallback to a placeholder if fetching fails
+        setFormData({
+          name: user.name,
+          email: user.email,
+          password: "Could not retrieve password",
+          role: user.role,
+          assignedStores: user.assignedStores || [],
+          sessionDuration: user.sessionDuration || 24,
+          status: user.status,
+        })
+      }
+    } catch (error) {
+      console.error("Error fetching decrypted password:", error)
+    }
   }
 
   const toggleStoreAssignment = (storeId: string) => {

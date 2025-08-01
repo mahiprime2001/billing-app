@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
+import { encrypt } from "@/app/utils/cipher"
 import { logChange } from "@/app/utils/logger";
 
 const usersFilePath = path.join(process.cwd(), "app/data/json/users.json")
@@ -44,9 +45,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Email already exists" }, { status: 409 })
   }
 
+  const encryptedPassword = encrypt(newUser.password)
+
   const userWithDefaults = {
     id: Date.now().toString(),
     ...newUser,
+    password: encryptedPassword,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }

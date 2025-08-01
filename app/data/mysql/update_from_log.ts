@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import dns from 'dns';
 
-const logsDir = path.join(__dirname, '../logs');
+const logsDir = path.join(process.cwd(), 'app', 'data', 'logs');
 const stateFilePath = path.join(logsDir, 'processing_state.json');
 let isConnected = false;
 let isProcessing = false;
