@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
+import { encrypt } from "@/app/utils/cipher"
 import { logChange } from "@/app/utils/logger";
 
 const usersFilePath = path.join(process.cwd(), "app/data/json/users.json")
@@ -26,8 +27,9 @@ const writeUsers = (users: any) => {
 }
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
+  const { id } = params;
   const users = readUsers()
-  const user = users.find((u: any) => u.id === params.id)
+  const user = users.find((u: any) => u.id === id)
 
   if (!user) {
     return NextResponse.json({ message: "User not found" }, { status: 404 })
@@ -37,18 +39,23 @@ export async function GET(request: Request, { params }: { params: { id: string }
 }
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
+  const { id } = params;
   const updatedUser = await request.json()
   const users = readUsers()
 
-  const userIndex = users.findIndex((u: any) => u.id === params.id)
+  const userIndex = users.findIndex((u: any) => u.id === id)
 
   if (userIndex === -1) {
     return NextResponse.json({ message: "User not found" }, { status: 404 })
   }
 
   // Check for duplicate email (excluding current user)
-  if (users.some((user: any) => user.email === updatedUser.email && user.id !== params.id)) {
+  if (users.some((user: any) => user.email === updatedUser.email && user.id !== id)) {
     return NextResponse.json({ message: "Email already exists" }, { status: 409 })
+  }
+
+  if (updatedUser.password) {
+    updatedUser.password = encrypt(updatedUser.password)
   }
 
   users[userIndex] = {
@@ -64,8 +71,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  const { id } = params;
   const users = readUsers()
-  const userIndex = users.findIndex((u: any) => u.id === params.id)
+  const userIndex = users.findIndex((u: any) => u.id === id)
 
   if (userIndex === -1) {
     return NextResponse.json({ message: "User not found" }, { status: 404 })

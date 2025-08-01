@@ -3,7 +3,7 @@
     "id": "1",
     "name": "Super Admin",
     "email": "admin@siriart.com",
-    "password": "admin123",
+    "password": "U2FsdGVkX19QfqYxVnAZfMZcwLffnzkSvXPid0ay9QI=",
     "role": "super_admin",
     "createdAt": "2023-01-01T00:00:00.000Z",
     "updatedAt": "2023-01-01T00:00:00.000Z",
@@ -13,7 +13,7 @@
     "id": "2",
     "name": "Billing User",
     "email": "billing@siriart.com",
-    "password": "billing123",
+    "password": "U2FsdGVkX192pFtzwLbeqckL3KGjloBC06gcMj+FX6w=",
     "role": "billing_user",
     "assignedStores": [
       "STR-1722255700000"
@@ -26,7 +26,7 @@
     "id": "3",
     "name": "Temporary User",
     "email": "temp@siriart.com",
-    "password": "temp123",
+    "password": "U2FsdGVkX18HGFTCD/m4X4Y2gFFmkyJfQX7xAo5krew=",
     "role": "temporary_user",
     "sessionDuration": 24,
     "createdAt": "2023-01-01T00:00:00.000Z",
@@ -37,10 +37,10 @@
     "id": "1753793882308",
     "name": "prime",
     "email": "19jn1a0596@gmail.com",
-    "password": "Simhamahi@01",
+    "password": "U2FsdGVkX1+WCueqfgVMErCkg93VUlQkO4S/Q+kiEII=",
     "role": "super_admin",
     "status": "active",
     "createdAt": "2025-07-29T12:58:02.308Z",
-    "updatedAt": "2025-07-29T12:58:02.309Z"
+    "updatedAt": "2025-08-01T10:19:29.214Z"
   }
 ]

@@ -123,7 +123,7 @@ async function uploadData() {
     await connection.commit();
     console.log('Data uploaded successfully!');
 
-    const logFilePath = path.join(__dirname, '..', 'logs', 'sync.log');
+    const logFilePath = path.join(process.cwd(), 'app', 'data', 'logs', 'sync.log');
     const logMessage = `Last sync: ${new Date().toISOString()}\n`;
     await fs.writeFile(logFilePath, logMessage);
     console.log(`Sync log updated at ${logFilePath}`);

@@ -63,8 +63,8 @@ export default function LoginPage() {
     initializeDefaultAdmin()
 
     // Check if user is already logged in
-    const isLoggedIn = localStorage.getItem("adminLoggedIn")
-    if (isLoggedIn === "true") {
+    const sessionToken = localStorage.getItem("sessionToken")
+    if (sessionToken) {
       const userData = localStorage.getItem("adminUser")
       if (userData) {
         try {
@@ -78,6 +78,7 @@ export default function LoginPage() {
           console.error("Error parsing user data:", error)
           localStorage.removeItem("adminLoggedIn")
           localStorage.removeItem("adminUser")
+          localStorage.removeItem("sessionToken")
         }
       }
     }
@@ -141,6 +142,9 @@ export default function LoginPage() {
       // Set login state
       localStorage.setItem("adminLoggedIn", "true")
       localStorage.setItem("adminUser", JSON.stringify(user))
+      if (user.token) {
+        localStorage.setItem("sessionToken", user.token)
+      }
 
       setSuccess("Login successful! Redirecting...")
 
