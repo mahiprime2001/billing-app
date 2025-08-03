@@ -55,7 +55,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   }
 
   if (updatedUser.password) {
-    updatedUser.password = encrypt(updatedUser.password)
+    users[userIndex].password = updatedUser.password
   }
 
   users[userIndex] = {

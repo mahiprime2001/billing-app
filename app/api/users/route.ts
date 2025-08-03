@@ -45,12 +45,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Email already exists" }, { status: 409 })
   }
 
-  const encryptedPassword = encrypt(newUser.password)
-
   const userWithDefaults = {
     id: Date.now().toString(),
     ...newUser,
-    password: encryptedPassword,
+    password: newUser.password,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }

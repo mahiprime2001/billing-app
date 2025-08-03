@@ -3,7 +3,7 @@
     "id": "1",
     "name": "Super Admin",
     "email": "admin@siriart.com",
-    "password": "U2FsdGVkX19QfqYxVnAZfMZcwLffnzkSvXPid0ay9QI=",
+    "password": "admin123",
     "role": "super_admin",
     "createdAt": "2023-01-01T00:00:00.000Z",
     "updatedAt": "2023-01-01T00:00:00.000Z",

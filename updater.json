@@ -1,0 +1,11 @@
+{
+  "version": "0.1.1",
+  "notes": "This is the first version with auto-updater.",
+  "pub_date": "2025-08-03T12:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "",
+      "url": "https://github.com/mahiprime2001/billing-app/releases/download/v0.1.1/Siri_Art_Jewellery_0.1.1_x64_en-US.msi.zip"
+    }
+  }
+}
