@@ -162,16 +162,16 @@ jobs:
           git commit -m "docs: update changelog for v$VERSION [skip ci]" || echo "No changes"
           git push origin main
 
-      - name: Install latest-json generator
-        run: cargo install tauri-latest-json --locked
+      - name: Install tauri-signer
+        run: cargo install tauri-signer --locked
 
       - name: Generate latest.json
         run: |
-          tauri-latest-json \
-            --input-path artifacts/tauri-*/*/* \
+          tauri-signer sign-update \
             --private-key "${TAURI_PRIVATE_KEY}" \
             --password "${TAURI_KEY_PASSWORD}" \
             --version "$VERSION" \
+            --files artifacts/tauri-*/*/* \
             --output artifacts/latest.json
 
       - name: Create GitHub Release
