@@ -9,7 +9,9 @@
     "lint": "next lint",
     "start": "next start",
     "upload": "npx ts-node --project tsconfig.script.json app/data/mysql/upload.ts",
-    "update-from-log": "npx ts-node --project tsconfig.script.json app/data/mysql/update_from_log.ts"
+    "update-from-log": "npx ts-node --project tsconfig.script.json app/data/mysql/update_from_log.ts",
+    "sync-check": "npx ts-node --project tsconfig.script.json app/data/mysql/sync-check.ts",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -42,6 +44,7 @@
     "@radix-ui/react-tooltip": "latest",
     "@types/bcryptjs": "^2.4.6",
     "@types/crypto-js": "^4.2.2",
+    "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.20",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
@@ -71,6 +74,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "ts-node": "^10.9.2",
+    "uuid": "^11.1.0",
     "vaul": "latest",
     "xlsx": "^0.18.5",
     "zod": "^3.24.1"
