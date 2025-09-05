@@ -80,22 +80,6 @@ jobs:
           key: ${{ runner.os }}-deps-${{ hashFiles('**/pnpm-lock.yaml','**/yarn.lock','**/package-lock.json') }}
           restore-keys: ${{ runner.os }}-deps-
 
-      - name: Update tauri.conf.json with binary name (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          rm -f tmp.json
-          jq '.productName="Siri_admin_app"|.mainBinaryName="Siri_admin_app"' src-tauri/tauri.conf.json > tmp.json
-          mv tmp.json src-tauri/tauri.conf.json
-
-      - name: Update tauri.conf.json with binary name (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Remove-Item -Force tmp.json -ErrorAction SilentlyContinue
-          jq '.productName="Siri_admin_app"|.mainBinaryName="Siri_admin_app"' src-tauri/tauri.conf.json > tmp.json
-          Move-Item tmp.json src-tauri/tauri.conf.json -Force
-
       - run: |
           corepack enable
           pnpm install --frozen-lockfile || npm install
@@ -136,8 +120,15 @@ jobs:
         shell: bash
         run: |
           git pull origin main
+
+          # Bump versions
           jq ".version=\"$VERSION\"" package.json > tmp.json && mv tmp.json package.json
-          jq ".version=\"$VERSION\"" src-tauri/tauri.conf.json > tmp2.json && mv tmp2.json src-tauri/tauri.conf.json
+          jq ".version=\"$VERSION\"" src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
+
+          # Inject dynamic updater URL
+          UPDATE_URL="https://github.com/${{ github.repository }}/releases/latest/download/latest.json"
+          jq ".plugins.updater.endpoints=[\"$UPDATE_URL\"]" src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json src-tauri/tauri.conf.json
