@@ -80,7 +80,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@tauri-apps/api": "^1.0.0",
+    "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/cli": "^2.8.4",
     "@types/mini-css-extract-plugin": "^2.5.1",
     "@types/node": "^22",
