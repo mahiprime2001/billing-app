@@ -1,0 +1,179 @@
+name: "Tauri Cross-Platform Auto Release"
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  calculate-version:
+    runs-on: ubuntu-22.04
+    outputs:
+      next_version: ${{ steps.calculate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: sudo apt-get install -y jq
+      - id: calculate
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          RANGE=${PREV_TAG:+$PREV_TAG..HEAD}
+          if git log $RANGE --pretty=%B | grep -q "BREAKING CHANGE"; then TYPE="major"
+          elif git log $RANGE --pretty=%B | grep -q "^feat:"; then TYPE="minor"
+          elif git log $RANGE --pretty=%B | grep -q "^fix:"; then TYPE="patch"
+          else TYPE="patch"; fi
+          TAURI_FILE=src-tauri/tauri.conf.json
+          OLD_VERSION=$(jq -r '.version' $TAURI_FILE)
+          if [ -z "$OLD_VERSION" ] || [ "$OLD_VERSION" = "null" ]; then
+            echo "❌ Could not find version in $TAURI_FILE"
+            exit 1
+          fi
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD_VERSION"
+          case "$TYPE" in
+            major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH+1)) ;;
+          esac
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+  build:
+    needs: calculate-version
+    outputs:
+      version: ${{ needs.calculate-version.outputs.next_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-22.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
+    env:
+      VERSION: ${{ needs.calculate-version.outputs.next_version }}
+      TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+      TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev \
+            libappindicator3-dev librsvg2-dev patchelf libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev pkg-config clang
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            node_modules
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/pnpm-lock.yaml','**/yarn.lock','**/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-deps-
+
+      - name: Update tauri.conf.json with binary name (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          rm -f tmp.json
+          jq '.productName="Siri_billing_app"|.mainBinaryName="Siri_billing_app"' src-tauri/tauri.conf.json > tmp.json
+          mv tmp.json src-tauri/tauri.conf.json
+
+      - name: Update tauri.conf.json with binary name (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Remove-Item -Force tmp.json -ErrorAction SilentlyContinue
+          jq '.productName="Siri_billing_app"|.mainBinaryName="Siri_billing_app"' src-tauri/tauri.conf.json > tmp.json
+          Move-Item tmp.json src-tauri/tauri.conf.json -Force
+
+      - run: |
+          corepack enable
+          pnpm install --frozen-lockfile || npm install
+
+      - run: pnpm build || npm run build
+
+      - run: pnpm tauri build || npm run tauri build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tauri-${{ matrix.platform }}
+          path: src-tauri/target/release/bundle/
+
+  bump-and-release:
+    needs: build
+    runs-on: ubuntu-22.04
+    if: success()
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Safety check for VERSION
+        run: test -n "$VERSION"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Update version in configs
+        shell: bash
+        run: |
+          git pull origin main
+          jq ".version=\"$VERSION\"" package.json > tmp.json && mv tmp.json package.json
+          jq ".version=\"$VERSION\"" src-tauri/tauri.conf.json > tmp2.json && mv tmp2.json src-tauri/tauri.conf.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json src-tauri/tauri.conf.json
+          git commit -m "chore: bump version to $VERSION [skip ci]" || echo "No changes"
+          git tag -d v$VERSION || true
+          git push origin :refs/tags/v$VERSION || true
+          git tag v$VERSION
+          git push origin main --tags
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          CURR_TAG=v$VERSION
+          PREV_TAG=$(git describe --tags --abbrev=0 --exclude="$CURR_TAG" 2>/dev/null || echo "")
+          DATE=$(date -u +"%Y-%m-%d")
+          RANGE=${PREV_TAG:+$PREV_TAG..HEAD}
+          {
+            echo "## $CURR_TAG - $DATE"
+            echo "### ✨ Features"
+            git log $RANGE --grep="^feat:" --pretty=format:"- %s"
+          } > new_changelog.md
+          CHANGELOG_B64=$(base64 -w0 new_changelog.md)
+          echo "changelog_base64=$CHANGELOG_B64" >> $GITHUB_OUTPUT
+
+      - name: Commit changelog
+        shell: bash
+        run: |
+          mv new_changelog.md CHANGELOG.md
+          git add CHANGELOG.md
+          git commit -m "docs: update changelog for v$VERSION [skip ci]" || echo "No changes"
+          git push origin main
+
+      - name: Create GitHub Release
+        shell: bash
+        run: |
+          CHANGELOG_DECODED=$(echo "${{ steps.changelog.outputs.changelog_base64 }}" | base64 --decode)
+          gh release create v$VERSION artifacts/**/* \
+            --title "Release v$VERSION" \
+            --notes "$CHANGELOG_DECODED"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
