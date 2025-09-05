@@ -78,26 +78,22 @@ jobs:
           key: ${{ runner.os }}-deps-${{ hashFiles('**/pnpm-lock.yaml','**/yarn.lock','**/package-lock.json') }}
           restore-keys: ${{ runner.os }}-deps-
 
-      # ✅ Only update productName (remove mainBinaryName for Tauri v2)
-      - name: Update tauri.conf.json product name
+      - name: Update productName in tauri.conf.json
         shell: bash
         run: |
           rm -f tmp.json
           jq '.productName="Siri_admin_app"' src-tauri/tauri.conf.json > tmp.json
           mv tmp.json src-tauri/tauri.conf.json
 
-      # ✅ Install dependencies + Tauri v2 CLI
       - run: |
           corepack enable
           pnpm install --frozen-lockfile || npm install
           pnpm install @tauri-apps/cli@latest @tauri-apps/api@latest
 
-      # ✅ Build Next.js → static output in /out
       - run: |
           pnpm build || npm run build
           pnpm next export || npm run export || true
 
-      # ✅ Build Tauri app
       - run: pnpm tauri build || npm run tauri build
 
       - uses: actions/upload-artifact@v4
@@ -112,6 +108,8 @@ jobs:
     env:
       VERSION: ${{ needs.build.outputs.version }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+      TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -164,11 +162,23 @@ jobs:
           git commit -m "docs: update changelog for v$VERSION [skip ci]" || echo "No changes"
           git push origin main
 
+      - name: Install latest-json generator
+        run: cargo install tauri-latest-json --locked
+
+      - name: Generate latest.json
+        run: |
+          tauri-latest-json \
+            --input-path artifacts/tauri-*/*/* \
+            --private-key "${TAURI_PRIVATE_KEY}" \
+            --password "${TAURI_KEY_PASSWORD}" \
+            --version "$VERSION" \
+            --output artifacts/latest.json
+
       - name: Create GitHub Release
         shell: bash
         run: |
           CHANGELOG_DECODED=$(echo "${{ steps.changelog.outputs.changelog_base64 }}" | base64 --decode)
-          gh release create v$VERSION artifacts/**/* \
+          gh release create v$VERSION artifacts/**/* artifacts/latest.json \
             --title "Release v$VERSION" \
             --notes "$CHANGELOG_DECODED"
         env:
