@@ -162,12 +162,12 @@ jobs:
           git commit -m "docs: update changelog for v$VERSION [skip ci]" || echo "No changes"
           git push origin main
 
-      - name: Install tauri-signer
+      - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0" --locked
 
       - name: Generate latest.json
         run: |
-          tauri-signer sign-update \
+          tauri signer sign-update \
             --private-key "${TAURI_PRIVATE_KEY}" \
             --password "${TAURI_KEY_PASSWORD}" \
             --version "$VERSION" \
