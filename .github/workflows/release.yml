@@ -163,7 +163,7 @@ jobs:
           git push origin main
 
       - name: Install tauri-signer
-        run: cargo install tauri-signer --locked
+        run: cargo install tauri-cli --version "^2.0.0" --locked
 
       - name: Generate latest.json
         run: |
