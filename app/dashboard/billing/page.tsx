@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Plus, Receipt, Trash2, Eye, Search, Percent } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
+import { Upload } from "lucide-react" // Import Upload icon
 
 interface Product {
   id: string
@@ -60,6 +61,8 @@ export default function BillingPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false) // State for import dialog
+  const [importFile, setImportFile] = useState<File | null>(null) // State for the selected import file
 
   // Form state
   const [customerName, setCustomerName] = useState("")
@@ -196,10 +199,21 @@ export default function BillingPage() {
     setIsCreateDialogOpen(false)
   }
 
-  const deleteBill = (id: string) => {
-    const updatedBills = bills.filter((bill) => bill.id !== id)
-    saveBills(updatedBills)
-  }
+  const deleteBill = async (id: string) => {
+    try {
+      const response = await fetch(`/api/bills/${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        loadData();
+      } else {
+        console.error("Failed to delete bill");
+      }
+    } catch (error) {
+      console.error("Error deleting bill:", error);
+    }
+  };
 
   const viewBill = (bill: Bill) => {
     setSelectedBill(bill)
@@ -219,6 +233,37 @@ export default function BillingPage() {
   // Quick discount preset buttons
   const discountPresets = [5, 10, 15, 20, 25]
 
+  const handleImportBills = async () => {
+    if (!importFile) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const importedBills = JSON.parse(e.target?.result as string);
+        // Send to API for processing
+        const response = await fetch("/api/bills/import", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(importedBills),
+        });
+
+        if (response.ok) {
+          console.log("Bills imported successfully");
+          loadData(); // Reload bills after import
+          setIsImportDialogOpen(false);
+          setImportFile(null);
+        } else {
+          console.error("Failed to import bills:", await response.text());
+        }
+      } catch (error) {
+        console.error("Error parsing or importing bills:", error);
+      }
+    };
+    reader.readAsText(importFile);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -227,215 +272,250 @@ export default function BillingPage() {
             <h1 className="text-3xl font-bold">Billing System</h1>
             <p className="text-muted-foreground">Create and manage bills with discount adjustments</p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Bill
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create New Bill</DialogTitle>
-                <DialogDescription>Enter customer details and add products to create a bill</DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-6">
-                {/* Customer Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Customer Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="customerName">Customer Name</Label>
-                      <Input
-                        id="customerName"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="customerEmail">Email (optional)</Label>
-                      <Input
-                        id="customerEmail"
-                        type="email"
-                        value={customerEmail}
-                        onChange={(e) => setCustomerEmail(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="customerPhone">Phone (optional)</Label>
-                      <Input
-                        id="customerPhone"
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                      />
-                    </div>
-                  </div>
+          <div className="flex space-x-2">
+            {/* Import Bills Dialog */}
+            <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import Bills
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Import Bills from JSON</DialogTitle>
+                  <DialogDescription>Upload a JSON file containing bill data.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <Input
+                    id="billFile"
+                    type="file"
+                    accept=".json"
+                    onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)}
+                  />
                 </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={() => handleImportBills()} disabled={!importFile}>
+                    Import
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
-                <Separator />
+            {/* Create Bill Dialog */}
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Bill
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create New Bill</DialogTitle>
+                  <DialogDescription>Enter customer details and add products to create a bill</DialogDescription>
+                </DialogHeader>
 
-                {/* Add Products */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Add Products</h3>
-                  <div className="flex gap-4 items-end">
-                    <div className="flex-1">
-                      <Label htmlFor="product">Select Product</Label>
-                      <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a product" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map((product) => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.name} - ₹{product.price.toFixed(2)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="w-24">
-                      <Label htmlFor="quantity">Quantity</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        min="1"
-                        value={quantity}
-                        onChange={(e) => setQuantity(Number.parseInt(e.target.value) || 1)}
-                      />
-                    </div>
-                    <Button onClick={addItemToBill} disabled={!selectedProductId}>
-                      Add Item
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Bill Items */}
-                {billItems.length > 0 && (
+                <div className="space-y-6">
+                  {/* Customer Information */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Bill Items</h3>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Product</TableHead>
-                          <TableHead>Price</TableHead>
-                          <TableHead>Quantity</TableHead>
-                          <TableHead>Total</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {billItems.map((item) => (
-                          <TableRow key={item.productId}>
-                            <TableCell>{item.productName}</TableCell>
-                            <TableCell>₹{item.price.toFixed(2)}</TableCell>
-                            <TableCell>{item.quantity}</TableCell>
-                            <TableCell>₹{item.total.toFixed(2)}</TableCell>
-                            <TableCell>
-                              <Button variant="outline" size="sm" onClick={() => removeItemFromBill(item.productId)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
+                    <h3 className="text-lg font-medium">Customer Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="customerName">Customer Name</Label>
+                        <Input
+                          id="customerName"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="customerEmail">Email (optional)</Label>
+                        <Input
+                          id="customerEmail"
+                          type="email"
+                          value={customerEmail}
+                          onChange={(e) => setCustomerEmail(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="customerPhone">Phone (optional)</Label>
+                        <Input
+                          id="customerPhone"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Add Products */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Add Products</h3>
+                    <div className="flex gap-4 items-end">
+                      <div className="flex-1">
+                        <Label htmlFor="product">Select Product</Label>
+                        <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose a product" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((product) => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.name} - ₹{product.price.toFixed(2)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="w-24">
+                        <Label htmlFor="quantity">Quantity</Label>
+                        <Input
+                          id="quantity"
+                          type="number"
+                          min="1"
+                          value={quantity}
+                          onChange={(e) => setQuantity(Number.parseInt(e.target.value) || 1)}
+                        />
+                      </div>
+                      <Button onClick={addItemToBill} disabled={!selectedProductId}>
+                        Add Item
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Bill Items */}
+                  {billItems.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Bill Items</h3>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Price</TableHead>
+                            <TableHead>Quantity</TableHead>
+                            <TableHead>Total</TableHead>
+                            <TableHead>Actions</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {billItems.map((item) => (
+                            <TableRow key={item.productId}>
+                              <TableCell>{item.productName}</TableCell>
+                              <TableCell>₹{item.price.toFixed(2)}</TableCell>
+                              <TableCell>{item.quantity}</TableCell>
+                              <TableCell>₹{item.total.toFixed(2)}</TableCell>
+                              <TableCell>
+                                <Button variant="outline" size="sm" onClick={() => removeItemFromBill(item.productId)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
 
-                    {/* Discount and Total Section */}
-                    <div className="bg-gray-50 p-6 rounded-lg space-y-4">
-                      <div className="flex justify-between text-base">
-                        <span>Subtotal:</span>
-                        <span className="font-medium">₹{subtotal.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-base">
-                        <span>Tax (10%):</span>
-                        <span className="font-medium">₹{tax.toFixed(2)}</span>
-                      </div>
-
-                      {/* Discount Section with Presets */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label className="flex items-center text-base">
-                            <Percent className="h-4 w-4 mr-2" />
-                            Discount Percentage:
-                          </Label>
-                          <div className="flex items-center space-x-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.1"
-                              value={discountPercentage.toFixed(1)}
-                              onChange={(e) => handleDiscountPercentageChange(Number.parseFloat(e.target.value) || 0)}
-                              className="w-20 text-right"
-                            />
-                            <span className="text-sm">%</span>
-                          </div>
+                      {/* Discount and Total Section */}
+                      <div className="bg-gray-50 p-6 rounded-lg space-y-4">
+                        <div className="flex justify-between text-base">
+                          <span>Subtotal:</span>
+                          <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-base">
+                          <span>Tax (10%):</span>
+                          <span className="font-medium">₹{tax.toFixed(2)}</span>
                         </div>
 
-                        {/* Quick Discount Presets */}
-                        <div className="flex flex-wrap gap-2">
-                          <span className="text-sm text-gray-600 mr-2">Quick:</span>
-                          {discountPresets.map((preset) => (
+                        {/* Discount Section with Presets */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="flex items-center text-base">
+                              <Percent className="h-4 w-4 mr-2" />
+                              Discount Percentage:
+                            </Label>
+                            <div className="flex items-center space-x-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                value={discountPercentage.toFixed(1)}
+                                onChange={(e) => handleDiscountPercentageChange(Number.parseFloat(e.target.value) || 0)}
+                                className="w-20 text-right"
+                              />
+                              <span className="text-sm">%</span>
+                            </div>
+                          </div>
+
+                          {/* Quick Discount Presets */}
+                          <div className="flex flex-wrap gap-2">
+                            <span className="text-sm text-gray-600 mr-2">Quick:</span>
+                            {discountPresets.map((preset) => (
+                              <Button
+                                key={preset}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setDiscountPercentage(preset)}
+                                className="text-xs h-7"
+                              >
+                                {preset}%
+                              </Button>
+                            ))}
                             <Button
-                              key={preset}
                               variant="outline"
                               size="sm"
-                              onClick={() => setDiscountPercentage(preset)}
+                              onClick={() => setDiscountPercentage(0)}
                               className="text-xs h-7"
                             >
-                              {preset}%
+                              Clear
                             </Button>
-                          ))}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDiscountPercentage(0)}
-                            className="text-xs h-7"
-                          >
-                            Clear
-                          </Button>
+                          </div>
+
+                          {discountPercentage > 0 && (
+                            <div className="flex justify-between text-base text-red-600">
+                              <span>Discount ({discountPercentage.toFixed(1)}%):</span>
+                              <span className="font-medium">-₹{discountAmount.toFixed(2)}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <Separator />
+
+                        {/* Total (Non-editable) */}
+                        <div className="flex justify-between items-center text-xl font-bold">
+                          <span>Total:</span>
+                          <span>₹{total.toFixed(2)}</span>
                         </div>
 
                         {discountPercentage > 0 && (
-                          <div className="flex justify-between text-base text-red-600">
-                            <span>Discount ({discountPercentage.toFixed(1)}%):</span>
-                            <span className="font-medium">-₹{discountAmount.toFixed(2)}</span>
+                          <div className="text-center">
+                            <p className="text-sm text-green-600 font-medium">
+                              Customer saves ₹{discountAmount.toFixed(2)} ({discountPercentage.toFixed(1)}% discount)
+                            </p>
                           </div>
                         )}
                       </div>
-
-                      <Separator />
-
-                      {/* Total (Non-editable) */}
-                      <div className="flex justify-between items-center text-xl font-bold">
-                        <span>Total:</span>
-                        <span>₹{total.toFixed(2)}</span>
-                      </div>
-
-                      {discountPercentage > 0 && (
-                        <div className="text-center">
-                          <p className="text-sm text-green-600 font-medium">
-                            Customer saves ₹{discountAmount.toFixed(2)} ({discountPercentage.toFixed(1)}% discount)
-                          </p>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={createBill} disabled={!customerName || billItems.length === 0}>
-                  Create Bill
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={createBill} disabled={!customerName || billItems.length === 0}>
+                    Create Bill
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         <Card>
@@ -500,9 +580,29 @@ export default function BillingPage() {
                           <Button variant="outline" size="sm" onClick={() => viewBill(bill)}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => deleteBill(bill.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Are you sure?</DialogTitle>
+                                <DialogDescription>
+                                  This action cannot be undone. This will permanently delete the bill ({bill.id}).
+                                </DialogDescription>
+                              </DialogHeader>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => (document.querySelector('[data-state="open"]') as HTMLElement)?.click()}>
+                                  Cancel
+                                </Button>
+                                <Button variant="destructive" onClick={() => deleteBill(bill.id)}>
+                                  Delete
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </TableCell>
                     </TableRow>

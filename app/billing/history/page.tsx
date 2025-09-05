@@ -32,6 +32,8 @@ import {
   ShoppingBag,
   Printer,
   FileText,
+  Trash2,
+  Upload,
 } from "lucide-react"
 import { format } from "date-fns"
 import type { DateRange } from "react-day-picker"
@@ -89,6 +91,10 @@ export default function BillingHistoryPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [importLoading, setImportLoading] = useState(false)
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
     gstin: "27AAFCV2449G1Z7",
     taxPercentage: 18,
@@ -210,9 +216,76 @@ export default function BillingHistoryPage() {
     linkElement.click()
   }
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedFile(event.target.files[0])
+    }
+  }
+
+  const handleImportBills = async () => {
+    if (!selectedFile) {
+      console.error("No file selected for import.")
+      return
+    }
+
+    setImportLoading(true)
+    try {
+      const fileContent = await selectedFile.text()
+      const billsToImport: Sale[] = JSON.parse(fileContent)
+
+      // Send to API endpoint for saving to local JSON and MySQL
+      const response = await fetch("/api/bills/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(billsToImport),
+      })
+
+      if (response.ok) {
+        console.log("Bills imported successfully!")
+        loadSales() // Reload sales to show imported data
+        setIsImportDialogOpen(false)
+        setSelectedFile(null)
+      } else {
+        console.error("Failed to import bills:", response.statusText)
+      }
+    } catch (error) {
+      console.error("Error importing bills:", error)
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
   const viewSaleDetails = (sale: Sale) => {
     setSelectedSale(sale)
     setIsDetailsDialogOpen(true)
+  }
+
+  const openDeleteDialog = (sale: Sale) => {
+    setSelectedSale(sale)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteSale = async () => {
+    if (!selectedSale) return
+
+    try {
+      const response = await fetch(`/api/bills/${selectedSale.id}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        // Reload sales to reflect the deletion
+        loadSales()
+        setIsDeleteDialogOpen(false)
+        setSelectedSale(null)
+      } else {
+        console.error("Failed to delete sale")
+      }
+    } catch (error) {
+      console.error("Error deleting sale:", error)
+    }
   }
 
   const printReceipt = (sale: Sale) => {
@@ -455,10 +528,14 @@ export default function BillingHistoryPage() {
                 <DatePickerWithRange date={dateRange} setDate={setDateRange} />
               </div>
 
-              <div className="flex items-end">
+              <div className="flex items-end space-x-2">
                 <Button onClick={exportToJSON} variant="outline" className="w-full bg-transparent">
                   <Download className="h-4 w-4 mr-2" />
                   Export JSON
+                </Button>
+                <Button onClick={() => setIsImportDialogOpen(true)} className="w-full">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import JSON
                 </Button>
               </div>
             </div>
@@ -548,6 +625,15 @@ export default function BillingHistoryPage() {
                           <Button variant="ghost" size="sm" onClick={() => printReceipt(sale)} title="Print Receipt">
                             <Printer className="h-4 w-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDeleteDialog(sale)}
+                            title="Delete Bill"
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -566,6 +652,27 @@ export default function BillingHistoryPage() {
           </CardContent>
         </Card>
 
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Are you sure?</DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. This will permanently delete the bill ({selectedSale?.id}) from the
+                system.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteSale}>
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
         {/* Sale Details Dialog */}
         <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
           <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -713,6 +820,30 @@ export default function BillingHistoryPage() {
                   Print Receipt
                 </Button>
               )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Import Bills Dialog */}
+        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Import Bills from JSON</DialogTitle>
+              <DialogDescription>
+                Upload a JSON file containing bill data to import into the system.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <Input id="jsonFile" type="file" accept=".json" onChange={handleFileChange} />
+              {selectedFile && <p className="text-sm text-gray-500">Selected file: {selectedFile.name}</p>}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleImportBills} disabled={!selectedFile || importLoading}>
+                {importLoading ? "Importing..." : "Import"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

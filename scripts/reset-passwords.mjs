@@ -1,12 +1,8 @@
 import fs from "fs";
 import path from "path";
 import CryptoJS from 'crypto-js';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
 const usersFilePath = path.join(process.cwd(), "app/data/json/users.json");
-const secretKey = process.env.CIPHER_SECRET_KEY;
+const secretKey = 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2';
 
 if (!secretKey) {
   console.error("Error: CIPHER_SECRET_KEY is not set in the environment variables.");

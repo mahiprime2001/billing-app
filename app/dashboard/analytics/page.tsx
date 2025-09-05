@@ -42,6 +42,21 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns"
 import type { DateRange } from "react-day-picker"
 
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  lastLogged: string; // ISO string date
+  lastLogout: string; // ISO string date
+}
+
+interface UserSessionAnalytics {
+  date: string;
+  totalSessions: number;
+  averageSessionDuration: number; // in minutes
+}
+
 interface Bill {
   id: string
   storeId: string
@@ -127,8 +142,10 @@ export default function AnalyticsPage() {
   const [bills, setBills] = useState<Bill[]>([])
   const [stores, setStores] = useState<Store[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [users, setUsers] = useState<User[]>([]) // New state for users
   const [storeAnalytics, setStoreAnalytics] = useState<StoreAnalytics[]>([])
   const [productAnalytics, setProductAnalytics] = useState<ProductAnalytics[]>([])
+  const [userSessionAnalytics, setUserSessionAnalytics] = useState<UserSessionAnalytics[]>([]) // New state for user session analytics
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [selectedStore, setSelectedStore] = useState<string>("all")
@@ -160,33 +177,40 @@ export default function AnalyticsPage() {
     if (bills.length > 0) {
       calculateAnalytics()
     }
-  }, [bills, dateRange])
+    if (users.length > 0) {
+      calculateUserSessionAnalytics()
+    }
+  }, [bills, users, dateRange])
 
   const loadData = async () => {
     setLoading(true)
     
     try {
       console.log('Fetching data from API endpoints...')
-      const [billsResponse, storesResponse, productsResponse] = await Promise.all([
+      const [billsResponse, storesResponse, productsResponse, usersResponse] = await Promise.all([
         fetch('/api/bills'),
         fetch('/api/stores'),
-        fetch('/api/products')
+        fetch('/api/products'),
+        fetch('/api/users') // Fetch user data
       ])
 
       if (!billsResponse.ok) throw new Error('Failed to fetch bills')
       if (!storesResponse.ok) throw new Error('Failed to fetch stores')
       if (!productsResponse.ok) throw new Error('Failed to fetch products')
+      if (!usersResponse.ok) throw new Error('Failed to fetch users') // Check user response
 
-      const [billsData, storesData, productsData] = await Promise.all([
+      const [billsData, storesData, productsData, usersData] = await Promise.all([
         billsResponse.json(),
         storesResponse.json(),
-        productsResponse.json()
+        productsResponse.json(),
+        usersResponse.json() // Parse user data
       ])
 
       console.log('Fetched data:', {
         bills: billsData.length,
         stores: storesData.length,
-        products: productsData.length
+        products: productsData.length,
+        users: usersData.length // Log user data length
       })
       console.log('Sample store IDs:', storesData.map((s: any) => s.id))
       console.log('Sample bill store IDs:', [...new Set(billsData.map((b: any) => b.storeId))])
@@ -194,6 +218,7 @@ export default function AnalyticsPage() {
       setBills(billsData)
       setStores(storesData)
       setProducts(productsData)
+      setUsers(usersData) // Set user data
     } catch (error) {
       console.error('Error loading data:', error)
       alert('Failed to load analytics data. Please try again.')
@@ -219,6 +244,48 @@ export default function AnalyticsPage() {
     }
     return id
   }
+
+  const calculateUserSessionAnalytics = () => {
+    const filteredUsers = users.filter(user => {
+      if (!dateRange?.from || !dateRange?.to) return true;
+      const lastLoggedDate = new Date(user.lastLogged);
+      return lastLoggedDate >= dateRange.from && lastLoggedDate <= dateRange.to;
+    });
+
+    const dailySessions: { [key: string]: { totalSessions: number; totalDuration: number; count: number } } = {};
+
+    filteredUsers.forEach(user => {
+      const lastLoggedDate = new Date(user.lastLogged);
+      const lastLogoutDate = new Date(user.lastLogout);
+
+      // Ensure valid dates and logout is after login
+      if (isNaN(lastLoggedDate.getTime()) || isNaN(lastLogoutDate.getTime()) || lastLogoutDate < lastLoggedDate) {
+        return;
+      }
+
+      const sessionDurationMs = lastLogoutDate.getTime() - lastLoggedDate.getTime();
+      const sessionDurationMinutes = sessionDurationMs / (1000 * 60);
+
+      const dateKey = format(lastLoggedDate, "yyyy-MM-dd");
+
+      if (!dailySessions[dateKey]) {
+        dailySessions[dateKey] = { totalSessions: 0, totalDuration: 0, count: 0 };
+      }
+      dailySessions[dateKey].totalSessions += 1;
+      dailySessions[dateKey].totalDuration += sessionDurationMinutes;
+      dailySessions[dateKey].count += 1;
+    });
+
+    const sessionAnalytics = Object.entries(dailySessions)
+      .map(([date, stats]) => ({
+        date,
+        totalSessions: stats.totalSessions,
+        averageSessionDuration: stats.count > 0 ? Number((stats.totalDuration / stats.count).toFixed(2)) : 0,
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    setUserSessionAnalytics(sessionAnalytics);
+  };
 
   const calculateAnalytics = () => {
     const filteredBills = filterBillsByDateRange(bills)
@@ -906,6 +973,7 @@ export default function AnalyticsPage() {
             <TabsTrigger value="stores">Store Analytics</TabsTrigger>
             <TabsTrigger value="products">Product Analytics</TabsTrigger>
             <TabsTrigger value="trends">Trends & Insights</TabsTrigger>
+            <TabsTrigger value="userSessions">User Sessions</TabsTrigger> {/* New tab trigger */}
           </TabsList>
 
           <TabsContent value="stores" className="space-y-6">
@@ -1206,6 +1274,61 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* New TabsContent for User Sessions */}
+          <TabsContent value="userSessions" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>User Session Duration Trend</CardTitle>
+                <CardDescription>Average session duration over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart
+                    data={userSessionAnalytics}
+                    margin={{
+                      top: 5,
+                      right: 30,
+                      left: 20,
+                      bottom: 5,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis label={{ value: 'Avg Duration (minutes)', angle: -90, position: 'insideLeft' }} />
+                    <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} minutes`, "Average Session Duration"]} />
+                    <Line type="monotone" dataKey="averageSessionDuration" stroke="#8884d8" activeDot={{ r: 8 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Total User Sessions Over Time</CardTitle>
+                <CardDescription>Number of user sessions per day</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart
+                    data={userSessionAnalytics}
+                    margin={{
+                      top: 5,
+                      right: 30,
+                      left: 20,
+                      bottom: 5,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis label={{ value: 'Total Sessions', angle: -90, position: 'insideLeft' }} />
+                    <Tooltip formatter={(value) => [`${value} sessions`, "Total Sessions"]} />
+                    <Bar dataKey="totalSessions" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

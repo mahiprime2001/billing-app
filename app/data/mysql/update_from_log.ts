@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import pool from '../../../lib/mysql';
+import { logSync } from './sync';
 import fs from 'fs/promises';
 import path from 'path';
 import dns from 'dns';
@@ -40,6 +41,27 @@ async function saveProcessingState(state: { [key: string]: number }) {
   await fs.writeFile(stateFilePath, JSON.stringify(state, null, 2));
 }
 
+function getTableName(entityType: string): string {
+  const singular = entityType.endsWith('s') ? entityType.slice(0, -1) : entityType;
+  const pascal = singular.charAt(0).toUpperCase() + singular.slice(1);
+  if (entityType === 'bill') {
+    return 'Bills';
+  }
+  return `${pascal}s`;
+}
+
+async function getRecordById(entityType: string, id: string): Promise<any> {
+  const jsonPath = path.join(process.cwd(), 'app', 'data', 'json', `${entityType}.json`);
+  try {
+    const jsonData = await fs.readFile(jsonPath, 'utf-8');
+    const records = JSON.parse(jsonData);
+    return records.find((record: any) => record.id === id);
+  } catch (error) {
+    console.error(`Error reading or parsing ${jsonPath}:`, error);
+    return null;
+  }
+}
+
 async function processLogs() {
   if (isProcessing || !isConnected) return;
   isProcessing = true;
@@ -50,6 +72,8 @@ async function processLogs() {
     const logFiles = (await fs.readdir(logsDir)).filter(file => file.endsWith('.log') && !['sync.log', 'processing_state.json'].includes(file));
 
     for (const logFile of logFiles) {
+      const entityType = logFile.replace('.json.log', '');
+      const tableName = getTableName(entityType);
       const logFilePath = path.join(logsDir, logFile);
       const logData = await fs.readFile(logFilePath, 'utf-8');
       const logLines = logData.split('\n').filter(line => line.trim() !== '');
@@ -67,48 +91,131 @@ async function processLogs() {
       for (let i = 0; i < linesToProcess.length; i++) {
         const line = linesToProcess[i];
         const currentLineNumber = lastProcessedLine + i + 1;
-        const connection = await pool.getConnection();
-        await connection.beginTransaction();
+        
+        const idMatch = line.match(/Bill deleted: \(ID: (.*)\)/) || line.match(/ \(ID: (.*)\)/);
+        if (!idMatch) {
+          console.log(`Could not parse ID from line ${currentLineNumber} in ${logFile}. Skipping.`);
+          continue;
+        }
+        const id = idMatch[1];
 
-        try {
-          if (logFile.startsWith('products')) {
-            const match = line.match(/(\S+) - New product created: (.*) \(ID: (\d+)\)/);
-            if (match) {
-              const [_, timestamp, name, id] = match;
-              const createdAt = new Date(timestamp);
-              const updatedAt = createdAt;
-              await connection.execute(
-                'INSERT INTO Products (id, name, price, stock, description, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, price = ?, stock = ?, description = ?, updatedAt = ?',
-                [id, name, 0, 0, null, createdAt, updatedAt, name, 0, 0, null, updatedAt]
-              );
-            }
-          } else if (logFile.startsWith('stores')) {
-            const deleteMatch = line.match(/(\S+) - Store deleted: (.*) \(ID: (.*)\)/);
-            if (deleteMatch) {
-              const [_, timestamp, name, id] = deleteMatch;
-              await connection.execute('DELETE FROM Stores WHERE id = ?', [id]);
-            } else {
-              const createMatch = line.match(/(\S+) - New store created: (.*) \(ID: (.*)\)/);
-              if (createMatch) {
-                const [_, timestamp, name, id] = createMatch;
-                const createdAt = new Date(timestamp);
-                const updatedAt = createdAt;
-                await connection.execute(
-                  'INSERT IGNORE INTO Stores (id, name, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
-                  [id, name, 'active', createdAt, updatedAt]
-                );
+        let retries = 3;
+        while (retries > 0) {
+          let connection;
+          try {
+            connection = await pool.getConnection();
+            await connection.beginTransaction();
+
+            const record = await getRecordById(entityType, id);
+
+            if (line.includes('Bill deleted')) {
+              await connection.execute(`DELETE FROM Bills WHERE id = ?`, [id]);
+              await logSync({ change_type: 'delete', change_data: { id, table: 'Bills' } });
+            } else if (line.includes('deleted')) {
+              await connection.execute(`DELETE FROM ${tableName} WHERE id = ?`, [id]);
+              await logSync({ change_type: 'delete', change_data: { id, table: tableName } });
+            } else if (record) {
+              if (entityType === 'products') {
+                const { barcodes, category, description, ...productData } = record;
+                
+                // Update product details
+                const productColumns = Object.keys(productData);
+                const productValues = Object.values(productData);
+                const productPlaceholders = productColumns.map(() => '?').join(', ');
+                const productUpdatePlaceholders = productColumns.map(col => `${col} = ?`).join(', ');
+                const productQuery = `INSERT INTO Products (${productColumns.join(', ')}) VALUES (${productPlaceholders}) ON DUPLICATE KEY UPDATE ${productUpdatePlaceholders}`;
+                await connection.execute(productQuery, [...productValues, ...productValues]);
+
+                // Sync barcodes
+                const [existingBarcodes] = await connection.execute('SELECT barcode FROM ProductBarcodes WHERE productId = ?', [id]);
+                const existingBarcodeSet = new Set((existingBarcodes as any[]).map(b => b.barcode));
+                const newBarcodeSet = new Set(barcodes);
+
+                // Add new barcodes
+                for (const barcode of newBarcodeSet) {
+                  if (!existingBarcodeSet.has(barcode)) {
+                    await connection.execute('INSERT INTO ProductBarcodes (productId, barcode) VALUES (?, ?)', [id, barcode]);
+                  }
+                }
+
+                // Remove old barcodes
+                for (const barcode of existingBarcodeSet) {
+                  if (!newBarcodeSet.has(barcode)) {
+                    await connection.execute('DELETE FROM ProductBarcodes WHERE productId = ? AND barcode = ?', [id, barcode]);
+                  }
+                }
+              } else if (entityType === 'users') {
+                const { assignedStores, ...userData } = record;
+
+                // Update user details
+                const userColumns = Object.keys(userData);
+                const userValues = Object.values(userData);
+                const userPlaceholders = userColumns.map(() => '?').join(', ');
+                const userUpdatePlaceholders = userColumns.map(col => `${col} = ?`).join(', ');
+                const userQuery = `INSERT INTO Users (${userColumns.join(', ')}) VALUES (${userPlaceholders}) ON DUPLICATE KEY UPDATE ${userUpdatePlaceholders}`;
+                await connection.execute(userQuery, [...userValues, ...userValues]);
+
+                // Sync user_stores
+                const [existingStores] = await connection.execute('SELECT storeId FROM UserStores WHERE userId = ?', [id]);
+                const existingStoreSet = new Set((existingStores as any[]).map(s => s.store_id));
+                const newStoreSet = new Set(assignedStores);
+
+                // Add new store assignments
+                for (const storeId of newStoreSet) {
+                  if (!existingStoreSet.has(storeId)) {
+                    await connection.execute('INSERT INTO UserStores (userId, storeId) VALUES (?, ?)', [id, storeId]);
+                  }
+                }
+
+                // Remove old store assignments
+                for (const storeId of existingStoreSet) {
+                  if (!newStoreSet.has(storeId)) {
+                    await connection.execute('DELETE FROM UserStores WHERE userId = ? AND storeId = ?', [id, storeId]);
+                  }
+                }
+              } else {
+                if (tableName === 'Bills') {
+                  const [rows] = await connection.execute('SELECT id FROM Users WHERE id = ?', [record.createdBy]);
+                  if ((rows as any[]).length === 0) {
+                    console.log(`User with id ${record.createdBy} not found. Skipping bill insertion.`);
+                    return;
+                  }
+                }
+                const { storePhone, category, items, ...filteredRecord } = record;
+                const columns = Object.keys(filteredRecord);
+                const values = Object.values(filteredRecord);
+                const placeholders = columns.map(() => '?').join(', ');
+                const updatePlaceholders = columns.map(col => `${col} = ?`).join(', ');
+
+                const query = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updatePlaceholders}`;
+                const queryParams = [...values, ...values];
+
+                await connection.execute(query, queryParams);
               }
+              await logSync({ change_type: 'update', change_data: record });
+            }
+
+            await connection.commit();
+            processedInFile++;
+            break; // Success, exit retry loop
+          } catch (lineError: any) {
+            if (connection) {
+              await connection.rollback();
+            }
+            if (lineError.code === 'ECONNRESET' && retries > 1) {
+              console.log(`Connection reset. Retrying... (${retries - 1} attempts left)`);
+              retries--;
+              await new Promise(res => setTimeout(res, 3000)); // Wait 3 seconds before retrying
+            } else {
+              console.error(`Error processing line ${currentLineNumber} from ${logFile}:`, lineError);
+              console.log(`Transaction for line ${currentLineNumber} rolled back. Stopping processing for this file.`);
+              retries = 0; // Stop retrying
+            }
+          } finally {
+            if (connection) {
+              connection.release();
             }
           }
-          await connection.commit();
-          processedInFile++;
-        } catch (lineError) {
-          console.error(`Error processing line ${currentLineNumber} from ${logFile}:`, lineError);
-          await connection.rollback();
-          console.log(`Transaction for line ${currentLineNumber} rolled back. Stopping processing for this file.`);
-          break;
-        } finally {
-          connection.release();
         }
       }
 

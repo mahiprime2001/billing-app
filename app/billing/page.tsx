@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import BillingLayout from "@/components/billing-layout"
@@ -72,6 +72,7 @@ interface BillTab {
 }
 
 interface AdminUser {
+  id: string
   name: string
   email: string
   role: "super_admin" | "billing_user" | "temporary_user"
@@ -159,12 +160,26 @@ export default function BillingPage() {
 
     // Load bills
     fetch("/api/bills")
-      .then((res) => res.json())
+      .then((res) => {
+        if (res.status === 401) {
+          router.push("/") // Redirect to login on auth error
+          return null
+        }
+        if (!res.ok) {
+          throw new Error("Failed to fetch bills")
+        }
+        return res.json()
+      })
       .then((data) => {
-        const sortedBills = data.sort(
-          (a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-        )
-        setBills(sortedBills)
+        if (data) {
+          const sortedBills = data.sort(
+            (a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+          )
+          setBills(sortedBills)
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load bills:", error)
       })
 
     // Load stores
@@ -184,7 +199,6 @@ export default function BillingPage() {
         }
       })
 
-    initializeTabs();
   }, [router]);
 
   useEffect(() => {
@@ -232,27 +246,29 @@ export default function BillingPage() {
         })
       })
     }
-  }, [systemSettings.taxPercentage])
+  }, [systemSettings.taxPercentage]);
 
-  const initializeTabs = () => {
-    const initialTab: BillTab = {
-      id: "tab-1",
-      name: "Bill #1",
-      cart: [],
-      customer: {},
-      subtotal: 0,
-      discountPercentage: 0,
-      discountAmount: 0,
-      taxPercentage: systemSettings.taxPercentage,
-      taxAmount: 0,
-      total: 0,
-      paymentMethod: "cash",
-      notes: "",
-      hasUnsavedChanges: false,
+  useEffect(() => {
+    if (tabs.length === 0 && systemSettings.companyName) {
+      const initialTab: BillTab = {
+        id: "tab-1",
+        name: "Bill #1",
+        cart: [],
+        customer: {},
+        subtotal: 0,
+        discountPercentage: 0,
+        discountAmount: 0,
+        taxPercentage: systemSettings.taxPercentage,
+        taxAmount: 0,
+        total: 0,
+        paymentMethod: "cash",
+        notes: "",
+        hasUnsavedChanges: false,
+      };
+      setTabs([initialTab]);
+      setActiveTabId(initialTab.id);
     }
-    setTabs([initialTab])
-    setActiveTabId(initialTab.id)
-  }
+  }, [tabs.length, systemSettings]);
 
   const createNewTab = () => {
     const newTabNumber = tabs.length + 1
@@ -549,7 +565,7 @@ export default function BillingPage() {
       companyPhone: systemSettings.companyPhone,
       companyEmail: systemSettings.companyEmail,
       billFormat: formatName,
-      createdBy: currentUser?.name || "Unknown",
+      createdBy: currentUser?.id || "Unknown",
     }
 
     // Save to json file via api
@@ -783,6 +799,8 @@ export default function BillingPage() {
 
 
   const activeTab = getActiveTab()
+
+  const recentBills = useMemo(() => bills.slice(0, 10), [bills]);
 
   return (
     <BillingLayout>
@@ -1069,7 +1087,7 @@ export default function BillingPage() {
                   <h3 className="font-semibold mb-2">Recent Bills</h3>
                   <ScrollArea className="h-64">
                     <div className="space-y-2">
-                      {bills.slice(0, 10).map((bill) => (
+                      {recentBills.map((bill) => (
                         <Card key={bill.id}>
                           <CardContent className="p-3 text-sm">
                             <div className="flex justify-between">

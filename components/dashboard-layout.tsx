@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/sidebar"
 import { LayoutDashboard, Package, Users, Store, BarChart3, Receipt, Settings, LogOut, History } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { NotificationBell } from "@/components/notification-bell"
 
 interface AdminUser {
   name: string
@@ -243,6 +244,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </Badge>
               )}
             </div>
+          </div>
+          
+          {/* Notification Bell - positioned on the right side of header */}
+          <div className="ml-auto pr-4">
+            <NotificationBell />
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{children}</div>

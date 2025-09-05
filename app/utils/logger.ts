@@ -14,3 +14,7 @@ export const logChange = (fileName: string, change: string) => {
 
   fs.appendFileSync(logFilePath, logMessage);
 };
+
+export const createLog = async (logFilePath: string, content: string) => {
+  await fs.promises.writeFile(logFilePath, content, "utf-8");
+};

@@ -84,12 +84,9 @@ export default function ProductsPage() {
     name: "",
     price: "",
     stock: "",
-    category: "",
-    description: "",
+    tax: "",
     barcodes: [""],
   })
-
-  const categories = ["Electronics", "Clothing", "Books", "Home & Garden", "Sports", "Toys", "Other"]
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem("adminLoggedIn")
@@ -121,8 +118,7 @@ export default function ProductsPage() {
       name: "",
       price: "",
       stock: "",
-      category: "",
-      description: "",
+      tax: "",
       barcodes: [""],
     })
   }
@@ -194,8 +190,7 @@ export default function ProductsPage() {
       name: formData.name,
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
-      category: formData.category || "Other",
-      description: formData.description,
+      tax: Number.parseFloat(formData.tax),
       barcodes: validBarcodes,
     };
 
@@ -246,8 +241,7 @@ export default function ProductsPage() {
       name: formData.name,
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
-      category: formData.category || "Other",
-      description: formData.description,
+      tax: Number.parseFloat(formData.tax),
       barcodes: validBarcodes,
     };
 
@@ -295,8 +289,7 @@ export default function ProductsPage() {
       name: product.name,
       price: product.price.toString(),
       stock: product.stock.toString(),
-      category: product.category || "",
-      description: product.description || "",
+      tax: product.tax.toString(),
       barcodes: product.barcodes.length > 0 ? product.barcodes : [""],
     })
     setIsEditDialogOpen(true)
@@ -500,14 +493,13 @@ export default function ProductsPage() {
     const matchesSearch =
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (product.barcodes || []).some((barcode: string) => barcode.includes(searchTerm));
-    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
     const matchesStock =
       stockFilter === "all" ||
       (stockFilter === "low" && product.stock <= 5) ||
       (stockFilter === "out" && product.stock === 0) ||
       (stockFilter === "available" && product.stock > 5);
 
-    return matchesSearch && matchesCategory && matchesStock;
+    return matchesSearch && matchesStock;
   });
 
   const getStockStatus = (stock: number) => {
@@ -572,26 +564,6 @@ export default function ProductsPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="category">Category</Label>
-                      <Select
-                        value={formData.category}
-                        onValueChange={(value) => setFormData({ ...formData, category: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
                       <Label htmlFor="price">Price (₹) *</Label>
                       <Input
                         id="price"
@@ -603,6 +575,8 @@ export default function ProductsPage() {
                         placeholder="0.00"
                       />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="stock">Stock Quantity *</Label>
                       <Input
@@ -614,16 +588,18 @@ export default function ProductsPage() {
                         placeholder="0"
                       />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Enter product description"
-                      rows={3}
-                    />
+                    <div className="space-y-2">
+                      <Label htmlFor="tax">Tax (%)</Label>
+                      <Input
+                        id="tax"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.tax}
+                        onChange={(e) => setFormData({ ...formData, tax: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -751,19 +727,6 @@ export default function ProductsPage() {
                   />
                 </div>
               </div>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Filter by category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Select value={stockFilter} onValueChange={setStockFilter}>
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by stock" />
@@ -811,8 +774,8 @@ export default function ProductsPage() {
                       />
                     </th>
                     <th className="text-left p-4 font-medium">Product</th>
-                    <th className="text-left p-4 font-medium">Category</th>
                     <th className="text-left p-4 font-medium">Price</th>
+                    <th className="text-left p-4 font-medium">Tax</th>
                     <th className="text-left p-4 font-medium">Stock</th>
                     <th className="text-left p-4 font-medium">Barcodes</th>
                     <th className="text-left p-4 font-medium">Status</th>
@@ -836,20 +799,13 @@ export default function ProductsPage() {
                         <td className="p-4">
                           <div>
                             <div className="font-medium">{product.name}</div>
-                            {product.description && (
-                              <div className="text-sm text-gray-500 mt-1">
-                                {product.description.length > 50
-                                  ? `${product.description.substring(0, 50)}...`
-                                  : product.description}
-                              </div>
-                            )}
                           </div>
                         </td>
                         <td className="p-4">
-                          <Badge variant="outline">{product.category}</Badge>
+                          <span className="font-medium">₹{product.price.toFixed(2)}</span>
                         </td>
                         <td className="p-4">
-                          <span className="font-medium">₹{product.price.toFixed(2)}</span>
+                          <span className="font-medium">{(product.tax || 0).toFixed(2)}%</span>
                         </td>
                         <td className="p-4">
                           <span className="font-medium">{product.stock}</span>
@@ -1048,26 +1004,6 @@ export default function ProductsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-category">Category</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
                   <Label htmlFor="edit-price">Price (₹) *</Label>
                   <Input
                     id="edit-price"
@@ -1079,6 +1015,8 @@ export default function ProductsPage() {
                     placeholder="0.00"
                   />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-stock">Stock Quantity *</Label>
                   <Input
@@ -1090,16 +1028,18 @@ export default function ProductsPage() {
                     placeholder="0"
                   />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-description">Description</Label>
-                <Textarea
-                  id="edit-description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Enter product description"
-                  rows={3}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="edit-tax">Tax (%)</Label>
+                  <Input
+                    id="edit-tax"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.tax}
+                    onChange={(e) => setFormData({ ...formData, tax: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">

@@ -23,7 +23,7 @@ async function saveStores(stores: any[]) {
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   const stores = await getStores();
-  const { id } = params;
+  const id = params.id;
   const store = stores.find((s: any) => s.id === id);
 
   if (store) {
@@ -36,7 +36,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   const updatedStoreData = await request.json();
   const stores = await getStores();
-  const { id } = params;
+  const id = params.id;
   const storeIndex = stores.findIndex((s: any) => s.id === id);
 
   if (storeIndex === -1) {
@@ -58,7 +58,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   const stores = await getStores();
-  const { id } = params;
+  const id = params.id;
   const updatedStores = stores.filter((s: any) => s.id !== id);
 
   if (stores.length === updatedStores.length) {

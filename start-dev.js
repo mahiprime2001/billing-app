@@ -19,3 +19,13 @@ const logWatcher = spawn('npm', ['run', 'update-from-log'], {
 logWatcher.on('error', (err) => {
   console.error('Failed to start log watcher:', err);
 });
+
+// Start the sync check
+const syncCheck = spawn('npm', ['run', 'sync-check'], {
+  stdio: 'inherit',
+  shell: true
+});
+
+syncCheck.on('error', (err) => {
+  console.error('Failed to start sync check:', err);
+});

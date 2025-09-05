@@ -23,7 +23,8 @@ async function saveProducts(products: any[]) {
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   const products = await getProducts();
-  const product = products.find((p: any) => p.id === params.id);
+  const { id } = params;
+  const product = products.find((p: any) => p.id === id);
 
   if (product) {
     return NextResponse.json(product);
@@ -35,7 +36,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   const updatedProductData = await request.json();
   const products = await getProducts();
-  const productIndex = products.findIndex((p: any) => p.id === params.id);
+  const { id } = params;
+  const productIndex = products.findIndex((p: any) => p.id === id);
 
   if (productIndex === -1) {
     return NextResponse.json({ message: "Product not found" }, { status: 404 });
@@ -56,13 +58,14 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   const products = await getProducts();
-  const updatedProducts = products.filter((p: any) => p.id !== params.id);
+  const { id } = params;
+  const updatedProducts = products.filter((p: any) => p.id !== id);
 
   if (products.length === updatedProducts.length) {
     return NextResponse.json({ message: "Product not found" }, { status: 404 });
   }
 
-  const deletedProduct = products.find((p: any) => p.id === params.id);
+  const deletedProduct = products.find((p: any) => p.id === id);
   await saveProducts(updatedProducts);
   if (deletedProduct) {
     logChange("products.json", `Product deleted: ${deletedProduct.name} (ID: ${deletedProduct.id})`);

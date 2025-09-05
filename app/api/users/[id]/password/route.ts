@@ -16,8 +16,9 @@ const readUsers = () => {
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
+    const { id } = params;
     const users = readUsers()
-    const user = users.find((u: any) => u.id === params.id)
+    const user = users.find((u: any) => u.id === id)
 
     if (!user) {
       return NextResponse.json({ message: "User not found" }, { status: 404 })

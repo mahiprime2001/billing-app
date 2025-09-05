@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!session) {
-    return NextResponse.redirect(new URL('/api/auth/login', request.url));
+    return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
   }
 
   return NextResponse.next();

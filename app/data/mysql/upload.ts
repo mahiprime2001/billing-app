@@ -40,36 +40,12 @@ async function uploadData() {
       }
     }
 
-    // Upload categories and products
-    const categoryIds = new Map<string, string>();
+    // Upload products
     for (const product of products as any[]) {
       await connection.execute(
-        'INSERT IGNORE INTO Products (id, name, price, stock, description, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [product.id, product.name, product.price, product.stock, product.description, product.createdAt, product.updatedAt]
+        'INSERT IGNORE INTO Products (id, name, price, stock, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+        [product.id, product.name, product.price, product.stock, product.createdAt, product.updatedAt]
       );
-
-      const categoryName = (product as any).category;
-      if (categoryName) {
-        let categoryId: string;
-        const existingCategoryId = categoryIds.get(categoryName);
-
-        if (existingCategoryId) {
-          categoryId = existingCategoryId;
-        } else {
-          categoryId = categoryName.toLowerCase().replace(/\s+/g, '-');
-          const now = new Date();
-          await connection.execute(
-            'INSERT IGNORE INTO Categories (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
-            [categoryId, categoryName, now, now]
-          );
-          categoryIds.set(categoryName, categoryId);
-        }
-        
-        await connection.execute(
-          'INSERT IGNORE INTO ProductCategories (productId, categoryId) VALUES (?, ?)',
-          [product.id, categoryId]
-        );
-      }
 
       if (product.barcodes) {
         for (const barcode of product.barcodes) {

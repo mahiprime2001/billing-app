@@ -35,7 +35,16 @@ interface AdminUser {
   password?: string
 }
 
+interface ForgotPasswordState {
+  email: string
+  loading: boolean
+  error: string
+  success: boolean
+  message: string
+}
+
 export default function LoginPage() {
+  console.log("LoginPage component rendered");
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -47,21 +56,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [rememberEmail, setRememberEmail] = useState(false)
 
-  // Forgot password state
-  const [showForgotPassword, setShowForgotPassword] = useState(false)
-  const [resetEmail, setResetEmail] = useState("")
-  const [resetStep, setResetStep] = useState(1)
-  const [resetCode, setResetCode] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [resetLoading, setResetLoading] = useState(false)
-  const [resetError, setResetError] = useState("")
-  const [resetSuccess, setResetSuccess] = useState("")
+  // Forgot password state (same as billing app)
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
+  const [forgotPassword, setForgotPassword] = useState<ForgotPasswordState>({
+    email: "",
+    loading: false,
+    error: "",
+    success: false,
+    message: ""
+  })
 
   useEffect(() => {
-    // Initialize default admin first
-    initializeDefaultAdmin()
-
     // Check if user is already logged in
     const sessionToken = localStorage.getItem("sessionToken")
     if (sessionToken) {
@@ -84,16 +89,12 @@ export default function LoginPage() {
     }
 
     // Load remembered email
-    const rememberedEmail = localStorage.getItem("rememberedEmail")
+    const rememberedEmail = localStorage.getItem("rememberedAdminEmail")
     if (rememberedEmail) {
       setEmail(rememberedEmail)
       setRememberEmail(true)
     }
   }, [router])
-
-  const initializeDefaultAdmin = () => {
-    // This function is no longer needed as we are using the API
-  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -134,9 +135,9 @@ export default function LoginPage() {
 
       // Handle remember email
       if (rememberEmail) {
-        localStorage.setItem("rememberedEmail", email)
+        localStorage.setItem("rememberedAdminEmail", email)
       } else {
-        localStorage.removeItem("rememberedEmail")
+        localStorage.removeItem("rememberedAdminEmail")
       }
 
       // Set login state
@@ -174,115 +175,110 @@ export default function LoginPage() {
     }
   }
 
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  // Same forgot password logic as billing app
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    setResetLoading(true)
-    setResetError("")
-    setResetSuccess("")
+    
+    if (!forgotPassword.email) {
+      setForgotPassword(prev => ({ 
+        ...prev, 
+        error: "Email is required" 
+      }))
+      return
+    }
+
+    if (!validateEmail(forgotPassword.email)) {
+      setForgotPassword(prev => ({ 
+        ...prev, 
+        error: "Please enter a valid email address" 
+      }))
+      return
+    }
+
+    setForgotPassword(prev => ({ 
+      ...prev, 
+      loading: true, 
+      error: "", 
+      message: "" 
+    }))
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await fetch("/api/auth/forgot-password-proxy", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: forgotPassword.email }),
+      })
 
-      if (resetStep === 1) {
-        // Verify email exists
-        if (!resetEmail || !resetEmail.trim()) {
-          setResetError("Please enter your email address")
-          return
-        }
+      const data = await response.json()
 
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!emailRegex.test(resetEmail)) {
-          setResetError("Please enter a valid email address")
-          return
-        }
-
-        const users: AdminUser[] = JSON.parse(localStorage.getItem("adminUsers") || "[]")
-        const user = users.find((u) => {
-          if (!u || !u.email) return false
-          return u.email.toLowerCase() === resetEmail.toLowerCase()
-        })
-
-        if (!user) {
-          setResetError("Email address not found in our system")
-          return
-        }
-
-        setResetSuccess("Reset code sent to your email! Check your inbox.")
-        setResetStep(2)
-      } else if (resetStep === 2) {
-        // Verify reset code
-        if (!resetCode || resetCode !== "123456") {
-          setResetError("Invalid reset code. Please check your email.")
-          return
-        }
-
-        setResetSuccess("Code verified! Please set your new password.")
-        setResetStep(3)
-      } else if (resetStep === 3) {
-        // Reset password
-        if (!newPassword || !confirmPassword) {
-          setResetError("Please fill in all password fields")
-          return
-        }
-
-        if (newPassword !== confirmPassword) {
-          setResetError("Passwords do not match")
-          return
-        }
-
-        if (newPassword.length < 6) {
-          setResetError("Password must be at least 6 characters long")
-          return
-        }
-
-        // Update password in localStorage
-        const users: AdminUser[] = JSON.parse(localStorage.getItem("adminUsers") || "[]")
-        const userIndex = users.findIndex((u) => {
-          if (!u || !u.email || !resetEmail) return false
-          return u.email.toLowerCase() === resetEmail.toLowerCase()
-        })
-
-        if (userIndex !== -1) {
-          users[userIndex].password = newPassword
-          localStorage.setItem("adminUsers", JSON.stringify(users))
-        }
-
-        setResetSuccess("Password reset successful! You can now login with your new password.")
+      if (data.success) {
+        setForgotPassword(prev => ({
+          ...prev,
+          success: true,
+          message: data.message,
+          email: "" // Clear email for security
+        }))
 
         toast({
-          title: "Password Reset Successful",
-          description: "You can now login with your new password.",
+          title: "📧 Reset Link Sent",
+          description: "Check your email for password reset instructions.",
         })
-
-        // Reset form and close dialog
-        setTimeout(() => {
-          setShowForgotPassword(false)
-          setResetStep(1)
-          setResetEmail("")
-          setResetCode("")
-          setNewPassword("")
-          setConfirmPassword("")
-          setResetError("")
-          setResetSuccess("")
-        }, 2000)
+      } else {
+        setForgotPassword(prev => ({ 
+          ...prev, 
+          error: data.message 
+        }))
+        
+        toast({
+          title: "❌ Request Failed",
+          description: data.message,
+          variant: "destructive",
+        })
       }
     } catch (error) {
-      console.error("Password reset error:", error)
-      setResetError("An error occurred during password reset. Please try again.")
+      setForgotPassword(prev => ({ 
+        ...prev, 
+        error: "Network error. Please check your connection and try again." 
+      }))
+      
+      toast({
+        title: "⚠️ Connection Error",
+        description: "Please check your internet connection.",
+        variant: "destructive",
+      })
     } finally {
-      setResetLoading(false)
+      setForgotPassword(prev => ({ 
+        ...prev, 
+        loading: false 
+      }))
     }
   }
 
   const resetForgotPasswordForm = () => {
-    setResetStep(1)
-    setResetEmail("")
-    setResetCode("")
-    setNewPassword("")
-    setConfirmPassword("")
-    setResetError("")
-    setResetSuccess("")
+    setForgotPassword({
+      email: "",
+      loading: false,
+      error: "",
+      success: false,
+      message: ""
+    })
+  }
+
+  const handleForgotPasswordModalChange = (open: boolean) => {
+    setForgotPasswordOpen(open)
+    if (!open) {
+      // Reset form when modal closes
+      setTimeout(() => {
+        resetForgotPasswordForm()
+      }, 200) // Small delay to allow modal animation
+    }
   }
 
   return (
@@ -298,7 +294,7 @@ export default function LoginPage() {
 
         <Card className="shadow-xl border-0">
           <CardHeader className="text-center pb-4">
-            <CardTitle className="flex items-center">
+            <CardTitle className="flex items-center justify-center">
               <Lock className="h-5 w-5 mr-2" />
               Sign In
             </CardTitle>
@@ -323,7 +319,126 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="password">Password</Label>
+                  <Dialog open={forgotPasswordOpen} onOpenChange={handleForgotPasswordModalChange}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="link" 
+                        className="p-0 h-auto text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Forgot Password?
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <Mail className="h-5 w-5 text-blue-600" />
+                          Reset Password
+                        </DialogTitle>
+                        <DialogDescription>
+                          {forgotPassword.success 
+                            ? "Check your email for reset instructions"
+                            : "Enter your email address to receive a password reset link"
+                          }
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      {forgotPassword.success ? (
+                        // Success State (same as billing app)
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-center p-6">
+                            <div className="text-center space-y-3">
+                              <div className="mx-auto flex items-center justify-center w-12 h-12 bg-green-100 rounded-full">
+                                <CheckCircle className="w-6 h-6 text-green-600" />
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-medium text-gray-900">Email Sent!</h3>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {forgotPassword.message}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={resetForgotPasswordForm}
+                              className="flex-1"
+                            >
+                              <ArrowLeft className="w-4 h-4 mr-2" />
+                              Send Another
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={() => setForgotPasswordOpen(false)}
+                              className="flex-1"
+                            >
+                              Close
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        // Form State (same as billing app)
+                        <form onSubmit={handleForgotPassword} className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="forgot-email">Email Address</Label>
+                            <Input
+                              id="forgot-email"
+                              type="email"
+                              value={forgotPassword.email}
+                              onChange={(e) => setForgotPassword(prev => ({ 
+                                ...prev, 
+                                email: e.target.value, 
+                                error: "" 
+                              }))}
+                              placeholder="Enter your email address"
+                              disabled={forgotPassword.loading}
+                              className="w-full"
+                            />
+                          </div>
+
+                          {forgotPassword.error && (
+                            <Alert variant="destructive">
+                              <AlertCircle className="h-4 w-4" />
+                              <AlertDescription>{forgotPassword.error}</AlertDescription>
+                            </Alert>
+                          )}
+
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setForgotPasswordOpen(false)}
+                              disabled={forgotPassword.loading}
+                              className="flex-1"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="submit"
+                              disabled={forgotPassword.loading || !forgotPassword.email}
+                              className="flex-1"
+                            >
+                              {forgotPassword.loading ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                                  Sending...
+                                </>
+                              ) : (
+                                <>
+                                  <Mail className="w-4 h-4 mr-2" />
+                                  Send Link
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </form>
+                      )}
+                    </DialogContent>
+                  </Dialog>
+                </div>
                 <div className="relative">
                   <Input
                     id="password"
@@ -366,7 +481,7 @@ export default function LoginPage() {
                   </Label>
                 </div>
 
-                <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+                <Dialog open={forgotPasswordOpen} onOpenChange={handleForgotPasswordModalChange}>
                   <DialogTrigger asChild>
                     <Button
                       type="button"
@@ -374,131 +489,9 @@ export default function LoginPage() {
                       className="text-sm text-blue-600 hover:text-blue-800 p-0"
                       onClick={resetForgotPasswordForm}
                     >
-                      Forgot Password?
+                      Reset your password
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="flex items-center">
-                        <Lock className="h-5 w-5 mr-2 text-blue-600" />
-                        Reset Password
-                      </DialogTitle>
-                      <DialogDescription>
-                        {resetStep === 1 && "Enter your email address to receive a reset code"}
-                        {resetStep === 2 && "Enter the verification code sent to your email"}
-                        {resetStep === 3 && "Create your new password"}
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    <form onSubmit={handleForgotPassword} className="space-y-4">
-                      {resetStep === 1 && (
-                        <div className="space-y-2">
-                          <Label htmlFor="resetEmail">Email Address</Label>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input
-                              id="resetEmail"
-                              type="email"
-                              placeholder="Enter your email address"
-                              value={resetEmail}
-                              onChange={(e) => setResetEmail(e.target.value)}
-                              className="pl-10"
-                              required
-                              disabled={resetLoading}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {resetStep === 2 && (
-                        <div className="space-y-2">
-                          <Label htmlFor="resetCode">Verification Code</Label>
-                          <Input
-                            id="resetCode"
-                            type="text"
-                            placeholder="Enter the 6-digit code"
-                            value={resetCode}
-                            onChange={(e) => setResetCode(e.target.value)}
-                            required
-                            disabled={resetLoading}
-                            maxLength={6}
-                          />
-                          <p className="text-xs text-gray-500">
-                            For demo purposes, use code: <strong>123456</strong>
-                          </p>
-                        </div>
-                      )}
-
-                      {resetStep === 3 && (
-                        <>
-                          <div className="space-y-2">
-                            <Label htmlFor="newPassword">New Password</Label>
-                            <Input
-                              id="newPassword"
-                              type="password"
-                              placeholder="Enter new password"
-                              value={newPassword}
-                              onChange={(e) => setNewPassword(e.target.value)}
-                              required
-                              disabled={resetLoading}
-                              minLength={6}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="confirmPassword">Confirm Password</Label>
-                            <Input
-                              id="confirmPassword"
-                              type="password"
-                              placeholder="Confirm new password"
-                              value={confirmPassword}
-                              onChange={(e) => setConfirmPassword(e.target.value)}
-                              required
-                              disabled={resetLoading}
-                              minLength={6}
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {resetError && (
-                        <Alert className="border-red-200 bg-red-50">
-                          <AlertCircle className="h-4 w-4 text-red-600" />
-                          <AlertDescription className="text-red-700">{resetError}</AlertDescription>
-                        </Alert>
-                      )}
-
-                      {resetSuccess && (
-                        <Alert className="border-green-200 bg-green-50">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <AlertDescription className="text-green-700">{resetSuccess}</AlertDescription>
-                        </Alert>
-                      )}
-
-                      <div className="flex gap-2">
-                        {resetStep > 1 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setResetStep(resetStep - 1)}
-                            disabled={resetLoading}
-                            className="flex-1"
-                          >
-                            <ArrowLeft className="h-4 w-4 mr-2" />
-                            Back
-                          </Button>
-                        )}
-                        <Button type="submit" disabled={resetLoading} className="flex-1">
-                          {resetLoading
-                            ? "Processing..."
-                            : resetStep === 1
-                              ? "Send Code"
-                              : resetStep === 2
-                                ? "Verify Code"
-                                : "Reset Password"}
-                        </Button>
-                      </div>
-                    </form>
-                  </DialogContent>
                 </Dialog>
               </div>
 
@@ -521,33 +514,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Demo Credentials:</h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between p-2 bg-white rounded border">
-                  <div className="flex items-center">
-                    <Shield className="h-3 w-3 text-blue-600 mr-2" />
-                    <span className="font-medium">Super Admin</span>
-                  </div>
-                  <div className="text-gray-600">admin@siriart.com / admin123</div>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-white rounded border">
-                  <div className="flex items-center">
-                    <User className="h-3 w-3 text-green-600 mr-2" />
-                    <span className="font-medium">Billing User</span>
-                  </div>
-                  <div className="text-gray-600">billing@siriart.com / billing123</div>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-white rounded border">
-                  <div className="flex items-center">
-                    <Clock className="h-3 w-3 text-orange-600 mr-2" />
-                    <span className="font-medium">Temporary User</span>
-                  </div>
-                  <div className="text-gray-600">temp@siriart.com / temp123</div>
-                </div>
-              </div>
-            </div>
+            
           </CardContent>
         </Card>
 
