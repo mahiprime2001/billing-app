@@ -1,9 +1,10 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import IdleTimeoutHandler from "@/components/idle-timeout-handler"
-import "./globals.css"
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import IdleTimeoutHandler from "@/components/idle-timeout-handler";
+import "./globals.css";
 import OfflineBanner from "@/components/OfflineBanner";
+import ServerErrorHandler from "@/components/server-error-handler";
+import TauriCloseHandler from "@/components/tauri-close-handler";
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -16,16 +17,18 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="en">
       <body className={inter.className}>
-        <OfflineBanner />
-        <IdleTimeoutHandler />
-        {children}
+        <TauriCloseHandler>
+          <OfflineBanner />
+          <IdleTimeoutHandler />
+          <ServerErrorHandler>{children}</ServerErrorHandler>
+        </TauriCloseHandler>
       </body>
     </html>
-  )
+  );
 }
