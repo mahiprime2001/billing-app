@@ -67,6 +67,9 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Install Tauri CLI (cargo)
+        run: cargo install tauri-cli --locked
+
       - uses: actions/cache@v4
         with:
           path: |
@@ -77,10 +80,9 @@ jobs:
           restore-keys: ${{ runner.os }}-deps-
 
       - run: npm ci
-
       - run: npm run build
 
-      - run: npx tauri build
+      - run: cargo tauri build
 
       - uses: actions/upload-artifact@v4
         with:
@@ -163,12 +165,9 @@ jobs:
           git commit -m "docs: update changelog for v$VERSION [skip ci]" || echo "No changes"
           git push origin main
 
-      - name: Install Tauri CLI
-        run: npm exec @tauri-apps/cli@latest -v
-
       - name: Generate latest.json
         run: |
-          npx @tauri-apps/cli signer sign \
+          cargo tauri signer sign \
             --private-key "${TAURI_PRIVATE_KEY}" \
             --password "${TAURI_KEY_PASSWORD}" \
             --version "$VERSION" \
