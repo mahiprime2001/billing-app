@@ -84,20 +84,27 @@ jobs:
 
       - run: cargo tauri build
 
-      # 🔑 Sign installer and generate latest.json
-      - name: Sign installer
+      - name: Check signing secrets
+        shell: bash
+        run: |
+          if [ -z "${TAURI_PRIVATE_KEY}" ] || [ -z "${TAURI_KEY_PASSWORD}" ]; then
+            echo "❌ Missing TAURI_PRIVATE_KEY or TAURI_KEY_PASSWORD in repo secrets"
+            exit 1
+          fi
+
+      - name: Sign installer with Tauri CLI
+        shell: bash
         run: |
           cargo tauri signer sign \
-            --private-key "${{ secrets.TAURI_PRIVATE_KEY }}" \
-            --password "${{ secrets.TAURI_KEY_PASSWORD }}" \
+            --private-key "${TAURI_PRIVATE_KEY}" \
+            --password "${TAURI_KEY_PASSWORD}" \
             --version "$VERSION" \
             --files src-tauri/target/release/bundle/msi/* \
             --output src-tauri/target/release/bundle/msi/latest.json
 
-      # Upload artifacts with clean name
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-release
+          name: tauri-${{ matrix.platform }}
           path: src-tauri/target/release/bundle/
 
   bump-and-release:
@@ -116,11 +123,10 @@ jobs:
       - name: Safety check for VERSION
         run: test -n "$VERSION"
 
-      - name: Download Windows artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-release
-          path: artifacts/windows
+          path: artifacts
 
       - name: Update version in configs
         shell: bash
@@ -175,12 +181,11 @@ jobs:
           git commit -m "docs: update changelog for v$VERSION [skip ci]" || echo "No changes"
           git push origin main
 
-      # 🚀 Release with signed installer + latest.json
       - name: Create GitHub Release
         shell: bash
         run: |
           CHANGELOG_DECODED=$(echo "${{ steps.changelog.outputs.changelog_base64 }}" | base64 --decode)
-          gh release create v$VERSION artifacts/windows/* \
+          gh release create v$VERSION artifacts/**/* \
             --title "Release v$VERSION" \
             --notes "$CHANGELOG_DECODED"
         env:
