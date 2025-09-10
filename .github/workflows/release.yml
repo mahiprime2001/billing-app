@@ -88,13 +88,14 @@ jobs:
         shell: bash
         run: |
           if [ -z "${TAURI_PRIVATE_KEY}" ] || [ -z "${TAURI_KEY_PASSWORD}" ]; then
-            echo "❌ Missing TAURI_PRIVATE_KEY or TAURI_KEY_PASSWORD in repo secrets"
+            echo "❌ Missing TAURI_PRIVATE_KEY or TAURI_KEY_PASSWORD secrets!"
             exit 1
           fi
 
       - name: Sign installer with Tauri CLI
         shell: bash
         run: |
+          echo "🔑 Signing the .msi installer..."
           cargo tauri signer sign \
             --private-key "${TAURI_PRIVATE_KEY}" \
             --password "${TAURI_KEY_PASSWORD}" \
