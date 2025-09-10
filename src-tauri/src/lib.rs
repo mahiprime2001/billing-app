@@ -77,19 +77,28 @@ pub fn run() {
 
     let child_process = Arc::new(Mutex::new(None));
 
+    // Build command to run server.js
+    let server_js = up_dir.join("server.js");
     let mut command = Command::new(exe_dir.join("node/node.exe"));
     command
-        .arg("server.js")
+        .arg(&server_js)
         .current_dir(&exe_dir)
         .stdout(Stdio::from(stdout_log))
         .stderr(Stdio::from(stderr_log))
         .creation_flags(0x08000000) // hide terminal window on Windows
         .env("PORT", port.to_string())
-        .env("NODE_ENV", if is_dev { "development" } else { "production" });
+        .env("NODE_ENV", if is_dev { "development" } else { "production" })
+        .env("PORT_FILE", port_file.to_string_lossy().to_string()); // always set
 
-    if !is_dev {
-        command.env("PORT_FILE", port_file.to_string_lossy().to_string());
-    }
+    // ✅ Debug log
+    println!(
+        "Launching Node server:\n  Binary: {}\n  Script: {}\n  PORT: {}\n  PORT_FILE: {}\n  NODE_ENV: {}",
+        exe_dir.join("node/node.exe").display(),
+        server_js.display(),
+        port,
+        port_file.display(),
+        if is_dev { "development" } else { "production" }
+    );
 
     let child = command.spawn().expect("Failed to start Node server");
     *child_process.lock().unwrap() = Some(child);
@@ -101,7 +110,6 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
             let main_window = app.get_webview_window("main").unwrap();
-            // ...existing code...
 
             if is_dev {
                 let handle = app.handle().clone();
@@ -123,8 +131,6 @@ pub fn run() {
             }
 
             let main_window_clone = main_window.clone();
-            // ...existing code...
-            // ...existing code...
             let error_log_path = logs_dir.join("server-error.log");
 
             spawn(move || {
@@ -193,10 +199,15 @@ pub fn run() {
                     server_ready = true;
                 }
 
-                // Show main window with server or error view
                 if server_ready {
                     if !is_dev {
-                        let url = format!("http://localhost:{}", fs::read_to_string(&main_port_info_file).unwrap_or("3000".to_string()).trim().to_string());
+                        let url = format!(
+                            "http://localhost:{}",
+                            fs::read_to_string(&main_port_info_file)
+                                .unwrap_or("3000".to_string())
+                                .trim()
+                                .to_string()
+                        );
                         let _ = main_window_clone.eval(&format!("window.location.replace('{}')", url));
                     } else {
                         let _ = main_window_clone.eval("window.location.replace('http://localhost:3000')");
