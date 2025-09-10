@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import pool from '../../../lib/mysql';
 import { logSync } from './sync';
+import { RowDataPacket, OkPacket } from 'mysql2';
 import fs from 'fs/promises';
 import path from 'path';
 import dns from 'dns';
@@ -11,7 +12,7 @@ let isConnected = false;
 let isProcessing = false;
 
 function checkConnection() {
-  dns.lookup('google.com', (err) => {
+  dns.lookup('google.com', (err: NodeJS.ErrnoException | null) => {
     if (err && err.code === 'ENOTFOUND') {
       if (isConnected) {
         console.log('Internet connection lost. Waiting for connection...');
@@ -69,14 +70,14 @@ async function processLogs() {
   const processingState = await loadProcessingState();
 
   try {
-    const logFiles = (await fs.readdir(logsDir)).filter(file => file.endsWith('.log') && !['sync.log', 'processing_state.json'].includes(file));
+    const logFiles = (await fs.readdir(logsDir)).filter((file: string) => file.endsWith('.log') && !['sync.log', 'processing_state.json'].includes(file));
 
     for (const logFile of logFiles) {
       const entityType = logFile.replace('.json.log', '');
       const tableName = getTableName(entityType);
       const logFilePath = path.join(logsDir, logFile);
       const logData = await fs.readFile(logFilePath, 'utf-8');
-      const logLines = logData.split('\n').filter(line => line.trim() !== '');
+      const logLines = logData.split('\n').filter((line: string) => line.trim() !== '');
 
       const lastProcessedLine = processingState[logFile] || 0;
       const linesToProcess = logLines.slice(lastProcessedLine);
@@ -92,7 +93,10 @@ async function processLogs() {
         const line = linesToProcess[i];
         const currentLineNumber = lastProcessedLine + i + 1;
         
-        const idMatch = line.match(/Bill deleted: \(ID: (.*)\)/) || line.match(/ \(ID: (.*)\)/);
+        if (!line.includes('(ID:') && !line.includes('product')) {
+          continue;
+        }
+        const idMatch = line.match(/product ([0-9]+):/) || line.match(/Bill deleted: \(ID: ([^)]+)\)/) || line.match(/\(ID: ([^)]+)\)/);
         if (!idMatch) {
           console.log(`Could not parse ID from line ${currentLineNumber} in ${logFile}. Skipping.`);
           continue;
@@ -109,10 +113,10 @@ async function processLogs() {
             const record = await getRecordById(entityType, id);
 
             if (line.includes('Bill deleted')) {
-              await connection.execute(`DELETE FROM Bills WHERE id = ?`, [id]);
+              await (connection as any).execute(`DELETE FROM Bills WHERE id = ?`, [id]);
               await logSync({ change_type: 'delete', change_data: { id, table: 'Bills' } });
             } else if (line.includes('deleted')) {
-              await connection.execute(`DELETE FROM ${tableName} WHERE id = ?`, [id]);
+              await (connection as any).execute(`DELETE FROM ${tableName} WHERE id = ?`, [id]);
               await logSync({ change_type: 'delete', change_data: { id, table: tableName } });
             } else if (record) {
               if (entityType === 'products') {
@@ -124,24 +128,24 @@ async function processLogs() {
                 const productPlaceholders = productColumns.map(() => '?').join(', ');
                 const productUpdatePlaceholders = productColumns.map(col => `${col} = ?`).join(', ');
                 const productQuery = `INSERT INTO Products (${productColumns.join(', ')}) VALUES (${productPlaceholders}) ON DUPLICATE KEY UPDATE ${productUpdatePlaceholders}`;
-                await connection.execute(productQuery, [...productValues, ...productValues]);
+                await (connection as any).execute(productQuery, [...productValues, ...productValues]);
 
                 // Sync barcodes
-                const [existingBarcodes] = await connection.execute('SELECT barcode FROM ProductBarcodes WHERE productId = ?', [id]);
+                const [existingBarcodes] = await (connection as any).execute('SELECT barcode FROM ProductBarcodes WHERE productId = ?', [id]);
                 const existingBarcodeSet = new Set((existingBarcodes as any[]).map(b => b.barcode));
                 const newBarcodeSet = new Set(barcodes);
 
                 // Add new barcodes
                 for (const barcode of newBarcodeSet) {
                   if (!existingBarcodeSet.has(barcode)) {
-                    await connection.execute('INSERT INTO ProductBarcodes (productId, barcode) VALUES (?, ?)', [id, barcode]);
+                    await (connection as any).execute('INSERT INTO ProductBarcodes (productId, barcode) VALUES (?, ?)', [id, barcode]);
                   }
                 }
 
                 // Remove old barcodes
                 for (const barcode of existingBarcodeSet) {
                   if (!newBarcodeSet.has(barcode)) {
-                    await connection.execute('DELETE FROM ProductBarcodes WHERE productId = ? AND barcode = ?', [id, barcode]);
+                    await (connection as any).execute('DELETE FROM ProductBarcodes WHERE productId = ? AND barcode = ?', [id, barcode]);
                   }
                 }
               } else if (entityType === 'users') {
@@ -153,44 +157,47 @@ async function processLogs() {
                 const userPlaceholders = userColumns.map(() => '?').join(', ');
                 const userUpdatePlaceholders = userColumns.map(col => `${col} = ?`).join(', ');
                 const userQuery = `INSERT INTO Users (${userColumns.join(', ')}) VALUES (${userPlaceholders}) ON DUPLICATE KEY UPDATE ${userUpdatePlaceholders}`;
-                await connection.execute(userQuery, [...userValues, ...userValues]);
+                await (connection as any).execute(userQuery, [...userValues, ...userValues]);
 
                 // Sync user_stores
-                const [existingStores] = await connection.execute('SELECT storeId FROM UserStores WHERE userId = ?', [id]);
-                const existingStoreSet = new Set((existingStores as any[]).map(s => s.store_id));
+                const [existingStores] = await (connection as any).execute('SELECT storeId FROM UserStores WHERE userId = ?', [id]);
+                const existingStoreSet = new Set((existingStores as any[]).map(s => s.storeId));
                 const newStoreSet = new Set(assignedStores);
 
                 // Add new store assignments
                 for (const storeId of newStoreSet) {
                   if (!existingStoreSet.has(storeId)) {
-                    await connection.execute('INSERT INTO UserStores (userId, storeId) VALUES (?, ?)', [id, storeId]);
+                    await (connection as any).execute('INSERT INTO UserStores (userId, storeId) VALUES (?, ?)', [id, storeId]);
                   }
                 }
 
                 // Remove old store assignments
                 for (const storeId of existingStoreSet) {
                   if (!newStoreSet.has(storeId)) {
-                    await connection.execute('DELETE FROM UserStores WHERE userId = ? AND storeId = ?', [id, storeId]);
+                    await (connection as any).execute('DELETE FROM UserStores WHERE userId = ? AND storeId = ?', [id, storeId]);
                   }
                 }
               } else {
+                let processRecord = true;
                 if (tableName === 'Bills') {
-                  const [rows] = await connection.execute('SELECT id FROM Users WHERE id = ?', [record.createdBy]);
+                  const [rows] = await (connection as any).execute('SELECT id FROM Users WHERE id = ?', [record.createdBy]);
                   if ((rows as any[]).length === 0) {
                     console.log(`User with id ${record.createdBy} not found. Skipping bill insertion.`);
-                    return;
+                    processRecord = false;
                   }
                 }
-                const { storePhone, category, items, ...filteredRecord } = record;
-                const columns = Object.keys(filteredRecord);
-                const values = Object.values(filteredRecord);
-                const placeholders = columns.map(() => '?').join(', ');
-                const updatePlaceholders = columns.map(col => `${col} = ?`).join(', ');
+                if (processRecord) {
+                  const { storePhone, category, items, ...filteredRecord } = record;
+                  const columns = Object.keys(filteredRecord);
+                  const values = Object.values(filteredRecord);
+                  const placeholders = columns.map(() => '?').join(', ');
+                  const updatePlaceholders = columns.map(col => `${col} = ?`).join(', ');
 
-                const query = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updatePlaceholders}`;
-                const queryParams = [...values, ...values];
+                  const query = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updatePlaceholders}`;
+                  const queryParams = [...values, ...values];
 
-                await connection.execute(query, queryParams);
+                  await (connection as any).execute(query, queryParams);
+                }
               }
               await logSync({ change_type: 'update', change_data: record });
             }

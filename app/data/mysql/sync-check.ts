@@ -40,7 +40,7 @@ async function executeWithRetry(query: string, params: any[] = [], retries = 3) 
     let connection;
     try {
       connection = await pool.getConnection();
-      const [rows] = await connection.execute(query, params);
+      const [rows] = await (connection as any).execute(query, params);
       return rows;
     } catch (err: any) {
       if (attempt === retries) throw err;
@@ -162,11 +162,13 @@ async function processChanges(changes: SyncRecord[]) {
       await createPasswordResetNotification(change);
     }
 
-    const parsed_change_data = typeof change_data === 'string' ? JSON.parse(change_data) : change_data;
+    const parsed_change_data = (typeof change_data === 'string' && change_data.trim().startsWith('{')) 
+      ? JSON.parse(change_data) 
+      : (typeof change_data === 'object' ? change_data : {});
     const { table, id } = parsed_change_data;
 
     if (!table || !id) {
-      console.error('Invalid change data:', parsed_change_data);
+      console.error('Invalid change data:', change_data);
       continue;
     }
 

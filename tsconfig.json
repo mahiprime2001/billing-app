@@ -28,14 +28,16 @@
       ]
     },
     "types": [
-      "@tauri-apps/api"
+      "@tauri-apps/api",
+      "node"
     ]
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     "next-env.d.ts",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "types/tauri.d.ts"
   ],
   "exclude": [
     "node_modules",

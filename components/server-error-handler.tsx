@@ -1,20 +1,27 @@
 "use client"
 
-import { listen } from '@tauri-apps/api/event';
 import { useEffect, useState } from 'react';
 
 export default function ServerErrorHandler({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unlisten = listen('server-error', event => {
-      if (typeof event.payload === 'string') {
-        setError(event.payload);
+    let unlisten: (() => void) | undefined;
+
+    const setupListener = async () => {
+      if (typeof window !== 'undefined' && window.__TAURI__) {
+        const { listen } = await import('@tauri-apps/api/event');
+        const unlistenPromise = listen<string>('server-error', event => {
+          setError(event.payload);
+        });
+        unlisten = await unlistenPromise;
       }
-    });
+    };
+
+    setupListener();
 
     return () => {
-      unlisten.then(f => f());
+      unlisten?.();
     };
   }, []);
 

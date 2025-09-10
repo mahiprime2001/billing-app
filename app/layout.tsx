@@ -4,7 +4,6 @@ import IdleTimeoutHandler from "@/components/idle-timeout-handler";
 import "./globals.css";
 import OfflineBanner from "@/components/OfflineBanner";
 import ServerErrorHandler from "@/components/server-error-handler";
-import TauriCloseHandler from "@/components/tauri-close-handler";
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -23,11 +22,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <TauriCloseHandler>
           <OfflineBanner />
           <IdleTimeoutHandler />
           <ServerErrorHandler>{children}</ServerErrorHandler>
-        </TauriCloseHandler>
       </body>
     </html>
   );

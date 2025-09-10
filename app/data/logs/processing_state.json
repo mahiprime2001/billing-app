@@ -1,5 +1,6 @@
 {
-  "products.json.log": 18,
+  "products.json.log": 35,
   "stores.json.log": 5,
-  "users.json.log": 8
+  "users.json.log": 11,
+  "bills.json.log": 3
 }
