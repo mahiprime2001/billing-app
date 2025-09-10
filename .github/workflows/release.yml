@@ -84,9 +84,20 @@ jobs:
 
       - run: cargo tauri build
 
+      # 🔑 Sign installer and generate latest.json
+      - name: Sign installer
+        run: |
+          cargo tauri signer sign \
+            --private-key "${{ secrets.TAURI_PRIVATE_KEY }}" \
+            --password "${{ secrets.TAURI_KEY_PASSWORD }}" \
+            --version "$VERSION" \
+            --files src-tauri/target/release/bundle/msi/* \
+            --output src-tauri/target/release/bundle/msi/latest.json
+
+      # Upload artifacts with clean name
       - uses: actions/upload-artifact@v4
         with:
-          name: tauri-${{ matrix.platform }}
+          name: windows-release
           path: src-tauri/target/release/bundle/
 
   bump-and-release:
@@ -96,8 +107,6 @@ jobs:
     env:
       VERSION: ${{ needs.build.outputs.version }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-      TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -107,10 +116,11 @@ jobs:
       - name: Safety check for VERSION
         run: test -n "$VERSION"
 
-      - name: Download artifacts
+      - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          name: windows-release
+          path: artifacts/windows
 
       - name: Update version in configs
         shell: bash
@@ -165,20 +175,12 @@ jobs:
           git commit -m "docs: update changelog for v$VERSION [skip ci]" || echo "No changes"
           git push origin main
 
-      - name: Generate latest.json
-        run: |
-          cargo tauri signer sign \
-            --private-key "${TAURI_PRIVATE_KEY}" \
-            --password "${TAURI_KEY_PASSWORD}" \
-            --version "$VERSION" \
-            --files artifacts/tauri-*/*/* \
-            --output artifacts/latest.json
-
+      # 🚀 Release with signed installer + latest.json
       - name: Create GitHub Release
         shell: bash
         run: |
           CHANGELOG_DECODED=$(echo "${{ steps.changelog.outputs.changelog_base64 }}" | base64 --decode)
-          gh release create v$VERSION artifacts/**/* artifacts/latest.json \
+          gh release create v$VERSION artifacts/windows/* \
             --title "Release v$VERSION" \
             --notes "$CHANGELOG_DECODED"
         env:
