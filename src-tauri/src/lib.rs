@@ -67,7 +67,7 @@ pub fn run() {
     let stderr_log = File::create(logs_dir.join("server-error.log")).expect("Failed to create server-error.log file");
 
     assert!(exe_dir.join("node/node.exe").exists(), "node.exe not found in node folder");
-    assert!(exe_dir.join("node/node_modules/npm/bin/npm-cli.js").exists(), "npm-cli.js not found");
+    assert!(exe_dir.join("node/node_modules/npm/lib/cli.js").exists(), "npm-cli.js not found");
     assert!(up_dir.exists(), "_up_ directory not found where server files are located");
 
     let is_dev = cfg!(debug_assertions);
@@ -80,7 +80,7 @@ pub fn run() {
     let mut command = Command::new(exe_dir.join("node/node.exe"));
     command
         .arg("server.js")
-        .current_dir(&up_dir)
+        .current_dir(&exe_dir)
         .stdout(Stdio::from(stdout_log))
         .stderr(Stdio::from(stderr_log))
         .creation_flags(0x08000000) // hide terminal window on Windows

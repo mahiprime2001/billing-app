@@ -1,1 +1,15 @@
-[]
+[{
+    "id": "1",
+    "name": "Super Admin",
+    "email": "admin@siriart.com",
+    "password": "admin123",
+    "role": "super_admin",
+    "status": "active",
+    "sessionDuration": null,
+    "createdAt": "2022-12-31T18:30:00.000Z",
+    "updatedAt": "2023-01-01T00:00:00.000Z",
+    "lastLogin": null,
+    "lastLogout": null,
+    "totalSessionDuration": 0
+  }
+]

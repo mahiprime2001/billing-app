@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "node server.js",
+    "dev": "npm run dev:next && npm run upload && npm run update-from-log && npm run sync-check",
     "dev:next": "next dev",
     "lint": "next lint",
     "start": "node server.js",
@@ -51,6 +51,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "latest",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0",
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.1",
