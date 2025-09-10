@@ -65,14 +65,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev \
-            libappindicator3-dev librsvg2-dev patchelf libjavascriptcoregtk-4.1-dev \
-            libsoup-3.0-dev pkg-config clang
-
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: actions/cache@v4
@@ -176,7 +168,7 @@ jobs:
 
       - name: Generate latest.json
         run: |
-          npx @tauri-apps/cli signer sign-update \
+          npx @tauri-apps/cli signer sign \
             --private-key "${TAURI_PRIVATE_KEY}" \
             --password "${TAURI_KEY_PASSWORD}" \
             --version "$VERSION" \
