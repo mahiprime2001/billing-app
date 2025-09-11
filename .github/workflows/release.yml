@@ -79,23 +79,30 @@ jobs:
       - run: npm ci
       - run: npx tauri build
 
-      # ✅ Signing both MSI and EXE installers
-      - name: Decode key/password and sign installers
+      # ✅ Sign MSI using npx tauri signer
+      - name: Decode key/password and sign MSI
         shell: bash
         run: |
-          echo "🔑 Signing installers (.msi & .exe)..."
+          echo "🔑 Signing the .msi installer..."
+          echo "$TAURI_PRIVATE_KEY" | base64 --decode > private.key
+          DECODED_PASSWORD=$(echo "$TAURI_KEY_PASSWORD" | base64 --decode)
           npx tauri signer sign \
-            --private-key "$(echo "$TAURI_PRIVATE_KEY" | base64 -d)" \
-            --password "$(echo "$TAURI_KEY_PASSWORD" | base64 -d)" \
+            --private-key private.key \
+            --password "$DECODED_PASSWORD" \
             --version "$VERSION" \
-            --files "src-tauri/target/release/bundle/msi/*" \
-            --files "src-tauri/target/release/bundle/nsis/*"
+            --files src-tauri/target/release/bundle/msi/* \
+            --output src-tauri/target/release/bundle/msi/latest.json
 
-          # Move one latest.json to central bundle/ so release can find it
+      # ✅ Ensure latest.json is always in a central location
+      - name: Copy latest.json for release
+        shell: bash
+        run: |
+          SIGN_OUTPUT="src-tauri/target/release/bundle/latest.json"
           if [ -f src-tauri/target/release/bundle/msi/latest.json ]; then
-            cp src-tauri/target/release/bundle/msi/latest.json src-tauri/target/release/bundle/latest.json
-          elif [ -f src-tauri/target/release/bundle/nsis/latest.json ]; then
-            cp src-tauri/target/release/bundle/nsis/latest.json src-tauri/target/release/bundle/latest.json
+            cp src-tauri/target/release/bundle/msi/latest.json "$SIGN_OUTPUT"
+          else
+            echo "❌ latest.json not found after signing!"
+            exit 1
           fi
 
       - uses: actions/upload-artifact@v4
@@ -130,10 +137,8 @@ jobs:
           git pull origin main
           jq ".version=\"$VERSION\"" package.json > tmp.json && mv tmp.json package.json
           jq ".version=\"$VERSION\"" src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
-
           UPDATE_URL="https://github.com/${{ github.repository }}/releases/latest/download/latest.json"
           jq ".plugins.updater.endpoints=[\"$UPDATE_URL\"]" src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
-
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json src-tauri/tauri.conf.json
@@ -152,19 +157,15 @@ jobs:
           RANGE=${PREV_TAG:+$PREV_TAG..HEAD}
           {
             echo "## $CURR_TAG - $DATE"
-
             echo "### ✨ Features"
             git log $RANGE --grep="^feat:" --pretty=format:"- %s" || echo "- None"
-
             echo ""
             echo "### 🐛 Fixes"
             git log $RANGE --grep="^fix:" --pretty=format:"- %s" || echo "- None"
-
             echo ""
             echo "### 💥 Breaking Changes"
             git log $RANGE --grep="BREAKING CHANGE" --pretty=format:"- %s" || echo "- None"
           } > new_changelog.md
-
           CHANGELOG_B64=$(base64 -w0 new_changelog.md)
           echo "changelog_base64=$CHANGELOG_B64" >> $GITHUB_OUTPUT
 
@@ -180,7 +181,9 @@ jobs:
         shell: bash
         run: |
           CHANGELOG_DECODED=$(echo "${{ steps.changelog.outputs.changelog_base64 }}" | base64 --decode)
-          gh release create v$VERSION artifacts/**/* src-tauri/target/release/bundle/latest.json \
+          gh release create "v$VERSION" \
+            "artifacts/tauri-windows-latest/*" \
+            "src-tauri/target/release/bundle/latest.json" \
             --title "Release v$VERSION" \
             --notes "$CHANGELOG_DECODED"
         env:
