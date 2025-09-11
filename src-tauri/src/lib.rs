@@ -72,8 +72,8 @@ pub fn run() {
 
     let is_dev = cfg!(debug_assertions);
     let port = find_available_port();
-    let port_file = logs_dir.join("port.info");
-    let main_port_info_file = exe_dir.join("port.info");
+    let port_file = logs_dir.join("port.txt");
+    let main_port_info_file = exe_dir.join("port.txt");
 
     let child_process = Arc::new(Mutex::new(None));
 
@@ -147,7 +147,7 @@ pub fn run() {
                         exe_dir.display(),
                         is_dev
                     );
-                    let error_type = if msg.contains("port.info") {
+                    let error_type = if msg.contains("port.txt") {
                         "Port File Error"
                     } else if msg.contains("not responding") {
                         "Server Connection Error"
@@ -192,7 +192,7 @@ pub fn run() {
                     }
 
                     if actual_port == 0 {
-                        error_msg = Some("Failed to read port from port.info. The server may not have started correctly.".to_string());
+                        error_msg = Some("Failed to read port from port.txt. The server may not have started correctly.".to_string());
                     } else if wait_for_server(actual_port, 50, 200) {
                         server_ready = true;
                     } else {
