@@ -74,27 +74,33 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "🔑 Signing the .msi installer..."
-          
+
           try {
+            # Decode Base64 secrets to files/strings
             $privateKeyBytes = [Convert]::FromBase64String($env:TAURI_PRIVATE_KEY)
             [IO.File]::WriteAllBytes("private.key", $privateKeyBytes)
-            
             $passwordBytes = [Convert]::FromBase64String($env:TAURI_KEY_PASSWORD)
             $decodedPassword = [Text.Encoding]::UTF8.GetString($passwordBytes)
-            
+
+            # Ensure private.key was created
             if (-not (Test-Path "private.key")) {
-              Write-Host "❌ Failed to create private.key"
+              Write-Host "❌ private.key missing"
               exit 1
             }
-            
+
+            # Locate the MSI installer
             $msi = Get-ChildItem -Path "src-tauri/target/release/bundle/msi" -Filter "*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
             if (-not $msi) {
-              Write-Host "❌ No MSI files found to sign"
+              Write-Host "❌ No MSI files found"
+              Get-ChildItem -Recurse "src-tauri/target/release/bundle" | Format-List FullName
               exit 1
             }
-            Write-Host "📦 MSI to sign: $($msi.FullName)"
-            
+            Write-Host "📦 Signing: $($msi.FullName)"
+
+            # Set deterministic output path
             $out = "src-tauri/target/release/bundle/latest.json"
+
+            # Run signer
             npx tauri signer sign `
               --private-key private.key `
               --password "$decodedPassword" `
@@ -102,24 +108,26 @@ jobs:
               --files "$($msi.FullName)" `
               --output "$out" `
               --verbose
-            
+
             if ($LASTEXITCODE -ne 0) {
               Write-Host "❌ Signing failed (exit code $LASTEXITCODE)"
               exit $LASTEXITCODE
             }
-            
+
+            # Validate JSON output
             if (-not (Test-Path $out)) {
-              Write-Host "❌ latest.json not found at $out"
+              Write-Host "❌ latest.json not found"
               Get-ChildItem -Recurse "src-tauri/target/release/bundle" | Format-List FullName
               exit 1
             }
-            
             Write-Host "✅ latest.json created at $out"
-          } catch {
+          }
+          catch {
             Write-Host "❌ Error: $($_.Exception.Message)"
             exit 1
-          } finally {
-            if (Test-Path "private.key") { Remove-Item "private.key" -Force }
+          }
+          finally {
+            Remove-Item "private.key" -Force -ErrorAction SilentlyContinue
           }
 
       - name: Verify signing output
@@ -128,11 +136,10 @@ jobs:
         run: |
           $out = "src-tauri/target/release/bundle/latest.json"
           if (Test-Path $out) {
-            Write-Host "✅ Signing completed successfully"
+            Write-Host "✅ Signing completed"
             Get-Content $out | Write-Host
           } else {
-            Write-Host "❌ latest.json not found after signing!"
-            Get-ChildItem -Recurse "src-tauri/target/release/bundle" | Format-List FullName
+            Write-Host "❌ latest.json still missing"
             exit 1
           }
 
@@ -140,9 +147,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $dest = "src-tauri/target/release/bundle/latest.json"
-          if (Test-Path $dest) {
-            Write-Host "✅ latest.json ready at $dest"
+          if (Test-Path "src-tauri/target/release/bundle/latest.json") {
+            Write-Host "✅ latest.json ready"
           } else {
             Write-Host "❌ latest.json missing"
             exit 1
@@ -152,6 +158,7 @@ jobs:
         with:
           name: tauri-${{ matrix.platform }}
           path: src-tauri/target/release/bundle/
+
   bump-and-release:
     needs: build
     runs-on: ubuntu-22.04
@@ -176,12 +183,12 @@ jobs:
           git pull origin main
           jq ".version=\"$VERSION\"" package.json > tmp.json && mv tmp.json package.json
           jq ".version=\"$VERSION\"" src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
-          UPDATE_URL="https://github.com/${{ github.repository }}/releases/latest/download/latest.json"
+          UPDATE_URL="https://raw.githubusercontent.com/${{ github.repository }}/releases/latest/download/latest.json"
           jq ".plugins.updater.endpoints=[\"$UPDATE_URL\"]" src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json src-tauri/tauri.conf.json
-          git commit -m "chore: bump version to $VERSION [skip ci]" || echo "No changes"
+          git commit -m "chore: bump to $VERSION [skip ci]" || echo "No changes"
           git tag -d v$VERSION || true
           git push origin :refs/tags/v$VERSION || true
           git tag v$VERSION
