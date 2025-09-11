@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
-// Helper to log with timestamp
+// --- Logging helpers ---
 function log(msg) {
     const timestamp = new Date().toISOString();
     console.log(`[${timestamp}] ${msg}`);
@@ -16,7 +16,7 @@ function errorLog(msg) {
 
 log('=== Server Startup ===');
 
-// Ensure we are in production
+// --- Ensure production mode ---
 if (process.env.NODE_ENV === 'development') {
     errorLog("This script is only for production");
     process.exit(1);
@@ -32,7 +32,7 @@ if (!portFile) {
     process.exit(1);
 }
 
-// Write port information to file
+// --- Write port info ---
 try {
     fs.writeFileSync(portFile, port.toString(), 'utf8');
     log(`✅ Port ${port} written to ${portFile}`);
@@ -41,7 +41,7 @@ try {
     process.exit(1);
 }
 
-// Define paths
+// --- Node and NPM paths ---
 const nodePath = path.join(__dirname, '..', 'node', process.platform === 'win32' ? 'node.exe' : 'node');
 const npmPath = path.join(__dirname, '..', 'node', 'node_modules', 'npm', 'lib', 'cli.js');
 
@@ -49,26 +49,36 @@ log(`Step 2: Checking node and npm paths`);
 log(`  Node path: ${nodePath}`);
 log(`  NPM path: ${npmPath}`);
 
-// Check if node exists
 if (!fs.existsSync(nodePath)) {
     errorLog('❌ Node binary not found at ' + nodePath);
     process.exit(1);
 }
 
-// Check if npm exists
 if (!fs.existsSync(npmPath)) {
     errorLog('❌ npm CLI script not found at ' + npmPath);
     process.exit(1);
 }
 
-// Helper to spawn processes
-function spawnProcess(command, args, env = {}) {
+// --- Helper to spawn processes ---
+function spawnProcess(command, args, env = {}, logFile = null, errorFile = null) {
     log(`Spawning process: ${command} ${args.join(' ')}`);
-    const proc = spawn(command, args, {
-        stdio: 'inherit',
-        shell: false,
-        env: { ...process.env, ...env }
-    });
+
+    const options = {
+        env: { ...process.env, ...env },
+        shell: true
+    };
+
+    if (logFile && errorFile) {
+        options.stdio = [
+            'pipe',
+            fs.openSync(logFile, 'a'),
+            fs.openSync(errorFile, 'a')
+        ];
+    } else {
+        options.stdio = 'inherit';
+    }
+
+    const proc = spawn(command, args, options);
 
     proc.on('error', (err) => {
         errorLog(`❌ Failed to start process ${command} ${args.join(' ')}: ${err}`);
@@ -81,12 +91,37 @@ function spawnProcess(command, args, env = {}) {
     return proc;
 }
 
-log('Step 3: Running in production mode');
+// --- Step 3: Start Next.js server ---
+log('Step 3: Starting Next.js server');
+const nextStart = spawnProcess(
+    nodePath,
+    [npmPath, 'exec', '--', 'next', 'start', '-p', port],
+    {},
+    path.join(__dirname, '..', 'logs', 'server.log'),
+    path.join(__dirname, '..', 'logs', 'server-error.log')
+);
 
-// Start Next.js optimized server
-const nextStart = spawnProcess(nodePath, [npmPath, 'exec', '--', 'next', 'start', '-p', port]);
+// --- Step 4: Start additional processes ---
+log('Step 4: Starting auxiliary processes');
+const logWatcher = spawnProcess(
+    nodePath,
+    [npmPath, 'run', 'update-from-log'],
+    {},
+    path.join(__dirname, '..', 'logs', 'server.log'),
+    path.join(__dirname, '..', 'logs', 'server-error.log')
+);
 
-// Wait for server readiness
+const syncCheck = spawnProcess(
+    nodePath,
+    [npmPath, 'run', 'sync-check'],
+    {},
+    path.join(__dirname, '..', 'logs', 'server.log'),
+    path.join(__dirname, '..', 'logs', 'server-error.log')
+);
+
+log('=== All child processes spawned ===');
+
+// --- Step 5: Server readiness check ---
 function checkServerReady(retries = 50, delay = 200) {
     return new Promise((resolve, reject) => {
         let attempts = 0;
@@ -117,21 +152,13 @@ function checkServerReady(retries = 50, delay = 200) {
     });
 }
 
-// Start log watcher
-const logWatcher = spawnProcess(nodePath, [npmPath, 'run', 'update-from-log']);
-
-// Start sync check
-const syncCheck = spawnProcess(nodePath, [npmPath, 'run', 'sync-check']);
-
-log('=== All child processes spawned ===');
-
-// Check server readiness
+// Run server readiness check
 checkServerReady().catch(() => {
     errorLog('Server startup failed: Tauri may show "Server Connection Error".');
 });
 
-// Catch unhandled promise rejections and exceptions
-process.on('unhandledRejection', (reason, promise) => {
+// --- Handle unhandled errors ---
+process.on('unhandledRejection', (reason) => {
     errorLog(`Unhandled Rejection: ${reason}`);
 });
 

@@ -83,6 +83,20 @@ jobs:
       - run: npm run build
       - run: cargo tauri build
 
+      # ✅ Signing MSI inside build job
+      - name: Decode key/password and sign MSI
+        shell: bash
+        run: |
+          echo "🔑 Signing the .msi installer..."
+          echo "$TAURI_PRIVATE_KEY" | base64 --decode > private.key
+          DECODED_PASSWORD=$(echo "$TAURI_KEY_PASSWORD" | base64 --decode)
+          cargo tauri signer sign \
+            --private-key private.key \
+            --password "$DECODED_PASSWORD" \
+            --version "$VERSION" \
+            --files src-tauri/target/release/bundle/msi/* \
+            --output src-tauri/target/release/bundle/msi/latest.json
+
       - uses: actions/upload-artifact@v4
         with:
           name: tauri-${{ matrix.platform }}
@@ -95,8 +109,6 @@ jobs:
     env:
       VERSION: ${{ needs.build.outputs.version }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-      TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -162,23 +174,6 @@ jobs:
           git add CHANGELOG.md
           git commit -m "docs: update changelog for v$VERSION [skip ci]" || echo "No changes"
           git push origin main
-
-      - name: Decode key/password and sign MSI
-        shell: bash
-        run: |
-          echo "🔑 Signing the .msi installer..."
-          # Decode Base64 private key
-          echo "$TAURI_PRIVATE_KEY" | base64 --decode > private.key
-          # Decode Base64 password
-          DECODED_PASSWORD=$(echo "$TAURI_KEY_PASSWORD" | base64 --decode)
-
-          # Run Tauri signer
-          cargo tauri signer sign \
-            --private-key private.key \
-            --password "$DECODED_PASSWORD" \
-            --version "$VERSION" \
-            --files src-tauri/target/release/bundle/msi/* \
-            --output src-tauri/target/release/bundle/msi/latest.json
 
       - name: Create GitHub Release
         shell: bash
