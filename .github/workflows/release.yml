@@ -79,13 +79,21 @@ jobs:
       - run: npm ci
       - run: npx tauri build
 
-      # ✅ Sign MSI using npx tauri signer
+      # ✅ Sign MSI using cleaned secrets
       - name: Decode key/password and sign MSI
         shell: bash
         run: |
           echo "🔑 Signing the .msi installer..."
-          echo "$TAURI_PRIVATE_KEY" | base64 --decode > private.key
-          DECODED_PASSWORD=$(echo "$TAURI_KEY_PASSWORD" | base64 --decode)
+          
+          # Remove whitespace/newlines from secrets
+          CLEAN_KEY=$(echo "$TAURI_PRIVATE_KEY" | tr -d '\r\n ')
+          CLEAN_PASSWORD=$(echo "$TAURI_KEY_PASSWORD" | tr -d '\r\n ')
+
+          # Decode cleaned secrets
+          echo "$CLEAN_KEY" | base64 --decode > private.key
+          DECODED_PASSWORD=$(echo "$CLEAN_PASSWORD" | base64 --decode)
+
+          # Sign MSI
           npx tauri signer sign \
             --private-key private.key \
             --password "$DECODED_PASSWORD" \
@@ -93,7 +101,7 @@ jobs:
             --files src-tauri/target/release/bundle/msi/* \
             --output src-tauri/target/release/bundle/msi/latest.json
 
-      # ✅ Ensure latest.json is always in a central location
+      # ✅ Ensure latest.json is in a central location
       - name: Copy latest.json for release
         shell: bash
         run: |
