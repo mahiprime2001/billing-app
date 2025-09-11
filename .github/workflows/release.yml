@@ -67,7 +67,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Tauri CLI (cargo)
+      - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
       - uses: actions/cache@v4
@@ -81,27 +81,7 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-
       - run: cargo tauri build
-
-      - name: Check signing secrets
-        shell: bash
-        run: |
-          if [ -z "${TAURI_PRIVATE_KEY}" ] || [ -z "${TAURI_KEY_PASSWORD}" ]; then
-            echo "❌ Missing TAURI_PRIVATE_KEY or TAURI_KEY_PASSWORD secrets!"
-            exit 1
-          fi
-
-      - name: Sign installer with Tauri CLI
-        shell: bash
-        run: |
-          echo "🔑 Signing the .msi installer..."
-          cargo tauri signer sign \
-            --private-key "${TAURI_PRIVATE_KEY}" \
-            --password "${TAURI_KEY_PASSWORD}" \
-            --version "$VERSION" \
-            --files src-tauri/target/release/bundle/msi/* \
-            --output src-tauri/target/release/bundle/msi/latest.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -115,6 +95,8 @@ jobs:
     env:
       VERSION: ${{ needs.build.outputs.version }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+      TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -136,7 +118,6 @@ jobs:
           jq ".version=\"$VERSION\"" package.json > tmp.json && mv tmp.json package.json
           jq ".version=\"$VERSION\"" src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
 
-          # Inject dynamic updater URL
           UPDATE_URL="https://github.com/${{ github.repository }}/releases/latest/download/latest.json"
           jq ".plugins.updater.endpoints=[\"$UPDATE_URL\"]" src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
 
@@ -182,11 +163,28 @@ jobs:
           git commit -m "docs: update changelog for v$VERSION [skip ci]" || echo "No changes"
           git push origin main
 
+      - name: Decode key/password and sign MSI
+        shell: bash
+        run: |
+          echo "🔑 Signing the .msi installer..."
+          # Decode Base64 private key
+          echo "$TAURI_PRIVATE_KEY" | base64 --decode > private.key
+          # Decode Base64 password
+          DECODED_PASSWORD=$(echo "$TAURI_KEY_PASSWORD" | base64 --decode)
+
+          # Run Tauri signer
+          cargo tauri signer sign \
+            --private-key private.key \
+            --password "$DECODED_PASSWORD" \
+            --version "$VERSION" \
+            --files src-tauri/target/release/bundle/msi/* \
+            --output src-tauri/target/release/bundle/msi/latest.json
+
       - name: Create GitHub Release
         shell: bash
         run: |
           CHANGELOG_DECODED=$(echo "${{ steps.changelog.outputs.changelog_base64 }}" | base64 --decode)
-          gh release create v$VERSION artifacts/**/* \
+          gh release create v$VERSION artifacts/**/* src-tauri/target/release/bundle/msi/latest.json \
             --title "Release v$VERSION" \
             --notes "$CHANGELOG_DECODED"
         env:
