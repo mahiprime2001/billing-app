@@ -68,8 +68,7 @@ jobs:
           restore-keys: ${{ runner.os }}-deps-
       - run: npm ci
       - run: npx tauri build
-      
-      # ✅ Fixed: PowerShell-based base64 decoding and MSI signing
+
       - name: Decode key/password and sign MSI
         if: runner.os == 'Windows'
         shell: pwsh
@@ -77,90 +76,82 @@ jobs:
           Write-Host "🔑 Signing the .msi installer..."
           
           try {
-            # PowerShell base64 decoding - more reliable on Windows
-            $privateKeyBytes = [System.Convert]::FromBase64String($env:TAURI_PRIVATE_KEY)
-            [System.IO.File]::WriteAllBytes("private.key", $privateKeyBytes)
+            $privateKeyBytes = [Convert]::FromBase64String($env:TAURI_PRIVATE_KEY)
+            [IO.File]::WriteAllBytes("private.key", $privateKeyBytes)
             
-            $passwordBytes = [System.Convert]::FromBase64String($env:TAURI_KEY_PASSWORD)  
-            $decodedPassword = [System.Text.Encoding]::UTF8.GetString($passwordBytes)
+            $passwordBytes = [Convert]::FromBase64String($env:TAURI_KEY_PASSWORD)
+            $decodedPassword = [Text.Encoding]::UTF8.GetString($passwordBytes)
             
-            # Verify key file was created
             if (-not (Test-Path "private.key")) {
-                Write-Host "❌ Failed to create private key file"
-                exit 1
+              Write-Host "❌ Failed to create private.key"
+              exit 1
             }
             
-            Write-Host "✅ Successfully decoded private key and password"
-            
-            # Find MSI files to sign
-            $msiFiles = Get-ChildItem -Path "src-tauri/target/release/bundle/msi" -Filter "*.msi" -ErrorAction SilentlyContinue
-            if ($msiFiles.Count -eq 0) {
-                Write-Host "❌ No MSI files found to sign"
-                exit 1
+            $msi = Get-ChildItem -Path "src-tauri/target/release/bundle/msi" -Filter "*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $msi) {
+              Write-Host "❌ No MSI files found to sign"
+              exit 1
             }
+            Write-Host "📦 MSI to sign: $($msi.FullName)"
             
-            Write-Host "📦 Found MSI files to sign:"
-            $msiFiles | ForEach-Object { Write-Host "  - $($_.Name)" }
-            
-            # Sign MSI files using npx tauri signer
-            Write-Host "🔏 Starting signing process..."
-            
-            $signCommand = "npx tauri signer sign --private-key private.key --password `"$decodedPassword`" --version `"$env:VERSION`" --files `"src-tauri/target/release/bundle/msi/*.msi`" --output `"src-tauri/target/release/bundle/msi/latest.json`""
-            Write-Host "Executing: $signCommand"
-            
-            Invoke-Expression $signCommand
+            $out = "src-tauri/target/release/bundle/latest.json"
+            npx tauri signer sign `
+              --private-key private.key `
+              --password "$decodedPassword" `
+              --version "$env:VERSION" `
+              --files "$($msi.FullName)" `
+              --output "$out" `
+              --verbose
             
             if ($LASTEXITCODE -ne 0) {
-                Write-Host "❌ Signing failed with exit code: $LASTEXITCODE"
-                exit $LASTEXITCODE
+              Write-Host "❌ Signing failed (exit code $LASTEXITCODE)"
+              exit $LASTEXITCODE
             }
             
-            Write-Host "✅ MSI signing completed successfully"
+            if (-not (Test-Path $out)) {
+              Write-Host "❌ latest.json not found at $out"
+              Get-ChildItem -Recurse "src-tauri/target/release/bundle" | Format-List FullName
+              exit 1
+            }
             
+            Write-Host "✅ latest.json created at $out"
           } catch {
-            Write-Host "❌ Error during signing process: $($_.Exception.Message)"
+            Write-Host "❌ Error: $($_.Exception.Message)"
             exit 1
           } finally {
-            # Clean up sensitive files
-            if (Test-Path "private.key") {
-                Remove-Item "private.key" -Force -ErrorAction SilentlyContinue
-                Write-Host "🧹 Cleaned up private key file"
-            }
+            if (Test-Path "private.key") { Remove-Item "private.key" -Force }
           }
-          
-      # ✅ Verify signing output
+
       - name: Verify signing output
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if (Test-Path "src-tauri/target/release/bundle/msi/latest.json") {
-              Write-Host "✅ Signing completed successfully"
-              Write-Host "📄 latest.json content:"
-              Get-Content "src-tauri/target/release/bundle/msi/latest.json" | Write-Host
+          $out = "src-tauri/target/release/bundle/latest.json"
+          if (Test-Path $out) {
+            Write-Host "✅ Signing completed successfully"
+            Get-Content $out | Write-Host
           } else {
-              Write-Host "❌ latest.json not found after signing!"
-              exit 1
+            Write-Host "❌ latest.json not found after signing!"
+            Get-ChildItem -Recurse "src-tauri/target/release/bundle" | Format-List FullName
+            exit 1
           }
-          
-      # ✅ Copy latest.json to central location
+
       - name: Copy latest.json for release
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $signOutput = "src-tauri/target/release/bundle/latest.json"
-          if (Test-Path "src-tauri/target/release/bundle/msi/latest.json") {
-              Copy-Item "src-tauri/target/release/bundle/msi/latest.json" $signOutput -Force
-              Write-Host "✅ Copied latest.json to $signOutput"
+          $dest = "src-tauri/target/release/bundle/latest.json"
+          if (Test-Path $dest) {
+            Write-Host "✅ latest.json ready at $dest"
           } else {
-              Write-Host "❌ latest.json not found after signing!"
-              exit 1
+            Write-Host "❌ latest.json missing"
+            exit 1
           }
-          
+
       - uses: actions/upload-artifact@v4
         with:
           name: tauri-${{ matrix.platform }}
           path: src-tauri/target/release/bundle/
-          
   bump-and-release:
     needs: build
     runs-on: ubuntu-22.04
@@ -226,18 +217,14 @@ jobs:
         shell: bash
         run: |
           CHANGELOG_DECODED=$(echo "${{ steps.changelog.outputs.changelog_base64 }}" | base64 --decode)
-          
-          # Find latest.json in artifacts
           LATEST_JSON=$(find artifacts -name "latest.json" -type f | head -1)
           if [ -n "$LATEST_JSON" ]; then
-            echo "✅ Found latest.json at: $LATEST_JSON"
             gh release create "v$VERSION" \
               "artifacts/tauri-windows-latest/"* \
               "$LATEST_JSON" \
               --title "Release v$VERSION" \
               --notes "$CHANGELOG_DECODED"
           else
-            echo "⚠️ latest.json not found, creating release without it"
             gh release create "v$VERSION" \
               "artifacts/tauri-windows-latest/"* \
               --title "Release v$VERSION" \
