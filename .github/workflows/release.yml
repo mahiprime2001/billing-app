@@ -79,13 +79,16 @@ jobs:
       - run: npm ci
       - run: npx tauri build
 
-      # ✅ Sign MSI using npx tauri signer
+      # ✅ Sign MSI using npx tauri signer with cleaned base64 secrets
       - name: Decode key/password and sign MSI
         shell: bash
         run: |
           echo "🔑 Signing the .msi installer..."
-          echo "$TAURI_PRIVATE_KEY" | base64 --decode > private.key
-          DECODED_PASSWORD=$(echo "$TAURI_KEY_PASSWORD" | base64 --decode)
+          
+          # Clean secrets to remove any whitespace/newlines
+          echo "$TAURI_PRIVATE_KEY" | tr -d '\r\n ' | base64 --decode > private.key
+          DECODED_PASSWORD=$(echo "$TAURI_KEY_PASSWORD" | tr -d '\r\n ' | base64 --decode)
+
           npx tauri signer sign \
             --private-key private.key \
             --password "$DECODED_PASSWORD" \
