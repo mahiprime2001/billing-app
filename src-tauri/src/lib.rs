@@ -77,12 +77,16 @@ pub fn run() {
 
     let child_process = Arc::new(Mutex::new(None));
 
-    // Build command to run server.js
-    let server_js = up_dir.join("server.js");
+    // Build command to run server using npm start
+    let npm_cli = exe_dir.join("node/node_modules/npm/lib/cli.js");
+    let script = if is_dev { "dev" } else { "start" };
+
     let mut command = Command::new(exe_dir.join("node/node.exe"));
     command
-        .arg(&server_js)
-        .current_dir(&exe_dir)
+        .arg(&npm_cli)
+        .arg("run")
+        .arg(script)
+        .current_dir(&up_dir)
         .stdout(Stdio::from(stdout_log))
         .stderr(Stdio::from(stderr_log))
         .creation_flags(0x08000000) // hide terminal window on Windows
@@ -92,9 +96,9 @@ pub fn run() {
 
     // ✅ Debug log
     println!(
-        "Launching Node server:\n  Binary: {}\n  Script: {}\n  PORT: {}\n  PORT_FILE: {}\n  NODE_ENV: {}",
+        "Launching Node server:\n  Binary: {}\n  Script: npm run {}\n  PORT: {}\n  PORT_FILE: {}\n  NODE_ENV: {}",
         exe_dir.join("node/node.exe").display(),
-        server_js.display(),
+        script,
         port,
         port_file.display(),
         if is_dev { "development" } else { "production" }

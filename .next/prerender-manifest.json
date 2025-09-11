@@ -1,7 +1,7 @@
 {
   "version": 4,
   "routes": {
-    "/billing/history": {
+    "/dashboard/products": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -14,32 +14,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/billing/history",
-      "dataRoute": "/billing/history.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/dashboard/billing": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/dashboard/billing",
-      "dataRoute": "/dashboard/billing.rsc",
+      "srcRoute": "/dashboard/products",
+      "dataRoute": "/dashboard/products.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -73,7 +49,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/dashboard/products": {
+    "/dashboard/billing": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -86,56 +62,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/dashboard/products",
-      "dataRoute": "/dashboard/products.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/dashboard/stores": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/dashboard/stores",
-      "dataRoute": "/dashboard/stores.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/dashboard/users": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/dashboard/users",
-      "dataRoute": "/dashboard/users.rsc",
+      "srcRoute": "/dashboard/billing",
+      "dataRoute": "/dashboard/billing.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -169,7 +97,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/billing": {
+    "/dashboard/users": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -182,8 +110,56 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/billing",
-      "dataRoute": "/billing.rsc",
+      "srcRoute": "/dashboard/users",
+      "dataRoute": "/dashboard/users.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/dashboard/analytics": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/dashboard/analytics",
+      "dataRoute": "/dashboard/analytics.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/dashboard/stores": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/dashboard/stores",
+      "dataRoute": "/dashboard/stores.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -217,7 +193,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/dashboard/analytics": {
+    "/billing": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -230,8 +206,32 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/dashboard/analytics",
-      "dataRoute": "/dashboard/analytics.rsc",
+      "srcRoute": "/billing",
+      "dataRoute": "/billing.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/billing/history": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/billing/history",
+      "dataRoute": "/billing/history.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -245,8 +245,8 @@
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "939142a3199a5471c0057c154abd43d4",
-    "previewModeSigningKey": "2ff6b18687eb43258ae3883ee681b493b4e9c0bb90c4becd08430824e6ae75cb",
-    "previewModeEncryptionKey": "e139ae2b69b07af45539c126e847a8c1c54261eea4a178fe2016f76ed9ac4568"
+    "previewModeId": "228b793121ec327402c229110bce40f8",
+    "previewModeSigningKey": "b0b1e9dc53da064eb9cebc371f3a5f79e13a089225e389da94b94deebbda6c1f",
+    "previewModeEncryptionKey": "cddb3f4a30f5a4b2857670e59cecfcb0728dfbe0044c16ee403da3651a9d6511"
   }
 }

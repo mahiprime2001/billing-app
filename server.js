@@ -1,125 +1,85 @@
-const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
-// --- Logging helpers ---
-function log(msg) {
+// --- Logging helper ---
+function logStep(step, message, success = true, error) {
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] ${msg}`);
+    const status = success ? "✔ Success" : "❌ Failed";
+    const errorMsg = error ? ` - Error: ${error.message || error}` : "";
+    const line = `[${timestamp}] ${step}: ${message} -> ${status}${errorMsg}`;
+    console.log(line);
+    try {
+        fs.appendFileSync(path.join(__dirname, '..', 'logs', 'server.log'), line + "\n");
+    } catch (_) {
+        // ignore if logs folder not ready
+    }
 }
 
-function errorLog(msg) {
-    const timestamp = new Date().toISOString();
-    console.error(`[${timestamp}] ${msg}`);
-}
-
-log('=== Server Startup ===');
+logStep("Startup", "=== Server Startup ===");
 
 // --- Ensure production mode ---
 if (process.env.NODE_ENV === 'development') {
-    errorLog("This script is only for production");
+    logStep("Startup", "This script is only for production", false, "NODE_ENV=development");
     process.exit(1);
 }
 
-const port = process.env.PORT || '3000';
-const portFile = process.env.PORT_FILE;
+// --- Step 1: Get port from CLI args ---
+const args = process.argv.slice(2);
+let port = '3000';
+const portIndex = args.indexOf('-p');
+if (portIndex !== -1 && args[portIndex + 1]) {
+    port = args[portIndex + 1];
+}
+logStep("Step 1", `Port detected from CLI args: ${port}`);
 
-log(`Step 1: Environment variables - PORT=${port}, PORT_FILE=${portFile || '(none)'}`);
+// --- Step 2: PORT_FILE env ---
+const portFile = process.env.PORT_FILE;
+logStep("Step 2", `PORT_FILE=${portFile || '(none)'}`);
 
 if (!portFile) {
-    errorLog("PORT_FILE environment variable is not defined");
+    logStep("Step 2", "PORT_FILE environment variable is not defined", false, "Missing env var");
     process.exit(1);
 }
 
-// --- Write port info ---
 try {
     fs.writeFileSync(portFile, port.toString(), 'utf8');
-    log(`✅ Port ${port} written to ${portFile}`);
+    logStep("Step 2", `Port ${port} written to ${portFile}`);
 } catch (err) {
-    errorLog('❌ Failed to write port info: ' + err);
+    logStep("Step 2", "Failed to write port info", false, err);
     process.exit(1);
 }
 
-// --- Node and NPM paths ---
-const nodePath = path.join(__dirname, '..', 'node', process.platform === 'win32' ? 'node.exe' : 'node');
-const npmPath = path.join(__dirname, '..', 'node', 'node_modules', 'npm', 'lib', 'cli.js');
+// --- Step 3: Start Next.js (using next start) ---
+const { spawn } = require('child_process');
 
-log(`Step 2: Checking node and npm paths`);
-log(`  Node path: ${nodePath}`);
-log(`  NPM path: ${npmPath}`);
+function spawnProcess(step, command, args) {
+    logStep(step, `Spawning: ${command} ${args.join(' ')}`);
 
-if (!fs.existsSync(nodePath)) {
-    errorLog('❌ Node binary not found at ' + nodePath);
-    process.exit(1);
-}
-
-if (!fs.existsSync(npmPath)) {
-    errorLog('❌ npm CLI script not found at ' + npmPath);
-    process.exit(1);
-}
-
-// --- Helper to spawn processes ---
-function spawnProcess(command, args, env = {}, logFile = null, errorFile = null) {
-    log(`Spawning process: ${command} ${args.join(' ')}`);
-
-    const options = {
-        env: { ...process.env, ...env },
-        shell: true
-    };
-
-    if (logFile && errorFile) {
-        options.stdio = [
-            'pipe',
-            fs.openSync(logFile, 'a'),
-            fs.openSync(errorFile, 'a')
-        ];
-    } else {
-        options.stdio = 'inherit';
-    }
-
-    const proc = spawn(command, args, options);
+    const proc = spawn(command, args, { shell: true, stdio: 'inherit' });
 
     proc.on('error', (err) => {
-        errorLog(`❌ Failed to start process ${command} ${args.join(' ')}: ${err}`);
+        logStep(step, `Process failed: ${command} ${args.join(' ')}`, false, err);
     });
 
     proc.on('exit', (code, signal) => {
-        log(`Process exited: ${command} ${args.join(' ')} (code=${code}, signal=${signal})`);
+        const msg = `Exited (code=${code}, signal=${signal})`;
+        logStep(step, msg, code === 0);
     });
 
     return proc;
 }
 
-// --- Step 3: Start Next.js server ---
-log('Step 3: Starting Next.js server');
-const nextStart = spawnProcess(
-    nodePath,
-    [npmPath, 'exec', '--', 'next', 'start', '-p', port],
-    {},
-    path.join(__dirname, '..', 'logs', 'server.log'),
-    path.join(__dirname, '..', 'logs', 'server-error.log')
-);
+logStep("Step 3", "Starting Next.js server");
+const nextStart = spawnProcess("Step 3", "npx", ["next", "start", "-p", port]);
 
-// --- Step 4: Start additional processes ---
-log('Step 4: Starting auxiliary processes');
-const logWatcher = spawnProcess(
-    nodePath,
-    [npmPath, 'run', 'update-from-log'],
-    {},
-    path.join(__dirname, '..', 'logs', 'server.log'),
-    path.join(__dirname, '..', 'logs', 'server-error.log')
-);
+// --- Step 4: Auxiliary processes ---
+logStep("Step 4", "Starting auxiliary processes");
 
-const syncCheck = spawnProcess(
-    nodePath,
-    [npmPath, 'run', 'sync-check'],
-    {},
-    path.join(__dirname, '..', 'logs', 'server.log'),
-    path.join(__dirname, '..', 'logs', 'server-error.log')
-);
+spawnProcess("Step 4", "npm", ["run", "update-from-log"]);
+spawnProcess("Step 4", "npm", ["run", "sync-check"]);
 
-log('=== All child processes spawned ===');
+logStep("Startup", "All processes spawned");
 
 // --- Step 5: Server readiness check ---
 function checkServerReady(retries = 50, delay = 200) {
@@ -129,39 +89,38 @@ function checkServerReady(retries = 50, delay = 200) {
         const interval = setInterval(() => {
             const req = http.get(`http://localhost:${port}`, (res) => {
                 if (res.statusCode === 200) {
-                    log(`✅ Next.js server is ready on port ${port}`);
+                    logStep("Step 5", `Next.js server is ready on port ${port}`);
                     clearInterval(interval);
                     resolve(true);
                 } else {
-                    log(`⚠️ Server responded with status ${res.statusCode}, retrying...`);
+                    logStep("Step 5", `Server responded with ${res.statusCode}, retrying...`);
                 }
             });
 
             req.on('error', () => {
-                log(`Waiting for server... attempt ${attempts + 1}`);
+                logStep("Step 5", `Waiting for server... attempt ${attempts + 1}`);
             });
 
             req.end();
             attempts++;
             if (attempts >= retries) {
                 clearInterval(interval);
-                errorLog('❌ Next.js server did not respond in time.');
+                logStep("Step 5", "Next.js server did not respond in time.", false);
                 reject(false);
             }
         }, delay);
     });
 }
 
-// Run server readiness check
 checkServerReady().catch(() => {
-    errorLog('Server startup failed: Tauri may show "Server Connection Error".');
+    logStep("Startup", 'Server startup failed: Tauri may show "Server Connection Error".', false);
 });
 
 // --- Handle unhandled errors ---
 process.on('unhandledRejection', (reason) => {
-    errorLog(`Unhandled Rejection: ${reason}`);
+    logStep("Runtime", "Unhandled Rejection", false, reason);
 });
 
 process.on('uncaughtException', (err) => {
-    errorLog(`Uncaught Exception: ${err}`);
+    logStep("Runtime", "Uncaught Exception", false, err);
 });

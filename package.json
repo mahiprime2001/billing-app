@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "npm run dev:next && npm run upload && npm run update-from-log && npm run sync-check",
+    "dev": "npm run upload && npm run update-from-log && npm run sync-check && npm run dev:next",
     "dev:next": "next dev",
     "lint": "next lint",
-    "start": "node server.js",
+    "start:next": "next start",
+    "start": "concurrently \"npm run start:next\" \"npm run update-from-log\" \"npm run sync-check\"",
     "upload": "npx ts-node --project tsconfig.script.json app/data/mysql/upload.ts",
     "update-from-log": "npx ts-node --project tsconfig.script.json app/data/mysql/update_from_log.ts",
     "sync-check": "npx ts-node --project tsconfig.script.json app/data/mysql/sync-check.ts",

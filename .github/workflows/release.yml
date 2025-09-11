@@ -67,9 +67,6 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --locked
-
       - uses: actions/cache@v4
         with:
           path: |
@@ -80,22 +77,21 @@ jobs:
           restore-keys: ${{ runner.os }}-deps-
 
       - run: npm ci
-      - run: npm run build
-      - run: cargo tauri build
 
-      # ✅ Signing MSI inside build job
-      - name: Decode key/password and sign MSI
+      - run: npx tauri build
+
+      # ✅ Signing MSI & EXE inside build job
+      - name: Decode key/password and sign installers
         shell: bash
         run: |
-          echo "🔑 Signing the .msi installer..."
-          echo "$TAURI_PRIVATE_KEY" | base64 --decode > private.key
-          DECODED_PASSWORD=$(echo "$TAURI_KEY_PASSWORD" | base64 --decode)
-          cargo tauri signer sign \
-            --private-key private.key \
-            --password "$DECODED_PASSWORD" \
+          echo "🔑 Signing installers (.msi & .exe)..."
+          npx tauri signer sign \
+            --private-key "$(echo "$TAURI_PRIVATE_KEY" | base64 -d)" \
+            --password "$(echo "$TAURI_KEY_PASSWORD" | base64 -d)" \
             --version "$VERSION" \
-            --files src-tauri/target/release/bundle/msi/* \
-            --output src-tauri/target/release/bundle/msi/latest.json
+            --files "src-tauri/target/release/bundle/msi/*" \
+            --files "src-tauri/target/release/bundle/nsis/*" \
+            --output "src-tauri/target/release/bundle/latest.json"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -179,7 +175,7 @@ jobs:
         shell: bash
         run: |
           CHANGELOG_DECODED=$(echo "${{ steps.changelog.outputs.changelog_base64 }}" | base64 --decode)
-          gh release create v$VERSION artifacts/**/* src-tauri/target/release/bundle/msi/latest.json \
+          gh release create v$VERSION artifacts/**/* src-tauri/target/release/bundle/latest.json \
             --title "Release v$VERSION" \
             --notes "$CHANGELOG_DECODED"
         env:
