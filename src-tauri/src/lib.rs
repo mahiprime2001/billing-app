@@ -1,51 +1,158 @@
-#![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
-)]
+use std::{
+  fs::{self, File},
+  io::Write,
+  net::TcpStream,
+  path::PathBuf,
+  process::{Child, Command, Stdio},
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+  },
+  thread,
+  time::Duration,
+};
 
-use tauri::{generate_context, Manager, WindowEvent};
+use tauri::{Manager, PhysicalSize, WindowEvent};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
-fn main() {
+static IS_CLOSING: AtomicBool = AtomicBool::new(false);
+
+fn wait_for_server_ready(port: u16, retries: u32, delay_ms: u64, log_path: &PathBuf) -> bool {
+  for attempt in 1..=retries {
+    if TcpStream::connect(("127.0.0.1", port)).is_ok() {
+      write_log(log_path, &format!("Server responded on port {} at attempt {}", port, attempt));
+      return true;
+    }
+    write_log(log_path, &format!("Attempt {}: no response from port {}, retrying...", attempt, port));
+    thread::sleep(Duration::from_millis(delay_ms));
+  }
+  write_log(log_path, &format!("No response from port {} after {} attempts", port, retries));
+  false
+}
+
+fn write_log(path: &PathBuf, content: &str) {
+  if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(path) {
+    let _ = writeln!(file, "{}", content);
+  }
+  if cfg!(debug_assertions) {
+    println!("{}", content);
+  }
+}
+
+pub fn run() {
+  let exe_dir = std::env::current_exe()
+    .ok()
+    .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+    .expect("Failed to determine executable directory");
+
+  let project_root = exe_dir.parent().expect("Failed to find project root").to_path_buf();
+  let logs_dir = exe_dir.join("logs");
+  fs::create_dir_all(&logs_dir).expect("Failed to create logs directory");
+
+  let stdout_log = logs_dir.join("server_stdout.log");
+  let stderr_log = logs_dir.join("server_stderr.log");
+  let debug_log = logs_dir.join("debug.log");
+
+  write_log(&debug_log, "Starting Tauri app with Node.js sidecar...");
+
+  let node_exe = exe_dir.join("node").join("node.exe");
+  let npm_cli = exe_dir.join("node").join("node_modules").join("npm").join("bin").join("npm-cli.js");
+
+  if !node_exe.exists() {
+    panic!("Node executable not found at {:?}", node_exe);
+  }
+  if !npm_cli.exists() {
+    panic!("npm CLI not found at {:?}", npm_cli);
+  }
+
+  let child_process: Arc<Mutex<Option<Child>>> = Arc::new(Mutex::new(None));
+
+  let mut cmd = Command::new(&node_exe);
+  cmd.arg(&npm_cli)
+    .arg("run")
+    .arg("start:next")
+    .current_dir(&project_root)
+    .stdout(Stdio::from(File::create(&stdout_log).unwrap()))
+    .stderr(Stdio::from(File::create(&stderr_log).unwrap()));
+
+  #[cfg(target_os = "windows")]
+  {
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+  }
+
+  let child = cmd.spawn().expect("Failed to spawn Node.js process");
+  write_log(&debug_log, &format!("Spawned Node.js sidecar with PID {}", child.id()));
+  *child_process.lock().unwrap() = Some(child);
+
+  let port = 3000;
+  let child_process_clone = child_process.clone();
+
   tauri::Builder::default()
-    // Optional: initialize updater or other plugins here
-    // .plugin(tauri_plugin_updater::init())
-    .setup(|app| {
-      // Get the main window and navigate to localhost:3000
-      let window = app.get_window("main").unwrap();
-      #[cfg(debug_assertions)]
-      {
-        // In dev mode, Next.js dev server runs via beforeDevCommand
-        window
-          .navigate("http://localhost:3000")
-          .expect("failed to navigate to dev server");
+    .setup(move |app| {
+      let main_window = app.get_webview_window("main").unwrap();
+      if let Some(monitor) = app.primary_monitor().unwrap_or(None) {
+        let size = monitor.size();
+        main_window
+          .set_size(PhysicalSize::new(size.width, size.height))
+          .unwrap_or_else(|e| {
+            write_log(&debug_log, &format!("Failed to resize window: {}", e));
+          });
       }
-      #[cfg(not(debug_assertions))]
-      {
-        // In production, Tauri runner starts Next.js via `npm run start:next`
-        window
-          .navigate("http://localhost:3000")
-          .expect("failed to navigate to production server");
-      }
+
+      let window_clone = main_window.clone();
+      let debug_log_clone = debug_log.clone();
+
+      thread::spawn(move || {
+        write_log(&debug_log_clone, "Waiting for server readiness...");
+        if wait_for_server_ready(port, 50, 200, &debug_log_clone) {
+          let url = format!("http://localhost:{}", port);
+          write_log(&debug_log_clone, &format!("Server ready. Navigating window to {}", url));
+          window_clone.eval(&format!("window.location.replace('{}')", url)).unwrap_or_else(|e| {
+            write_log(&debug_log_clone, &format!("Failed to send navigation command: {}", e));
+          });
+          window_clone.show().unwrap_or_else(|e| {
+            write_log(&debug_log_clone, &format!("Failed to show window: {}", e));
+          });
+        } else {
+          write_log(&debug_log_clone, "Server failed to start within timeout.");
+          let error_html = "<h1 style='color:red'>Failed to start backend server. Check logs.</h1>";
+          window_clone.eval(&format!("document.body.innerHTML = `{}`", error_html)).ok();
+          window_clone.show().ok();
+        }
+      });
+
       Ok(())
     })
-    .on_window_event(|event| {
-      if let WindowEvent::CloseRequested { api, .. } = event.event() {
+    .on_window_event(move |window, event| {
+      if let WindowEvent::CloseRequested { api, .. } = event {
+        if IS_CLOSING.load(Ordering::SeqCst) {
+          return;
+        }
         api.prevent_close();
-        let app_handle = event.window().app_handle();
-        let window = event.window().clone();
-        tauri::async_runtime::spawn(async move {
-          let response = app_handle
+        let app_handle = window.app_handle();
+        let window_clone = window.clone();
+        let child_process_inner = child_process_clone.clone();
+
+        thread::spawn(move || {
+          let confirm = app_handle
             .dialog()
             .message("Are you sure you want to quit?")
-            .title("Confirm")
-            .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancel)
-            .await;
-          if response {
-            window.close().unwrap();
+            .title("Confirm Exit")
+            .buttons(MessageDialogButtons::OkCancel)
+            .blocking_show();
+
+          if confirm {
+            IS_CLOSING.store(true, Ordering::SeqCst);
+            if let Some(mut child) = child_process_inner.lock().unwrap().take() {
+              let _ = child.kill();
+              let _ = child.wait();
+            }
+            window_clone.close().ok();
           }
         });
       }
     })
-    .run(generate_context!())
-    .expect("error while running tauri application");
+    .run(tauri::generate_context!())
+    .expect("error while running Tauri application");
 }
