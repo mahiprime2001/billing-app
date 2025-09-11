@@ -82,19 +82,43 @@ jobs:
       - run: npm ci
       - run: cargo tauri build
 
-      # ✅ Signing MSI inside build job
-      - name: Decode key/password and sign MSI
+      # ✅ Decode key & password and sign MSI + EXE
+      - name: Sign installers
         shell: bash
         run: |
-          echo "🔑 Signing the .msi installer..."
-          echo "$TAURI_PRIVATE_KEY" | base64 --decode > private.key
-          DECODED_PASSWORD=$(echo "$TAURI_KEY_PASSWORD" | base64 --decode)
+          echo "🔑 Preparing private key..."
+          if echo "$TAURI_PRIVATE_KEY" | base64 --decode > private.key 2>/dev/null; then
+            echo "✅ TAURI_PRIVATE_KEY decoded from Base64."
+          else
+            echo "$TAURI_PRIVATE_KEY" > private.key
+            echo "⚠️ TAURI_PRIVATE_KEY used as plain text."
+          fi
+
+          if DECODED_PASS=$(echo "$TAURI_KEY_PASSWORD" | base64 --decode 2>/dev/null); then
+            echo "✅ TAURI_KEY_PASSWORD decoded from Base64."
+          else
+            DECODED_PASS="$TAURI_KEY_PASSWORD"
+            echo "⚠️ TAURI_KEY_PASSWORD used as plain text."
+          fi
+
+          echo "🔏 Signing MSI..."
           cargo tauri signer sign \
             --private-key private.key \
-            --password "$DECODED_PASSWORD" \
+            --password "$DECODED_PASS" \
             --version "$VERSION" \
             --files src-tauri/target/release/bundle/msi/* \
             --output src-tauri/target/release/bundle/msi/latest.json
+
+          echo "🔏 Signing EXE..."
+          cargo tauri signer sign \
+            --private-key private.key \
+            --password "$DECODED_PASS" \
+            --version "$VERSION" \
+            --files src-tauri/target/release/bundle/nsis/* \
+            --output src-tauri/target/release/bundle/nsis/latest.json
+
+          echo "🧹 Cleaning up private key..."
+          rm -f private.key
 
       - uses: actions/upload-artifact@v4
         with:
@@ -178,7 +202,7 @@ jobs:
         shell: bash
         run: |
           CHANGELOG_DECODED=$(echo "${{ steps.changelog.outputs.changelog_base64 }}" | base64 --decode)
-          gh release create v$VERSION artifacts/**/* src-tauri/target/release/bundle/msi/latest.json \
+          gh release create v$VERSION artifacts/**/* \
             --title "Release v$VERSION" \
             --notes "$CHANGELOG_DECODED"
         env:
