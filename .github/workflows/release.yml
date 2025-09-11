@@ -1,15 +1,12 @@
 name: "Tauri Cross-Platform Auto Release"
-
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-
 permissions:
   contents: write
   actions: read
-
 jobs:
   calculate-version:
     runs-on: ubuntu-22.04
@@ -28,14 +25,12 @@ jobs:
           elif git log $RANGE --pretty=%B | grep -q "^feat:"; then TYPE="minor"
           elif git log $RANGE --pretty=%B | grep -q "^fix:"; then TYPE="patch"
           else TYPE="patch"; fi
-
           TAURI_FILE=src-tauri/tauri.conf.json
           OLD_VERSION=$(jq -r '.version' $TAURI_FILE)
           if [ -z "$OLD_VERSION" ] || [ "$OLD_VERSION" = "null" ]; then
             echo "❌ Could not find version in $TAURI_FILE"
             exit 1
           fi
-
           IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD_VERSION"
           case "$TYPE" in
             major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
@@ -44,7 +39,6 @@ jobs:
           esac
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-
   build:
     needs: calculate-version
     outputs:
@@ -60,13 +54,10 @@ jobs:
       TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - uses: dtolnay/rust-toolchain@stable
-
       - uses: actions/cache@v4
         with:
           path: |
@@ -75,49 +66,82 @@ jobs:
             node_modules
           key: ${{ runner.os }}-deps-${{ hashFiles('**/package-lock.json') }}
           restore-keys: ${{ runner.os }}-deps-
-
       - run: npm ci
       - run: npx tauri build
-
-      # ✅ Sign MSI using cleaned secrets
+      
+      # ✅ Fixed: Proper base64 decoding and MSI signing
       - name: Decode key/password and sign MSI
+        if: runner.os == 'Windows'
         shell: bash
         run: |
           echo "🔑 Signing the .msi installer..."
           
-          # Remove whitespace/newlines from secrets
-          CLEAN_KEY=$(echo "$TAURI_PRIVATE_KEY" | tr -d '\r\n ')
-          CLEAN_PASSWORD=$(echo "$TAURI_KEY_PASSWORD" | tr -d '\r\n ')
-
-          # Decode cleaned secrets
-          echo "$CLEAN_KEY" | base64 --decode > private.key
-          DECODED_PASSWORD=$(echo "$CLEAN_PASSWORD" | base64 --decode)
-
-          # Sign MSI
+          # Clean and decode private key - remove ALL whitespace characters
+          echo "$TAURI_PRIVATE_KEY" | tr -d '\r\n\t ' | base64 --decode > private.key
+          
+          # Clean and decode password
+          DECODED_PASSWORD=$(echo "$TAURI_KEY_PASSWORD" | tr -d '\r\n\t ' | base64 --decode)
+          
+          # Verify key file was created
+          if [ ! -f "private.key" ]; then
+            echo "❌ Failed to create private key file"
+            exit 1
+          fi
+          
+          # Find MSI files to sign
+          MSI_FILES=$(find src-tauri/target/release/bundle/msi -name "*.msi" 2>/dev/null || echo "")
+          if [ -z "$MSI_FILES" ]; then
+            echo "❌ No MSI files found to sign"
+            exit 1
+          fi
+          
+          echo "📦 Found MSI files to sign:"
+          echo "$MSI_FILES"
+          
+          # Sign MSI files
           npx tauri signer sign \
             --private-key private.key \
             --password "$DECODED_PASSWORD" \
             --version "$VERSION" \
-            --files src-tauri/target/release/bundle/msi/* \
+            --files src-tauri/target/release/bundle/msi/*.msi \
             --output src-tauri/target/release/bundle/msi/latest.json
-
-      # ✅ Ensure latest.json is in a central location
-      - name: Copy latest.json for release
+          
+          # Clean up sensitive files
+          rm -f private.key
+          
+      # ✅ Verify signing output
+      - name: Verify signing output
+        if: runner.os == 'Windows'
         shell: bash
         run: |
-          SIGN_OUTPUT="src-tauri/target/release/bundle/latest.json"
-          if [ -f src-tauri/target/release/bundle/msi/latest.json ]; then
-            cp src-tauri/target/release/bundle/msi/latest.json "$SIGN_OUTPUT"
+          if [ -f "src-tauri/target/release/bundle/msi/latest.json" ]; then
+            echo "✅ Signing completed successfully"
+            echo "📄 latest.json content:"
+            cat src-tauri/target/release/bundle/msi/latest.json
           else
             echo "❌ latest.json not found after signing!"
             exit 1
           fi
-
+          
+      # ✅ Copy latest.json to central location
+      - name: Copy latest.json for release
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          SIGN_OUTPUT="src-tauri/target/release/bundle/latest.json"
+          if [ -f "src-tauri/target/release/bundle/msi/latest.json" ]; then
+            cp src-tauri/target/release/bundle/msi/latest.json "$SIGN_OUTPUT"
+            echo "✅ Copied latest.json to $SIGN_OUTPUT"
+          else
+            echo "❌ latest.json not found after signing!"
+            exit 1
+          fi
+          
       - uses: actions/upload-artifact@v4
         with:
           name: tauri-${{ matrix.platform }}
           path: src-tauri/target/release/bundle/
-
+          
   bump-and-release:
     needs: build
     runs-on: ubuntu-22.04
@@ -130,15 +154,12 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Safety check for VERSION
         run: test -n "$VERSION"
-
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-
       - name: Update version in configs
         shell: bash
         run: |
@@ -155,7 +176,6 @@ jobs:
           git push origin :refs/tags/v$VERSION || true
           git tag v$VERSION
           git push origin main --tags
-
       - name: Generate changelog
         id: changelog
         run: |
@@ -176,7 +196,6 @@ jobs:
           } > new_changelog.md
           CHANGELOG_B64=$(base64 -w0 new_changelog.md)
           echo "changelog_base64=$CHANGELOG_B64" >> $GITHUB_OUTPUT
-
       - name: Commit changelog
         shell: bash
         run: |
@@ -184,15 +203,26 @@ jobs:
           git add CHANGELOG.md
           git commit -m "docs: update changelog for v$VERSION [skip ci]" || echo "No changes"
           git push origin main
-
       - name: Create GitHub Release
         shell: bash
         run: |
           CHANGELOG_DECODED=$(echo "${{ steps.changelog.outputs.changelog_base64 }}" | base64 --decode)
-          gh release create "v$VERSION" \
-            "artifacts/tauri-windows-latest/*" \
-            "src-tauri/target/release/bundle/latest.json" \
-            --title "Release v$VERSION" \
-            --notes "$CHANGELOG_DECODED"
+          
+          # Find latest.json in artifacts
+          LATEST_JSON=$(find artifacts -name "latest.json" -type f | head -1)
+          if [ -n "$LATEST_JSON" ]; then
+            echo "✅ Found latest.json at: $LATEST_JSON"
+            gh release create "v$VERSION" \
+              "artifacts/tauri-windows-latest/"* \
+              "$LATEST_JSON" \
+              --title "Release v$VERSION" \
+              --notes "$CHANGELOG_DECODED"
+          else
+            echo "⚠️ latest.json not found, creating release without it"
+            gh release create "v$VERSION" \
+              "artifacts/tauri-windows-latest/"* \
+              --title "Release v$VERSION" \
+              --notes "$CHANGELOG_DECODED"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
