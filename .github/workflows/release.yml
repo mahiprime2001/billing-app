@@ -77,10 +77,9 @@ jobs:
           restore-keys: ${{ runner.os }}-deps-
 
       - run: npm ci
-
       - run: npx tauri build
 
-      # ✅ Signing MSI & EXE inside build job
+      # ✅ Signing both MSI and EXE installers
       - name: Decode key/password and sign installers
         shell: bash
         run: |
@@ -90,8 +89,14 @@ jobs:
             --password "$(echo "$TAURI_KEY_PASSWORD" | base64 -d)" \
             --version "$VERSION" \
             --files "src-tauri/target/release/bundle/msi/*" \
-            --files "src-tauri/target/release/bundle/nsis/*" \
-            --output "src-tauri/target/release/bundle/latest.json"
+            --files "src-tauri/target/release/bundle/nsis/*"
+
+          # Move one latest.json to central bundle/ so release can find it
+          if [ -f src-tauri/target/release/bundle/msi/latest.json ]; then
+            cp src-tauri/target/release/bundle/msi/latest.json src-tauri/target/release/bundle/latest.json
+          elif [ -f src-tauri/target/release/bundle/nsis/latest.json ]; then
+            cp src-tauri/target/release/bundle/nsis/latest.json src-tauri/target/release/bundle/latest.json
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
