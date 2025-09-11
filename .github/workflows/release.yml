@@ -80,7 +80,6 @@ jobs:
           restore-keys: ${{ runner.os }}-deps-
 
       - run: npm ci
-      - run: npm run build
       - run: cargo tauri build
 
       # ✅ Signing MSI inside build job
