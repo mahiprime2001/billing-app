@@ -67,9 +67,6 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --locked
-
       - uses: actions/cache@v4
         with:
           path: |
@@ -80,45 +77,21 @@ jobs:
           restore-keys: ${{ runner.os }}-deps-
 
       - run: npm ci
-      - run: cargo tauri build
 
-      # ✅ Decode key & password and sign MSI + EXE
-      - name: Sign installers
+      - run: npx tauri build
+
+      # ✅ Signing MSI & EXE inside build job
+      - name: Decode key/password and sign installers
         shell: bash
         run: |
-          echo "🔑 Preparing private key..."
-          if echo "$TAURI_PRIVATE_KEY" | base64 --decode > private.key 2>/dev/null; then
-            echo "✅ TAURI_PRIVATE_KEY decoded from Base64."
-          else
-            echo "$TAURI_PRIVATE_KEY" > private.key
-            echo "⚠️ TAURI_PRIVATE_KEY used as plain text."
-          fi
-
-          if DECODED_PASS=$(echo "$TAURI_KEY_PASSWORD" | base64 --decode 2>/dev/null); then
-            echo "✅ TAURI_KEY_PASSWORD decoded from Base64."
-          else
-            DECODED_PASS="$TAURI_KEY_PASSWORD"
-            echo "⚠️ TAURI_KEY_PASSWORD used as plain text."
-          fi
-
-          echo "🔏 Signing MSI..."
-          cargo tauri signer sign \
-            --private-key private.key \
-            --password "$DECODED_PASS" \
+          echo "🔑 Signing installers (.msi & .exe)..."
+          npx tauri signer sign \
+            --private-key "$(echo "$TAURI_PRIVATE_KEY" | base64 -d)" \
+            --password "$(echo "$TAURI_KEY_PASSWORD" | base64 -d)" \
             --version "$VERSION" \
-            --files src-tauri/target/release/bundle/msi/* \
-            --output src-tauri/target/release/bundle/msi/latest.json
-
-          echo "🔏 Signing EXE..."
-          cargo tauri signer sign \
-            --private-key private.key \
-            --password "$DECODED_PASS" \
-            --version "$VERSION" \
-            --files src-tauri/target/release/bundle/nsis/* \
-            --output src-tauri/target/release/bundle/nsis/latest.json
-
-          echo "🧹 Cleaning up private key..."
-          rm -f private.key
+            --files "src-tauri/target/release/bundle/msi/*" \
+            --files "src-tauri/target/release/bundle/nsis/*" \
+            --output "src-tauri/target/release/bundle/latest.json"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -202,7 +175,7 @@ jobs:
         shell: bash
         run: |
           CHANGELOG_DECODED=$(echo "${{ steps.changelog.outputs.changelog_base64 }}" | base64 --decode)
-          gh release create v$VERSION artifacts/**/* \
+          gh release create v$VERSION artifacts/**/* src-tauri/target/release/bundle/latest.json \
             --title "Release v$VERSION" \
             --notes "$CHANGELOG_DECODED"
         env:
