@@ -2,10 +2,9 @@
   "$schema": "https://schema.tauri.app/config/2.8.5",
   "identifier": "com.siriartjewellery.dev",
   "productName": "Siri-Admin-app",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
     "devUrl": "http://localhost:3000"
   },
   "app": {
@@ -46,6 +45,7 @@
       "icons/icon.ico"
     ],
     "resources": [
+      "../.next",
       "node",
       "../node_modules",
       "../public",
@@ -58,7 +58,8 @@
       "../tsconfig.json",
       "../tsconfig.script.json",
       "../.env",
-      "../middleware.ts"
+      "../middleware.ts",
+      "../scripts"
     ]
   }
 }
