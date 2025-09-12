@@ -1,12 +1,15 @@
-name: "Tauri Cross-Platform Auto Release"
+name: "Tauri Windows Auto Release"
+
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+
 permissions:
   contents: write
   actions: read
+
 jobs:
   calculate-version:
     runs-on: ubuntu-22.04
@@ -16,7 +19,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - run: sudo apt-get install -y jq
+
       - id: calculate
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -39,26 +44,30 @@ jobs:
           esac
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
   build:
     needs: calculate-version
     outputs:
       version: ${{ needs.calculate-version.outputs.next_version }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [windows-latest]
-    runs-on: ${{ matrix.platform }}
+    runs-on: windows-latest
     env:
       VERSION: ${{ needs.calculate-version.outputs.next_version }}
-      TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-      TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/cache@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -66,172 +75,101 @@ jobs:
             node_modules
           key: ${{ runner.os }}-deps-${{ hashFiles('**/package-lock.json') }}
           restore-keys: ${{ runner.os }}-deps-
-      - run: npm ci
-      - run: npx tauri build
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update version in tauri.conf.json
+        shell: pwsh
+        run: |
+          $tauriFile = "src-tauri/tauri.conf.json"
+          if (-Not (Test-Path $tauriFile)) {
+            Write-Host "❌ $tauriFile not found"
+            exit 1
+          }
+          $content = Get-Content $tauriFile -Raw | ConvertFrom-Json
+          $content.version = "$env:VERSION"
+          $content | ConvertTo-Json -Depth 10 | Set-Content $tauriFile -Encoding utf8
+          Write-Host "✅ Updated version in $tauriFile to $env:VERSION"
+
+      - name: Build with Tauri
+        shell: pwsh
+        run: |
+          Write-Host "🚧 Starting Tauri build..."
+          npx tauri build
 
       - name: Write private key from secret
-        if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Write-Host "🔑 Writing private key from secret..."
-          # Write raw multi-line key
-          $env:TAURI_PRIVATE_KEY | Out-File -FilePath private.key -Encoding ascii
-          if (-not (Test-Path "private.key")) {
-            Write-Host "❌ private.key missing"
-            exit 1
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            Write-Host "⚠️ TAURI_SIGNING_PRIVATE_KEY is not set, skipping writing private.key"
+            exit 0
           }
+          Write-Host "🔑 Writing private.key file"
+          $env:TAURI_SIGNING_PRIVATE_KEY | Out-File -FilePath private.key -Encoding ascii
 
-      - name: Write password from secret
-        if: runner.os == 'Windows'
+      - name: Prepare password variable
         shell: pwsh
         run: |
-          Write-Host "🔑 Writing password from secret..."
-          # Write raw password (no newline)
-          $env:TAURI_KEY_PASSWORD | Out-File -FilePath password.txt -NoNewline -Encoding utf8
-          $decodedPassword = Get-Content password.txt
-          if (-not $decodedPassword) {
-            Write-Host "❌ Failed to write password"
-            exit 1
-          }
+          $pwd = $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+          if ($null -eq $pwd) { $pwd = "" }
+          "`$decodedPassword = '$pwd'" | Out-File decodedPassword.ps1 -Encoding utf8
 
-      - name: Decode and sign MSI
-        if: runner.os == 'Windows'
+      - name: Sign MSI and create latest.json
         shell: pwsh
         run: |
-          Write-Host "🔑 Signing the .msi installer..."
-          # Locate the MSI installer
-          $msi = Get-ChildItem -Path "src-tauri/target/release/bundle/msi" -Filter "*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
+          Write-Host "📦 Creating output directory"
+          $outDir = "src-tauri/target/release/bundle"
+          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+
+          Write-Host "📦 Searching for MSI file"
+          $msi = Get-ChildItem -Path "$outDir/msi" -Filter "*.msi" | Select-Object -First 1
           if (-not $msi) {
-            Write-Host "❌ No MSI files found"
+            Write-Host "❌ No MSI file found"
+            Get-ChildItem -Recurse $outDir | Format-List FullName
             exit 1
           }
-          Write-Host "📦 Signing: $($msi.FullName)"
+          Write-Host "✅ Found MSI: $($msi.FullName)"
 
-          # Set deterministic output path
-          $out = "src-tauri/target/release/bundle/latest.json"
+          # Copy MSI to same folder as latest.json
+          Copy-Item $msi.FullName $outDir -Force
+          $msiRelative = Join-Path $outDir $msi.Name
 
-          # Run signer
-          npx tauri signer sign `
-            --private-key private.key `
-            --password "$decodedPassword" `
-            --version "$env:VERSION" `
-            --files "$($msi.FullName)" `
-            --output "$out" `
-            --verbose
+          $privateKeyArg = ""
+          if (Test-Path "private.key") { $privateKeyArg = "--private-key private.key" }
 
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "❌ Signing failed (exit code $LASTEXITCODE)"
-            exit $LASTEXITCODE
+          . .\decodedPassword.ps1
+
+          $cmd = @(
+              "npx tauri signer sign",
+              $privateKeyArg,
+              "--password `"$decodedPassword`"",
+              "--version `"$env:VERSION`"",
+              "--files `"$msiRelative`"",
+              "--output-dir `"$outDir`"",
+              "--verbose"
+          ) -join " "
+
+          Write-Host "🟠 Running command:"
+          Write-Host $cmd
+          Invoke-Expression $cmd
+
+          $latestJson = Join-Path $outDir "latest.json"
+          if (-not (Test-Path $latestJson)) {
+              Write-Host "❌ latest.json not created!"
+              Get-ChildItem -Recurse $outDir | Format-List FullName
+              exit 1
           }
 
-          # Validate JSON output
-          if (-not (Test-Path $out)) {
-            Write-Host "❌ latest.json not found"
-            exit 1
-          }
-          Write-Host "✅ latest.json created at $out"
+          Write-Host "✅ latest.json created at $latestJson"
 
-      - name: Cleanup key and password files
-        if: runner.os == 'Windows'
+      - name: Cleanup sensitive files
         shell: pwsh
         run: |
-          Remove-Item "private.key","password.txt" -Force -ErrorAction SilentlyContinue
+          Remove-Item "private.key","decodedPassword.ps1" -Force -ErrorAction SilentlyContinue
 
-      - name: Verify signing output
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $out = "src-tauri/target/release/bundle/latest.json"
-          if (Test-Path $out) {
-            Write-Host "✅ Signing completed"
-            Get-Content $out | Write-Host
-          } else {
-            Write-Host "❌ latest.json missing"
-            exit 1
-          }
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: tauri-${{ matrix.platform }}
+          name: tauri-windows
           path: src-tauri/target/release/bundle/
-
-  bump-and-release:
-    needs: build
-    runs-on: ubuntu-22.04
-    if: success()
-    env:
-      VERSION: ${{ needs.build.outputs.version }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Safety check for VERSION
-        run: test -n "$VERSION"
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      - name: Update version in configs
-        shell: bash
-        run: |
-          git pull origin main
-          jq ".version=\"$VERSION\"" package.json > tmp.json && mv tmp.json package.json
-          jq ".version=\"$VERSION\"" src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
-          UPDATE_URL="https://raw.githubusercontent.com/${{ github.repository }}/releases/latest/download/latest.json"
-          jq ".plugins.updater.endpoints=[\"$UPDATE_URL\"]" src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json src-tauri/tauri.conf.json
-          git commit -m "chore: bump to $VERSION [skip ci]" || echo "No changes"
-          git tag -d v$VERSION || true
-          git push origin :refs/tags/v$VERSION || true
-          git tag v$VERSION
-          git push origin main --tags
-      - name: Generate changelog
-        id: changelog
-        run: |
-          CURR_TAG=v$VERSION
-          PREV_TAG=$(git describe --tags --abbrev=0 --exclude="$CURR_TAG" 2>/dev/null || echo "")
-          DATE=$(date -u +"%Y-%m-%d")
-          RANGE=${PREV_TAG:+$PREV_TAG..HEAD}
-          {
-            echo "## $CURR_TAG - $DATE"
-            echo "### ✨ Features"
-            git log $RANGE --grep="^feat:" --pretty=format:"- %s" || echo "- None"
-            echo ""
-            echo "### 🐛 Fixes"
-            git log $RANGE --grep="^fix:" --pretty=format:"- %s" || echo "- None"
-            echo ""
-            echo "### 💥 Breaking Changes"
-            git log $RANGE --grep="BREAKING CHANGE" --pretty=format:"- %s" || echo "- None"
-          } > new_changelog.md
-          CHANGELOG_B64=$(base64 -w0 new_changelog.md)
-          echo "changelog_base64=$CHANGELOG_B64" >> $GITHUB_OUTPUT
-      - name: Commit changelog
-        shell: bash
-        run: |
-          mv new_changelog.md CHANGELOG.md
-          git add CHANGELOG.md
-          git commit -m "docs: update changelog for v$VERSION [skip ci]" || echo "No changes"
-          git push origin main
-      - name: Create GitHub Release
-        shell: bash
-        run: |
-          CHANGELOG_DECODED=$(echo "${{ steps.changelog.outputs.changelog_base64 }}" | base64 --decode)
-          LATEST_JSON=$(find artifacts -name "latest.json" -type f | head -1)
-          if [ -n "$LATEST_JSON" ]; then
-            gh release create "v$VERSION" \
-              "artifacts/tauri-windows-latest/"* \
-              "$LATEST_JSON" \
-              --title "Release v$VERSION" \
-              --notes "$CHANGELOG_DECODED"
-          else
-            gh release create "v$VERSION" \
-              "artifacts/tauri-windows-latest/"* \
-              --title "Release v$VERSION" \
-              --notes "$CHANGELOG_DECODED"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
