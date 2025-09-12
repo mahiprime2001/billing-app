@@ -86,9 +86,12 @@ jobs:
           npx tauri build
 
       - name: Write private key from secret
-        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
         shell: pwsh
         run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            Write-Host "⚠️ TAURI_SIGNING_PRIVATE_KEY is not set, skipping writing private.key"
+            exit 0
+          }
           Write-Host "🔑 Writing private.key file"
           $env:TAURI_SIGNING_PRIVATE_KEY | Out-File -FilePath private.key -Encoding ascii
 
@@ -104,7 +107,8 @@ jobs:
         run: |
           Write-Host "✅ Checking environment variables"
           if ($env:VERSION) { Write-Host "VERSION=$env:VERSION" } else { Write-Host "❌ VERSION not set"; exit 1 }
-          if ($env:TAURI_SIGNING_PRIVATE_KEY) { Write-Host "Private key is set" } else { Write-Host "❌ Private key missing"; exit 1 }
+          if ($env:TAURI_SIGNING_PRIVATE_KEY) { Write-Host "Private key is set" } else { Write-Host "⚠️ Private key not set; may skip signing"
+          }
           Write-Host "Listing built files:"
           Get-ChildItem -Recurse "src-tauri/target/release/bundle" | Format-List FullName
 
