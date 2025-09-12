@@ -79,18 +79,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Clean previous builds
+        shell: pwsh
+        run: |
+          Write-Host "🧹 Cleaning previous build artifacts"
+          Remove-Item "src-tauri/target" -Recurse -Force -ErrorAction SilentlyContinue
+
       - name: Update version in tauri.conf.json
         shell: pwsh
         run: |
           $tauriFile = "src-tauri/tauri.conf.json"
-          if (-Not (Test-Path $tauriFile)) {
-            Write-Host "❌ $tauriFile not found"
-            exit 1
-          }
+          Write-Host "🔧 Updating version in $tauriFile to $env:VERSION"
           $content = Get-Content $tauriFile -Raw | ConvertFrom-Json
           $content.version = "$env:VERSION"
           $content | ConvertTo-Json -Depth 10 | Set-Content $tauriFile -Encoding utf8
-          Write-Host "✅ Updated version in $tauriFile to $env:VERSION"
 
       - name: Debug tauri.conf.json version
         shell: pwsh
@@ -105,11 +107,22 @@ jobs:
           Write-Host "🚧 Starting Tauri build..."
           npx tauri build
 
+      - name: Inspect MSI version metadata
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem -Path "src-tauri/target/release/bundle/msi" -Filter "*.msi" | Select-Object -First 1
+          if (-not $msi) {
+            Write-Host "❌ MSI not found"
+            exit 1
+          }
+          Write-Host "✅ MSI file:" $msi.FullName
+          Write-Host "⚠ Inspect version manually if Win32_Product cannot fetch it"
+
       - name: Write private key from secret
         shell: pwsh
         run: |
           if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
-            Write-Host "⚠️ TAURI_SIGNING_PRIVATE_KEY is not set, skipping writing private.key"
+            Write-Host "⚠ TAURI_SIGNING_PRIVATE_KEY not set, skipping writing private.key"
             exit 0
           }
           Write-Host "🔑 Writing private.key file"
