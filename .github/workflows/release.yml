@@ -115,15 +115,6 @@ jobs:
           if ($null -eq $pwd) { $pwd = "" }
           "`$decodedPassword = '$pwd'" | Out-File decodedPassword.ps1 -Encoding utf8
 
-      - name: Verify environment and files before signing
-        shell: pwsh
-        run: |
-          Write-Host "✅ Checking environment variables"
-          if ($env:VERSION) { Write-Host "VERSION=$env:VERSION" } else { Write-Host "❌ VERSION not set"; exit 1 }
-          if ($env:TAURI_SIGNING_PRIVATE_KEY) { Write-Host "Private key is set" } else { Write-Host "⚠️ Private key not set; may skip signing" }
-          Write-Host "Listing built files:"
-          Get-ChildItem -Recurse "src-tauri/target/release/bundle" | Format-List FullName
-
       - name: Sign MSI and create latest.json
         shell: pwsh
         run: |
@@ -140,8 +131,9 @@ jobs:
           }
           Write-Host "✅ Found MSI: $($msi.FullName)"
 
-          # Relative path for Windows
-          $msiRelative = Resolve-Path -Relative $msi.FullName
+          # Copy MSI to same folder as latest.json
+          Copy-Item $msi.FullName $outDir -Force
+          $msiRelative = Join-Path $outDir $msi.Name
 
           $privateKeyArg = ""
           if (Test-Path "private.key") { $privateKeyArg = "--private-key private.key" }
