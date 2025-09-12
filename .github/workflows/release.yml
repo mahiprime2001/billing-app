@@ -92,6 +92,13 @@ jobs:
           $content | ConvertTo-Json -Depth 10 | Set-Content $tauriFile -Encoding utf8
           Write-Host "✅ Updated version in $tauriFile to $env:VERSION"
 
+      - name: Debug tauri.conf.json version
+        shell: pwsh
+        run: |
+          Write-Host "🔍 Checking tauri.conf.json version"
+          $content = Get-Content "src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
+          Write-Host "Version in tauri.conf.json:" $content.version
+
       - name: Build with Tauri
         shell: pwsh
         run: |
@@ -131,10 +138,6 @@ jobs:
           }
           Write-Host "✅ Found MSI: $($msi.FullName)"
 
-          # Copy MSI to same folder as latest.json
-          Copy-Item $msi.FullName $outDir -Force
-          $msiRelative = Join-Path $outDir $msi.Name
-
           $privateKeyArg = ""
           if (Test-Path "private.key") { $privateKeyArg = "--private-key private.key" }
 
@@ -145,7 +148,7 @@ jobs:
               $privateKeyArg,
               "--password `"$decodedPassword`"",
               "--version `"$env:VERSION`"",
-              "--files `"$msiRelative`"",
+              "--files `"$($msi.FullName)`"",
               "--output-dir `"$outDir`"",
               "--verbose"
           ) -join " "
