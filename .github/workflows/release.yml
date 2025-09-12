@@ -79,6 +79,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Update version in tauri.conf.json
+        shell: pwsh
+        run: |
+          $tauriFile = "src-tauri/tauri.conf.json"
+          if (-Not (Test-Path $tauriFile)) {
+            Write-Host "❌ $tauriFile not found"
+            exit 1
+          }
+          $content = Get-Content $tauriFile -Raw | ConvertFrom-Json
+          $content.version = "$env:VERSION"
+          $content | ConvertTo-Json -Depth 10 | Set-Content $tauriFile -Encoding utf8
+          Write-Host "✅ Updated version in $tauriFile to $env:VERSION"
+
       - name: Build with Tauri
         shell: pwsh
         run: |
@@ -107,8 +120,7 @@ jobs:
         run: |
           Write-Host "✅ Checking environment variables"
           if ($env:VERSION) { Write-Host "VERSION=$env:VERSION" } else { Write-Host "❌ VERSION not set"; exit 1 }
-          if ($env:TAURI_SIGNING_PRIVATE_KEY) { Write-Host "Private key is set" } else { Write-Host "⚠️ Private key not set; may skip signing"
-          }
+          if ($env:TAURI_SIGNING_PRIVATE_KEY) { Write-Host "Private key is set" } else { Write-Host "⚠️ Private key not set; may skip signing" }
           Write-Host "Listing built files:"
           Get-ChildItem -Recurse "src-tauri/target/release/bundle" | Format-List FullName
 
