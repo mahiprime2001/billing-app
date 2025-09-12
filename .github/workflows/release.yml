@@ -128,19 +128,21 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "📦 Creating output directory"
-          New-Item -ItemType Directory -Path "src-tauri/target/release/bundle" -Force | Out-Null
+          $outDir = "src-tauri/target/release/bundle"
+          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
 
           Write-Host "📦 Searching for MSI file"
-          $msi = Get-ChildItem -Path "src-tauri/target/release/bundle/msi" -Filter "*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $msi = Get-ChildItem -Path "$outDir/msi" -Filter "*.msi" | Select-Object -First 1
           if (-not $msi) {
             Write-Host "❌ No MSI file found"
-            Get-ChildItem -Recurse "src-tauri/target/release/bundle" | Format-List FullName
+            Get-ChildItem -Recurse $outDir | Format-List FullName
             exit 1
           }
           Write-Host "✅ Found MSI: $($msi.FullName)"
 
-          $out = "src-tauri/target/release/bundle/latest.json"
-          Write-Host "📦 Output will be written to $out"
+          # Relative paths for Windows
+          $msiRelative = Resolve-Path -Relative $msi.FullName
+          $latestJson = Join-Path $outDir "latest.json"
 
           $privateKeyArg = ""
           if (Test-Path "private.key") {
@@ -151,31 +153,26 @@ jobs:
           . .\decodedPassword.ps1
 
           $cmd = @(
-            "npx tauri signer sign",
-            $privateKeyArg,
-            "--password `"$decodedPassword`"",
-            "--version `"$env:VERSION`"",
-            "--files `"$($msi.FullName)`"",
-            "--output `"$out`"",
-            "--verbose"
+              "npx tauri signer sign",
+              $privateKeyArg,
+              "--password `"$decodedPassword`"",
+              "--version `"$env:VERSION`"",
+              "--files `"$msiRelative`"",
+              "--output `"$latestJson`"",
+              "--verbose"
           ) -join " "
+
           Write-Host "🟠 Running command:"
           Write-Host $cmd
-
           Invoke-Expression $cmd
 
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "❌ Signer failed with exit code $LASTEXITCODE"
-            exit $LASTEXITCODE
+          if (-not (Test-Path $latestJson)) {
+              Write-Host "❌ latest.json not created!"
+              Get-ChildItem -Recurse $outDir | Format-List FullName
+              exit 1
           }
 
-          if (-not (Test-Path $out)) {
-            Write-Host "❌ latest.json not created!"
-            Get-ChildItem -Recurse "src-tauri/target/release/bundle" | Format-List FullName
-            exit 1
-          }
-
-          Write-Host "✅ latest.json created at $out"
+          Write-Host "✅ latest.json created at $latestJson"
 
       - name: Cleanup sensitive files
         shell: pwsh
