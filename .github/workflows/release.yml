@@ -19,7 +19,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - run: sudo apt-get install -y jq
+
       - id: calculate
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -84,7 +86,7 @@ jobs:
           npx tauri build
 
       - name: Write private key from secret
-        if: $env:TAURI_SIGNING_PRIVATE_KEY
+        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
         shell: pwsh
         run: |
           Write-Host "🔑 Writing private.key file"
