@@ -199,7 +199,14 @@ async function processLogs() {
                   await (connection as any).execute(query, queryParams);
                 }
               }
-              await logSync({ change_type: 'update', change_data: record });
+
+              let changeType: 'create' | 'update' = 'update'; // Default to update
+              if (line.includes('ACTION: CREATE')) {
+                changeType = 'create';
+              } else if (line.includes('Product updated')) {
+                changeType = 'update';
+              }
+              await logSync({ change_type: changeType, change_data: record });
             }
 
             await connection.commit();

@@ -76,7 +76,6 @@ export default function ProductsPage() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [printQuantity, setPrintQuantity] = useState(1)
   const [currentPrintProducts, setCurrentPrintProducts] = useState<string[]>([])
-  const [tauriInvoke, setTauriInvoke] = useState<((cmd: string, args?: Record<string, unknown>) => Promise<any>) | undefined>(undefined);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -110,13 +109,6 @@ export default function ProductsPage() {
         );
         setAssignedStores(userStores);
       }
-    }
-
-    // Dynamically import invoke from @tauri-apps/api/tauri
-    if (typeof window !== 'undefined' && window.__TAURI__) {
-      import("@tauri-apps/api/tauri").then(({ invoke }) => {
-        setTauriInvoke(() => invoke);
-      }).catch(e => console.error("Failed to load Tauri invoke:", e));
     }
   }, [router]);
 
@@ -432,21 +424,15 @@ export default function ProductsPage() {
             </html>
           `;
   
-          if (tauriInvoke) {
-            await tauriInvoke('print_document', { content: labelHTML })
-              .then(() => console.log("Print command sent to Tauri"))
-              .catch((e) => console.error("Failed to send print command to Tauri:", e));
-          } else {
-            // Fallback for web environment (e.g., development in browser)
-            const printWindow = window.open("", "_blank");
-            if (!printWindow) continue;
-            printWindow.document.write(labelHTML);
-            printWindow.document.close();
-            printWindow.onload = () => {
-              printWindow.print();
-              printWindow.close();
-            };
-          }
+          // Fallback for web environment (e.g., development in browser)
+          const printWindow = window.open("", "_blank");
+          if (!printWindow) continue;
+          printWindow.document.write(labelHTML);
+          printWindow.document.close();
+          printWindow.onload = () => {
+            printWindow.print();
+            printWindow.close();
+          };
         }
       }
   
