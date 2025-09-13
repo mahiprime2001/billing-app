@@ -135,18 +135,14 @@ jobs:
           if ($null -eq $pwd) { $pwd = "" }
           "`$decodedPassword = '$pwd'" | Out-File decodedPassword.ps1 -Encoding utf8
 
-      - name: Sign MSI and create latest.json
+      - name: Sign MSI
         shell: pwsh
         run: |
-          Write-Host "📦 Creating output directory"
+          Write-Host "📦 Signing the MSI file"
           $outDir = "src-tauri/target/release/bundle"
-          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
-
-          Write-Host "📦 Searching for MSI file"
           $msi = Get-ChildItem -Path "$outDir/msi" -Filter "*.msi" | Select-Object -First 1
           if (-not $msi) {
-            Write-Host "❌ No MSI file found"
-            Get-ChildItem -Recurse $outDir | Format-List FullName
+            Write-Host "❌ MSI not found"
             exit 1
           }
           Write-Host "✅ Found MSI: $($msi.FullName)"
@@ -170,14 +166,41 @@ jobs:
           Write-Host $cmd
           Invoke-Expression $cmd
 
-          $latestJson = Join-Path $outDir "latest.json"
-          if (-not (Test-Path $latestJson)) {
-              Write-Host "❌ latest.json not created!"
-              Get-ChildItem -Recurse $outDir | Format-List FullName
-              exit 1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ Signing failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
           }
 
-          Write-Host "✅ latest.json created at $latestJson"
+      - name: Create latest.json manually
+        shell: pwsh
+        run: |
+          Write-Host "📦 Creating latest.json manually"
+          $outDir = "src-tauri/target/release/bundle"
+          $msi = Get-ChildItem -Path "$outDir/msi" -Filter "*.msi" | Select-Object -First 1
+          if (-not $msi) {
+            Write-Host "❌ MSI file not found!"
+            exit 1
+          }
+          Write-Host "✅ Found MSI: $($msi.FullName)"
+
+          $sha256 = Get-FileHash -Path $msi.FullName -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+          $version = "$env:VERSION"
+          $url = "https://github.com/${{ github.repository }}/releases/latest/download/$($msi.Name)"
+
+          $json = @{
+            version = $version
+            files = @(
+              @{
+                url = $url
+                hash = "sha256:$sha256"
+                size = $msi.Length
+              }
+            )
+            pubkey = ""  # Add public key here if required
+          } | ConvertTo-Json -Depth 5
+
+          $json | Out-File -FilePath "$outDir/latest.json" -Encoding utf8
+          Write-Host "✅ latest.json created at $outDir/latest.json"
 
       - name: Cleanup sensitive files
         shell: pwsh
