@@ -4,7 +4,6 @@
   "productName": "Siri-Admin-app",
   "version": "0.1.9",
   "build": {
-    "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run start",
     "devUrl": "http://localhost:3000"
   },
