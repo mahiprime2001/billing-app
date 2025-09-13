@@ -12,9 +12,9 @@ use std::{
     time::Duration,
 };
 
-use tauri::{Manager, PhysicalPosition, PhysicalSize, Window, WindowEvent, command};
+use tauri::{Manager, PhysicalPosition, PhysicalSize, Window, WindowEvent, Url};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
-use tauri_utils::config::WebviewUrl; // Correct import for WebviewUrl
+use tauri_utils::config::WebviewUrl;
 
 static IS_CLOSING: AtomicBool = AtomicBool::new(false);
 
@@ -24,7 +24,7 @@ async fn print_document(window: tauri::Window, content: String) -> Result<(), St
     let print_win = tauri::WebviewWindowBuilder::new(
         window.app_handle(),
         "print_window",
-        tauri_utils::config::WebviewUrl::External("data:text/html;charset=utf-8,".to_string())
+        tauri_utils::config::WebviewUrl::External(Url::parse("data:text/html;charset=utf-8,").expect("failed to parse data URL"))
     )
     .title("Print Preview")
     .inner_size(800.0, 600.0)
@@ -100,7 +100,7 @@ fn log_debug(path: &PathBuf, context: &str, message: &str) {
 fn handle_close_event(
     window: &Window,
     child_process: Arc<Mutex<Option<Child>>>,
-    debug_log: &PathBuf,
+    _debug_log: &PathBuf,
 ) {
     // Show dialog on main thread
     let confirm = window

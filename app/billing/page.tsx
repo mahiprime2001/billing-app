@@ -38,6 +38,7 @@ import {
   AlertCircle,
 } from "lucide-react"
 import { Product } from "@/lib/types"
+import PrintButton from "@/components/PrintButton"
 
 
 interface CartItem {
@@ -932,6 +933,7 @@ export default function BillingPage() {
                     {activeTab.name}
                   </h2>
                   <div className="flex items-center space-x-2">
+                    <PrintButton />
                     <Button variant="outline" size="sm" onClick={() => setIsCustomerDialogOpen(true)}>
                       <User className="h-4 w-4 mr-1" />
                       Customer

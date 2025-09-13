@@ -45,6 +45,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import PrintButton from "@/components/PrintButton";
 interface AdminUser {
   name: string
   email: string
@@ -425,14 +426,19 @@ export default function ProductsPage() {
           `;
   
           // Fallback for web environment (e.g., development in browser)
-          const printWindow = window.open("", "_blank");
-          if (!printWindow) continue;
-          printWindow.document.write(labelHTML);
-          printWindow.document.close();
-          printWindow.onload = () => {
-            printWindow.print();
-            printWindow.close();
-          };
+          if (typeof window !== "undefined" && !(window as any).__TAURI__) {
+            const printWindow = window.open("", "_blank");
+            if (!printWindow) continue;
+            printWindow.document.write(labelHTML);
+            printWindow.document.close();
+            printWindow.onload = () => {
+              printWindow.print();
+              printWindow.close();
+            };
+          } else if (typeof window !== "undefined" && (window as any).__TAURI__) {
+            const { invoke } = await import("@tauri-apps/api/core");
+            await invoke("print_document", { content: labelHTML });
+          }
         }
       }
   

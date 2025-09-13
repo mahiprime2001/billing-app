@@ -205,6 +205,12 @@ async function processLogs() {
                 changeType = 'create';
               } else if (line.includes('Product updated')) {
                 changeType = 'update';
+              } else if (line.includes('New bill created')) {
+                changeType = 'create';
+              } else if (line.includes('New store created')) { // Added for stores
+                changeType = 'create';
+              } else if (line.includes('Store updated')) { // Added for stores
+                changeType = 'update';
               }
               await logSync({ change_type: changeType, change_data: record });
             }
