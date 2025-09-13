@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { invoke } from "@tauri-apps/api/tauri"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -791,6 +792,13 @@ export default function BillingPage() {
       </body>
     </html>
   `;
+
+  if (window.__TAURI__) {
+    invoke('print_document', { content: receiptHTML })
+      .then(() => console.log("Print command sent to Tauri"))
+      .catch((error: any) => console.error("Failed to send print command to Tauri:", error));
+    return;
+  }
 
   printWindow.document.write(receiptHTML);
   printWindow.document.close();

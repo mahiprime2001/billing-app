@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { invoke } from "@tauri-apps/api/tauri"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
@@ -289,9 +290,6 @@ export default function BillingHistoryPage() {
   }
 
   const printReceipt = (sale: Sale) => {
-    const printWindow = window.open("", "_blank")
-    if (!printWindow) return
-
     const receiptHTML = `
       <!DOCTYPE html>
       <html>
@@ -400,6 +398,19 @@ export default function BillingHistoryPage() {
         </body>
       </html>
     `
+
+    if (window.__TAURI__) {
+      invoke('print_document', { content: receiptHTML })
+        .then(() => console.log("Print command sent to Tauri"))
+        .catch((error: any) => console.error("Failed to send print command to Tauri:", error));
+      return;
+    }
+
+    const printWindow = window.open("", "_blank")
+    if (!printWindow) {
+      console.error("Failed to open print window.");
+      return;
+    }
 
     printWindow.document.write(receiptHTML)
     printWindow.document.close()

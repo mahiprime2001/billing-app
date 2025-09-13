@@ -12,10 +12,60 @@ use std::{
     time::Duration,
 };
 
-use tauri::{Manager, PhysicalPosition, PhysicalSize, Window, WindowEvent};
+use tauri::{Manager, PhysicalPosition, PhysicalSize, Window, WindowEvent, command};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+use tauri_utils::config::WebviewUrl; // Correct import for WebviewUrl
 
 static IS_CLOSING: AtomicBool = AtomicBool::new(false);
+
+#[tauri::command]
+async fn print_document(window: tauri::Window, content: String) -> Result<(), String> {
+    // Create hidden window first
+    let print_win = tauri::WebviewWindowBuilder::new(
+        window.app_handle(),
+        "print_window",
+        tauri_utils::config::WebviewUrl::External("data:text/html;charset=utf-8,".to_string())
+    )
+    .title("Print Preview")
+    .inner_size(800.0, 600.0)
+    .visible(false)
+    .build()
+    .map_err(|e| format!("create window: {e}"))?;
+
+    // Encode content into a data URL (avoid backticks/escaping issues)
+    let encoded = urlencoding::encode(&content);
+    let url = format!("data:text/html;charset=utf-8,{}", encoded);
+
+    // Navigate to the data URL (so the doc has a URL & load lifecycle)
+    print_win
+        .eval(&format!("window.location.replace('{}')", url))
+        .map_err(|e| format!("navigate data url: {e}"))?;
+
+    // Attach a load listener that focuses, shows, then prints after paint
+    let script = r#"
+        (function(){
+          function go(){
+            window.focus();
+            // let layout settle
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                window.print();
+              });
+            });
+          }
+          if (document.readyState === 'complete') go();
+          else window.addEventListener('load', go, { once: true });
+        })();
+    "#;
+
+    print_win.eval(script).map_err(|e| format!("inject print script: {e}"))?;
+
+    // Now show the window so the dialog is allowed to appear
+    print_win.show().map_err(|e| format!("show window: {e}"))?;
+    print_win.set_focus().ok();
+
+    Ok(())
+}
 
 /// Waits for the server to be ready by attempting to connect multiple times.
 fn wait_for_server_ready(port: u16, retries: u32, delay_ms: u64, log_path: &PathBuf) -> bool {
@@ -82,7 +132,12 @@ pub fn run() {
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .expect("Failed to determine executable directory");
 
-    let project_root = PathBuf::from(r"E:\admin\_up_"); // Adjust this to your actual path
+    let project_root = exe_dir
+        .parent() // Go up from `release` or `debug` to `target`
+        .and_then(|p| p.parent()) // Go up from `target` to `src-tauri`
+        .and_then(|p| p.parent()) // Go up from `src-tauri` to the project root
+        .expect("Failed to determine project root directory")
+        .to_path_buf();
 
     let logs_dir = exe_dir.join("logs");
     fs::create_dir_all(&logs_dir).expect("Failed to create logs directory");
@@ -177,6 +232,7 @@ pub fn run() {
                 handle_close_event(&window, child_process_clone.clone(), &debug_log_event);
             }
         })
+        .invoke_handler(tauri::generate_handler![print_document])
         .run(tauri::generate_context!())
         .expect("Failed to run Tauri application");
 }

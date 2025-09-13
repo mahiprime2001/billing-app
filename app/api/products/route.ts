@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
   products.push(newProduct);
   await saveProducts(products);
-  logChange("products.json", `New product created: ${newProduct.name} (ID: ${newProduct.id})`);
+  logChange("products.json", `ACTION: CREATE - New product created: ${newProduct.name} (ID: ${newProduct.id})`);
 
   return NextResponse.json(newProduct, { status: 201 });
 }

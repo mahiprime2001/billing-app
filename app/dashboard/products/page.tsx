@@ -45,8 +45,6 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-
-
 interface AdminUser {
   name: string
   email: string
@@ -78,10 +76,12 @@ export default function ProductsPage() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [printQuantity, setPrintQuantity] = useState(1)
   const [currentPrintProducts, setCurrentPrintProducts] = useState<string[]>([])
+  const [tauriInvoke, setTauriInvoke] = useState<((cmd: string, args?: Record<string, unknown>) => Promise<any>) | undefined>(undefined);
 
   // Form states
   const [formData, setFormData] = useState({
     name: "",
+    category: "", // Added category
     price: "",
     stock: "",
     tax: "",
@@ -111,11 +111,19 @@ export default function ProductsPage() {
         setAssignedStores(userStores);
       }
     }
+
+    // Dynamically import invoke from @tauri-apps/api/tauri
+    if (typeof window !== 'undefined' && window.__TAURI__) {
+      import("@tauri-apps/api/tauri").then(({ invoke }) => {
+        setTauriInvoke(() => invoke);
+      }).catch(e => console.error("Failed to load Tauri invoke:", e));
+    }
   }, [router]);
 
   const resetForm = () => {
     setFormData({
       name: "",
+      category: "", // Reset category
       price: "",
       stock: "",
       tax: "",
@@ -165,7 +173,7 @@ export default function ProductsPage() {
   }
 
   const handleAddProduct = async () => {
-    if (!formData.name || !formData.price || !formData.stock) {
+    if (!formData.name || !formData.price || !formData.stock || !formData.category) {
       alert("Please fill in all required fields");
       return;
     }
@@ -188,6 +196,7 @@ export default function ProductsPage() {
 
     const newProduct: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
       name: formData.name,
+      category: formData.category, // Added category
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
       tax: Number.parseFloat(formData.tax),
@@ -215,7 +224,7 @@ export default function ProductsPage() {
   };
 
   const handleEditProduct = async () => {
-    if (!editingProduct || !formData.name || !formData.price || !formData.stock) {
+    if (!editingProduct || !formData.name || !formData.price || !formData.stock || !formData.category) {
       alert("Please fill in all required fields");
       return;
     }
@@ -239,6 +248,7 @@ export default function ProductsPage() {
 
     const updatedProduct: Partial<Product> = {
       name: formData.name,
+      category: formData.category, // Added category
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
       tax: Number.parseFloat(formData.tax),
@@ -287,6 +297,7 @@ export default function ProductsPage() {
     setEditingProduct(product)
     setFormData({
       name: product.name,
+      category: product.category, // Set category for editing
       price: product.price.toString(),
       stock: product.stock.toString(),
       tax: product.tax.toString(),
@@ -347,9 +358,6 @@ export default function ProductsPage() {
   
           const barcodeDataUrl = await createBarcodeImage(barcodeValue);
           if (!barcodeDataUrl) continue;
-  
-          const printWindow = window.open("", "_blank");
-          if (!printWindow) continue;
   
           const labelHTML = `
             <!DOCTYPE html>
@@ -424,17 +432,21 @@ export default function ProductsPage() {
             </html>
           `;
   
-          printWindow.document.write(labelHTML);
-          printWindow.document.close();
-  
-          printWindow.onload = () => {
-            // Optional: Resize window to hint correct label size
-            printWindow.resizeTo(300, 200);
-            setTimeout(() => {
+          if (tauriInvoke) {
+            await tauriInvoke('print_document', { content: labelHTML })
+              .then(() => console.log("Print command sent to Tauri"))
+              .catch((e) => console.error("Failed to send print command to Tauri:", e));
+          } else {
+            // Fallback for web environment (e.g., development in browser)
+            const printWindow = window.open("", "_blank");
+            if (!printWindow) continue;
+            printWindow.document.write(labelHTML);
+            printWindow.document.close();
+            printWindow.onload = () => {
               printWindow.print();
               printWindow.close();
-            }, 300);
-          };
+            };
+          }
         }
       }
   
@@ -460,7 +472,7 @@ export default function ProductsPage() {
   };
 
   const importProducts = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const file: File | undefined = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
@@ -564,6 +576,17 @@ export default function ProductsPage() {
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label htmlFor="category">Category *</Label>
+                      <Input
+                        id="category"
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        placeholder="Enter product category"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
                       <Label htmlFor="price">Price (₹) *</Label>
                       <Input
                         id="price"
@@ -573,6 +596,17 @@ export default function ProductsPage() {
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                         placeholder="0.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="stock">Stock Quantity *</Label>
+                      <Input
+                        id="stock"
+                        type="number"
+                        min="0"
+                        value={formData.stock}
+                        onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                        placeholder="0"
                       />
                     </div>
                   </div>
@@ -774,6 +808,7 @@ export default function ProductsPage() {
                       />
                     </th>
                     <th className="text-left p-4 font-medium">Product</th>
+                    <th className="text-left p-4 font-medium">Category</th>
                     <th className="text-left p-4 font-medium">Price</th>
                     <th className="text-left p-4 font-medium">Tax</th>
                     <th className="text-left p-4 font-medium">Stock</th>
@@ -800,6 +835,9 @@ export default function ProductsPage() {
                           <div>
                             <div className="font-medium">{product.name}</div>
                           </div>
+                        </td>
+                        <td className="p-4">
+                          <span className="font-medium">{product.category}</span>
                         </td>
                         <td className="p-4">
                           <span className="font-medium">₹{product.price.toFixed(2)}</span>
@@ -895,7 +933,7 @@ export default function ProductsPage() {
 
         {/* Print Dialog - Individual Labels Only */}
         <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
               <DialogTitle className="flex items-center">
                 <Printer className="h-5 w-5 mr-2" />
@@ -1004,6 +1042,17 @@ export default function ProductsPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="edit-category">Category *</Label>
+                  <Input
+                    id="edit-category"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    placeholder="Enter product category"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label htmlFor="edit-price">Price (₹) *</Label>
                   <Input
                     id="edit-price"
@@ -1013,6 +1062,17 @@ export default function ProductsPage() {
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-stock">Stock Quantity *</Label>
+                  <Input
+                    id="edit-stock"
+                    type="number"
+                    min="0"
+                    value={formData.stock}
+                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                    placeholder="0"
                   />
                 </div>
               </div>

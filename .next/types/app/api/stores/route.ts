@@ -1,4 +1,4 @@
-// File: E:\billing-app\app\api\stores\route.ts
+// File: /Users/mahendrareddy/developer/billing_system/billing-app/app/api/stores/route.ts
 import * as entry from '../../../../../app/api/stores/route.js'
 import type { NextRequest } from 'next/server.js'
 
