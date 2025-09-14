@@ -17,7 +17,7 @@ function wrapHtmlWithPrint(html: string): string {
         /* Optional: Add your print styles here */
       </style>
     </head>
-    <body onload="window.print();">
+    <body ">
       ${html}
     </body>
     </html>

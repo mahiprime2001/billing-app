@@ -1,7 +1,7 @@
 {
-  "/api/products/route": "app/api/products/route.js",
   "/api/notifications/route": "app/api/notifications/route.js",
-  "/dashboard/products/page": "app/dashboard/products/page.js",
+  "/api/products/route": "app/api/products/route.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/page": "app/page.js"
+  "/page": "app/page.js",
+  "/dashboard/products/page": "app/dashboard/products/page.js"
 }

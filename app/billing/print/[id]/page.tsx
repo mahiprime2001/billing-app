@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { unifiedPrint } from "@/app/utils/printUtils";
 
 export default function PrintBillPage() {
   const params = useParams();
@@ -26,12 +27,48 @@ export default function PrintBillPage() {
 
     // Automatically trigger print dialog after component mounts
     if (typeof window !== "undefined") {
-      console.log("Calling window.print()");
-      window.print();
+      const printContent = `
+        <div class="print-container">
+          <div class="bill-header">
+            <h1>Invoice #${billData.id}</h1>
+            <p>Date: ${billData.date}</p>
+          </div>
+
+          <table class="bill-items">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${billData.items.map((item: any, index: number) => `
+                <tr key=${index}>
+                  <td>${item.name}</td>
+                  <td>${item.quantity}</td>
+                  <td>$${item.price.toFixed(2)}</td>
+                  <td>$${(item.quantity * item.price).toFixed(2)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+
+          <div class="bill-total">
+            <p>Total: <span>$${billData.total.toFixed(2)}</span></p>
+          </div>
+
+          <div class="bill-footer">
+            <p>Thank you for your business!</p>
+          </div>
+        </div>
+      `;
+      unifiedPrint({ htmlContent: printContent });
     } else {
-      console.log("window is undefined, cannot call window.print()");
+      console.log("window is undefined, cannot call unifiedPrint()");
     }
-  }, [billId]);
+  }, [billId, billData]); // Added billData to dependency array
 
   if (!billData) {
     return <div>Loading bill data...</div>;
