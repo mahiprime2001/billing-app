@@ -46,6 +46,7 @@ import {
   XCircle,
 } from "lucide-react";
 import PrintButton from "@/components/PrintButton";
+import { unifiedPrint } from "@/app/utils/printUtils";
 interface AdminUser {
   name: string
   email: string
@@ -425,20 +426,11 @@ export default function ProductsPage() {
             </html>
           `;
   
-          // Fallback for web environment (e.g., development in browser)
-          if (typeof window !== "undefined" && !(window as any).__TAURI__) {
-            const printWindow = window.open("", "_blank");
-            if (!printWindow) continue;
-            printWindow.document.write(labelHTML);
-            printWindow.document.close();
-            printWindow.onload = () => {
-              printWindow.print();
-              printWindow.close();
-            };
-          } else if (typeof window !== "undefined" && (window as any).__TAURI__) {
-            const { invoke } = await import("@tauri-apps/api/core");
-            await invoke("print_document", { content: labelHTML });
-          }
+          // Use unifiedPrint for both web and Tauri environments
+          await unifiedPrint({
+            htmlContent: labelHTML,
+            isThermalPrinter: true, // Assuming barcode labels are always for thermal printers
+          });
         }
       }
   

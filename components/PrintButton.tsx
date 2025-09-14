@@ -1,56 +1,77 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { unifiedPrint } from "@/app/utils/printUtils";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 
-export default function PrintButton() {
+interface PrintButtonProps {
+  htmlContent?: string;
+  base64Pdf?: string;
+  thermalContent?: string;
+  isThermalPrinter?: boolean;
+  onPrintSuccess?: () => void;
+  onPrintError?: (error: Error) => void;
+}
+
+export default function PrintButton({
+  htmlContent,
+  base64Pdf,
+  thermalContent,
+  isThermalPrinter = false,
+  onPrintSuccess,
+  onPrintError,
+}: PrintButtonProps) {
   const [isTauri, setIsTauri] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Detect Tauri only in the browser
     if (typeof window !== "undefined" && (window as any).__TAURI__) {
       setIsTauri(true);
-
-      // Lazy-load event API to avoid SSR issues
-      import("@tauri-apps/api/event")
-        .then(({ listen }) => {
-          // Listen for a backend event to trigger native print of the webview
-          const setup = async () => {
-            const unlisten = await listen("trigger-print", () => {
-              // For web fallback, still allow browser print if frontend decides to use it
-              window.print();
-            });
-            // Optionally store unlisten somewhere if teardown is needed
-          };
-          setup().catch((err) =>
-            console.error("Failed to set up Tauri event listener", err)
-          );
-        })
-        .catch((err) => {
-          console.error("Failed to load Tauri event API", err);
-        });
     }
   }, []);
 
   const handlePrint = async () => {
-    // Only attempt Tauri invoke when running inside Tauri
-    if (typeof window !== "undefined" && (window as any).__TAURI__) {
-      try {
-        // Tauri v2: invoke is in @tauri-apps/api/core
-        const { invoke } = await import("@tauri-apps/api/core");
-        await invoke("print_current_window");
-      } catch (error) {
-        console.error("Failed to invoke print:", error);
-      }
-    } else {
-      // Non-Tauri environment (e.g., web dev server): fallback to browser print or log
-      // window.print();
-      console.log("Not running inside Tauri");
+    console.log("PrintButton: handlePrint called.");
+    console.log("PrintButton: isTauri =", isTauri);
+    console.log("PrintButton: htmlContent =", htmlContent ? "present" : "absent");
+    console.log("PrintButton: base64Pdf =", base64Pdf ? "present" : "absent");
+    console.log("PrintButton: thermalContent =", thermalContent ? "present" : "absent");
+    console.log("PrintButton: isThermalPrinter =", isThermalPrinter);
+
+    if (!isTauri) {
+      toast({
+        title: "Printing Not Available",
+        description: "Tauri environment not detected. Printing is only available in the desktop application.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await unifiedPrint({ htmlContent, base64Pdf, thermalContent, isThermalPrinter });
+      toast({
+        title: "Print Job Sent",
+        description: "Your document has been sent to the printer.",
+      });
+      onPrintSuccess?.();
+    } catch (error: any) {
+      toast({
+        title: "Printing Failed",
+        description: error.message || "An unknown error occurred while sending the print job.",
+        variant: "destructive",
+      });
+      onPrintError?.(error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <button onClick={handlePrint} aria-disabled={!isTauri} title={isTauri ? "Print" : "Tauri not detected"}>
-      Print
-    </button>
+    <Button onClick={handlePrint} disabled={!isTauri || isLoading}>
+      {isLoading ? "Printing..." : "Print Document"}
+    </Button>
   );
 }

@@ -121,10 +121,16 @@ async function processLogs() {
             } else if (record) {
               if (entityType === 'products') {
                 const { barcodes, category, description, ...productData } = record;
+
+                // Ensure tax is a number, default to 0 if null or undefined
+                const sanitizedProductData = {
+                  ...productData,
+                  tax: productData.tax === null || productData.tax === undefined ? 0 : productData.tax,
+                };
                 
                 // Update product details
-                const productColumns = Object.keys(productData);
-                const productValues = Object.values(productData);
+                const productColumns = Object.keys(sanitizedProductData);
+                const productValues = Object.values(sanitizedProductData);
                 const productPlaceholders = productColumns.map(() => '?').join(', ');
                 const productUpdatePlaceholders = productColumns.map(col => `${col} = ?`).join(', ');
                 const productQuery = `INSERT INTO Products (${productColumns.join(', ')}) VALUES (${productPlaceholders}) ON DUPLICATE KEY UPDATE ${productUpdatePlaceholders}`;

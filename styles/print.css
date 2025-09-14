@@ -1,0 +1,107 @@
+/* General print styles */
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact; /* For WebKit browsers to print background colors */
+    print-color-adjust: exact; /* Standard property */
+  }
+
+  /* Hide elements not needed for print */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Invoice format (A4/Letter) */
+  @page {
+    size: A4; /* or Letter */
+    margin: 12mm;
+  }
+
+  .print-container {
+    width: 100%;
+    max-width: 210mm; /* A4 width */
+    margin: 0 auto;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .bill-header, .bill-footer {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .bill-items {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+  }
+
+  .bill-items th, .bill-items td {
+    border: 1px solid #eee;
+    padding: 8px;
+    text-align: left;
+  }
+
+  .bill-items th {
+    background-color: #f2f2f2;
+  }
+
+  .bill-total {
+    text-align: right;
+    font-size: 1.2em;
+    font-weight: bold;
+  }
+}
+
+/* Thermal receipt format (80mm) - override A4 styles */
+@media print and (max-width: 80mm) {
+  @page {
+    size: 80mm auto; /* 80mm width, auto height */
+    margin: 5mm; /* Smaller margins for receipts */
+  }
+
+  .print-container {
+    width: 80mm;
+    max-width: 80mm;
+    font-family: 'monospace', 'Courier New', Courier, monospace; /* Monospace for thermal */
+    font-size: 0.8em;
+  }
+
+  .bill-header h1 {
+    font-size: 1.2em;
+    margin-bottom: 5px;
+  }
+
+  .bill-header p {
+    font-size: 0.9em;
+    margin-bottom: 10px;
+  }
+
+  .bill-items th, .bill-items td {
+    border: none;
+    padding: 2px 0;
+    font-size: 0.9em;
+  }
+
+  .bill-items th {
+    background-color: transparent;
+    border-bottom: 1px dashed #ccc;
+  }
+
+  .bill-items tbody tr:last-child td {
+    border-bottom: 1px dashed #ccc;
+  }
+
+  .bill-total {
+    font-size: 1em;
+    margin-top: 10px;
+    border-top: 1px dashed #ccc;
+    padding-top: 5px;
+  }
+
+  .bill-footer {
+    margin-top: 15px;
+    font-size: 0.8em;
+  }
+}

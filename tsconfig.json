@@ -40,7 +40,6 @@
     "types/tauri.d.ts"
   ],
   "exclude": [
-    "node_modules",
     "src-tauri"
   ]
 }

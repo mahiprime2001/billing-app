@@ -12,7 +12,8 @@
     "upload": "npx ts-node --project tsconfig.script.json app/data/mysql/upload.ts",
     "update-from-log": "npx ts-node --project tsconfig.script.json app/data/mysql/update_from_log.ts",
     "sync-check": "npx ts-node --project tsconfig.script.json app/data/mysql/sync-check.ts",
-    "export-formatted-data": "node scripts/export-formatted-data.mjs"
+    "export-formatted-data": "node scripts/export-formatted-data.mjs",
+    "tauri:dev": "npx @tauri-apps/cli dev"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -58,6 +59,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.1",
     "embla-carousel-react": "latest",
+    "html2canvas": "^1.4.1",
     "input-otp": "latest",
     "jsbarcode": "latest",
     "jspdf": "latest",

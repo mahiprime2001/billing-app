@@ -39,6 +39,7 @@ import {
 } from "lucide-react"
 import { Product } from "@/lib/types"
 import PrintButton from "@/components/PrintButton"
+import { unifiedPrint } from "@/app/utils/printUtils"
 
 
 interface CartItem {
@@ -598,205 +599,209 @@ export default function BillingPage() {
       }
     }
 
-    // Print receipt with format
-    printReceipt(bill, format)
+    // Generate receipt HTML
+    const receiptHtml = generateReceiptHtml(bill, format);
+
+    // Print receipt using unifiedPrint
+    try {
+      await unifiedPrint({
+        htmlContent: receiptHtml,
+        isThermalPrinter: format.width <= 80, // Assuming thermal printers have a width <= 80mm
+      });
+    } catch (printError) {
+      console.error("Failed to send print job:", printError);
+      // Handle print error (e.g., show a toast)
+    }
 
     // Reset the tab
-    resetTab(activeTabId)
-    setIsPaymentDialogOpen(false)
-  }
+    resetTab(activeTabId);
+    setIsPaymentDialogOpen(false);
+  };
 
-  const printReceipt = (bill: any, format: BillFormat) => {
-  const printWindow = window.open("", "_blank");
-  if (!printWindow) return;
+  const generateReceiptHtml = (bill: any, format: BillFormat): string => {
+    const isLetter = format.width === 216 && format.height === 279;
+    const isA4 = format.width === 210 && format.height === 297;
+    const isThermal = format.width <= 80;
+    const maxWidth = isThermal ? "80mm" : isLetter ? "216mm" : isA4 ? "210mm" : `${format.width}mm`;
 
-  const isLetter = format.width === 216 && format.height === 279;
-  const isA4 = format.width === 210 && format.height === 297;
-  const isThermal = format.width <= 80;
-  const maxWidth = isThermal ? "80mm" : isLetter ? "216mm" : isA4 ? "210mm" : `${format.width}mm`;
-
-  const receiptHTML = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Invoice - ${bill.id}</title>
-        <style>
-          @page {
-            size: ${isLetter ? "letter" : isA4 ? "A4" : `${format.width}mm ${format.height === "auto" ? "auto" : `${format.height}mm`}`};
-            margin: ${format.margins.top}mm ${format.margins.right}mm ${format.margins.bottom}mm ${format.margins.left}mm;
-          }
-          body {
-            font-family: 'Arial', sans-serif;
-            max-width: ${maxWidth};
-            margin: 0 auto;
-            font-size: 13px;
-            color: #000;
-          }
-          .header, .footer {
-            text-align: center;
-            padding: 10px 0;
-          }
-          .company-name {
-            font-size: 18px;
-            font-weight: bold;
-            text-transform: uppercase;
-          }
-          .invoice-title {
-            font-size: 16px;
-            font-weight: bold;
-            margin-top: 10px;
-          }
-          .section {
-            margin: 20px 0;
-          }
-          .section-title {
-            font-weight: bold;
-            border-bottom: 1px solid #ccc;
-            margin-bottom: 5px;
-          }
-          .row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 6px;
-          }
-          .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-          }
-          .items-table th, .items-table td {
-            border: 1px solid #ccc;
-            padding: 6px 8px;
-            text-align: left;
-          }
-          .items-table th {
-            background-color: #f2f2f2;
-          }
-          .totals {
-            margin-top: 10px;
-            width: 100%;
-          }
-          .totals td {
-            padding: 6px;
-          }
-          .totals .label {
-            text-align: right;
-            font-weight: bold;
-          }
-          .totals .value {
-            text-align: right;
-            width: 100px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="company-name">${bill.companyName}</div>
-          <div>${bill.companyAddress}</div>
-          <div>Phone: ${bill.companyPhone}</div>
-          <div>Email: ${bill.companyEmail}</div>
-          <div class="invoice-title">INVOICE</div>
-        </div>
-
-        <div class="section">
-          <div class="row">
-            <div><strong>Invoice ID:</strong> ${bill.id}</div>
-            <div><strong>Date:</strong> ${new Date(bill.timestamp).toLocaleString()}</div>
-          </div>
-          ${bill.gstin ? `<div><strong>GSTIN:</strong> ${bill.gstin}</div>` : ""}
-        </div>
-
-        ${
-          bill.customerName || bill.customerPhone
-            ? `
-        <div class="section">
-          <div class="section-title">Customer Details</div>
-          ${bill.customerName ? `<div>Name: ${bill.customerName}</div>` : ""}
-          ${bill.customerPhone ? `<div>Phone: ${bill.customerPhone}</div>` : ""}
-          ${bill.customerEmail ? `<div>Email: ${bill.customerEmail}</div>` : ""}
-          ${bill.customerAddress ? `<div>Address: ${bill.customerAddress}</div>` : ""}
-        </div>`
-            : ""
-        }
-
-        <div class="section">
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Item</th>
-                <th>Qty</th>
-                <th>Rate</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${bill.items
-                .map(
-                  (item: any, i: number) => `
-                <tr>
-                  <td>${i + 1}</td>
-                  <td>${item.productName}</td>
-                  <td>${item.quantity}</td>
-                  <td>₹${item.price.toFixed(2)}</td>
-                  <td>₹${item.total.toFixed(2)}</td>
-                </tr>
-              `
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="section">
-          <table class="totals">
-            <tr>
-              <td class="label">Subtotal:</td>
-              <td class="value">₹${bill.subtotal.toFixed(2)}</td>
-            </tr>
-            ${
-              bill.discountAmount > 0
-                ? `<tr>
-                    <td class="label">Discount (${bill.discountPercentage.toFixed(1)}%):</td>
-                    <td class="value">-₹${bill.discountAmount.toFixed(2)}</td>
-                  </tr>`
-                : ""
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice - ${bill.id}</title>
+          <style>
+            @page {
+              size: ${isLetter ? "letter" : isA4 ? "A4" : `${format.width}mm ${format.height === "auto" ? "auto" : `${format.height}mm`}`};
+              margin: ${format.margins.top}mm ${format.margins.right}mm ${format.margins.bottom}mm ${format.margins.left}mm;
             }
-            <tr>
-              <td class="label">Tax (${bill.taxPercentage}%):</td>
-              <td class="value">₹${bill.taxAmount.toFixed(2)}</td>
-            </tr>
-            <tr>
-              <td class="label">Total:</td>
-              <td class="value"><strong>₹${bill.total.toFixed(2)}</strong></td>
-            </tr>
-            <tr>
-              <td class="label">Payment:</td>
-              <td class="value">${bill.paymentMethod.toUpperCase()}</td>
-            </tr>
-          </table>
-        </div>
+            body {
+              font-family: 'Arial', sans-serif;
+              max-width: ${maxWidth};
+              margin: 0 auto;
+              font-size: 13px;
+              color: #000;
+            }
+            .header, .footer {
+              text-align: center;
+              padding: 10px 0;
+            }
+            .company-name {
+              font-size: 18px;
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            .invoice-title {
+              font-size: 16px;
+              font-weight: bold;
+              margin-top: 10px;
+            }
+            .section {
+              margin: 20px 0;
+            }
+            .section-title {
+              font-weight: bold;
+              border-bottom: 1px solid #ccc;
+              margin-bottom: 5px;
+            }
+            .row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 6px;
+            }
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+            }
+            .items-table th, .items-table td {
+              border: 1px solid #ccc;
+              padding: 6px 8px;
+              text-align: left;
+            }
+            .items-table th {
+              background-color: #f2f2f2;
+            }
+            .totals {
+              margin-top: 10px;
+              width: 100%;
+            }
+            .totals td {
+              padding: 6px;
+            }
+            .totals .label {
+              text-align: right;
+              font-weight: bold;
+            }
+            .totals .value {
+              text-align: right;
+              width: 100px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="company-name">${bill.companyName}</div>
+            <div>${bill.companyAddress}</div>
+            <div>Phone: ${bill.companyPhone}</div>
+            <div>Email: ${bill.companyEmail}</div>
+            <div class="invoice-title">INVOICE</div>
+          </div>
 
-        ${
-          bill.notes
-            ? `<div class="section">
-                <div class="section-title">Notes</div>
-                <div>${bill.notes}</div>
-              </div>`
-            : ""
-        }
+          <div class="section">
+            <div class="row">
+              <div><strong>Invoice ID:</strong> ${bill.id}</div>
+              <div><strong>Date:</strong> ${new Date(bill.timestamp).toLocaleString()}</div>
+            </div>
+            ${bill.gstin ? `<div><strong>GSTIN:</strong> ${bill.gstin}</div>` : ""}
+          </div>
 
-        <div class="footer">
-          <p>Thank you for your business!</p>
-        </div>
-      </body>
-    </html>
-  `;
+          ${
+            bill.customerName || bill.customerPhone
+              ? `
+          <div class="section">
+            <div class="section-title">Customer Details</div>
+            ${bill.customerName ? `<div>Name: ${bill.customerName}</div>` : ""}
+            ${bill.customerPhone ? `<div>Phone: ${bill.customerPhone}</div>` : ""}
+            ${bill.customerEmail ? `<div>Email: ${bill.customerEmail}</div>` : ""}
+            ${bill.customerAddress ? `<div>Address: ${bill.customerAddress}</div>` : ""}
+          </div>`
+              : ""
+          }
 
-  printWindow.document.write(receiptHTML);
-  printWindow.document.close();
-  printWindow.print();
-};
+          <div class="section">
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Item</th>
+                  <th>Qty</th>
+                  <th>Rate</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${bill.items
+                  .map(
+                    (item: any, i: number) => `
+                  <tr>
+                    <td>${i + 1}</td>
+                    <td>${item.productName}</td>
+                    <td>${item.quantity}</td>
+                    <td>₹${item.price.toFixed(2)}</td>
+                    <td>₹${item.total.toFixed(2)}</td>
+                  </tr>
+                `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="section">
+            <table class="totals">
+              <tr>
+                <td class="label">Subtotal:</td>
+                <td class="value">₹${bill.subtotal.toFixed(2)}</td>
+              </tr>
+              ${
+                bill.discountAmount > 0
+                  ? `<tr>
+                      <td class="label">Discount (${bill.discountPercentage.toFixed(1)}%):</td>
+                      <td class="value">-₹${bill.discountAmount.toFixed(2)}</td>
+                    </tr>`
+                  : ""
+              }
+              <tr>
+                <td class="label">Tax (${bill.taxPercentage}%):</td>
+                <td class="value">₹${bill.taxAmount.toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td class="label">Total:</td>
+                <td class="value"><strong>₹${bill.total.toFixed(2)}</strong></td>
+              </tr>
+              <tr>
+                <td class="label">Payment:</td>
+                <td class="value">${bill.paymentMethod.toUpperCase()}</td>
+              </tr>
+            </table>
+          </div>
+
+          ${
+            bill.notes
+              ? `<div class="section">
+                  <div class="section-title">Notes</div>
+                  <div>${bill.notes}</div>
+                </div>`
+              : ""
+          }
+
+          <div class="footer">
+            <p>Thank you for your business!</p>
+          </div>
+        </body>
+      </html>
+    `;
+  };
 
 
   const activeTab = getActiveTab()
@@ -933,7 +938,45 @@ export default function BillingPage() {
                     {activeTab.name}
                   </h2>
                   <div className="flex items-center space-x-2">
-                    <PrintButton />
+                    {activeTab && selectedStore && billFormats && (
+                      <PrintButton
+                        htmlContent={generateReceiptHtml(
+                          {
+                            id: `INV-${Date.now()}`, // Placeholder ID for preview printing
+                            storeId: selectedStore.id,
+                            storeName: selectedStore.name,
+                            storeAddress: selectedStore.address,
+                            storePhone: selectedStore.phone,
+                            customerName: activeTab.customer.name || "",
+                            customerPhone: activeTab.customer.phone || "",
+                            customerEmail: activeTab.customer.email || "",
+                            customerAddress: activeTab.customer.address || "",
+                            items: activeTab.cart,
+                            subtotal: activeTab.subtotal,
+                            taxPercentage: activeTab.taxPercentage,
+                            taxAmount: activeTab.taxAmount,
+                            discountPercentage: activeTab.discountPercentage,
+                            discountAmount: activeTab.discountAmount,
+                            total: activeTab.total,
+                            paymentMethod: activeTab.paymentMethod,
+                            timestamp: new Date().toISOString(),
+                            notes: activeTab.notes,
+                            gstin: systemSettings.gstin,
+                            companyName: systemSettings.companyName,
+                            companyAddress: systemSettings.companyAddress,
+                            companyPhone: systemSettings.companyPhone,
+                            companyEmail: systemSettings.companyEmail,
+                            billFormat: selectedBillFormat,
+                            createdBy: currentUser?.id || "Unknown",
+                          },
+                          billFormats[storeFormats[selectedStore.id] || selectedBillFormat] || billFormats.A4,
+                        )}
+                        isThermalPrinter={
+                          (billFormats[storeFormats[selectedStore.id] || selectedBillFormat] || billFormats.A4)
+                            .width <= 80
+                        }
+                      />
+                    )}
                     <Button variant="outline" size="sm" onClick={() => setIsCustomerDialogOpen(true)}>
                       <User className="h-4 w-4 mr-1" />
                       Customer
