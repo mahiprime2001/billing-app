@@ -151,6 +151,9 @@ jobs:
           name: tauri-windows
           path: ./bundle
 
+      - name: Set VERSION environment variable
+        run: echo "VERSION=${{ needs.prepare-environment.outputs.next_version }}" >> $GITHUB_ENV
+
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -160,7 +163,6 @@ jobs:
           draft: false
           prerelease: false
           body: "Automatically generated release for version v${{ env.VERSION }}"
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload MSI to release
         uses: actions/upload-release-asset@v1
