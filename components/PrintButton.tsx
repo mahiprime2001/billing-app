@@ -7,7 +7,6 @@ import { useToast } from "@/components/ui/use-toast";
 
 interface PrintButtonProps {
   htmlContent?: string;
-  base64Pdf?: string;
   thermalContent?: string;
   isThermalPrinter?: boolean;
   onPrintSuccess?: () => void;
@@ -16,7 +15,6 @@ interface PrintButtonProps {
 
 export default function PrintButton({
   htmlContent,
-  base64Pdf,
   thermalContent,
   isThermalPrinter = false,
   onPrintSuccess,
@@ -36,7 +34,6 @@ export default function PrintButton({
     console.log("PrintButton: handlePrint called.");
     console.log("PrintButton: isTauri =", isTauri);
     console.log("PrintButton: htmlContent =", htmlContent ? "present" : "absent");
-    console.log("PrintButton: base64Pdf =", base64Pdf ? "present" : "absent");
     console.log("PrintButton: thermalContent =", thermalContent ? "present" : "absent");
     console.log("PrintButton: isThermalPrinter =", isThermalPrinter);
 
@@ -51,7 +48,7 @@ export default function PrintButton({
 
     setIsLoading(true);
     try {
-      await unifiedPrint({ htmlContent, base64Pdf, thermalContent, isThermalPrinter });
+      await unifiedPrint({ htmlContent, thermalContent, isThermalPrinter });
       toast({
         title: "Print Job Sent",
         description: "Your document has been sent to the printer.",

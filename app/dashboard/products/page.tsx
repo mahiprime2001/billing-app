@@ -917,7 +917,7 @@ export default function ProductsPage() {
 
         {/* Print Dialog - Individual Labels Only */}
         <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
-          <DialogContent className="sm:max-w-[400px]">
+          <DialogContent className="sm:max-w-[400px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center">
                 <Printer className="h-5 w-5 mr-2" />

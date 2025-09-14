@@ -1,105 +1,94 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{Manager, WebviewWindow};
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::{TrayIconBuilder, TrayIconEvent};
-use std::io::Write;
-use std::process::Command; // Import Command from std::process
+use std::{env, fs, thread, time::Duration, process::Command};
+use uuid::Uuid;
 use base64::{engine::general_purpose, Engine as _};
-use uuid::Uuid; // For generating unique filenames
-use std::env; // For getting temporary directory
-use std::path::PathBuf; // For path manipulation
-use std::fs; // For file operations
+use tauri::{Builder, AppHandle, generate_context};
+use tauri::webview::WebviewWindowBuilder;
+use tauri::utils::config::WebviewUrl;  // <– Use the new WebviewUrl
+use url::Url;                         // <– Import Url to build file:// URLs
 
 #[tauri::command]
-fn print_current_window(window: WebviewWindow) {
-    // Prefer emitting to JS to call window.print() there;
-    // this keeps Rust-side minimal. eval works if runtime supports it.
-    let _ = window.eval("window.print()");
+async fn open_print_window(app_handle: AppHandle, html: String) -> Result<(), String> {
+  // 1. Write HTML to a temporary file
+  let temp_path = env::temp_dir().join(format!("print_{}.html", Uuid::new_v4()));
+  fs::write(&temp_path, &html)
+    .map_err(|e| format!("Failed to write HTML: {}", e))?;
+
+  // 2. Build and show a new webview window loading the file:// URL
+  let label = format!("print_win_{}", Uuid::new_v4());
+  // Convert the file path to a file:// URL
+  let file_url = Url::from_file_path(&temp_path)
+    .map_err(|_| format!("Failed to convert file path to URL"))?;
+  // Use WebviewUrl::External for the file URL
+  let url = WebviewUrl::External(file_url);
+  let new_window = WebviewWindowBuilder::new(&app_handle, &label, url)
+    .title("Print Preview")
+    .inner_size(800.0, 600.0)
+    .resizable(true)
+    .focused(true)
+    .build()
+    .map_err(|e| format!("Window build error: {}", e))?;
+
+  // 3. Trigger native print dialog after a short delay
+  thread::sleep(Duration::from_millis(200));
+  new_window
+    .eval("window.print()")
+    .map_err(|e| format!("Print eval error: {}", e))?;
+
+  Ok(())
 }
 
 #[tauri::command]
 async fn print_billing_document(base64_pdf: String) -> Result<(), String> {
-    let decoded_pdf = general_purpose::STANDARD.decode(&base64_pdf)
-        .map_err(|e| format!("Failed to decode base64 PDF: {}", e))?;
+  // Decode Base64 PDF and write to temp file
+  let decoded = general_purpose::STANDARD.decode(&base64_pdf)
+    .map_err(|e| format!("PDF decode error: {}", e))?;
+  let temp_path = env::temp_dir().join(format!("{}.pdf", Uuid::new_v4()));
+  fs::write(&temp_path, &decoded)
+    .map_err(|e| format!("Failed to write PDF: {}", e))?;
 
-    let temp_dir = env::temp_dir();
-    let file_name = format!("{}.pdf", Uuid::new_v4());
-    let temp_path = temp_dir.join(file_name);
+  // Platform-specific print invocation
+  #[cfg(target_os = "windows")]
+  {
+    let cmd = format!("start /min \"\" \"{}\" /p", temp_path.display());
+    Command::new("cmd")
+      .args(&["/C", &cmd])
+      .spawn()
+      .map_err(|e| format!("Windows print error: {}", e))?;
+  }
+  #[cfg(target_os = "macos")]
+  {
+    Command::new("lp")
+      .arg(&temp_path)
+      .spawn()
+      .map_err(|e| format!("macOS print error: {}", e))?;
+  }
+  #[cfg(target_os = "linux")]
+  {
+    Command::new("lp")
+      .arg(&temp_path)
+      .spawn()
+      .map_err(|e| format!("Linux print error: {}", e))?;
+  }
 
-    let mut file = fs::File::create(&temp_path)
-        .map_err(|e| format!("Failed to create temporary PDF file at {}: {}", temp_path.display(), e))?;
-    file.write_all(&decoded_pdf)
-        .map_err(|e| format!("Failed to write PDF to temporary file: {}", e))?;
-
-    #[cfg(target_os = "windows")]
-    {
-        let command = format!("start /min \"\" \"{}\" /p", temp_path.display());
-        Command::new("cmd")
-            .args(&["/C", &command])
-            .spawn()
-            .map_err(|e| format!("Failed to spawn print command on Windows: {}", e))?;
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        Command::new("lp")
-            .arg(&temp_path)
-            .spawn()
-            .map_err(|e| format!("Failed to spawn print command on macOS: {}", e))?;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        Command::new("lp")
-            .arg(&temp_path)
-            .spawn()
-            .map_err(|e| format!("Failed to spawn print command on Linux: {}", e))?;
-    }
-
-    // The temporary file will now persist until manually deleted or system cleanup.
-    // In a production app, consider a more robust cleanup strategy (e.g., a background task
-    // that deletes files older than a certain age, or a mechanism to delete after print job completion).
-    Ok(())
-}
-
-fn main() {
-    tauri::Builder::default()
-        .setup(|app| {
-            // Build tray menu with a "print" item
-            let print_item = MenuItem::with_id(app, "print", "Print Bill", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&print_item])?;
-
-            // Create tray icon and hook events
-            TrayIconBuilder::new()
-                .menu(&menu)
-                .on_menu_event(|app, event| {
-                    if event.id().as_ref() == "print" {
-                        if let Some(win) = app.get_webview_window("main") {
-                            let _ = win.eval("window.print()");
-                        }
-                    }
-                })
-                .on_tray_icon_event(|_tray, _event: TrayIconEvent| {
-                    // Handle left/double clicks if desired
-                })
-                .build(app)?;
-
-            Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![print_current_window, print_billing_document, print_thermal_document])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+  Ok(())
 }
 
 #[tauri::command]
 async fn print_thermal_document(content: String) -> Result<(), String> {
-    // This is a placeholder for actual thermal printer interaction.
-    // In a real-world scenario, you would send the `content` directly to a thermal printer
-    // using a platform-specific API or a dedicated printer library.
-    // For demonstration, we'll just log the content.
-    println!("Simulating thermal print job with content: {}", content);
-    // You might write to a specific printer port or use a library like `cups` on Linux,
-    // or Windows' `RAW` printing, or macOS's `IOKit` for direct printer communication.
-    Ok(())
+  // Placeholder for thermal printer logic
+  println!("Thermal print content: {}", content);
+  Ok(())
+}
+
+fn main() {
+  Builder::default()
+    .invoke_handler(tauri::generate_handler![
+      open_print_window,
+      print_billing_document,
+      print_thermal_document
+    ])
+    .run(generate_context!())
+    .expect("error while running tauri application");
 }

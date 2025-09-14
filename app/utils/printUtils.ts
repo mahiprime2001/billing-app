@@ -1,55 +1,43 @@
 import { invoke } from "@tauri-apps/api/core";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 
 /**
- * Generates a PDF from HTML content.
- * @param htmlContent The HTML string to convert to PDF.
- * @returns A Promise that resolves with the Base64 encoded PDF string.
+ * Wraps the provided HTML content by injecting window.print() on body load.
+ * This ensures the native print dialog pops up automatically when rendered.
+ * @param html The raw HTML string to print.
+ * @returns The wrapped HTML string with print auto-trigger.
  */
-export async function generatePdfFromHtml(htmlContent: string): Promise<string> {
-  const tempElement = document.createElement("div");
-  tempElement.innerHTML = htmlContent;
-  document.body.appendChild(tempElement);
-
-  try {
-    const canvas = await html2canvas(tempElement, {
-      scale: 2, // Increase scale for better quality
-      useCORS: true, // Enable CORS for images
-    });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "pt",
-      format: "a4",
-    });
-
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-    return pdf.output("datauristring").split(",")[1]; // Return base64 string
-  } catch (error) {
-    console.error("Error generating PDF from HTML:", error);
-    throw new Error("Failed to generate PDF from HTML.");
-  } finally {
-    document.body.removeChild(tempElement);
-  }
+function wrapHtmlWithPrint(html: string): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8" />
+      <title>Print Preview</title>
+      <style>
+        /* Optional: Add your print styles here */
+      </style>
+    </head>
+    <body onload="window.print();">
+      ${html}
+    </body>
+    </html>
+  `;
 }
 
 /**
- * Prints a Base64 encoded PDF using the Tauri backend.
- * @param base64Pdf The Base64 encoded PDF string.
- * @returns A Promise that resolves when the print job is sent.
+ * Opens a new Tauri window, writes the provided HTML content to it, and triggers the print dialog.
+ * This function is intended for use within the Tauri desktop application.
+ * @param htmlContent The HTML string to display and print.
  */
-export async function printBase64Pdf(base64Pdf: string): Promise<void> {
+export async function printWithTauriWindow(htmlContent: string): Promise<void> {
   try {
-    await invoke("print_billing_document", { base64Pdf });
-    console.log("Base64 PDF sent to printer successfully.");
+    // Wrap the HTML content so print triggers automatically on load
+    const printableHtml = wrapHtmlWithPrint(htmlContent);
+    await invoke("open_print_window", { html: printableHtml });
+    console.log("Print window opened and print dialog triggered successfully.");
   } catch (error) {
-    console.error("Failed to print Base64 PDF:", error);
-    throw error;
+    console.error("Failed to open new Tauri window for printing:", error);
+    throw new Error("Failed to open new window for printing.");
   }
 }
 
@@ -65,12 +53,8 @@ export async function printThermalLabel(content: string, isThermalPrinter: boole
     throw new Error("Not a thermal printer.");
   }
   try {
-    // For thermal printing, we might send raw text directly to a specific printer.
-    // This would require a new Tauri command or a more sophisticated printing solution.
-    // For now, we'll simulate sending raw text by invoking a generic print command
-    // or by converting the text to a simple PDF if the backend only handles PDFs.
-    // A more robust solution would involve a dedicated thermal print command in Rust.
-    await invoke("print_thermal_document", { content }); // Assuming a new Tauri command for thermal printing
+    // Call backend command for thermal printing
+    await invoke("print_thermal_document", { content });
     console.log("Thermal label content sent to printer successfully.");
   } catch (error) {
     console.error("Failed to print thermal label:", error);
@@ -81,30 +65,24 @@ export async function printThermalLabel(content: string, isThermalPrinter: boole
 /**
  * Unified printing function that handles different print scenarios.
  * @param options An object containing printing options.
- * @param options.htmlContent Optional HTML content for PDF generation (fallback).
- * @param options.base64Pdf Optional Base64 encoded PDF for high-fidelity printing.
+ * @param options.htmlContent Optional HTML content for window-based printing.
  * @param options.thermalContent Optional content for thermal printing.
  * @param options.isThermalPrinter Optional flag to indicate if the target printer is a thermal printer.
  * @returns A Promise that resolves when the print job is completed.
  */
 export async function unifiedPrint({
   htmlContent,
-  base64Pdf,
   thermalContent,
   isThermalPrinter = false,
 }: {
   htmlContent?: string;
-  base64Pdf?: string;
   thermalContent?: string;
   isThermalPrinter?: boolean;
 }): Promise<void> {
   if (isThermalPrinter && thermalContent) {
     await printThermalLabel(thermalContent, true);
-  } else if (base64Pdf) {
-    await printBase64Pdf(base64Pdf);
   } else if (htmlContent) {
-    const generatedPdf = await generatePdfFromHtml(htmlContent);
-    await printBase64Pdf(generatedPdf);
+    await printWithTauriWindow(htmlContent);
   } else {
     throw new Error("No printable content provided.");
   }
