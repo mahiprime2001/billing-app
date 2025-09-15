@@ -12,8 +12,7 @@
     "upload": "npx ts-node --project tsconfig.script.json app/data/mysql/upload.ts",
     "update-from-log": "npx ts-node --project tsconfig.script.json app/data/mysql/update_from_log.ts",
     "sync-check": "npx ts-node --project tsconfig.script.json app/data/mysql/sync-check.ts",
-    "export-formatted-data": "node scripts/export-formatted-data.mjs",
-    "tauri:dev": "npx @tauri-apps/cli dev"
+    "export-formatted-data": "node scripts/export-formatted-data.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

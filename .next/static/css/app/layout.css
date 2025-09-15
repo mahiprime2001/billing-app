@@ -1,6 +1,6 @@
-/*!****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[2].use[1]!./node_modules/next/dist/build/webpack/loaders/next-font-loader/index.js??ruleSet[1].rules[13].oneOf[2].use[2]!./node_modules/next/font/google/target.css?{"path":"app/layout.tsx","import":"Inter","arguments":[{"subsets":["latin"]}],"variableName":"inter"} ***!
-  \****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/*!*****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[2].use[1]!./node_modules/next/dist/build/webpack/loaders/next-font-loader/index.js??ruleSet[1].rules[14].oneOf[2].use[2]!./node_modules/next/font/google/target.css?{"path":"app\\layout.tsx","import":"Inter","arguments":[{"subsets":["latin"]}],"variableName":"inter"} ***!
+  \*****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
 /* cyrillic-ext */
 @font-face {
   font-family: 'Inter';
@@ -68,7 +68,7 @@
 }
 
 /*!**************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[3]!./styles/print.css ***!
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./styles/print.css ***!
   \**************************************************************************************************************************************************************************************************************************************************************/
 /* General print styles */
 @media print {
@@ -179,7 +179,7 @@
 }
 
 /*!*************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[3]!./app/globals.css ***!
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./app/globals.css ***!
   \*************************************************************************************************************************************************************************************************************************************************************/
 *, ::before, ::after {
   --tw-border-spacing-x: 0;
@@ -762,6 +762,9 @@ video {
 .collapse {
   visibility: collapse;
 }
+.static {
+  position: static;
+}
 .fixed {
   position: fixed;
 }
@@ -1082,6 +1085,12 @@ video {
 .h-\[1px\] {
   height: 1px;
 }
+.h-\[65vh\] {
+  height: 65vh;
+}
+.h-\[85vh\] {
+  height: 85vh;
+}
 .h-\[var\(--radix-navigation-menu-viewport-height\)\] {
   height: var(--radix-navigation-menu-viewport-height);
 }
@@ -1235,6 +1244,9 @@ video {
 .w-\[300px\] {
   width: 300px;
 }
+.w-\[95vw\] {
+  width: 95vw;
+}
 .w-auto {
   width: auto;
 }
@@ -1294,6 +1306,9 @@ video {
 }
 .max-w-\[--skeleton-width\] {
   max-width: var(--skeleton-width);
+}
+.max-w-\[60\%\] {
+  max-width: 60%;
 }
 .max-w-lg {
   max-width: 32rem;
@@ -2025,6 +2040,12 @@ video {
 }
 .text-\[0\.8rem\] {
   font-size: 0.8rem;
+}
+.text-\[10px\] {
+  font-size: 10px;
+}
+.text-\[8px\] {
+  font-size: 8px;
 }
 .text-base {
   font-size: 1rem;
@@ -3430,6 +3451,10 @@ video {
     position: absolute;
   }
 
+  .md\:mt-8 {
+    margin-top: 2rem;
+  }
+
   .md\:block {
     display: block;
   }
@@ -3523,6 +3548,12 @@ video {
   .lg\:px-8 {
     padding-left: 2rem;
     padding-right: 2rem;
+  }
+}
+@media print {
+
+  .print\:hidden {
+    display: none;
   }
 }
 .\[\&\:has\(\[aria-selected\]\)\]\:bg-accent:has([aria-selected]) {

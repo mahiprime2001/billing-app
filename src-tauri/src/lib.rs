@@ -1,238 +1,269 @@
 use std::{
-    fs::{self, File},
-    io::Write,
+    fs::{self, File, OpenOptions},
+    io::{Read, Write},
     net::TcpStream,
-    path::PathBuf,
-    process::{Child, Command, Stdio},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
+    path::{Path, PathBuf},
+    process::Command,
+    sync::{atomic::AtomicBool, Arc, Mutex},
     thread,
     time::Duration,
 };
 
-use tauri::{Manager, PhysicalPosition, PhysicalSize, Window, WindowEvent, Url};
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
-use tauri_utils::config::WebviewUrl;
+use chrono::Local;
+use dirs::{data_local_dir, executable_dir};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use tauri::{AppHandle, Builder, Emitter, Manager, WindowEvent};
+use which::which;
 
 static IS_CLOSING: AtomicBool = AtomicBool::new(false);
 
-#[tauri::command]
-async fn print_document(window: tauri::Window, content: String) -> Result<(), String> {
-    // Create hidden window first
-    let print_win = tauri::WebviewWindowBuilder::new(
-        window.app_handle(),
-        "print_window",
-        tauri_utils::config::WebviewUrl::External(Url::parse("data:text/html;charset=utf-8,").expect("failed to parse data URL"))
-    )
-    .title("Print Preview")
-    .inner_size(800.0, 600.0)
-    .visible(false)
-    .build()
-    .map_err(|e| format!("create window: {e}"))?;
-
-    // Encode content into a data URL (avoid backticks/escaping issues)
-    let encoded = urlencoding::encode(&content);
-    let url = format!("data:text/html;charset=utf-8,{}", encoded);
-
-    // Navigate to the data URL (so the doc has a URL & load lifecycle)
-    print_win
-        .eval(&format!("window.location.replace('{}')", url))
-        .map_err(|e| format!("navigate data url: {e}"))?;
-
-    // Attach a load listener that focuses, shows, then prints after paint
-    let script = r#"
-        (function(){
-          function go(){
-            window.focus();
-            // let layout settle
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                window.print();
-              });
-            });
-          }
-          if (document.readyState === 'complete') go();
-          else window.addEventListener('load', go, { once: true });
-        })();
-    "#;
-
-    print_win.eval(script).map_err(|e| format!("inject print script: {e}"))?;
-
-    // Now show the window so the dialog is allowed to appear
-    print_win.show().map_err(|e| format!("show window: {e}"))?;
-    print_win.set_focus().ok();
-
-    Ok(())
+pub struct NodeState {
+    pub child: Arc<Mutex<Option<std::process::Child>>>,
 }
 
-/// Waits for the server to be ready by attempting to connect multiple times.
-fn wait_for_server_ready(port: u16, retries: u32, delay_ms: u64, log_path: &PathBuf) -> bool {
-    for attempt in 1..=retries {
+pub struct AppState {
+    pub log_file_path: Arc<Mutex<Option<PathBuf>>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+struct AppPaths {
+    node_exe: PathBuf,
+    npm_cjs: PathBuf,
+    package_json: PathBuf,
+}
+
+fn get_paths_file() -> PathBuf {
+    let base = data_local_dir().expect("Could not determine local data directory");
+    let path = base.join("SiriAdminApp").join("paths.json");
+    println!("[DEBUG] Paths file location: {}", path.display());
+    path
+}
+
+fn discover_paths() -> AppPaths {
+    println!("[DEBUG] Discovering paths...");
+    let node_exe = which("node").unwrap_or_else(|_| {
+        println!("[DEBUG] 'node' not found, using fallback 'node.exe'");
+        PathBuf::from("node.exe")
+    });
+    let npm_cjs = which("npm").unwrap_or_else(|_| {
+        println!("[DEBUG] 'npm' not found, using fallback 'npm.cjs'");
+        PathBuf::from("npm.cjs")
+    });
+    let pkg = executable_dir().unwrap_or_else(|| {
+        println!("[DEBUG] Could not get executable dir, using current dir");
+        PathBuf::from(".")
+    }).join("package.json");
+    let package_json = if pkg.exists() {
+        println!("[DEBUG] Found package.json at {}", pkg.display());
+        pkg
+    } else {
+        println!("[DEBUG] package.json not found, using fallback 'package.json'");
+        PathBuf::from("package.json")
+    };
+
+    AppPaths { node_exe, npm_cjs, package_json }
+}
+
+fn load_or_discover_paths() -> AppPaths {
+    let paths_file = get_paths_file();
+    if let Ok(mut file) = File::open(&paths_file) {
+        println!("[DEBUG] Reading paths from {}", paths_file.display());
+        let mut content = String::new();
+        if file.read_to_string(&mut content).is_ok() {
+            if let Ok(paths) = serde_json::from_str::<AppPaths>(&content) {
+                println!("[DEBUG] Loaded paths from file");
+                if paths.node_exe.exists() && paths.npm_cjs.exists() && paths.package_json.exists() {
+                    println!("[DEBUG] All paths exist");
+                    return paths;
+                } else {
+                    println!("[DEBUG] Some paths do not exist, rediscovering...");
+                }
+            }
+        }
+    } else {
+        println!("[DEBUG] Paths file does not exist, discovering...");
+    }
+    let paths = discover_paths();
+    if let Some(dir) = paths_file.parent() {
+        println!("[DEBUG] Creating directory: {}", dir.display());
+        let _ = fs::create_dir_all(dir);
+    }
+    if let Ok(mut file) = File::create(&paths_file) {
+        println!("[DEBUG] Saving paths to {}", paths_file.display());
+        let _ = file.write_all(serde_json::to_string_pretty(&paths).unwrap().as_bytes());
+    }
+    paths
+}
+
+fn create_log_directory() -> Result<PathBuf, String> {
+    println!("[DEBUG] Creating log directory...");
+    let base = data_local_dir()
+        .ok_or("Could not determine local data directory")?
+        .join("SiriAdminApp")
+        .join("logs");
+    println!("[DEBUG] Log directory path: {}", base.display());
+    fs::create_dir_all(&base).map_err(|e| format!("Failed to create log directory: {}", e))?;
+    Ok(base)
+}
+
+fn write_log(log_file: &Path, msg: &str) {
+    println!("[DEBUG] Writing log: {}", msg);
+    let entry = format!("{} {}\n", Local::now().format("%Y-%m-%d %H:%M:%S"), msg);
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(log_file) {
+        let _ = file.write_all(entry.as_bytes());
+        let _ = file.flush();
+    }
+}
+
+fn log_event(app_handle: &AppHandle, context: &str, message: &str) {
+    let log_msg = format!("[{}] {}", context, message);
+    println!("[DEBUG] {}", log_msg);
+    let _ = app_handle.emit("log-message", json!({
+        "context": context,
+        "message": message,
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    }));
+    let app_state = app_handle.state::<AppState>();
+    let mut lock = app_state.log_file_path.lock().unwrap();
+    if let Some(path) = &*lock {
+        write_log(path, &log_msg);
+    }
+}
+
+fn wait_server_ready(port: u16, retries: u32, delay_ms: u64, app_handle: &AppHandle) -> bool {
+    println!("[DEBUG] Waiting for server to be ready...");
+    for i in 0..retries {
         if TcpStream::connect(("127.0.0.1", port)).is_ok() {
-            write_log(log_path, &format!("Server responded on port {} at attempt {}", port, attempt));
+            log_event(app_handle, "ServerCheck", &format!("✅ Server ready on port {}", port));
             return true;
         }
-        write_log(log_path, &format!("Attempt {}: no response from port {}, retrying...", attempt, port));
+        log_event(app_handle, "ServerCheck", &format!("⏳ Waiting... {}/{}", i + 1, retries));
         thread::sleep(Duration::from_millis(delay_ms));
     }
-    write_log(log_path, &format!("No response from port {} after {} attempts", port, retries));
+    log_event(app_handle, "ServerCheck", "❌ Server never ready");
     false
 }
 
-/// Writes a log entry to the specified file and optionally to stdout in debug mode.
-fn write_log(path: &PathBuf, content: &str) {
-    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(path) {
-        let _ = writeln!(file, "{}", content);
-    }
-    if cfg!(debug_assertions) {
-        println!("{}", content);
-    }
-}
-
-/// A wrapper to include context in logging.
-fn log_debug(path: &PathBuf, context: &str, message: &str) {
-    write_log(path, &format!("[{}] {}", context, message));
-}
-
-/// Handles the window close event.
-fn handle_close_event(
-    window: &Window,
-    child_process: Arc<Mutex<Option<Child>>>,
-    _debug_log: &PathBuf,
-) {
-    // Show dialog on main thread
-    let confirm = window
-        .app_handle()
-        .dialog()
-        .message("Are you sure you want to quit?")
-        .title("Confirm Exit")
-        .buttons(MessageDialogButtons::OkCancel)
-        .blocking_show();
-
-    if confirm {
-        IS_CLOSING.store(true, Ordering::SeqCst);
-
-        // Kill child process if exists
-        if let Some(mut child) = child_process.lock().unwrap().take() {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-
-        // Close the window
-        let _ = window.close();
-    }
-}
-
-/// Main application logic.
-pub fn run() {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .expect("Failed to determine executable directory");
-
-    let project_root = exe_dir
-        .parent() // Go up from `release` or `debug` to `target`
-        .and_then(|p| p.parent()) // Go up from `target` to `src-tauri`
-        .and_then(|p| p.parent()) // Go up from `src-tauri` to the project root
-        .expect("Failed to determine project root directory")
-        .to_path_buf();
-
-    let logs_dir = exe_dir.join("logs");
-    fs::create_dir_all(&logs_dir).expect("Failed to create logs directory");
-
-    let stdout_log = logs_dir.join("server_stdout.log");
-    let stderr_log = logs_dir.join("server_stderr.log");
-    let debug_log = logs_dir.join("debug.log");
-
-    log_debug(&debug_log, "Startup", "Starting Tauri app with Node.js sidecar...");
-    log_debug(&debug_log, "Startup", &format!("Executable directory: {:?}", exe_dir));
-    log_debug(&debug_log, "Startup", &format!("Project directory: {:?}", project_root));
-
-    let node_exe = exe_dir.join("node").join("node.exe");
-    let npm_cli = exe_dir.join("node").join("node_modules").join("npm").join("bin").join("npm-cli.js");
-
+fn spawn_node(app_handle: &AppHandle, install_dir: &Path, paths: &AppPaths) -> Result<std::process::Child, String> {
+    println!("[DEBUG] Spawning Node.js...");
+    let node_exe = &paths.node_exe;
+    let app_dir = install_dir.join("_up_");
+    println!("[DEBUG] Node executable: {}", node_exe.display());
+    println!("[DEBUG] App directory: {}", app_dir.display());
     if !node_exe.exists() {
-        panic!("Node executable not found at {:?}", node_exe);
+        return Err("node.exe not found".into());
     }
-    if !npm_cli.exists() {
-        panic!("npm CLI not found at {:?}", npm_cli);
+    if !app_dir.exists() {
+        return Err("App directory not found".into());
     }
+    let child = Command::new(node_exe)
+        .arg("-e")
+        .arg(format!(
+            r#"
+            const express = require('express');
+            const path = require('path');
+            const fs = require('fs');
+            const app = express();
+            const port = 3000;
+            const appDir = "{}";
+            app.use(express.static(appDir));
+            app.get('/health',(r,s)=>s.json({{status:'ok'}}));
+            app.get('*',(r,s)=>fs.existsSync(path.join(appDir,'index.html'))?
+                s.sendFile(path.join(appDir,'index.html')):s.status(404).send('<h1>404</h1>'));
+            app.listen(port,'127.0.0.1',()=>console.log('Server up'));
+        "#,
+            app_dir.display().to_string().replace("\\", "\\\\")
+        ))
+        .current_dir(install_dir)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    println!("[DEBUG] Node.js process started with PID {}", child.id());
+    Ok(child)
+}
 
-    let child_process: Arc<Mutex<Option<Child>>> = Arc::new(Mutex::new(None));
+pub fn run() {
+    let node_state = Arc::new(Mutex::new(None));
 
-    let mut cmd = Command::new(&node_exe);
-    cmd.arg(&npm_cli)
-        .arg("run")
-        .arg("start:next")
-        .current_dir(&project_root)
-        .stdout(Stdio::from(File::create(&stdout_log).unwrap()))
-        .stderr(Stdio::from(File::create(&stderr_log).unwrap()));
+    Builder::default()
+        .manage(NodeState { child: node_state.clone() })
+        .manage(AppState { log_file_path: Arc::new(Mutex::new(None)) })
+        .setup({
+            let node_state_clone = node_state.clone();
+            move |app| {
+                let app_handle = app.handle();
+                let window = app.get_window("main").unwrap();
 
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-    }
+                println!("[DEBUG] App setup started...");
 
-    let child = cmd.spawn().expect("Failed to spawn Node.js process");
-    log_debug(&debug_log, "Startup", &format!("Node.js sidecar started with PID {}", child.id()));
-    *child_process.lock().unwrap() = Some(child);
+                // Discover and persist paths
+                let paths = load_or_discover_paths();
+                println!("[DEBUG] Discovered AppPaths: {:?}", paths);
+                let _ = window.emit("debug-paths", json!({
+                    "node_exe": paths.node_exe.display().to_string(),
+                    "npm_cjs": paths.npm_cjs.display().to_string(),
+                    "package_json": paths.package_json.display().to_string(),
+                }));
 
-    let port = 3000;
-    let child_process_clone = child_process.clone();
-
-    let debug_log_setup = debug_log.clone();
-    let debug_log_event = debug_log.clone();
-
-    tauri::Builder::default()
-        .setup(move |app| {
-            let main_window = app.get_webview_window("main").unwrap();
-
-            // Resize and center the window
-            let size = PhysicalSize::new(1200, 800); // set your preferred size
-            let _ = main_window.set_size(size);
-
-            if let Some(monitor) = app.primary_monitor().unwrap() {
-                let pos = PhysicalPosition::new(
-                    (monitor.size().width as i32 - size.width as i32) / 2,
-                    (monitor.size().height as i32 - size.height as i32) / 2,
-                );
-                let _ = main_window.set_position(pos);
-            }
-
-            let window_clone = main_window.clone();
-            let debug_log_clone = debug_log_setup.clone();
-
-            thread::spawn(move || {
-                log_debug(&debug_log_clone, "ServerCheck", "Waiting for server readiness...");
-                if wait_for_server_ready(port, 50, 200, &debug_log_clone) {
-                    let url = format!("http://localhost:{}", port);
-                    log_debug(&debug_log_clone, "ServerCheck", &format!("Server ready. Navigating to {}", url));
-                    let _ = window_clone.eval(&format!("window.location.replace('{}')", url));
-                    let _ = window_clone.show();
-                } else {
-                    log_debug(&debug_log_clone, "ServerCheck", "Server failed to start within timeout.");
-                    let error_html = "<h1 style='color:red'>Failed to start backend server. Check logs.</h1>";
-                    let _ = window_clone.eval(&format!("document.body.innerHTML = `{}`", error_html));
-                    let _ = window_clone.show();
+                // Create log directory and store path
+                match create_log_directory() {
+                    Ok(dir) => {
+                        let log_path = dir.join("siri_admin.log");
+                        let app_state = app_handle.state::<AppState>();
+                        let mut lock = app_state.log_file_path.lock().unwrap();
+                        *lock = Some(log_path.clone());
+                        println!("[DEBUG] Logging to {}", log_path.display());
+                    }
+                    Err(err) => {
+                        eprintln!("[DEBUG] Failed to create log directory: {}", err);
+                        let _ = window.emit("debug-error", format!("log-dir error: {}", err));
+                    }
                 }
-            });
 
-            Ok(())
+                // Show loading and spawn server
+                println!("[DEBUG] Showing loading message...");
+                let _ = window.emit("update-html", "<h1>Starting...</h1>");
+                let install_dir = executable_dir().unwrap_or_else(|| {
+                    println!("[DEBUG] Could not get executable dir, using current directory");
+                    PathBuf::from(".")
+                });
+                println!("[DEBUG] Install directory: {}", install_dir.display());
+
+                let app_handle_clone = app_handle.clone();
+                let window_clone = window.clone();
+                thread::spawn(move || {
+                    thread::sleep(Duration::from_millis(500));
+                    match spawn_node(&app_handle_clone, &install_dir, &paths) {
+                        Ok(child) => {
+                            let pid = child.id();
+                            *node_state_clone.lock().unwrap() = Some(child);
+                            println!("[DEBUG] Node process started with PID {}", pid);
+                        }
+                        Err(err) => {
+                            eprintln!("[DEBUG] Error spawning Node: {}", err);
+                            let _ = app_handle_clone.emit("debug-error", format!("spawn error: {}", err));
+                            return;
+                        }
+                    }
+                    if wait_server_ready(3000, 20, 500, &app_handle_clone) {
+                        let _ = window_clone.emit("update-html", "<h1>Ready!</h1>");
+                    } else {
+                        eprintln!("[DEBUG] Server never became ready");
+                        let _ = window_clone.emit("update-html", "<h1>Server failed</h1>");
+                    }
+                });
+
+                println!("[DEBUG] Setup completed.");
+                Ok(())
+            }
         })
         .on_window_event(move |window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                if IS_CLOSING.load(Ordering::SeqCst) {
-                    return;
-                }
                 api.prevent_close();
-
-                handle_close_event(&window, child_process_clone.clone(), &debug_log_event);
+                let _ = window.emit("app-close-requested", ());
             }
         })
-        .invoke_handler(tauri::generate_handler![print_document])
+        .invoke_handler(tauri::generate_handler![])
         .run(tauri::generate_context!())
-        .expect("Failed to run Tauri application");
+        .expect("error running tauri app");
 }

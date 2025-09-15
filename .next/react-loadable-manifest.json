@@ -1,14 +1,20 @@
 {
-  "app/dashboard/products/page.tsx -> jsbarcode": {
-    "id": "app/dashboard/products/page.tsx -> jsbarcode",
+  "app\\dashboard\\products\\page.tsx -> jsbarcode": {
+    "id": "app\\dashboard\\products\\page.tsx -> jsbarcode",
     "files": [
       "static/chunks/_app-pages-browser_node_modules_jsbarcode_bin_JsBarcode_js.js"
     ]
   },
-  "components/server-error-handler.tsx -> @tauri-apps/api/event": {
-    "id": "components/server-error-handler.tsx -> @tauri-apps/api/event",
+  "components\\server-error-handler.tsx -> @tauri-apps/api/event": {
+    "id": "components\\server-error-handler.tsx -> @tauri-apps/api/event",
     "files": [
       "static/chunks/_app-pages-browser_node_modules_tauri-apps_api_event_js.js"
+    ]
+  },
+  "node_modules\\next\\dist\\client\\dev\\hot-reloader\\app\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts": {
+    "id": "node_modules\\next\\dist\\client\\dev\\hot-reloader\\app\\use-websocket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_next_dist_client_dev_noop-turbopack-hmr_js.js"
     ]
   }
 }
