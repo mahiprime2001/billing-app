@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modern Loading Screen</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #ffffff;
+      font-family: 'Arial', sans-serif;
+      overflow: hidden;
+    }
+
+    .loader-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .loader {
+      width: 60px;
+      height: 60px;
+      border: 8px solid transparent;
+      border-top-color: #007bff; /* Initial color for fallback */
+      border-right-color: #6f42c1; /* Initial color for fallback */
+      border-radius: 50%;
+      animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite, colorShift 4s linear infinite;
+      position: relative;
+    }
+
+    .loader::before {
+      content: '';
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      right: 5px;
+      bottom: 5px;
+      border-radius: 50%;
+      border: 8px solid transparent;
+      border-top-color: #6f42c1; /* Initial color for fallback */
+      border-right-color: #007bff; /* Initial color for fallback */
+      animation: spin 1.8s cubic-bezier(0.5, 0, 0.5, 1) infinite reverse, colorShift 4s linear infinite;
+    }
+
+    .pulse {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      background: radial-gradient(circle, rgba(0, 123, 255, 0.4), transparent);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite, colorShift 4s linear infinite;
+      z-index: -1;
+    }
+
+    .loading-text {
+      color: #333333;
+      font-size: 1.5rem;
+      font-weight: bold;
+      letter-spacing: 2px;
+      animation: textFade 1.5s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.8); opacity: 0.7; }
+      50% { transform: scale(1.2); opacity: 0.3; }
+      100% { transform: scale(0.8); opacity: 0.7; }
+    }
+
+    @keyframes textFade {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes colorShift {
+      0% { filter: hue-rotate(0deg); }
+      100% { filter: hue-rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="loader-container">
+    <div class="pulse"></div>
+    <div class="loader"></div>
+    <span class="loading-text">LOADING...</span>
+  </div>
+  <script>
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const text = document.querySelector('.loading-text');
+        text.textContent = 'ALMOST READY...';
+        setTimeout(() => {
+          text.textContent = 'LOADING...';
+        }, 2000);
+      }, 3000);
+    });
+  </script>
+</body>
+</html>

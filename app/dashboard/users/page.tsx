@@ -100,7 +100,7 @@ export default function UsersPage() {
 
   const loadUsers = async () => {
     try {
-      const response = await fetch("/api/users")
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/users")
       if (response.ok) {
         const data = await response.json()
         setUsers(data)
@@ -114,7 +114,7 @@ export default function UsersPage() {
 
   const loadStores = async () => {
     try {
-      const response = await fetch("/api/stores")
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/stores")
       if (response.ok) {
         const data = await response.json()
         setStores(data)
@@ -160,7 +160,7 @@ export default function UsersPage() {
     }
 
     try {
-      const response = await fetch("/api/users", {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -201,7 +201,7 @@ export default function UsersPage() {
     }
 
     try {
-      const response = await fetch(`/api/users/${editingUser.id}`, {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/users/${editingUser.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -238,7 +238,7 @@ export default function UsersPage() {
     }
 
     try {
-      const response = await fetch(`/api/users/${userId}`, {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/users/${userId}`, {
         method: "DELETE",
       })
 
@@ -260,7 +260,7 @@ export default function UsersPage() {
 
     // Fetch the decrypted password
     try {
-      const response = await fetch(`/api/users/${user.id}/password`)
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/users/${user.id}/password`)
       if (response.ok) {
         const data = await response.json()
         setFormData({

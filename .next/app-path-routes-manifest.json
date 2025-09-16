@@ -1,0 +1,18 @@
+{
+  "/api/auth/login/route": "/api/auth/login",
+  "/api/bills/route": "/api/bills",
+  "/api/products/route": "/api/products",
+  "/api/stores/route": "/api/stores",
+  "/api/users/route": "/api/users",
+  "/_not-found/page": "/_not-found",
+  "/billing/history/page": "/billing/history",
+  "/dashboard/analytics/page": "/dashboard/analytics",
+  "/dashboard/billing/page": "/dashboard/billing",
+  "/billing/page": "/billing",
+  "/dashboard/page": "/dashboard",
+  "/dashboard/products/page": "/dashboard/products",
+  "/page": "/",
+  "/dashboard/settings/page": "/dashboard/settings",
+  "/dashboard/users/page": "/dashboard/users",
+  "/dashboard/stores/page": "/dashboard/stores"
+}

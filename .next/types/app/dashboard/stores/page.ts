@@ -1,4 +1,4 @@
-// File: E:\billing-app\app\dashboard\stores\page.tsx
+// File: /Users/mahendrareddy/developer/billing_system/billing-app/app/dashboard/stores/page.tsx
 import * as entry from '../../../../../app/dashboard/stores/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

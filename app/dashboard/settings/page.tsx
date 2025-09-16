@@ -97,7 +97,7 @@ export default function SettingsPage() {
 
   const loadSettings = async () => {
     try {
-      const response = await fetch("/api/settings")
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/settings")
       if (response.ok) {
         const data = await response.json()
         if (data.systemSettings) setSettings(data.systemSettings)
@@ -112,7 +112,7 @@ export default function SettingsPage() {
   const saveSettings = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch("/api/settings", {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

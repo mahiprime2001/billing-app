@@ -67,34 +67,13 @@ export default function LoginPage() {
   })
 
   useEffect(() => {
-    // Check if user is already logged in
-    const sessionToken = localStorage.getItem("sessionToken")
-    if (sessionToken) {
-      const userData = localStorage.getItem("adminUser")
-      if (userData) {
-        try {
-          const user = JSON.parse(userData)
-          if (user.isTemporary) {
-            router.push("/billing")
-          } else {
-            router.push("/dashboard")
-          }
-        } catch (error) {
-          console.error("Error parsing user data:", error)
-          localStorage.removeItem("adminLoggedIn")
-          localStorage.removeItem("adminUser")
-          localStorage.removeItem("sessionToken")
-        }
-      }
-    }
-
     // Load remembered email
     const rememberedEmail = localStorage.getItem("rememberedAdminEmail")
     if (rememberedEmail) {
       setEmail(rememberedEmail)
       setRememberEmail(true)
     }
-  }, [router])
+  }, []) // Removed router from dependency array as it's not directly used for re-evaluation here
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -118,7 +97,8 @@ export default function LoginPage() {
         return
       }
 
-      const response = await fetch("/api/auth/login", {
+      // Use the Flask backend URL directly
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -131,7 +111,15 @@ export default function LoginPage() {
         return
       }
 
-      const user = await response.json()
+      const { user: userData, auth_ok, user_role } = await response.json()
+      console.log("handleLogin - User data from API:", userData);
+      console.log("handleLogin - Auth status:", auth_ok, "User role:", user_role);
+
+      if (!auth_ok) {
+        setError("Authentication failed. Please try again.")
+        setIsLoading(false)
+        return
+      }
 
       // Handle remember email
       if (rememberEmail) {
@@ -140,25 +128,23 @@ export default function LoginPage() {
         localStorage.removeItem("rememberedAdminEmail")
       }
 
-      // Set login state
-      localStorage.setItem("adminLoggedIn", "true")
-      localStorage.setItem("adminUser", JSON.stringify(user))
-      if (user.token) {
-        localStorage.setItem("sessionToken", user.token)
-      }
+      // Store user data and role directly (no adminLoggedIn flag needed for now)
+      localStorage.setItem("adminUser", JSON.stringify({ ...userData, role: user_role }))
 
       setSuccess("Login successful! Redirecting...")
 
       toast({
         title: "Login Successful",
-        description: `Welcome back, ${user.name}!`,
+        description: `Welcome back, ${userData.name}!`,
       })
 
       // Redirect based on role
       setTimeout(() => {
-        if (user.role === "super_admin") {
+        if (user_role === "super_admin") {
+          console.log("handleLogin - Redirecting to /dashboard");
           router.push("/dashboard")
         } else {
+          console.log("handleLogin - Redirecting to /billing");
           router.push("/billing")
         }
       }, 1000)
@@ -208,7 +194,8 @@ export default function LoginPage() {
     }))
 
     try {
-      const response = await fetch("/api/auth/forgot-password-proxy", {
+      // Use the Flask backend URL directly for forgot password
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/auth/forgot-password-proxy`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

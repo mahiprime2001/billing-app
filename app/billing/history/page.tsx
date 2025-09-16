@@ -118,7 +118,7 @@ export default function BillingHistoryPage() {
     setCurrentUser(user)
 
     // Load system settings
-    fetch("/api/settings")
+    fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/settings")
       .then((res) => res.json())
       .then((data) => {
         if (data.systemSettings) setSystemSettings(data.systemSettings)
@@ -133,7 +133,7 @@ export default function BillingHistoryPage() {
 
   const loadSales = async () => {
     try {
-      const response = await fetch("/api/bills")
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/bills")
       if (response.ok) {
         const data = await response.json()
         const sortedSales = data.sort(
@@ -233,23 +233,31 @@ export default function BillingHistoryPage() {
     try {
       const fileContent = await selectedFile.text()
       const billsToImport: Sale[] = JSON.parse(fileContent)
+      let allSucceeded = true;
 
-      // Send to API endpoint for saving to local JSON and MySQL
-      const response = await fetch("/api/bills/import", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(billsToImport),
-      })
+      for (const bill of billsToImport) {
+        const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/bills", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(bill),
+        })
 
-      if (response.ok) {
+        if (!response.ok) {
+          allSucceeded = false;
+          console.error(`Failed to import bill ${bill.id}:`, response.statusText)
+          // Optionally, break or collect failed imports
+        }
+      }
+
+      if (allSucceeded) {
         console.log("Bills imported successfully!")
         loadSales() // Reload sales to show imported data
         setIsImportDialogOpen(false)
         setSelectedFile(null)
       } else {
-        console.error("Failed to import bills:", response.statusText)
+        console.error("Some bills failed to import.")
       }
     } catch (error) {
       console.error("Error importing bills:", error)
@@ -272,7 +280,7 @@ export default function BillingHistoryPage() {
     if (!selectedSale) return
 
     try {
-      const response = await fetch(`/api/bills/${selectedSale.id}`, {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/bills/${selectedSale.id}`, {
         method: "DELETE",
       })
 

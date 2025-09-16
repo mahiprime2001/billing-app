@@ -114,7 +114,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function BillingPage() {
   const router = useRouter();
-  const { data: products = [] } = useSWR<Product[]>("/api/products", fetcher);
+const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/products", fetcher);
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
@@ -152,7 +152,7 @@ export default function BillingPage() {
     setCurrentUser(user)
 
     // Load system settings
-    fetch("/api/settings")
+    fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/settings")
       .then((res) => res.json())
       .then((data) => {
         if (data.systemSettings) setSystemSettings(data.systemSettings)
@@ -161,7 +161,7 @@ export default function BillingPage() {
       })
 
     // Load bills
-    fetch("/api/bills")
+    fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/bills")
       .then((res) => {
         if (res.status === 401) {
           router.push("/") // Redirect to login on auth error
@@ -185,7 +185,7 @@ export default function BillingPage() {
       })
 
     // Load stores
-    fetch("/api/stores")
+    fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/stores")
       .then((res) => res.json())
       .then((allStores) => {
         const activeStores = allStores.filter((store: SystemStore) => store.status === "active")
@@ -204,18 +204,23 @@ export default function BillingPage() {
   }, [router]);
 
   useEffect(() => {
+    if (!Array.isArray(products)) {
+      setFilteredProducts([]);
+      return;
+    }
+
     if (searchTerm) {
       const filtered = products.filter(
         (product) =>
           product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (product.category && product.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
           (product.barcodes && product.barcodes.some(b => b.includes(searchTerm))),
-      )
-      setFilteredProducts(filtered)
+      );
+      setFilteredProducts(filtered);
     } else {
-      setFilteredProducts(products.slice(0, 20))
+      setFilteredProducts(products.slice(0, 20));
     }
-  }, [searchTerm, products])
+  }, [searchTerm, products]);
 
   useEffect(() => {
     if (systemSettings.taxPercentage > 0) {
@@ -572,7 +577,7 @@ export default function BillingPage() {
 
     // Save to json file via api
     try {
-      await fetch("/api/bills", {
+      await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/bills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bill),
@@ -588,7 +593,7 @@ export default function BillingPage() {
       if (product) {
         const newStock = product.stock - item.quantity
         try {
-          await fetch(`/api/products/${item.productId}`, {
+          await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/products/${item.productId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ stock: newStock }),

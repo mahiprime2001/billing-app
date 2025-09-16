@@ -140,7 +140,7 @@ export const NotificationBell: React.FC = () => {
       setLoading(true)
       setError(null)
       
-      const response = await fetch('/api/notifications?limit=20')
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + '/api/notifications?limit=20')
       const data: NotificationResponse = await response.json()
       
       if (data.success) {
@@ -160,7 +160,7 @@ export const NotificationBell: React.FC = () => {
   // Mark notification as read
   const markAsRead = async (id: string) => {
     try {
-      const response = await fetch(`/api/notifications/${id}`, {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/notifications/${id}`, {
         method: 'PUT'
       })
       
@@ -182,7 +182,7 @@ export const NotificationBell: React.FC = () => {
   // Dismiss notification
   const dismissNotification = async (id: string) => {
     try {
-      const response = await fetch(`/api/notifications/${id}`, {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/notifications/${id}`, {
         method: 'DELETE'
       })
       
@@ -202,7 +202,7 @@ export const NotificationBell: React.FC = () => {
   // Mark all as read
   const markAllAsRead = async () => {
     try {
-      const response = await fetch('/api/notifications', {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + '/api/notifications', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

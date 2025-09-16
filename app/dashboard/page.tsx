@@ -71,17 +71,11 @@ export default function DashboardPage() {
   })
 
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem("adminLoggedIn")
-    const userData = localStorage.getItem("adminUser")
+    // For now, removing local storage checks as per user's request
+    // The actual user data and role will be fetched via a new authentication flow.
+    // For demonstration, setting a dummy user. This will be replaced by actual login.
+    setUser({ name: "Admin", role: "super_admin" }); // Dummy user for now
 
-    if (isLoggedIn !== "true" || !userData) {
-      router.push("/")
-      return
-    }
-
-    const currentUser = JSON.parse(userData)
-    setUser(currentUser)
-    
     const loadData = async () => {
       try {
         setLoading(true)
@@ -100,18 +94,34 @@ export default function DashboardPage() {
 
   const loadDashboardData = async () => {
     try {
-      // Fetch data from API endpoints
+      // Fetch data directly from Flask backend
       const [billsResponse, productsResponse, storesResponse, usersResponse] = await Promise.all([
-        fetch('/api/bills'),
-        fetch('/api/products'),
-        fetch('/api/stores'),
-        fetch('/api/users')
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/bills`),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products`),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/stores`),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/users`)
       ]);
 
-      if (!billsResponse.ok || !productsResponse.ok || !storesResponse.ok || !usersResponse.ok) {
-        throw new Error('Failed to fetch data');
+      if (!billsResponse.ok) {
+        const errorText = await billsResponse.text();
+        console.error(`Failed to fetch bills: ${billsResponse.status} ${billsResponse.statusText} - ${errorText}`);
+        throw new Error('Failed to fetch bills data');
       }
-
+      if (!productsResponse.ok) {
+        const errorText = await productsResponse.text();
+        console.error(`Failed to fetch products: ${productsResponse.status} ${productsResponse.statusText} - ${errorText}`);
+        throw new Error('Failed to fetch products data');
+      }
+      if (!storesResponse.ok) {
+        const errorText = await storesResponse.text();
+        console.error(`Failed to fetch stores: ${storesResponse.status} ${storesResponse.statusText} - ${errorText}`);
+        throw new Error('Failed to fetch stores data');
+      }
+      if (!usersResponse.ok) {
+        const errorText = await usersResponse.text();
+        console.error(`Failed to fetch users: ${usersResponse.status} ${usersResponse.statusText} - ${errorText}`);
+        throw new Error('Failed to fetch users data');
+      }
       const [bills, products, stores, users] = await Promise.all([
         billsResponse.json() as Promise<Bill[]>,
         productsResponse.json() as Promise<Product[]>,
@@ -170,9 +180,11 @@ export default function DashboardPage() {
     }
   }
 
-  if (!user) {
-    return <div>Loading...</div>
-  }
+  // For now, we will always render the dashboard, assuming authentication will be handled elsewhere
+  // or a dummy user is set.
+  // if (!user) {
+  //   return <div>Loading...</div>
+  // }
 
   return (
     <DashboardLayout>

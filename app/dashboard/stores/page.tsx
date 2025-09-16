@@ -97,8 +97,8 @@ export default function StoresPage() {
     try {
       // Load stores from API
       const [storesResponse, billsResponse] = await Promise.all([
-        fetch("/api/stores"),
-        fetch("/api/bills")
+        fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/stores"),
+        fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/bills")
       ]);
 
       if (storesResponse.ok) {
@@ -151,13 +151,13 @@ export default function StoresPage() {
     try {
       let response
       if (editingStore) {
-        response = await fetch(`/api/stores/${editingStore.id}`, {
+        response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/stores/${editingStore.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(storeData),
         })
       } else {
-        response = await fetch("/api/stores", {
+        response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/stores", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(storeData),
@@ -202,7 +202,7 @@ export default function StoresPage() {
 
     if (confirm("Are you sure you want to delete this store? This action cannot be undone.")) {
       try {
-        const response = await fetch(`/api/stores/${id}`, { method: "DELETE" })
+        const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/stores/${id}`, { method: "DELETE" })
         if (response.ok) {
           await loadData()
         } else {
@@ -222,7 +222,7 @@ export default function StoresPage() {
 
     const newStatus = store.status === "active" ? "inactive" : "active"
     try {
-      const response = await fetch(`/api/stores/${id}`, {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/stores/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),

@@ -4,15 +4,11 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "concurrently \"npm run dev:next\" \"npm run update-from-log\" \"npm run sync-check\"",
+    "dev": "npm run dev:next",
     "dev:next": "next dev",
     "lint": "next lint",
-    "start:next": "npm run start",
-    "start": "concurrently \"next start\" \"npm run update-from-log\" \"npm run sync-check\"",
-    "upload": "npx ts-node --project tsconfig.script.json app/data/mysql/upload.ts",
-    "update-from-log": "npx ts-node --project tsconfig.script.json app/data/mysql/update_from_log.ts",
-    "sync-check": "npx ts-node --project tsconfig.script.json app/data/mysql/sync-check.ts",
-    "export-formatted-data": "node scripts/export-formatted-data.mjs"
+    "start:next": "next start",
+    "start":  "npm run start:next"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

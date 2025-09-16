@@ -61,7 +61,7 @@ interface SystemStore {
   status: string
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = (url: string) => fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`).then((res) => res.json());
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -198,7 +198,7 @@ export default function ProductsPage() {
     };
 
     try {
-      const response = await fetch("/api/products", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newProduct),
@@ -250,7 +250,7 @@ export default function ProductsPage() {
     };
 
     try {
-      const response = await fetch(`/api/products/${editingProduct.id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${editingProduct.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedProduct),
@@ -272,7 +272,7 @@ export default function ProductsPage() {
 
   const handleDeleteProduct = async (productId: string) => {
     try {
-      const response = await fetch(`/api/products/${productId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`, {
         method: "DELETE",
       });
 
@@ -294,7 +294,7 @@ export default function ProductsPage() {
       category: product.category, // Set category for editing
       price: product.price.toString(),
       stock: product.stock.toString(),
-      tax: product.tax.toString(),
+      tax: product.tax != null ? product.tax.toString() : "", // Handle null tax
       barcodes: product.barcodes.length > 0 ? product.barcodes : [""],
     })
     setIsEditDialogOpen(true)
@@ -467,7 +467,7 @@ export default function ProductsPage() {
           // Here you might want to call a bulk-add API endpoint
           // For simplicity, we'll add them one by one.
           for (const product of importedProducts) {
-            await fetch("/api/products", {
+            await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(product),

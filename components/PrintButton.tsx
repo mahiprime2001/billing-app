@@ -24,23 +24,16 @@ export default function PrintButton({
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (typeof window !== "undefined" && (window as any).__TAURI__) {
-      setIsTauri(true);
-    }
-  }, []);
-
   const handlePrint = async () => {
     console.log("PrintButton: handlePrint called.");
-    console.log("PrintButton: isTauri =", isTauri);
     console.log("PrintButton: htmlContent =", htmlContent ? "present" : "absent");
     console.log("PrintButton: thermalContent =", thermalContent ? "present" : "absent");
     console.log("PrintButton: isThermalPrinter =", isThermalPrinter);
 
-    if (!isTauri) {
+    if (!htmlContent && !thermalContent) {
       toast({
-        title: "Printing Not Available",
-        description: "Tauri environment not detected. Printing is only available in the desktop application.",
+        title: "No Content to Print",
+        description: "Please provide HTML or thermal content to print.",
         variant: "destructive",
       });
       return;
@@ -67,7 +60,7 @@ export default function PrintButton({
   };
 
   return (
-    <Button onClick={handlePrint} disabled={!isTauri || isLoading}>
+    <Button onClick={handlePrint} disabled={isLoading || (!htmlContent && !thermalContent)}>
       {isLoading ? "Printing..." : "Print Document"}
     </Button>
   );

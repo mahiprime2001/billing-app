@@ -1,53 +1,40 @@
 import { invoke } from "@tauri-apps/api/core";
 
-/**
- * Wraps the provided HTML content by injecting window.print() on body load.
- * This ensures the native print dialog pops up automatically when rendered.
- * @param html The raw HTML string to print.
- * @returns The wrapped HTML string with print auto-trigger.
- */
-function wrapHtmlWithPrint(html: string): string {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8" />
-      <title>Print Preview</title>
-      <style>
-        /* Optional: Add your print styles here */
-      </style>
-    </head>
-    <body ">
-      ${html}
-    </body>
-    </html>
-  `;
+// Type guard to check if running in Tauri environment
+declare global {
+  interface Window {
+    __TAURI__?: object;
+  }
 }
 
 /**
- * Opens a new Tauri window, writes the provided HTML content to it, and triggers the print dialog.
- * This function is intended for use within the Tauri desktop application.
+ * Opens a new window, writes the provided HTML content to it, and triggers the print dialog.
+ * This function is used for web-based printing.
  * @param htmlContent The HTML string to display and print.
  */
-export async function printWithTauriWindow(htmlContent: string): Promise<void> {
-  try {
-    // Wrap the HTML content so print triggers automatically on load
-    const printableHtml = wrapHtmlWithPrint(htmlContent);
-    await invoke("open_print_window", { html: printableHtml });
-    console.log("Print window opened and print dialog triggered successfully.");
-  } catch (error) {
-    console.error("Failed to open new Tauri window for printing:", error);
+async function printInBrowserWindow(htmlContent: string): Promise<void> {
+  const printWindow = window.open("", "_blank");
+  if (printWindow) {
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+    console.log("Print dialog triggered successfully in browser.");
+  } else {
+    console.error("Failed to open new window for printing.");
     throw new Error("Failed to open new window for printing.");
   }
 }
 
 /**
  * Handles thermal label printing.
+ * This function is intended for use within the Tauri desktop application.
  * @param content The content to print (raw text or label-formatted PDF).
  * @param isThermalPrinter A flag to indicate if the target printer is a thermal printer.
  * @returns A Promise that resolves when the print job is sent.
  */
-export async function printThermalLabel(content: string, isThermalPrinter: boolean): Promise<void> {
+async function printThermalLabel(content: string, isThermalPrinter: boolean): Promise<void> {
   if (!isThermalPrinter) {
     console.warn("Attempted to print thermal label to a non-thermal printer.");
     throw new Error("Not a thermal printer.");
@@ -79,10 +66,23 @@ export async function unifiedPrint({
   thermalContent?: string;
   isThermalPrinter?: boolean;
 }): Promise<void> {
+  const isTauri = typeof window !== "undefined" && !!window.__TAURI__;
+
   if (isThermalPrinter && thermalContent) {
-    await printThermalLabel(thermalContent, true);
+    if (isTauri) {
+      await printThermalLabel(thermalContent, true);
+    } else {
+      console.warn("Thermal printing is only supported in Tauri desktop application.");
+      throw new Error("Thermal printing not available in web environment.");
+    }
   } else if (htmlContent) {
-    await printWithTauriWindow(htmlContent);
+    if (isTauri) {
+      // Tauri-specific HTML printing (if needed, otherwise can fall back to browser print)
+      // For simplicity, we'll use browser print even in Tauri for HTML content unless a specific Tauri API is provided for HTML printing
+      await printInBrowserWindow(htmlContent);
+    } else {
+      await printInBrowserWindow(htmlContent);
+    }
   } else {
     throw new Error("No printable content provided.");
   }

@@ -50,7 +50,13 @@ export default function BillingLayout({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const userData = localStorage.getItem("adminUser")
-    if (userData) {
+    if (!userData) {
+      // If no user data in localStorage, redirect to login page
+      router.push("/")
+      return
+    }
+
+    try {
       const parsedUser = JSON.parse(userData)
       setUser(parsedUser)
 
@@ -71,8 +77,14 @@ export default function BillingLayout({ children }: { children: React.ReactNode 
           setAssignedStores(userStores)
         }
       }
+    } catch (error) {
+      console.error("Error parsing user data from localStorage:", error)
+      // Clear invalid data and redirect to login
+      localStorage.removeItem("adminLoggedIn")
+      localStorage.removeItem("adminUser")
+      router.push("/")
     }
-  }, [])
+  }, [router])
 
   const checkTemporarySessionValidity = (tempUser: AdminUser) => {
     const sessionData = localStorage.getItem("tempUserSession")
@@ -212,6 +224,7 @@ export default function BillingLayout({ children }: { children: React.ReactNode 
         // Regular user logout - only remove auth data
         localStorage.removeItem("adminLoggedIn")
         localStorage.removeItem("adminUser")
+        // No need to remove sessionToken from localStorage as it's now an HttpOnly cookie
       }
 
       router.push("/")
