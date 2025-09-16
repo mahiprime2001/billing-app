@@ -83,18 +83,17 @@ async function uploadData() {
       }
     }
 
-    // Upload settings
-    await connection.execute(
-      'INSERT IGNORE INTO SystemSettings (gstin, taxPercentage, companyName, companyAddress, companyPhone, companyEmail) VALUES (?, ?, ?, ?, ?, ?)',
-      [settings.systemSettings.gstin, settings.systemSettings.taxPercentage, settings.systemSettings.companyName, settings.systemSettings.companyAddress, settings.systemSettings.companyPhone, settings.systemSettings.companyEmail]
-    );
-
-    for (const [name, format] of Object.entries(settings.billFormats)) {
+    // Upload settings - take the first settings entry
+    if (settings.length > 0) {
+      const setting = settings[0];
       await connection.execute(
-        'INSERT IGNORE INTO BillFormats (name, format) VALUES (?, ?)',
-        [name, JSON.stringify(format)]
+        'INSERT IGNORE INTO SystemSettings (gstin, taxPercentage, companyName, companyAddress, companyPhone, companyEmail) VALUES (?, ?, ?, ?, ?, ?)',
+        [setting.gstin, setting.taxPercentage, setting.companyName, setting.companyAddress, setting.companyPhone, setting.companyEmail]
       );
     }
+
+    // Note: billFormats is not present in the settings JSON, so we'll skip it
+    // If you need to upload bill formats, you'll need to add them to the settings.json
 
     await connection.commit();
     console.log('Data uploaded successfully!');

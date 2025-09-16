@@ -102,16 +102,39 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
+interface TooltipPayload<ValueType, NameType> {
+  name: NameType
+  value: ValueType
+  payload: any
+  dataKey: string
+  color: string
+  // Add other properties that might be present in the payload
+}
+
+interface TooltipProps<ValueType, NameType> {
+  active?: boolean
+  payload?: TooltipPayload<ValueType, NameType>[]
+  label?: any
+  labelFormatter?: (label: any) => React.ReactNode
+  formatter?: (value: any, name: string, item: TooltipPayload<ValueType, NameType>) => [string, string]
+  separator?: string
+  contentStyle?: React.CSSProperties
+  itemStyle?: React.CSSProperties
+  labelStyle?: React.CSSProperties
+  content?: any
+  viewBox?: any
+  itemSorter?: (item: TooltipPayload<ValueType, NameType>) => any
+  filter?: (item: TooltipPayload<ValueType, NameType>) => boolean
+  hideLabel?: boolean
+  hideIndicator?: boolean
+  indicator?: "line" | "dot" | "dashed"
+  nameKey?: string
+  labelKey?: string
+}
+
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-    React.ComponentProps<"div"> & {
-      hideLabel?: boolean
-      hideIndicator?: boolean
-      indicator?: "line" | "dot" | "dashed"
-      nameKey?: string
-      labelKey?: string
-    }
+  React.ComponentProps<"div"> & TooltipProps<any, any>
 >(
   (
     {
@@ -123,7 +146,7 @@ const ChartTooltipContent = React.forwardRef<
       hideIndicator = false,
       label,
       labelFormatter,
-      labelClassName,
+      // labelClassName,
       formatter,
       color,
       nameKey,
@@ -148,8 +171,8 @@ const ChartTooltipContent = React.forwardRef<
 
       if (labelFormatter) {
         return (
-          <div className={cn("font-medium", labelClassName)}>
-            {labelFormatter(value, payload)}
+          <div className={cn("font-medium")}>
+            {labelFormatter(value)}
           </div>
         )
       }
@@ -158,13 +181,12 @@ const ChartTooltipContent = React.forwardRef<
         return null
       }
 
-      return <div className={cn("font-medium", labelClassName)}>{value}</div>
+      return <div className={cn("font-medium")}>{value}</div>
     }, [
       label,
       labelFormatter,
       payload,
       hideLabel,
-      labelClassName,
       config,
       labelKey,
     ])
@@ -199,7 +221,7 @@ const ChartTooltipContent = React.forwardRef<
                 )}
               >
                 {formatter && item?.value !== undefined && item.name ? (
-                  formatter(item.value, item.name, item, index, item.payload)
+                  formatter(item.value, item.name, item)
                 ) : (
                   <>
                     {itemConfig?.icon ? (
@@ -258,13 +280,23 @@ ChartTooltipContent.displayName = "ChartTooltip"
 
 const ChartLegend = RechartsPrimitive.Legend
 
+interface LegendPayload {
+  value: any
+  id: string
+  type?: string
+  valueFormatter?: (value: any, entry: any, index: number) => any
+  color?: string
+  // Add other properties that might be present in the payload
+}
+
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
-      hideIcon?: boolean
-      nameKey?: string
-    }
+  React.ComponentProps<"div"> & {
+    payload?: LegendPayload[]
+    verticalAlign?: 'top' | 'middle' | 'bottom'
+    hideIcon?: boolean
+    nameKey?: string
+  }
 >(
   (
     { className, hideIcon = false, payload, verticalAlign = "bottom", nameKey },
@@ -272,7 +304,7 @@ const ChartLegendContent = React.forwardRef<
   ) => {
     const { config } = useChart()
 
-    if (!payload?.length) {
+    if (!payload || !Array.isArray(payload) || !payload.length) {
       return null
     }
 
@@ -285,13 +317,13 @@ const ChartLegendContent = React.forwardRef<
           className
         )}
       >
-        {payload.map((item) => {
-          const key = `${nameKey || item.dataKey || "value"}`
+        {payload.map((item: any) => {
+          const key = `${item.value}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
-
+          
           return (
             <div
-              key={item.value}
+              key={key}
               className={cn(
                 "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
               )}
@@ -306,7 +338,7 @@ const ChartLegendContent = React.forwardRef<
                   }}
                 />
               )}
-              {itemConfig?.label}
+              <span>{itemConfig?.label || item.value}</span>
             </div>
           )
         })}

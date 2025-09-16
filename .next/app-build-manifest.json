@@ -16,16 +16,6 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/page.js"
     ],
-    "/billing/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/billing/loading.js"
-    ],
-    "/billing/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/billing/page.js"
-    ],
     "/dashboard/products/loading": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -35,16 +25,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/products/page.js"
-    ],
-    "/dashboard/users/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/users/loading.js"
-    ],
-    "/dashboard/users/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/users/page.js"
     ]
   }
 }

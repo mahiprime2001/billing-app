@@ -11,7 +11,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from backend.utils.db import DatabaseConnection
+from utils.db import DatabaseConnection
 
 LOG_DIR = os.path.join(os.getcwd(), 'app', 'data', 'logs')
 JSON_DIR = os.path.join(os.getcwd(), 'app', 'data', 'json')
@@ -169,7 +169,24 @@ async def process_changes(changes: list[SyncRecord], logger: logging.Logger):
             await create_password_reset_notification(change)
             continue # Password reset handled, no JSON update needed for this type
 
-        parsed_change_data = json.loads(change_data) if isinstance(change_data, str) else change_data
+        # Handle different types of change_data (str, bytes, or dict)
+        if isinstance(change_data, bytes):
+            try:
+                # Try to decode bytes to string and then parse JSON
+                change_data_str = change_data.decode('utf-8')
+                parsed_change_data = json.loads(change_data_str)
+            except (UnicodeDecodeError, json.JSONDecodeError) as e:
+                logger.error(f'Error decoding change_data: {e}')
+                continue
+        elif isinstance(change_data, str):
+            try:
+                parsed_change_data = json.loads(change_data)
+            except json.JSONDecodeError as e:
+                logger.error(f'Error parsing change_data JSON: {e}')
+                continue
+        else:
+            # If it's already a dict, use it as is
+            parsed_change_data = change_data
         table = parsed_change_data.get('table') # The original TS script used 'table' in change_data for delete
         record_id = parsed_change_data.get('id')
 

@@ -140,10 +140,9 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
   const [selectedBillFormat, setSelectedBillFormat] = useState("A4")
 
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem("adminLoggedIn")
     const userData = localStorage.getItem("adminUser")
 
-    if (isLoggedIn !== "true" || !userData) {
+    if (!userData) {
       router.push("/")
       return
     }
@@ -213,7 +212,6 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
       const filtered = products.filter(
         (product) =>
           product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (product.category && product.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
           (product.barcodes && product.barcodes.some(b => b.includes(searchTerm))),
       );
       setFilteredProducts(filtered);
@@ -888,7 +886,7 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Search products by name, category, or barcode..."
+                    placeholder="Search products by name or barcode..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -908,7 +906,6 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <h3 className="font-medium text-sm">{product.name}</h3>
-                            {product.category && <p className="text-xs text-gray-600 mt-1">{product.category}</p>}
                             {product.barcodes && product.barcodes.length > 0 && (
                               <p className="text-xs text-gray-500 mt-1">Barcode: {product.barcodes[0]}</p>
                             )}

@@ -8,7 +8,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from backend.utils.db import DatabaseConnection
+from utils.db import DatabaseConnection
 
 def get_json_data(filename):
     """Reads and returns data from a JSON file."""

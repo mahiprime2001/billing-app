@@ -35,7 +35,7 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/billing-backend"
+      "binaries/Siriadmin-backend"
     ]
   }
 }

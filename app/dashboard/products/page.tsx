@@ -82,7 +82,6 @@ export default function ProductsPage() {
   // Form states
   const [formData, setFormData] = useState({
     name: "",
-    category: "", // Added category
     price: "",
     stock: "",
     tax: "",
@@ -117,7 +116,6 @@ export default function ProductsPage() {
   const resetForm = () => {
     setFormData({
       name: "",
-      category: "", // Reset category
       price: "",
       stock: "",
       tax: "",
@@ -167,7 +165,7 @@ export default function ProductsPage() {
   }
 
   const handleAddProduct = async () => {
-    if (!formData.name || !formData.price || !formData.stock || !formData.category) {
+    if (!formData.name || !formData.price || !formData.stock) {
       alert("Please fill in all required fields");
       return;
     }
@@ -190,7 +188,6 @@ export default function ProductsPage() {
 
     const newProduct: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
       name: formData.name,
-      category: formData.category, // Added category
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
       tax: Number.parseFloat(formData.tax),
@@ -218,7 +215,7 @@ export default function ProductsPage() {
   };
 
   const handleEditProduct = async () => {
-    if (!editingProduct || !formData.name || !formData.price || !formData.stock || !formData.category) {
+    if (!editingProduct || !formData.name || !formData.price || !formData.stock) {
       alert("Please fill in all required fields");
       return;
     }
@@ -242,7 +239,6 @@ export default function ProductsPage() {
 
     const updatedProduct: Partial<Product> = {
       name: formData.name,
-      category: formData.category, // Added category
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
       tax: Number.parseFloat(formData.tax),
@@ -291,7 +287,6 @@ export default function ProductsPage() {
     setEditingProduct(product)
     setFormData({
       name: product.name,
-      category: product.category, // Set category for editing
       price: product.price.toString(),
       stock: product.stock.toString(),
       tax: product.tax != null ? product.tax.toString() : "", // Handle null tax
@@ -485,10 +480,11 @@ export default function ProductsPage() {
     reader.readAsText(file);
   };
 
-  const filteredProducts = products.filter((product: Product) => {
-    const matchesSearch =
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch = searchTerm === "" || 
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.barcodes || []).some((barcode: string) => barcode.includes(searchTerm));
+      product.barcodes.some(barcode => barcode.toLowerCase().includes(searchTerm.toLowerCase()));
+    
     const matchesStock =
       stockFilter === "all" ||
       (stockFilter === "low" && product.stock <= 5) ||
@@ -560,17 +556,6 @@ export default function ProductsPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="category">Category *</Label>
-                      <Input
-                        id="category"
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                        placeholder="Enter product category"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
                       <Label htmlFor="price">Price (₹) *</Label>
                       <Input
                         id="price"
@@ -580,17 +565,6 @@ export default function ProductsPage() {
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                         placeholder="0.00"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="stock">Stock Quantity *</Label>
-                      <Input
-                        id="stock"
-                        type="number"
-                        min="0"
-                        value={formData.stock}
-                        onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                        placeholder="0"
                       />
                     </div>
                   </div>
@@ -792,7 +766,6 @@ export default function ProductsPage() {
                       />
                     </th>
                     <th className="text-left p-4 font-medium">Product</th>
-                    <th className="text-left p-4 font-medium">Category</th>
                     <th className="text-left p-4 font-medium">Price</th>
                     <th className="text-left p-4 font-medium">Tax</th>
                     <th className="text-left p-4 font-medium">Stock</th>
@@ -819,9 +792,6 @@ export default function ProductsPage() {
                           <div>
                             <div className="font-medium">{product.name}</div>
                           </div>
-                        </td>
-                        <td className="p-4">
-                          <span className="font-medium">{product.category}</span>
                         </td>
                         <td className="p-4">
                           <span className="font-medium">₹{product.price.toFixed(2)}</span>
@@ -1025,15 +995,6 @@ export default function ProductsPage() {
                     placeholder="Enter product name"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-category">Category *</Label>
-                  <Input
-                    id="edit-category"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="Enter product category"
-                  />
-                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -1060,30 +1021,17 @@ export default function ProductsPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-stock">Stock Quantity *</Label>
-                  <Input
-                    id="edit-stock"
-                    type="number"
-                    min="0"
-                    value={formData.stock}
-                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-tax">Tax (%)</Label>
-                  <Input
-                    id="edit-tax"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.tax}
-                    onChange={(e) => setFormData({ ...formData, tax: e.target.value })}
-                    placeholder="0.00"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-tax">Tax (%)</Label>
+                <Input
+                  id="edit-tax"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.tax}
+                  onChange={(e) => setFormData({ ...formData, tax: e.target.value })}
+                  placeholder="0.00"
+                />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">

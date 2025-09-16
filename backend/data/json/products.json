@@ -1,7 +1,6 @@
 [
   {
     "name": "hz rings",
-    "category": "ntg special",
     "price": 250,
     "stock": 20,
     "tax": null,
@@ -11,13 +10,5 @@
     "id": "1757806429472",
     "createdAt": "2025-09-13T23:33:49.472Z",
     "updatedAt": "2025-09-15T12:42:37.102955"
-  },
-  {
-    "name": "Test Product",
-    "price": 10.99,
-    "stock": 100,
-    "id": "98d1e40a-e336-4c50-9197-476145a7a53c",
-    "createdAt": "2025-09-15T23:35:56.449600",
-    "updatedAt": "2025-09-15T23:35:56.449617"
   }
 ]

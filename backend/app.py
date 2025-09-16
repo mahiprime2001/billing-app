@@ -38,7 +38,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(PROJECT_ROOT, '.env')) # Load environment variables from .env file (assuming .env is in the project root)
 
 app = Flask(__name__)
-CORS(app) # Enable CORS for all routes and origins
+CORS(app, origins="*", supports_credentials=True) # Enable CORS for all routes and origins
 
 # Secret key for session management (replace with a strong, random key in production)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'super_secret_key_for_dev')

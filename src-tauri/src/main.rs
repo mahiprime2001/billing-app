@@ -11,7 +11,7 @@ fn main() {
             let handle = app.app_handle();
 
             // Create the sidecar command for the "billing-backend" binary
-            let command = handle.shell().sidecar("billing-backend")?;
+            let command = handle.shell().sidecar("Siriadmin-backend")?;
 
             // Spawn the sidecar process - returns (Receiver<CommandEvent>, CommandChild)
             let (mut rx, mut _child) = command.spawn().expect("Failed to spawn sidecar");

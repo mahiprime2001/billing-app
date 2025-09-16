@@ -1,7 +1,7 @@
 import os
 import json
 from datetime import datetime
-from backend.utils.db import DatabaseConnection
+from utils.db import DatabaseConnection
 
 JSON_DIR = os.path.join(os.getcwd(), 'app', 'data', 'json')
 

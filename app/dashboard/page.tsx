@@ -186,12 +186,24 @@ export default function DashboardPage() {
   //   return <div>Loading...</div>
   // }
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
         {/* Welcome Header */}
         <div>
-          <h1 className="text-4xl font-bold text-gray-900">Welcome back, {user.name}!</h1>
+          <h1 className="text-4xl font-bold text-gray-900">
+            Welcome back{user?.name ? `, ${user.name}` : ''}!
+          </h1>
           <p className="text-gray-600 mt-2">Here's what's happening with your jewelry business today.</p>
         </div>
 

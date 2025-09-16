@@ -9,7 +9,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from backend.utils.db import DatabaseConnection
+from utils.db import DatabaseConnection
 
 # Setup a logger for this script
 logger = logging.getLogger(__name__)
@@ -27,155 +27,169 @@ def _get_table_columns(cursor, table_name):
 def apply_change_to_db(table_name: str, change_type: str, record_id: str, change_data: dict, logger: logging.Logger):
     """
     Applies a change (CREATE, UPDATE, DELETE) to the respective MySQL table.
+    Uses connection context manager to ensure proper connection handling.
     """
-    conn = None
-    cursor = None
     try:
-        conn = DatabaseConnection.get_connection()
-        cursor = conn.cursor()
-        conn.start_transaction()
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+            conn.start_transaction()
 
-        if change_type == 'DELETE':
-            if table_name == 'Bills':
-                # Delete BillItems first due to foreign key constraint
-                cursor.execute("DELETE FROM `BillItems` WHERE `billId` = %s", (record_id,))
-            elif table_name == 'Products':
-                # Delete ProductBarcodes first
-                cursor.execute("DELETE FROM `ProductBarcodes` WHERE `productId` = %s", (record_id,))
-            elif table_name == 'Users':
-                # Delete UserStores first
-                cursor.execute("DELETE FROM `UserStores` WHERE `userId` = %s", (record_id,))
-            
-            cursor.execute(f"DELETE FROM `{table_name}` WHERE `id` = %s", (record_id,))
-            logger.info(f"DELETE - {table_name} - ID: {record_id}")
+            try:
+                if change_type == 'DELETE':
+                    if table_name == 'Bills':
+                        cursor.execute("DELETE FROM `BillItems` WHERE `billId` = %s", (record_id,))
+                    elif table_name == 'Products':
+                        cursor.execute("DELETE FROM `ProductBarcodes` WHERE `productId` = %s", (record_id,))
+                    elif table_name == 'Users':
+                        cursor.execute("DELETE FROM `UserStores` WHERE `userId` = %s", (record_id,))
+                    
+                    cursor.execute(f"DELETE FROM `{table_name}` WHERE `id` = %s", (record_id,))
+                    logger.info(f"DELETE - {table_name} - ID: {record_id}")
 
-        elif change_type in ['CREATE', 'UPDATE']:
-            # Filter change_data to only include columns present in the table
-            table_columns = _get_table_columns(cursor, table_name)
-            filtered_data = {k: v for k, v in change_data.items() if k in table_columns}
+                elif change_type in ['CREATE', 'UPDATE']:
+                    table_columns = _get_table_columns(cursor, table_name)
+                    filtered_data = {k: v for k, v in change_data.items() if k in table_columns}
 
-            if not filtered_data:
-                logger.warning(f"No valid columns found for {table_name} from change_data. Skipping C/U operation.")
+                    if not filtered_data:
+                        logger.warning(f"No valid columns found for {table_name} from change_data. Skipping C/U operation.")
+                        conn.rollback()
+                        return False
+
+                    columns = ', '.join([f"`{key}`" for key in filtered_data.keys()])
+                    placeholders = ', '.join(['%s'] * len(filtered_data))
+                    update_placeholders = ', '.join([f"`{col}` = %s" for col in filtered_data.keys()])
+                    
+                    query = f"""
+                        INSERT INTO `{table_name}` ({columns}) 
+                        VALUES ({placeholders}) 
+                        ON DUPLICATE KEY UPDATE {update_placeholders}
+                    """
+                    values = list(filtered_data.values())
+                    cursor.execute(query, values + values)
+                    logger.info(f"{change_type} - {table_name} - ID: {record_id}")
+
+                    # Handle related tables
+                    if table_name == 'Products' and 'barcodes' in change_data:
+                        barcodes = change_data['barcodes']
+                        cursor.execute("SELECT `barcode` FROM `ProductBarcodes` WHERE `productId` = %s", (record_id,))
+                        existing_barcodes = {row['barcode'] for row in cursor.fetchall()}
+                        new_barcodes = set(barcodes)
+
+                        # Add new barcodes
+                        for barcode in new_barcodes - existing_barcodes:
+                            cursor.execute(
+                                "INSERT INTO `ProductBarcodes` (`productId`, `barcode`) VALUES (%s, %s)",
+                                (record_id, barcode)
+                            )
+                            logger.info(f"ADD - ProductBarcode - ProductID: {record_id}, Barcode: {barcode}")
+                        
+                        # Remove old barcodes
+                        for barcode in existing_barcodes - new_barcodes:
+                            cursor.execute(
+                                "DELETE FROM `ProductBarcodes` WHERE `productId` = %s AND `barcode` = %s",
+                                (record_id, barcode)
+                            )
+                            logger.info(f"REMOVE - ProductBarcode - ProductID: {record_id}, Barcode: {barcode}")
+
+                    elif table_name == 'Users' and 'assignedStores' in change_data:
+                        assigned_stores = change_data['assignedStores']
+                        cursor.execute("SELECT `storeId` FROM `UserStores` WHERE `userId` = %s", (record_id,))
+                        existing_stores = {row['storeId'] for row in cursor.fetchall()}
+                        new_stores = set(assigned_stores)
+
+                        # Add new store assignments
+                        for store_id in new_stores - existing_stores:
+                            cursor.execute(
+                                "INSERT INTO `UserStores` (`userId`, `storeId`) VALUES (%s, %s)",
+                                (record_id, store_id)
+                            )
+                            logger.info(f"ADD - UserStore - UserID: {record_id}, StoreID: {store_id}")
+                        
+                        # Remove old store assignments
+                        for store_id in existing_stores - new_stores:
+                            cursor.execute(
+                                "DELETE FROM `UserStores` WHERE `userId` = %s AND `storeId` = %s",
+                                (record_id, store_id)
+                            )
+                            logger.info(f"REMOVE - UserStore - UserID: {record_id}, StoreID: {store_id}")
+
+                    elif table_name == 'Bills' and 'items' in change_data:
+                        # Handle BillItems
+                        bill_items = change_data['items']
+                        
+                        # First, delete all existing items for this bill to handle updates/deletions
+                        cursor.execute("DELETE FROM `BillItems` WHERE `billId` = %s", (record_id,))
+                        logger.info(f"DELETE ALL - BillItems for BillID: {record_id}")
+
+                        # Then insert the new items
+                        for item in bill_items:
+                            # Filter item data to only include columns present in BillItems table
+                            bill_item_columns = _get_table_columns(cursor, 'BillItems')
+                            filtered_item_data = {k: v for k, v in item.items() if k in bill_item_columns}
+                            
+                            # Ensure billId is set
+                            filtered_item_data['billId'] = record_id
+                            if 'productId' not in filtered_item_data:
+                                logger.warning(f"Bill item missing productId for BillID: {record_id}. Skipping item: {item}")
+                                continue
+
+                            item_columns = ', '.join([f"`{key}`" for key in filtered_item_data.keys()])
+                            item_placeholders = ', '.join(['%s'] * len(filtered_item_data))
+                            
+                            item_query = f"INSERT INTO `BillItems` ({item_columns}) VALUES ({item_placeholders})"
+                            cursor.execute(item_query, list(filtered_item_data.values()))
+                            logger.info(f"ADD - BillItem - BillID: {record_id}, ProductID: {filtered_item_data.get('productId')}")
+
+                # Commit the transaction if we got here without exceptions
+                conn.commit()
+                return True
+
+            except Exception as e:
+                # Rollback on any error
                 conn.rollback()
-                return
-
-            columns = ', '.join([f"`{key}`" for key in filtered_data.keys()])
-            placeholders = ', '.join(['%s'] * len(filtered_data))
-            update_placeholders = ', '.join([f"`{col}` = %s" for col in filtered_data.keys()])
-            
-            query = f"INSERT INTO `{table_name}` ({columns}) VALUES ({placeholders}) ON DUPLICATE KEY UPDATE {update_placeholders}"
-            values = list(filtered_data.values())
-            cursor.execute(query, values + values)
-            logger.info(f"{change_type} - {table_name} - ID: {record_id} - Data: {filtered_data}")
-
-            # Handle related tables
-            if table_name == 'Products':
-                # Handle ProductBarcodes
-                barcodes = change_data.get('barcodes', [])
-                cursor.execute("SELECT `barcode` FROM `ProductBarcodes` WHERE `productId` = %s", (record_id,))
-                existing_barcodes = {row[0] for row in cursor.fetchall()}
-                new_barcodes = set(barcodes)
-
-                for barcode in new_barcodes:
-                    if barcode not in existing_barcodes:
-                        cursor.execute("INSERT INTO `ProductBarcodes` (`productId`, `barcode`) VALUES (%s, %s)", (record_id, barcode))
-                        logger.info(f"CREATE - ProductBarcodes - ProductID: {record_id}, Barcode: {barcode}")
-                for barcode in existing_barcodes:
-                    if barcode not in new_barcodes:
-                        cursor.execute("DELETE FROM `ProductBarcodes` WHERE `productId` = %s AND `barcode` = %s", (record_id, barcode))
-                        logger.info(f"DELETE - ProductBarcodes - ProductID: {record_id}, Barcode: {barcode}")
-
-            elif table_name == 'Users':
-                # Handle UserStores
-                assigned_stores = change_data.get('assignedStores', [])
-                cursor.execute("SELECT `storeId` FROM `UserStores` WHERE `userId` = %s", (record_id,))
-                existing_stores = {row[0] for row in cursor.fetchall()}
-                new_stores = set(assigned_stores)
-
-                for store_id in new_stores:
-                    if store_id not in existing_stores:
-                        cursor.execute("INSERT INTO `UserStores` (`userId`, `storeId`) VALUES (%s, %s)", (record_id, store_id))
-                        logger.info(f"CREATE - UserStores - UserID: {record_id}, StoreID: {store_id}")
-                for store_id in existing_stores:
-                    if store_id not in new_stores:
-                        cursor.execute("DELETE FROM `UserStores` WHERE `userId` = %s AND `storeId` = %s", (record_id, store_id))
-                        logger.info(f"DELETE - UserStores - UserID: {record_id}, StoreID: {store_id}")
-
-            elif table_name == 'Bills':
-                # Handle BillItems
-                bill_items = change_data.get('items', [])
-                # First, delete all existing items for this bill to handle updates/deletions
-                cursor.execute("DELETE FROM `BillItems` WHERE `billId` = %s", (record_id,))
-                logger.info(f"DELETE ALL - BillItems for BillID: {record_id} before re-inserting.")
-
-                for item in bill_items:
-                    # Filter item data to only include columns present in BillItems table
-                    bill_item_columns = _get_table_columns(cursor, 'BillItems')
-                    filtered_item_data = {k: v for k, v in item.items() if k in bill_item_columns}
-                    
-                    # Ensure billId and productId are set
-                    filtered_item_data['billId'] = record_id
-                    if 'productId' not in filtered_item_data:
-                        logger.warning(f"Bill item missing productId for BillID: {record_id}. Skipping item: {item}")
-                        continue
-
-                    item_columns = ', '.join([f"`{key}`" for key in filtered_item_data.keys()])
-                    item_placeholders = ', '.join(['%s'] * len(filtered_item_data))
-                    
-                    # BillItems has an AUTO_INCREMENT id, so we just insert
-                    item_query = f"INSERT INTO `BillItems` ({item_columns}) VALUES ({item_placeholders})"
-                    cursor.execute(item_query, list(filtered_item_data.values()))
-                    logger.info(f"CREATE - BillItems - BillID: {record_id}, ProductID: {item.get('productId')}")
-
-        conn.commit()
+                logger.error(f"Error applying change to DB for {table_name} (ID: {record_id}, Type: {change_type}): {e}")
+                return False
+                
     except Exception as e:
-        if conn:
-            conn.rollback()
-        logger.error(f"Error applying change to DB for {table_name} (ID: {record_id}, Type: {change_type}): {e}")
-    finally:
-        if conn:
-            if cursor:
-                cursor.close()
-            conn.close()
+        logger.error(f"Database connection error in apply_change_to_db: {e}")
+        return False
 
 def log_and_apply_sync(table_name: str, change_type: str, record_id: str, change_data: dict, logger: logging.Logger):
     """
     Logs a change into the sync_table and applies it to the respective MySQL table.
+    Uses a connection context manager to ensure proper connection handling.
     """
-    conn = None
-    cursor = None
     try:
-        conn = DatabaseConnection.get_connection()
-        cursor = conn.cursor()
-        conn.start_transaction()
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+            conn.start_transaction()
 
-        # 1. Log to sync_table
-        sync_query = """
-            INSERT INTO `sync_table` (`sync_time`, `change_type`, `change_data`)
-            VALUES (%s, %s, %s)
-        """
-        sync_params = (datetime.now(), change_type, json.dumps(change_data))
-        cursor.execute(sync_query, sync_params)
-        logger.info(f"Logged to sync_table: {table_name} - {change_type} - {record_id}")
-        
-        conn.commit() # Commit sync_table log immediately
-
-        # 2. Apply change to the actual data table
-        # We need a new connection for apply_change_to_db to manage its own transaction
-        # or modify apply_change_to_db to accept an existing connection/cursor.
-        # For simplicity and isolation, let's make apply_change_to_db manage its own connection.
-        # This means we don't pass the current conn/cursor.
-        apply_change_to_db(table_name, change_type, record_id, change_data, logger)
-
+            try:
+                # 1. Log to sync_table
+                sync_query = """
+                    INSERT INTO `sync_table` (`sync_time`, `change_type`, `change_data`)
+                    VALUES (%s, %s, %s)
+                """
+                sync_params = (datetime.now(), change_type, json.dumps(change_data))
+                cursor.execute(sync_query, sync_params)
+                logger.info(f"Logged to sync_table: {table_name} - {change_type} - {record_id}")
+                
+                # 2. Apply the change using the same connection
+                if apply_change_to_db(table_name, change_type, record_id, change_data, logger):
+                    conn.commit()
+                    return True
+                else:
+                    conn.rollback()
+                    return False
+                    
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"Error in transaction for {table_name} (ID: {record_id}, Type: {change_type}): {e}")
+                return False
+                
     except Exception as e:
-        if conn:
-            conn.rollback() # Rollback sync_table log if something went wrong before commit
-        logger.error(f"Error in log_and_apply_sync for {table_name} (ID: {record_id}, Type: {change_type}): {e}")
-    finally:
-        if conn:
-            if cursor:
-                cursor.close()
-            conn.close()
+        logger.error(f"Database connection error in log_and_apply_sync: {e}")
+        return False
 
 
 if __name__ == "__main__":

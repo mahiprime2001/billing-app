@@ -106,10 +106,9 @@ export default function BillingHistoryPage() {
   })
 
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem("adminLoggedIn")
     const userData = localStorage.getItem("adminUser")
 
-    if (isLoggedIn !== "true" || !userData) {
+    if (!userData) {
       router.push("/")
       return
     }
