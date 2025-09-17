@@ -89,29 +89,24 @@ export default function ProductsPage() {
   })
 
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem("adminLoggedIn")
-    const userData = localStorage.getItem("adminUser")
+    const userData = localStorage.getItem("adminUser");
+    if (userData) {
+      const user = JSON.parse(userData);
+      setCurrentUser(user);
 
-    if (isLoggedIn !== "true" || !userData) {
-      router.push("/");
-      return;
-    }
-
-    const user = JSON.parse(userData);
-    setCurrentUser(user);
-
-    // Load assigned stores for billing users
-    if (user.role === "billing_user" && user.assignedStores) {
-      const savedStores = localStorage.getItem("stores");
-      if (savedStores) {
-        const allStores = JSON.parse(savedStores);
-        const userStores = allStores.filter(
-          (store: SystemStore) => user.assignedStores?.includes(store.id) && store.status === "active"
-        );
-        setAssignedStores(userStores);
+      // Load assigned stores for billing users
+      if (user.role === "billing_user" && user.assignedStores) {
+        const savedStores = localStorage.getItem("stores");
+        if (savedStores) {
+          const allStores = JSON.parse(savedStores);
+          const userStores = allStores.filter(
+            (store: SystemStore) => user.assignedStores?.includes(store.id) && store.status === "active"
+          );
+          setAssignedStores(userStores);
+        }
       }
     }
-  }, [router]);
+  }, []);
 
   const resetForm = () => {
     setFormData({

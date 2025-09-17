@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+// import { print } from "@tauri-apps/api/printing"; // Removed direct import, will use invoke
 
 // Type guard to check if running in Tauri environment
 declare global {
@@ -19,8 +20,8 @@ async function printInBrowserWindow(htmlContent: string): Promise<void> {
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
-    printWindow.close();
-    console.log("Print dialog triggered successfully in browser.");
+    // printWindow.close(); // Removed to prevent immediate closing of print dialog
+    console.log("Print dialog triggered successfully in browser. User needs to close the window manually.");
   } else {
     console.error("Failed to open new window for printing.");
     throw new Error("Failed to open new window for printing.");
@@ -77,9 +78,15 @@ export async function unifiedPrint({
     }
   } else if (htmlContent) {
     if (isTauri) {
-      // Tauri-specific HTML printing (if needed, otherwise can fall back to browser print)
-      // For simplicity, we'll use browser print even in Tauri for HTML content unless a specific Tauri API is provided for HTML printing
-      await printInBrowserWindow(htmlContent);
+      // Use custom Tauri command for HTML content preparation, then trigger browser print
+      try {
+        await invoke("print_html_document", { html_content: htmlContent });
+        console.log("HTML content sent to backend for preparation. Triggering browser print.");
+        await printInBrowserWindow(htmlContent); // Trigger browser print after backend preparation
+      } catch (error) {
+        console.error("Failed to prepare HTML content via custom Tauri command, falling back to direct browser print:", error);
+        await printInBrowserWindow(htmlContent);
+      }
     } else {
       await printInBrowserWindow(htmlContent);
     }
