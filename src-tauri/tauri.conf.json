@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Siri-Admin-app",
   "version": "0.1.0",
-  "identifier": "com.siriadmin.app",
+  "identifier": "com.siriadmin.dev",
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
@@ -16,12 +16,26 @@
         "width": 800,
         "height": 600,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "maximized": true,
+        "center": true,
+        "decorations": true,
+        "alwaysOnTop": false
       }
     ],
     "security": {
       "csp": null,
       "capabilities": ["default-capabilities"]
+    }
+  },
+  "plugins":{
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/mahiprime2001/billing-app/releases/download/Updates/updater.json"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE3OUI5OUYwQjczMTQyMgpSV1FpRkhNTG43bDVBY0tkenFYblRNTTRXQTUvSnUrV0ZoMEpjdVB6M3RvclFXZ2xFK2VzRHZMMQo="
     }
   },
   "bundle": {

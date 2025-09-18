@@ -46,7 +46,8 @@ import {
   XCircle,
 } from "lucide-react";
 import PrintButton from "@/components/PrintButton";
-import { unifiedPrint } from "@/app/utils/printUtils";
+import { printHtml } from "@/lib/printUtils";
+
 interface AdminUser {
   name: string
   email: string
@@ -300,16 +301,16 @@ export default function ProductsPage() {
       const JsBarcode = (await import("jsbarcode")).default
       const canvas = document.createElement("canvas")
 
-      // Set canvas size for optimal barcode generation
-      canvas.width = 300
-      canvas.height = 80
+      // Optimized canvas size for 81mm x 12mm horizontal layout
+      canvas.width = 180  // Reduced width for horizontal fit
+      canvas.height = 40  // Reduced height to fit in 12mm label
 
       const options = {
         format: "CODE128",
-        width: 2,
-        height: 50,
+        width: 2,      // Thinner bars for horizontal layout
+        height: 35,    // Lower height to fit in 12mm label
         displayValue: false,
-        margin: 5,
+        margin: 1,     // Minimal margin
         background: "#ffffff",
         lineColor: "#000000",
       }
@@ -324,107 +325,157 @@ export default function ProductsPage() {
 
   const printBarcodes = async () => {
     try {
-      const selectedProductsList = products.filter((p) => currentPrintProducts.includes(p.id));
+      const selectedProductsList = products.filter((p) =>
+        currentPrintProducts.includes(p.id)
+      );
       if (selectedProductsList.length === 0) {
         alert("No products selected for printing");
         return;
       }
-  
+
       const storeName = assignedStores?.[0]?.name || "Siri Art Jewellers";
-  
+
       for (const product of selectedProductsList) {
         for (let qty = 0; qty < printQuantity; qty++) {
           let barcodeValue = (product.barcodes || [])[0] || product.id;
-  
+
           if (!validateBarcode(barcodeValue)) {
             barcodeValue = generateBarcode();
           }
-  
+
           const barcodeDataUrl = await createBarcodeImage(barcodeValue);
           if (!barcodeDataUrl) continue;
-  
+
+          // Horizontal layout for 81mm x 12mm label to fit in single page
           const labelHTML = `
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>Print Label</title>
-                <style>
-                  @page {
-                    size: 72mm 30mm;
-                    margin: 0;
-                  }
-  
-                  body {
-                    margin: 0;
-                    padding: 0;
-                    font-family: monospace;
-                    width: 72mm;
-                    height: 30mm;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: space-between;
-                    align-items: stretch;
-                    background: #fff;
-                    color: #000;
-                  }
-  
-                  .top {
-                    padding: 2mm 4mm 0 4mm;
-                    font-size: 10pt;
-                    text-align: left;
-                  }
-  
-                  .center {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    height: 14mm;
-                    text-align: center;
-                  }
-  
-                  .barcode-image {
-                    height: 10mm;
-                    width: auto;
-                    margin-bottom: 1mm;
-                  }
-  
-                  .barcode-number {
-                    font-size: 8pt;
-                    letter-spacing: 1px;
-                  }
-  
-                  .bottom {
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 10pt;
-                    padding: 0 4mm 2mm 4mm;
-                  }
-                </style>
-              </head>
-              <body>
-                <div class="top">${storeName}</div>
-                <div class="center">
-                  <img src="${barcodeDataUrl}" class="barcode-image" />
-                  <div class="barcode-number">${barcodeValue}</div>
-                </div>
-                <div class="bottom">
-                  <div>${product.name}</div>
-                  <div>₹${product.price.toFixed(2)}</div>
-                </div>
-              </body>
-            </html>
+           <!DOCTYPE html>
+<html>
+  <head>
+    <title>Print Label</title>
+    <style>
+      @page {
+        size: 80mm 16mm;
+        margin: 0;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Arial', sans-serif;
+        width: 80mm;
+        height: 16mm;
+        background: #fff;
+        color: #000;
+        overflow: hidden;
+      }
+
+      .label-container {
+      padding-top: 4mm;
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
+        box-sizing: border-box;
+        font-size: 6px;
+        line-height: 1;
+        height: 100%;
+        width: 55mm; /* total width of the content container */
+        margin-left: 0; /* start from left edge */
+      }
+
+      .left-section,
+      .barcode-section {
+      padding-top: 2mm;
+        width: 25mm; /* each takes half of the 55mm */
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center; /* center vertically */
+      }
+
+      /* Barcode on left - center horizontally the barcode image and number */
+      .barcode-section {
+      padding-top: 2mm;
+        align-items: center;
+        justify-content: flex-end;
+
+      }
+
+      /* Product info on right - align text to left */
+      .left-section {
+        align-items: flex-start;
+        padding-left: 2mm;
+      }
+
+      .company-name {
+        font-size: 6px;
+        font-weight: bold;
+        margin-bottom: 0.5mm;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .product-name {
+        font-size: 7px;
+        font-weight: bold;
+        margin-bottom: 0.5mm;
+        line-height: 1.1;
+        max-height: 6mm;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        word-break: break-word;
+      }
+
+      .price {
+        font-size: 7px;
+        font-weight: bold;
+        white-space: nowrap;
+      }
+
+      .barcode-image {
+      padding-top: 0.5mm;
+        height: 8mm;
+        max-width: 27.5mm;
+        margin-bottom: 0.5mm;
+      }
+
+      .barcode-number {
+        height: 3mm;
+        font-size: 7px;
+        font-weight: bold;
+        text-align: center;
+        letter-spacing: 0.2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="label-container">
+      <!-- Barcode section on left -->
+      <div class="barcode-section">
+        <img src="${barcodeDataUrl}" class="barcode-image" alt="Barcode" />
+        <div class="barcode-number">${barcodeValue}</div>
+      </div>
+
+      <!-- Product info section on right -->
+      <div class="left-section">
+        <div class="company-name">${storeName}</div>
+        <div class="product-name">Product Name: ${product.name}</div>
+        <div class="price">Price: ₹${product.price.toFixed(2)}</div>
+      </div>
+    </div>
+  </body>
+</html>
+
           `;
-  
-          // Use unifiedPrint for both web and Tauri environments
-          await unifiedPrint({
-            htmlContent: labelHTML,
-            isThermalPrinter: true, // Assuming barcode labels are always for thermal printers
-          });
+
+          await printHtml(labelHTML);
         }
       }
-  
-      alert("Printed barcode labels successfully.");
+
+      alert("Generated 81mm x 12mm barcode labels successfully for TVS LP 46 DLite printer.");
       setIsPrintDialogOpen(false);
       setSelectedProducts([]);
       setCurrentPrintProducts([]);
@@ -434,6 +485,7 @@ export default function ProductsPage() {
     }
   };
 
+  // Export and Import functions
   const exportProducts = () => {
     const dataStr = JSON.stringify(products, null, 2);
     const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
@@ -880,17 +932,16 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
 
-        {/* Print Dialog - Individual Labels Only */}
+        {/* Print Dialog - Optimized for 81mm x 12mm labels */}
         <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
           <DialogContent className="sm:max-w-[400px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center">
                 <Printer className="h-5 w-5 mr-2" />
-                Print Individual Barcode Labels
+                Print 81mm x 12mm Labels for TVS LP 46 DLite
               </DialogTitle>
               <DialogDescription>
-                Generate individual Code 128 labels with price and barcode for {currentPrintProducts.length} selected
-                product(s)
+                Generate horizontal layout labels (81×12mm) for {currentPrintProducts.length} selected product(s)
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-6 py-4">
@@ -908,21 +959,21 @@ export default function ProductsPage() {
                 <p className="text-sm text-gray-600">Number of labels to print for each selected product</p>
               </div>
 
-              {/* Label Specifications */}
+              {/* Label Specifications for 81mm x 12mm */}
               <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                <h4 className="font-medium text-sm">Label Specifications</h4>
+                <h4 className="font-medium text-sm">Label Specifications (TVS LP 46 DLite)</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">Label Size:</span>
-                    <span className="ml-2 font-medium">80×40mm</span>
+                    <span className="ml-2 font-medium">81×12mm</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Layout:</span>
+                    <span className="ml-2 font-medium">Horizontal</span>
                   </div>
                   <div>
                     <span className="text-gray-600">Barcode Type:</span>
                     <span className="ml-2 font-medium">Code 128</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Layout:</span>
-                    <span className="ml-2 font-medium">Individual Labels</span>
                   </div>
                   <div>
                     <span className="text-gray-600">Total Labels:</span>
@@ -949,14 +1000,15 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {/* Label Content Preview */}
+              {/* Horizontal Layout Info */}
               <div className="space-y-3">
-                <Label className="text-base font-medium">Label Content</Label>
+                <Label className="text-base font-medium">Optimized Horizontal Layout</Label>
                 <div className="text-sm text-gray-600 space-y-1">
-                  <p>• Code 128 barcode at the top</p>
-                  <p>• Barcode number below the barcode</p>
-                  <p>• Product price prominently at the bottom</p>
-                  <p>• Each label opens in a separate window for printing</p>
+                  <p>• Left section: Company name, product name, price</p>
+                  <p>• Center section: CODE128 barcode with number</p>
+                  <p>• Right section: Product ID for reference</p>
+                  <p>• All content fits within 12mm height</p>
+                  <p>• Perfect single-page printing for TVS LP 46 DLite</p>
                 </div>
               </div>
             </div>
@@ -966,7 +1018,7 @@ export default function ProductsPage() {
               </Button>
               <Button onClick={printBarcodes} className="bg-blue-600 hover:bg-blue-700">
                 <Printer className="h-4 w-4 mr-2" />
-                Generate Labels
+                Print Labels
               </Button>
             </DialogFooter>
           </DialogContent>

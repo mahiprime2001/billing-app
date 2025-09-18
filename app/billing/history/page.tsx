@@ -37,7 +37,7 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import type { DateRange } from "react-day-picker"
-import { unifiedPrint } from "@/app/utils/printUtils"
+import { printHtml } from "@/lib/printUtils"
 
 interface Sale {
   id: string
@@ -406,13 +406,7 @@ export default function BillingHistoryPage() {
       </html>
     `
 
-    const printWindow = window.open("", "_blank")
-    if (!printWindow) {
-      console.error("Failed to open print window.");
-      return;
-    }
-
-    await unifiedPrint({ htmlContent: receiptHTML });
+    await printHtml(receiptHTML);
   }
 
   const stats = calculateStats()

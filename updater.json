@@ -1,0 +1,23 @@
+{
+  "version": "0.1.0",
+  "notes": "See the latest release notes at https://github.com/mahiprime2001/billing-app/releases/tag/v0.1.0",
+  "pub_date": "2025-09-17T11:30:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "YOUR_WINDOWS_SIGNATURE_HERE",
+      "url": "https://github.com/mahiprime2001/billing-app/releases/download/Updates/Siri.Art.Jewellery_0.1.0_x64_en-US.msi"
+    },
+    "darwin-x86_64": {
+      "signature": "YOUR_MACOS_INTEL_SIGNATURE_HERE",
+      "url": "https://github.com/mahiprime2001/billing-app/releases/download/Updates/Siri.Art.Jewellery.app.tar.gz"
+    },
+    "darwin-aarch64": {
+      "signature": "YOUR_MACOS_ARM_SIGNATURE_HERE",
+      "url": "https://github.com/mahiprime2001/billing-app/releases/download/Updates/Siri.Art.Jewellery.app.tar.gz"
+    },
+    "linux-x86_64": {
+      "signature": "YOUR_LINUX_SIGNATURE_HERE",
+      "url": "https://github.com/mahiprime2001/billing-app/releases/download/Updates/Siri.Art.Jewellery_0.1.0_amd64.AppImage.tar.gz"
+    }
+  }
+}

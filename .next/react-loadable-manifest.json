@@ -1,14 +1,1 @@
-{
-  "app/dashboard/products/page.tsx -> jsbarcode": {
-    "id": "app/dashboard/products/page.tsx -> jsbarcode",
-    "files": [
-      "static/chunks/_app-pages-browser_node_modules_jsbarcode_bin_JsBarcode_js.js"
-    ]
-  },
-  "components/server-error-handler.tsx -> @tauri-apps/api/event": {
-    "id": "components/server-error-handler.tsx -> @tauri-apps/api/event",
-    "files": [
-      "static/chunks/_app-pages-browser_node_modules_tauri-apps_api_event_js.js"
-    ]
-  }
-}
+{}

@@ -1,34 +1,77 @@
-import { open } from '@tauri-apps/api/dialog';
-import { writeBinaryFile } from '@tauri-apps/api/fs';
-import { documentDir } from '@tauri-apps/api/path';
+import { invoke } from '@tauri-apps/api/core';
 
-export async function previewPdfFromHtml(html: string): Promise<string> {
-  // Create a blob URL for the HTML content
-  const blob = new Blob([html], { type: 'text/html' });
-  return URL.createObjectURL(blob);
+// Type declaration for Tauri globals (optional)
+declare global {
+  interface Window {
+    __TAURI__?: {
+      invoke: typeof invoke;
+    };
+  }
 }
 
-export async function savePdf(blob: Blob, defaultPath = 'document.pdf'): Promise<void> {
+/**
+ * Converts HTML content to plain text by extracting innerText.
+ * Adjust or extend this function if you need basic styling
+ * (e.g., bold, underline) via ASCII control codes.
+ */
+function extractText(htmlContent: string): string {
+  const container = document.createElement('div');
+  container.innerHTML = htmlContent;
+  return container.innerText || '';
+}
+
+/**
+ * Sends the extracted text directly to the thermal printer via Tauri.
+ */
+export async function printHtml(htmlContent: string): Promise<void> {
+  const text = extractText(htmlContent);
+
   try {
-    // Show save dialog
-    const filePath = await open({
-      defaultPath: await documentDir(),
-      filters: [{
-        name: 'PDF',
-        extensions: ['pdf']
-      }]
-    }) as string;
+    // Invoke the Rust print command
+    await invoke('print_to_thermal_printer', {
+      printerName: 'TT0650',  // Your TVS LP 46 DLite identifier
+      content: text,
+      paperWidth: 80,         // in millimeters
+      paperHeight: 12         // in millimeters
+    });
+    console.log('Print job sent to thermal printer.');
+  } catch (err) {
+    console.error('Thermal print failed, falling back to browser print:', err);
+    // Fallback to browser printing if needed
+    await browserPrint(htmlContent);
+  }
+}
 
-    if (!filePath) return; // User cancelled
-
-    // Convert blob to Uint8Array
-    const arrayBuffer = await blob.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-
-    // Save the file
-    await writeBinaryFile(filePath, uint8Array);
+/**
+ * Browser print fallback (Edge/Chrome will use system dialog).
+ */
+async function browserPrint(htmlContent: string): Promise<void> {
+  try {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) throw new Error('Failed to open print window.');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Print Document</title>
+        <style>
+          body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+          @media print { body { margin: 0; } }
+        </style>
+      </head>
+      <body>${htmlContent}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 100);
+    };
+    console.log('Browser print triggered.');
   } catch (error) {
-    console.error('Error saving PDF:', error);
-    throw error;
+    console.error('Browser printing failed:', error);
   }
 }

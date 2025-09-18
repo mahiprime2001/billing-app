@@ -39,7 +39,7 @@ import {
 } from "lucide-react"
 import { Product } from "@/lib/types"
 import PrintButton from "@/components/PrintButton"
-import { unifiedPrint } from "@/app/utils/printUtils"
+import { printHtml } from "@/lib/printUtils"
 
 
 interface CartItem {
@@ -605,12 +605,9 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
     // Generate receipt HTML
     const receiptHtml = generateReceiptHtml(bill, format);
 
-    // Print receipt using unifiedPrint
+    // Print receipt using printHtml
     try {
-      await unifiedPrint({
-        htmlContent: receiptHtml,
-        isThermalPrinter: format.width <= 80, // Assuming thermal printers have a width <= 80mm
-      });
+      await printHtml(receiptHtml);
     } catch (printError) {
       console.error("Failed to send print job:", printError);
       // Handle print error (e.g., show a toast)
