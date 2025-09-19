@@ -62,14 +62,47 @@ export async function unifiedPrint({
   htmlContent,
   thermalContent,
   isThermalPrinter = false,
+  productIds, // New parameter for product IDs
+  copies = 1, // New parameter for copies
+  useBackendPrint = false, // New flag to use backend printing
 }: {
   htmlContent?: string;
   thermalContent?: string;
   isThermalPrinter?: boolean;
+  productIds?: string[]; // Type for product IDs
+  copies?: number; // Type for copies
+  useBackendPrint?: boolean; // Type for backend print flag
 }): Promise<void> {
   const isTauri = typeof window !== "undefined" && !!window.__TAURI__;
 
-  if (isThermalPrinter && thermalContent) {
+  if (useBackendPrint && productIds && productIds.length > 0) {
+    // Call backend API for printing
+    try {
+      const backendApiUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendApiUrl}/api/print-label`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productIds: productIds,
+          copies: copies,
+        }),
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        console.log("Print job sent to backend successfully:", data.message);
+        alert("Print job sent successfully"); // Provide user feedback
+      } else {
+        console.error("Backend print failed:", data.message);
+        alert(`Print failed: ${data.message}`); // Provide user feedback
+        throw new Error(`Backend print failed: ${data.message}`);
+      }
+    } catch (error: unknown) {
+      console.error("Error calling backend print API:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`Error sending print job: ${errorMessage}`); // Provide user feedback
+      throw new Error(`Error sending print job: ${errorMessage}`);
+    }
+  } else if (isThermalPrinter && thermalContent) {
     if (isTauri) {
       await printThermalLabel(thermalContent, true);
     } else {

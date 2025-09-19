@@ -552,3 +552,1985 @@
 2025-09-18 22:07:15,638 - app - INFO - [MySQL] Sync table check successful at 2025-09-18T22:07:15.638556
 2025-09-18 22:07:15,752 - app - INFO - No new changes found.
 2025-09-18 22:07:16,141 - app - INFO - [MySQL] Sync table check successful at 2025-09-18T22:07:16.141016
+2025-09-19 00:58:04,682 - app - INFO - Starting sync process with notification support...
+2025-09-19 00:58:04,683 - app - INFO - Checking for changes...
+2025-09-19 00:58:05,272 - app - INFO - Starting sync process with notification support...
+2025-09-19 00:58:05,274 - app - INFO - Checking for changes...
+2025-09-19 00:58:05,952 - app - INFO - No new changes found.
+2025-09-19 00:58:06,333 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T00:58:06.333458
+2025-09-19 00:58:06,546 - app - INFO - No new changes found.
+2025-09-19 00:58:06,926 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T00:58:06.926776
+2025-09-19 01:13:06,334 - app - INFO - Checking for changes...
+2025-09-19 01:13:06,927 - app - INFO - Checking for changes...
+2025-09-19 01:13:06,929 - app - INFO - No new changes found.
+2025-09-19 01:13:07,501 - app - INFO - No new changes found.
+2025-09-19 01:13:07,523 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:13:07.523372
+2025-09-19 01:13:08,095 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:13:08.095287
+2025-09-19 01:13:48,646 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:13:48,649 - app - INFO - Checking for changes...
+2025-09-19 01:13:49,966 - app - INFO - No new changes found.
+2025-09-19 01:13:50,364 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:13:50.364165
+2025-09-19 01:16:56,562 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:16:56,563 - app - INFO - Checking for changes...
+2025-09-19 01:16:57,901 - app - INFO - No new changes found.
+2025-09-19 01:16:58,279 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:16:58.279437
+2025-09-19 01:17:58,806 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:17:58,808 - app - INFO - Checking for changes...
+2025-09-19 01:18:00,113 - app - INFO - No new changes found.
+2025-09-19 01:18:00,500 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:18:00.500101
+2025-09-19 01:21:38,295 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:21:38,301 - app - INFO - Checking for changes...
+2025-09-19 01:21:39,527 - app - INFO - No new changes found.
+2025-09-19 01:21:39,877 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:21:39.877838
+2025-09-19 01:24:08,845 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:24:08,846 - app - INFO - Checking for changes...
+2025-09-19 01:24:09,194 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:24:09,195 - app - INFO - Checking for changes...
+2025-09-19 01:24:10,155 - app - INFO - No new changes found.
+2025-09-19 01:24:10,461 - app - INFO - No new changes found.
+2025-09-19 01:24:10,534 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:24:10.534503
+2025-09-19 01:24:10,816 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:24:10.816624
+2025-09-19 01:27:54,017 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:27:54,018 - app - INFO - Checking for changes...
+2025-09-19 01:27:55,289 - app - INFO - No new changes found.
+2025-09-19 01:27:55,640 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:27:55.640591
+2025-09-19 01:28:43,595 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:28:43,596 - app - INFO - Checking for changes...
+2025-09-19 01:28:44,849 - app - INFO - No new changes found.
+2025-09-19 01:28:45,191 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:28:45.191470
+2025-09-19 01:28:49,176 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:28:49,177 - app - INFO - Checking for changes...
+2025-09-19 01:28:50,427 - app - INFO - No new changes found.
+2025-09-19 01:28:50,773 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:28:50.773765
+2025-09-19 01:32:21,194 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:32:21,195 - app - INFO - Checking for changes...
+2025-09-19 01:32:22,469 - app - INFO - No new changes found.
+2025-09-19 01:32:22,840 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:32:22.840360
+2025-09-19 01:33:19,710 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:33:19,710 - app - INFO - Checking for changes...
+2025-09-19 01:33:20,058 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:33:20,059 - app - INFO - Checking for changes...
+2025-09-19 01:33:20,990 - app - INFO - No new changes found.
+2025-09-19 01:33:21,323 - app - INFO - No new changes found.
+2025-09-19 01:33:21,343 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:33:21.343299
+2025-09-19 01:33:21,672 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:33:21.672100
+2025-09-19 01:44:17,571 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:44:17,572 - app - INFO - Checking for changes...
+2025-09-19 01:44:18,873 - app - INFO - No new changes found.
+2025-09-19 01:44:19,231 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:44:19.231958
+2025-09-19 01:45:42,988 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:45:42,989 - app - INFO - Checking for changes...
+2025-09-19 01:45:43,333 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:45:43,334 - app - INFO - Checking for changes...
+2025-09-19 01:45:44,236 - app - INFO - No new changes found.
+2025-09-19 01:45:44,602 - app - INFO - No new changes found.
+2025-09-19 01:45:44,605 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:45:44.605142
+2025-09-19 01:45:44,962 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:45:44.962692
+2025-09-19 01:46:56,820 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:46:56,821 - app - INFO - Checking for changes...
+2025-09-19 01:46:57,168 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:46:57,170 - app - INFO - Checking for changes...
+2025-09-19 01:46:58,062 - app - INFO - No new changes found.
+2025-09-19 01:46:58,421 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:46:58.421482
+2025-09-19 01:46:58,444 - app - INFO - No new changes found.
+2025-09-19 01:46:58,808 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:46:58.807131
+2025-09-19 01:47:47,015 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:48:16,803 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 01:48:16,804 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:48:21,057 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 01:48:21,061 - app - ERROR - Exception in print_label endpoint:
+Traceback (most recent call last):
+  File "E:\billing-app\backend\app.py", line 247, in api_print_label
+    send_raw_to_printer(printer_name, tspl_commands)
+  File "E:\billing-app\backend\utils\print_TSPL.py", line 29, in send_raw_to_printer
+    handle = win32print.OpenPrinter(printer_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pywintypes.error: (1801, 'OpenPrinter', 'The printer name is invalid.')
+
+2025-09-19 01:48:25,299 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 01:48:40,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:49:10,017 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:49:47,029 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:50:42,287 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 01:50:42,288 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:50:44,141 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 01:50:44,143 - app - ERROR - Exception in print_label endpoint:
+Traceback (most recent call last):
+  File "E:\billing-app\backend\app.py", line 247, in api_print_label
+    send_raw_to_printer(printer_name, tspl_commands)
+  File "E:\billing-app\backend\utils\print_TSPL.py", line 29, in send_raw_to_printer
+    handle = win32print.OpenPrinter(printer_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pywintypes.error: (1801, 'OpenPrinter', 'The printer name is invalid.')
+
+2025-09-19 01:50:49,771 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 01:50:49,773 - app - ERROR - Exception in print_label endpoint:
+Traceback (most recent call last):
+  File "E:\billing-app\backend\app.py", line 247, in api_print_label
+    send_raw_to_printer(printer_name, tspl_commands)
+  File "E:\billing-app\backend\utils\print_TSPL.py", line 29, in send_raw_to_printer
+    handle = win32print.OpenPrinter(printer_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pywintypes.error: (1801, 'OpenPrinter', 'The printer name is invalid.')
+
+2025-09-19 01:50:54,173 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 01:51:10,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:51:40,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:52:47,018 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:53:47,033 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:54:47,045 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:55:47,043 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:56:47,027 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:57:47,040 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:58:18,707 - app - INFO - Starting sync process with notification support...
+2025-09-19 01:58:18,709 - app - INFO - Checking for changes...
+2025-09-19 01:58:19,979 - app - INFO - No new changes found.
+2025-09-19 01:58:20,343 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T01:58:20.343414
+2025-09-19 01:58:47,017 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:59:10,864 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 01:59:10,865 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 01:59:17,916 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 01:59:17,919 - app - ERROR - Exception in print_label endpoint:
+Traceback (most recent call last):
+  File "E:\billing-app\backend\app.py", line 247, in api_print_label
+    send_raw_to_printer(printer_name, tspl_commands)
+  File "E:\billing-app\backend\utils\print_TSPL.py", line 40, in send_raw_to_printer
+    raise ValueError(f"Printer '{printer_name}' not found or is invalid. Available printers: {[name for flags, description, name, comment in printers]}")
+ValueError: Printer 'Your_Printer_Name' not found or is invalid. Available printers: ['SNBC TVSE LP46 Dlite BPLE', 'Microsoft Print to PDF', 'Fax']
+
+2025-09-19 01:59:28,817 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 01:59:40,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:00:10,035 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:00:47,025 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:01:15,266 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:01:15,267 - app - INFO - Checking for changes...
+2025-09-19 02:01:16,562 - app - INFO - No new changes found.
+2025-09-19 02:01:16,914 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:01:16.914495
+2025-09-19 02:01:47,024 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:01:58,422 - app - INFO - Checking for changes...
+2025-09-19 02:01:58,959 - app - INFO - No new changes found.
+2025-09-19 02:01:59,507 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:01:59.507865
+2025-09-19 02:02:47,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:03:47,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:04:47,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:04:54,303 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:05:10,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:05:41,630 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:05:41,631 - app - INFO - Checking for changes...
+2025-09-19 02:05:42,232 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:05:42,232 - app - INFO - Checking for changes...
+2025-09-19 02:05:42,263 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:05:42,899 - app - INFO - No new changes found.
+2025-09-19 02:05:43,263 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:05:43.263721
+2025-09-19 02:05:43,462 - app - INFO - No new changes found.
+2025-09-19 02:05:43,835 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:05:43.835418
+2025-09-19 02:05:49,711 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:06:01,509 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:06:01,511 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:06:29,554 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:06:31,521 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:06:37,114 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:06:38,797 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:07:02,024 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:07:32,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:08:02,027 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:08:28,837 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:08:28,838 - app - INFO - Checking for changes...
+2025-09-19 02:08:30,134 - app - INFO - No new changes found.
+2025-09-19 02:08:30,496 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:08:30.496392
+2025-09-19 02:08:32,024 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:08:41,444 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:08:41,445 - app - INFO - Checking for changes...
+2025-09-19 02:08:42,711 - app - INFO - No new changes found.
+2025-09-19 02:08:43,078 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:08:43.078710
+2025-09-19 02:09:02,017 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:09:17,174 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:09:18,458 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:09:21,047 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:09:29,003 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:09:30,472 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:09:31,519 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:09:45,505 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:09:49,610 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:10:02,025 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:10:32,029 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:10:40,045 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:10:41,807 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:10:43,784 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:10:52,941 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:11:02,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:11:31,150 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:11:31,515 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:11:55,780 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:11:55,782 - app - INFO - Checking for changes...
+2025-09-19 02:11:57,037 - app - INFO - No new changes found.
+2025-09-19 02:11:57,402 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:11:57.402768
+2025-09-19 02:12:02,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:12:17,445 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:12:19,169 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:12:21,135 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:12:21,136 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE
+2025-09-19 02:12:25,093 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:12:32,031 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:13:02,019 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:13:47,040 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:13:49,753 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:13:50,695 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:14:01,509 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:14:32,023 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:14:33,842 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:14:33,849 - app - INFO - Checking for changes...
+2025-09-19 02:14:35,120 - app - INFO - No new changes found.
+2025-09-19 02:14:35,474 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:14:35.474810
+2025-09-19 02:14:47,263 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:14:47,264 - app - INFO - Checking for changes...
+2025-09-19 02:14:48,525 - app - INFO - No new changes found.
+2025-09-19 02:14:48,876 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:14:48.875626
+2025-09-19 02:15:02,030 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:15:35,785 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:15:35,786 - app - INFO - Checking for changes...
+2025-09-19 02:15:36,133 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:15:36,134 - app - INFO - Checking for changes...
+2025-09-19 02:15:36,146 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:15:37,046 - app - INFO - No new changes found.
+2025-09-19 02:15:37,395 - app - INFO - No new changes found.
+2025-09-19 02:15:37,409 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:15:37.409234
+2025-09-19 02:15:37,743 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:15:37.743315
+2025-09-19 02:15:38,698 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:15:41,901 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:15:46,360 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:15:46,360 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE
+2025-09-19 02:15:46,466 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:15:46,466 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:15:46,467 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:15:46,526 - app - INFO - Print job started with ID: 20
+2025-09-19 02:15:46,526 - app - INFO - Starting print page.
+2025-09-19 02:15:46,526 - app - INFO - Raw data written to printer.
+2025-09-19 02:15:46,527 - app - INFO - Ending print page.
+2025-09-19 02:15:46,528 - app - INFO - Print document ended successfully.
+2025-09-19 02:15:46,528 - app - INFO - Printer handle closed.
+2025-09-19 02:15:52,827 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:16:02,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:16:32,030 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:16:37,883 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:16:39,046 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:16:40,534 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:16:40,535 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE
+2025-09-19 02:16:40,539 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:16:40,540 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:16:40,542 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:16:40,603 - app - INFO - Print job started with ID: 21
+2025-09-19 02:16:40,604 - app - INFO - Starting print page.
+2025-09-19 02:16:40,604 - app - INFO - Raw data written to printer.
+2025-09-19 02:16:40,604 - app - INFO - Ending print page.
+2025-09-19 02:16:40,605 - app - INFO - Print document ended successfully.
+2025-09-19 02:16:40,605 - app - INFO - Printer handle closed.
+2025-09-19 02:16:45,155 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:16:46,351 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:16:48,063 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:16:48,063 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE
+2025-09-19 02:16:48,068 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:16:48,077 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:16:48,079 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:16:48,134 - app - INFO - Print job started with ID: 22
+2025-09-19 02:16:48,135 - app - INFO - Starting print page.
+2025-09-19 02:16:48,135 - app - INFO - Raw data written to printer.
+2025-09-19 02:16:48,135 - app - INFO - Ending print page.
+2025-09-19 02:16:48,137 - app - INFO - Print document ended successfully.
+2025-09-19 02:16:48,137 - app - INFO - Printer handle closed.
+2025-09-19 02:16:52,068 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:17:01,376 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:17:01,512 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:17:02,460 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:17:05,959 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:17:05,959 - app - INFO - Received print request: product_ids=['1757806429472'], copies=2, printer_name=SNBC TVSE LP46 Dlite BPLE
+2025-09-19 02:17:05,963 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:17:05,964 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:17:05,965 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:17:06,024 - app - INFO - Print job started with ID: 23
+2025-09-19 02:17:06,024 - app - INFO - Starting print page.
+2025-09-19 02:17:06,025 - app - INFO - Raw data written to printer.
+2025-09-19 02:17:06,025 - app - INFO - Ending print page.
+2025-09-19 02:17:06,026 - app - INFO - Print document ended successfully.
+2025-09-19 02:17:06,026 - app - INFO - Printer handle closed.
+2025-09-19 02:17:09,037 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:17:10,637 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:17:14,454 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:17:14,455 - app - INFO - Received print request: product_ids=['1757806429472'], copies=2, printer_name=SNBC TVSE LP46 Dlite BPLE
+2025-09-19 02:17:14,459 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:17:14,460 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:17:14,460 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:17:14,509 - app - INFO - Print job started with ID: 24
+2025-09-19 02:17:14,510 - app - INFO - Starting print page.
+2025-09-19 02:17:14,510 - app - INFO - Raw data written to printer.
+2025-09-19 02:17:14,510 - app - INFO - Ending print page.
+2025-09-19 02:17:14,511 - app - INFO - Print document ended successfully.
+2025-09-19 02:17:14,511 - app - INFO - Printer handle closed.
+2025-09-19 02:17:32,682 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:17:32,683 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:17:34,362 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:17:36,271 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:17:36,271 - app - INFO - Received print request: product_ids=['1757806429472'], copies=2, printer_name=SNBC TVSE LP46 Dlite BPLE
+2025-09-19 02:17:36,276 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:17:36,277 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:17:36,277 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:17:36,330 - app - INFO - Print job started with ID: 25
+2025-09-19 02:17:36,332 - app - INFO - Starting print page.
+2025-09-19 02:17:36,332 - app - INFO - Raw data written to printer.
+2025-09-19 02:17:36,332 - app - INFO - Ending print page.
+2025-09-19 02:17:36,334 - app - INFO - Print document ended successfully.
+2025-09-19 02:17:36,334 - app - INFO - Printer handle closed.
+2025-09-19 02:17:39,805 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:18:02,027 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:18:25,524 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:18:31,524 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:19:02,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:19:32,028 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:20:47,024 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:20:48,609 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:20:48,610 - app - INFO - Checking for changes...
+2025-09-19 02:20:49,863 - app - INFO - No new changes found.
+2025-09-19 02:20:50,219 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:20:50.218589
+2025-09-19 02:21:18,940 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:21:18,941 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:21:20,421 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:21:30,174 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:21:30,174 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE
+2025-09-19 02:21:30,181 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:21:30,182 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:21:30,183 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:21:30,251 - app - INFO - Print job started with ID: 26
+2025-09-19 02:21:30,251 - app - INFO - Starting print page.
+2025-09-19 02:21:30,251 - app - INFO - Raw data written to printer.
+2025-09-19 02:21:30,252 - app - INFO - Ending print page.
+2025-09-19 02:21:30,252 - app - INFO - Print document ended successfully.
+2025-09-19 02:21:30,253 - app - INFO - Printer handle closed.
+2025-09-19 02:21:39,152 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:21:39,154 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:21:41,195 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:21:43,165 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:21:43,166 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE
+2025-09-19 02:21:43,171 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:21:43,172 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:21:43,172 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:21:43,224 - app - INFO - Print job started with ID: 27
+2025-09-19 02:21:43,224 - app - INFO - Starting print page.
+2025-09-19 02:21:43,226 - app - INFO - Raw data written to printer.
+2025-09-19 02:21:43,226 - app - INFO - Ending print page.
+2025-09-19 02:21:43,227 - app - INFO - Print document ended successfully.
+2025-09-19 02:21:43,227 - app - INFO - Printer handle closed.
+2025-09-19 02:21:49,207 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:21:50,693 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:21:51,941 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:21:51,942 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE
+2025-09-19 02:21:51,947 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:21:51,948 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:21:51,949 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:21:51,999 - app - INFO - Print job started with ID: 28
+2025-09-19 02:21:51,999 - app - INFO - Starting print page.
+2025-09-19 02:21:52,001 - app - INFO - Raw data written to printer.
+2025-09-19 02:21:52,001 - app - INFO - Ending print page.
+2025-09-19 02:21:52,002 - app - INFO - Print document ended successfully.
+2025-09-19 02:21:52,002 - app - INFO - Printer handle closed.
+2025-09-19 02:21:55,800 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:21:56,941 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:21:58,983 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:21:58,983 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE
+2025-09-19 02:21:58,988 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:21:58,989 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:21:58,990 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:21:59,040 - app - INFO - Print job started with ID: 29
+2025-09-19 02:21:59,041 - app - INFO - Starting print page.
+2025-09-19 02:21:59,041 - app - INFO - Raw data written to printer.
+2025-09-19 02:21:59,043 - app - INFO - Ending print page.
+2025-09-19 02:21:59,044 - app - INFO - Print document ended successfully.
+2025-09-19 02:21:59,044 - app - INFO - Printer handle closed.
+2025-09-19 02:22:08,954 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:22:08,956 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:22:32,033 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:23:02,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:23:47,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:24:47,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:25:14,116 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:25:14,123 - app - INFO - Checking for changes...
+2025-09-19 02:25:15,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:25:15,390 - app - INFO - No new changes found.
+2025-09-19 02:25:15,735 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:25:15.735865
+2025-09-19 02:25:45,514 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:25:45,516 - app - INFO - Checking for changes...
+2025-09-19 02:25:46,028 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:25:46,766 - app - INFO - No new changes found.
+2025-09-19 02:25:47,121 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:25:47.121139
+2025-09-19 02:26:22,523 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:26:22,526 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:26:24,123 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:26:26,574 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:26:26,575 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 02:26:26,585 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:26:26,586 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:26:26,588 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:26:26,648 - app - INFO - Print job started with ID: 30
+2025-09-19 02:26:26,648 - app - INFO - Starting print page.
+2025-09-19 02:26:26,649 - app - INFO - Raw data written to printer.
+2025-09-19 02:26:26,649 - app - INFO - Ending print page.
+2025-09-19 02:26:26,650 - app - INFO - Print document ended successfully.
+2025-09-19 02:26:26,650 - app - INFO - Printer handle closed.
+2025-09-19 02:26:29,905 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:26:31,155 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:26:31,509 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:26:32,430 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:26:32,430 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 02:26:32,434 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:26:32,435 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:26:32,435 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:26:32,490 - app - INFO - Print job started with ID: 31
+2025-09-19 02:26:32,490 - app - INFO - Starting print page.
+2025-09-19 02:26:32,490 - app - INFO - Raw data written to printer.
+2025-09-19 02:26:32,491 - app - INFO - Ending print page.
+2025-09-19 02:26:32,492 - app - INFO - Print document ended successfully.
+2025-09-19 02:26:32,493 - app - INFO - Printer handle closed.
+2025-09-19 02:26:41,513 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:27:02,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:27:32,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:28:06,158 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:28:06,159 - app - INFO - Checking for changes...
+2025-09-19 02:28:06,191 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:28:07,421 - app - INFO - No new changes found.
+2025-09-19 02:28:07,783 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:28:07.783734
+2025-09-19 02:28:21,282 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:28:22,684 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:28:24,181 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:28:24,182 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 02:28:24,191 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:28:24,192 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:28:24,195 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:28:24,265 - app - INFO - Print job started with ID: 32
+2025-09-19 02:28:24,265 - app - INFO - Starting print page.
+2025-09-19 02:28:24,265 - app - INFO - Raw data written to printer.
+2025-09-19 02:28:24,268 - app - INFO - Ending print page.
+2025-09-19 02:28:24,269 - app - INFO - Print document ended successfully.
+2025-09-19 02:28:24,269 - app - INFO - Printer handle closed.
+2025-09-19 02:28:28,127 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:28:29,341 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:28:30,459 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:28:30,459 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 02:28:30,463 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:28:30,464 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:28:30,465 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:28:30,517 - app - INFO - Print job started with ID: 33
+2025-09-19 02:28:30,518 - app - INFO - Starting print page.
+2025-09-19 02:28:30,518 - app - INFO - Raw data written to printer.
+2025-09-19 02:28:30,518 - app - INFO - Ending print page.
+2025-09-19 02:28:30,519 - app - INFO - Print document ended successfully.
+2025-09-19 02:28:30,519 - app - INFO - Printer handle closed.
+2025-09-19 02:28:35,433 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:28:35,434 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:29:02,035 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:29:24,583 - app - INFO - Starting sync process with notification support...
+2025-09-19 02:29:24,586 - app - INFO - Checking for changes...
+2025-09-19 02:29:25,900 - app - INFO - No new changes found.
+2025-09-19 02:29:26,263 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:29:26.263945
+2025-09-19 02:29:32,017 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:29:32,895 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:29:34,227 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:29:35,773 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:29:35,773 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 02:29:35,782 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:29:35,783 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:29:35,786 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:29:35,855 - app - INFO - Print job started with ID: 34
+2025-09-19 02:29:35,855 - app - INFO - Starting print page.
+2025-09-19 02:29:35,855 - app - INFO - Raw data written to printer.
+2025-09-19 02:29:35,855 - app - INFO - Ending print page.
+2025-09-19 02:29:35,856 - app - INFO - Print document ended successfully.
+2025-09-19 02:29:35,857 - app - INFO - Printer handle closed.
+2025-09-19 02:29:38,452 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:29:39,741 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 02:29:41,046 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 02:29:41,047 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 02:29:41,051 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 02:29:41,052 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 02:29:41,053 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 02:29:41,100 - app - INFO - Print job started with ID: 35
+2025-09-19 02:29:41,101 - app - INFO - Starting print page.
+2025-09-19 02:29:41,101 - app - INFO - Raw data written to printer.
+2025-09-19 02:29:41,101 - app - INFO - Ending print page.
+2025-09-19 02:29:41,102 - app - INFO - Print document ended successfully.
+2025-09-19 02:29:41,102 - app - INFO - Printer handle closed.
+2025-09-19 02:29:50,872 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:30:02,024 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:30:06,061 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 02:30:32,019 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:30:37,410 - app - INFO - Checking for changes...
+2025-09-19 02:30:37,988 - app - INFO - No new changes found.
+2025-09-19 02:30:38,544 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:30:38.544766
+2025-09-19 02:31:02,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:31:47,034 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:32:47,036 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:33:47,040 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:34:47,034 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:35:47,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:36:47,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:37:47,020 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:38:47,025 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:39:47,028 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:40:47,031 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:41:47,029 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:42:47,025 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:43:47,043 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:44:26,279 - app - INFO - Checking for changes...
+2025-09-19 02:44:26,844 - app - INFO - No new changes found.
+2025-09-19 02:44:27,379 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:44:27.379505
+2025-09-19 02:44:47,014 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:45:38,546 - app - INFO - Checking for changes...
+2025-09-19 02:45:39,102 - app - INFO - No new changes found.
+2025-09-19 02:45:39,637 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:45:39.637071
+2025-09-19 02:45:47,036 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:46:47,031 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:47:47,027 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:48:47,029 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:49:47,014 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:50:47,035 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:51:13,042 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:51:37,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:52:08,017 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:52:47,027 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:53:16,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:53:36,019 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:54:15,025 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:54:43,029 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:55:47,024 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:56:22,019 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:56:46,030 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:57:29,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:57:41,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:58:47,035 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 02:59:27,381 - app - INFO - Checking for changes...
+2025-09-19 02:59:27,909 - app - INFO - No new changes found.
+2025-09-19 02:59:28,425 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T02:59:28.425486
+2025-09-19 02:59:39,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:00:39,638 - app - INFO - Checking for changes...
+2025-09-19 03:00:40,202 - app - INFO - No new changes found.
+2025-09-19 03:00:40,727 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:00:40.727481
+2025-09-19 03:00:47,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:01:25,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:01:47,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:02:19,028 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:02:45,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:03:47,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:04:27,036 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:04:47,020 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:05:47,027 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:06:02,028 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:06:36,028 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:07:47,019 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:08:47,031 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:08:55,502 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:08:55,503 - app - INFO - Checking for changes...
+2025-09-19 03:08:56,775 - app - INFO - No new changes found.
+2025-09-19 03:08:57,136 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:08:57.136557
+2025-09-19 03:09:47,020 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:10:24,639 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:10:24,653 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:10:26,001 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:10:31,335 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:10:31,336 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:10:31,345 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:10:31,346 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:10:31,349 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:10:31,414 - app - INFO - Print job started with ID: 61
+2025-09-19 03:10:31,414 - app - INFO - Starting print page.
+2025-09-19 03:10:31,414 - app - INFO - Raw data written to printer.
+2025-09-19 03:10:31,415 - app - INFO - Ending print page.
+2025-09-19 03:10:31,416 - app - INFO - Print document ended successfully.
+2025-09-19 03:10:31,416 - app - INFO - Printer handle closed.
+2025-09-19 03:10:33,113 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:10:33,117 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:10:47,780 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:10:48,783 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:10:51,727 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:10:51,727 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:10:51,732 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:10:51,734 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:10:51,735 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:10:51,794 - app - INFO - Print job started with ID: 62
+2025-09-19 03:10:51,794 - app - INFO - Starting print page.
+2025-09-19 03:10:51,794 - app - INFO - Raw data written to printer.
+2025-09-19 03:10:51,794 - app - INFO - Ending print page.
+2025-09-19 03:10:51,795 - app - INFO - Print document ended successfully.
+2025-09-19 03:10:51,796 - app - INFO - Printer handle closed.
+2025-09-19 03:10:59,095 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:11:01,524 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:11:32,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:11:44,882 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:12:01,519 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:12:32,015 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:13:02,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:13:47,041 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:14:47,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:15:24,982 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:15:24,983 - app - INFO - Checking for changes...
+2025-09-19 03:15:25,024 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:15:26,220 - app - INFO - No new changes found.
+2025-09-19 03:15:26,570 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:15:26.570381
+2025-09-19 03:15:29,066 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:15:30,551 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:15:31,512 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:15:32,141 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:15:32,141 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:15:32,148 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:15:32,149 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:15:32,152 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:15:32,213 - app - INFO - Print job started with ID: 63
+2025-09-19 03:15:32,213 - app - INFO - Starting print page.
+2025-09-19 03:15:32,213 - app - INFO - Raw data written to printer.
+2025-09-19 03:15:32,214 - app - INFO - Ending print page.
+2025-09-19 03:15:32,214 - app - INFO - Print document ended successfully.
+2025-09-19 03:15:32,216 - app - INFO - Printer handle closed.
+2025-09-19 03:15:37,335 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:15:40,728 - app - INFO - Checking for changes...
+2025-09-19 03:15:41,285 - app - INFO - No new changes found.
+2025-09-19 03:15:41,808 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:15:41.808550
+2025-09-19 03:16:02,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:16:32,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:17:47,016 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:17:47,017 - app - INFO - Checking for changes...
+2025-09-19 03:17:47,037 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:17:48,278 - app - INFO - No new changes found.
+2025-09-19 03:17:48,641 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:17:48.641259
+2025-09-19 03:17:51,957 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:17:53,331 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:17:54,677 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:17:54,678 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:17:54,688 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:17:54,690 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:17:54,692 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:17:54,753 - app - INFO - Print job started with ID: 64
+2025-09-19 03:17:54,753 - app - INFO - Starting print page.
+2025-09-19 03:17:54,753 - app - INFO - Raw data written to printer.
+2025-09-19 03:17:54,755 - app - INFO - Ending print page.
+2025-09-19 03:17:54,756 - app - INFO - Print document ended successfully.
+2025-09-19 03:17:54,756 - app - INFO - Printer handle closed.
+2025-09-19 03:17:59,658 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:18:01,526 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:18:32,018 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:19:04,519 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:19:04,539 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:19:32,029 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:20:02,030 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:20:47,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:21:47,023 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:22:47,031 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:23:47,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:24:47,024 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:25:47,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:26:21,045 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:26:21,046 - app - INFO - Checking for changes...
+2025-09-19 03:26:21,066 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:26:22,315 - app - INFO - No new changes found.
+2025-09-19 03:26:22,665 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:26:22.665065
+2025-09-19 03:26:41,940 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:26:41,946 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:26:43,729 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:26:46,605 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:26:46,606 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:26:46,606 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:26:46,607 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:26:46,609 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:26:46,675 - app - INFO - Print job started with ID: 65
+2025-09-19 03:26:46,675 - app - INFO - Starting print page.
+2025-09-19 03:26:46,675 - app - INFO - Raw data written to printer.
+2025-09-19 03:26:46,676 - app - INFO - Ending print page.
+2025-09-19 03:26:46,676 - app - INFO - Print document ended successfully.
+2025-09-19 03:26:46,677 - app - INFO - Printer handle closed.
+2025-09-19 03:26:50,337 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:26:51,537 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:26:54,516 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:26:54,516 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:26:54,517 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:26:54,518 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:26:54,518 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:26:54,565 - app - INFO - Print job started with ID: 66
+2025-09-19 03:26:54,565 - app - INFO - Starting print page.
+2025-09-19 03:26:54,566 - app - INFO - Raw data written to printer.
+2025-09-19 03:26:54,566 - app - INFO - Ending print page.
+2025-09-19 03:26:54,567 - app - INFO - Print document ended successfully.
+2025-09-19 03:26:54,567 - app - INFO - Printer handle closed.
+2025-09-19 03:26:58,002 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:27:02,030 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:27:06,588 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:27:06,589 - app - INFO - Checking for changes...
+2025-09-19 03:27:07,332 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:27:07,887 - app - INFO - No new changes found.
+2025-09-19 03:27:08,259 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:27:08.259883
+2025-09-19 03:27:10,694 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:27:12,379 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:27:12,379 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:27:12,380 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:27:12,380 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:27:12,381 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:27:12,439 - app - INFO - Print job started with ID: 67
+2025-09-19 03:27:12,439 - app - INFO - Starting print page.
+2025-09-19 03:27:12,439 - app - INFO - Raw data written to printer.
+2025-09-19 03:27:12,440 - app - INFO - Ending print page.
+2025-09-19 03:27:12,440 - app - INFO - Print document ended successfully.
+2025-09-19 03:27:12,441 - app - INFO - Printer handle closed.
+2025-09-19 03:27:13,719 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:27:15,556 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:27:16,739 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:27:16,739 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:27:16,740 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:27:16,741 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:27:16,742 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:27:16,792 - app - INFO - Print job started with ID: 68
+2025-09-19 03:27:16,793 - app - INFO - Starting print page.
+2025-09-19 03:27:16,793 - app - INFO - Raw data written to printer.
+2025-09-19 03:27:16,793 - app - INFO - Ending print page.
+2025-09-19 03:27:16,794 - app - INFO - Print document ended successfully.
+2025-09-19 03:27:16,795 - app - INFO - Printer handle closed.
+2025-09-19 03:27:20,640 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:27:31,521 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:27:49,045 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:27:49,046 - app - INFO - Checking for changes...
+2025-09-19 03:27:50,370 - app - INFO - No new changes found.
+2025-09-19 03:27:50,741 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:27:50.741525
+2025-09-19 03:28:02,029 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:28:27,362 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:28:27,363 - app - INFO - Checking for changes...
+2025-09-19 03:28:28,664 - app - INFO - No new changes found.
+2025-09-19 03:28:29,028 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:28:29.028970
+2025-09-19 03:28:32,018 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:28:37,997 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:28:37,998 - app - INFO - Checking for changes...
+2025-09-19 03:28:39,282 - app - INFO - No new changes found.
+2025-09-19 03:28:39,640 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:28:39.640320
+2025-09-19 03:28:41,388 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:29:02,019 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:29:32,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:29:51,474 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:29:51,476 - app - INFO - Checking for changes...
+2025-09-19 03:29:52,753 - app - INFO - No new changes found.
+2025-09-19 03:29:53,110 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:29:53.109380
+2025-09-19 03:29:53,800 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:29:55,058 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:29:56,203 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:29:56,204 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:29:56,204 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:29:56,205 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:29:56,206 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:29:56,268 - app - INFO - Print job started with ID: 69
+2025-09-19 03:29:56,269 - app - INFO - Starting print page.
+2025-09-19 03:29:56,269 - app - INFO - Raw data written to printer.
+2025-09-19 03:29:56,269 - app - INFO - Ending print page.
+2025-09-19 03:29:56,271 - app - INFO - Print document ended successfully.
+2025-09-19 03:29:56,272 - app - INFO - Printer handle closed.
+2025-09-19 03:30:02,417 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:30:02,421 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:30:03,974 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:30:05,604 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:30:05,604 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:30:05,605 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:30:05,606 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:30:05,606 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:30:05,659 - app - INFO - Print job started with ID: 70
+2025-09-19 03:30:05,660 - app - INFO - Starting print page.
+2025-09-19 03:30:05,660 - app - INFO - Raw data written to printer.
+2025-09-19 03:30:05,660 - app - INFO - Ending print page.
+2025-09-19 03:30:05,662 - app - INFO - Print document ended successfully.
+2025-09-19 03:30:05,662 - app - INFO - Printer handle closed.
+2025-09-19 03:30:11,924 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:30:29,800 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:30:29,802 - app - INFO - Checking for changes...
+2025-09-19 03:30:31,056 - app - INFO - No new changes found.
+2025-09-19 03:30:31,412 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:30:31.412278
+2025-09-19 03:30:32,436 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:30:32,436 - app - INFO - Checking for changes...
+2025-09-19 03:30:32,448 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:30:33,696 - app - INFO - No new changes found.
+2025-09-19 03:30:34,084 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:30:34.084123
+2025-09-19 03:30:39,964 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:30:41,810 - app - INFO - Checking for changes...
+2025-09-19 03:30:42,366 - app - INFO - No new changes found.
+2025-09-19 03:30:42,903 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:30:42.903157
+2025-09-19 03:30:43,959 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:30:43,961 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:30:45,772 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:30:47,940 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:30:47,940 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:30:47,941 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:30:47,942 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:30:47,943 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:30:48,005 - app - INFO - Print job started with ID: 71
+2025-09-19 03:30:48,005 - app - INFO - Starting print page.
+2025-09-19 03:30:48,006 - app - INFO - Raw data written to printer.
+2025-09-19 03:30:48,006 - app - INFO - Ending print page.
+2025-09-19 03:30:48,008 - app - INFO - Print document ended successfully.
+2025-09-19 03:30:48,008 - app - INFO - Printer handle closed.
+2025-09-19 03:30:50,600 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:30:56,474 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:30:56,475 - app - INFO - Checking for changes...
+2025-09-19 03:30:57,732 - app - INFO - No new changes found.
+2025-09-19 03:30:57,903 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:30:58,098 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:30:58.098597
+2025-09-19 03:30:59,100 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:31:00,387 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:31:00,387 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:31:00,388 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:31:00,389 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:31:00,390 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:31:00,457 - app - INFO - Print job started with ID: 72
+2025-09-19 03:31:00,457 - app - INFO - Starting print page.
+2025-09-19 03:31:00,457 - app - INFO - Raw data written to printer.
+2025-09-19 03:31:00,457 - app - INFO - Ending print page.
+2025-09-19 03:31:00,458 - app - INFO - Print document ended successfully.
+2025-09-19 03:31:00,458 - app - INFO - Printer handle closed.
+2025-09-19 03:31:13,398 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:31:13,399 - app - INFO - Checking for changes...
+2025-09-19 03:31:14,025 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:31:14,346 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:31:14,627 - app - INFO - No new changes found.
+2025-09-19 03:31:14,990 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:31:14.990056
+2025-09-19 03:31:15,947 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:31:18,426 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:31:18,428 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:31:18,428 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:31:18,429 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:31:18,430 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:31:18,502 - app - INFO - Print job started with ID: 73
+2025-09-19 03:31:18,502 - app - INFO - Starting print page.
+2025-09-19 03:31:18,503 - app - INFO - Raw data written to printer.
+2025-09-19 03:31:18,503 - app - INFO - Ending print page.
+2025-09-19 03:31:18,504 - app - INFO - Print document ended successfully.
+2025-09-19 03:31:18,504 - app - INFO - Printer handle closed.
+2025-09-19 03:31:20,997 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:31:21,972 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:31:23,187 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:31:23,188 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:31:23,188 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:31:23,189 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:31:23,190 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:31:23,242 - app - INFO - Print job started with ID: 74
+2025-09-19 03:31:23,243 - app - INFO - Starting print page.
+2025-09-19 03:31:23,244 - app - INFO - Raw data written to printer.
+2025-09-19 03:31:23,244 - app - INFO - Ending print page.
+2025-09-19 03:31:23,245 - app - INFO - Print document ended successfully.
+2025-09-19 03:31:23,245 - app - INFO - Printer handle closed.
+2025-09-19 03:31:26,504 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:31:39,961 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:31:44,020 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:32:14,025 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:32:44,024 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:32:59,260 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:32:59,261 - app - INFO - Checking for changes...
+2025-09-19 03:33:00,535 - app - INFO - No new changes found.
+2025-09-19 03:33:00,934 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:33:00.933674
+2025-09-19 03:33:01,446 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:33:02,811 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:33:03,994 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:33:03,995 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:33:03,995 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:33:03,996 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:33:03,997 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:33:04,063 - app - INFO - Print job started with ID: 75
+2025-09-19 03:33:04,063 - app - INFO - Starting print page.
+2025-09-19 03:33:04,063 - app - INFO - Raw data written to printer.
+2025-09-19 03:33:04,063 - app - INFO - Ending print page.
+2025-09-19 03:33:04,066 - app - INFO - Print document ended successfully.
+2025-09-19 03:33:04,066 - app - INFO - Printer handle closed.
+2025-09-19 03:33:06,700 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:33:12,271 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:33:13,963 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:33:14,859 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:33:14,860 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:33:14,860 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:33:14,861 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:33:14,862 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:33:14,918 - app - INFO - Print job started with ID: 76
+2025-09-19 03:33:14,918 - app - INFO - Starting print page.
+2025-09-19 03:33:14,918 - app - INFO - Raw data written to printer.
+2025-09-19 03:33:14,918 - app - INFO - Ending print page.
+2025-09-19 03:33:14,919 - app - INFO - Print document ended successfully.
+2025-09-19 03:33:14,920 - app - INFO - Printer handle closed.
+2025-09-19 03:33:22,760 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:33:44,035 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:34:14,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:34:30,084 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:34:30,085 - app - INFO - Checking for changes...
+2025-09-19 03:34:31,371 - app - INFO - No new changes found.
+2025-09-19 03:34:31,744 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:34:31.744746
+2025-09-19 03:34:34,661 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:34:36,995 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:34:38,331 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:34:38,331 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:34:38,332 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:34:38,333 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:34:38,334 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:34:38,396 - app - INFO - Print job started with ID: 77
+2025-09-19 03:34:38,396 - app - INFO - Starting print page.
+2025-09-19 03:34:38,396 - app - INFO - Raw data written to printer.
+2025-09-19 03:34:38,396 - app - INFO - Ending print page.
+2025-09-19 03:34:38,398 - app - INFO - Print document ended successfully.
+2025-09-19 03:34:38,399 - app - INFO - Printer handle closed.
+2025-09-19 03:34:41,621 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:34:43,964 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:34:44,433 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:34:46,130 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:34:46,130 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:34:46,131 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:34:46,132 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:34:46,133 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:34:46,188 - app - INFO - Print job started with ID: 78
+2025-09-19 03:34:46,188 - app - INFO - Starting print page.
+2025-09-19 03:34:46,188 - app - INFO - Raw data written to printer.
+2025-09-19 03:34:46,188 - app - INFO - Ending print page.
+2025-09-19 03:34:46,189 - app - INFO - Print document ended successfully.
+2025-09-19 03:34:46,189 - app - INFO - Printer handle closed.
+2025-09-19 03:34:53,393 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:35:00,906 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:35:14,019 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:35:44,016 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:36:47,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:37:47,023 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:38:47,019 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:39:17,025 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:39:17,502 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:39:17,503 - app - INFO - Checking for changes...
+2025-09-19 03:39:18,772 - app - INFO - No new changes found.
+2025-09-19 03:39:19,119 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:39:19.119243
+2025-09-19 03:39:47,036 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:40:24,486 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:40:24,504 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:40:44,036 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:41:14,030 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:41:19,417 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:41:19,418 - app - INFO - Checking for changes...
+2025-09-19 03:41:20,736 - app - INFO - No new changes found.
+2025-09-19 03:41:21,094 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:41:21.094318
+2025-09-19 03:41:47,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:42:47,054 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:43:46,984 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:43:46,985 - app - INFO - Checking for changes...
+2025-09-19 03:43:47,040 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:43:48,288 - app - INFO - No new changes found.
+2025-09-19 03:43:48,658 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:43:48.658654
+2025-09-19 03:44:47,025 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:45:42,904 - app - INFO - Checking for changes...
+2025-09-19 03:45:43,454 - app - INFO - No new changes found.
+2025-09-19 03:45:44,030 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:45:44.030050
+2025-09-19 03:45:47,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:46:47,015 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:47:47,023 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:48:05,440 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:48:14,028 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:48:36,897 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:48:36,899 - app - INFO - Checking for changes...
+2025-09-19 03:48:38,211 - app - INFO - No new changes found.
+2025-09-19 03:48:38,575 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:48:38,613 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:48:38.613556
+2025-09-19 03:48:40,681 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:48:42,897 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:48:42,898 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:48:42,898 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:48:42,899 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:48:42,901 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:48:42,967 - app - INFO - Print job started with ID: 79
+2025-09-19 03:48:42,968 - app - INFO - Starting print page.
+2025-09-19 03:48:42,968 - app - INFO - Raw data written to printer.
+2025-09-19 03:48:42,968 - app - INFO - Ending print page.
+2025-09-19 03:48:42,970 - app - INFO - Print document ended successfully.
+2025-09-19 03:48:42,970 - app - INFO - Printer handle closed.
+2025-09-19 03:48:45,107 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:48:45,110 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:48:46,410 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:48:47,784 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:48:47,784 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:48:47,785 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:48:47,786 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:48:47,787 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:48:47,839 - app - INFO - Print job started with ID: 80
+2025-09-19 03:48:47,839 - app - INFO - Starting print page.
+2025-09-19 03:48:47,839 - app - INFO - Raw data written to printer.
+2025-09-19 03:48:47,840 - app - INFO - Ending print page.
+2025-09-19 03:48:47,840 - app - INFO - Print document ended successfully.
+2025-09-19 03:48:47,841 - app - INFO - Printer handle closed.
+2025-09-19 03:48:50,718 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:49:03,060 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:49:03,061 - app - INFO - Checking for changes...
+2025-09-19 03:49:03,743 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:49:04,340 - app - INFO - No new changes found.
+2025-09-19 03:49:04,717 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:49:04.717594
+2025-09-19 03:49:05,366 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:49:06,583 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:49:06,584 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:49:06,584 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:49:06,586 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:49:06,587 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:49:06,645 - app - INFO - Print job started with ID: 81
+2025-09-19 03:49:06,645 - app - INFO - Starting print page.
+2025-09-19 03:49:06,645 - app - INFO - Raw data written to printer.
+2025-09-19 03:49:06,646 - app - INFO - Ending print page.
+2025-09-19 03:49:06,647 - app - INFO - Print document ended successfully.
+2025-09-19 03:49:06,647 - app - INFO - Printer handle closed.
+2025-09-19 03:49:09,378 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:49:10,624 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:49:12,903 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:49:12,903 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:49:12,903 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:49:12,904 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:49:12,905 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:49:12,953 - app - INFO - Print job started with ID: 82
+2025-09-19 03:49:12,953 - app - INFO - Starting print page.
+2025-09-19 03:49:12,953 - app - INFO - Raw data written to printer.
+2025-09-19 03:49:12,953 - app - INFO - Ending print page.
+2025-09-19 03:49:12,954 - app - INFO - Print document ended successfully.
+2025-09-19 03:49:12,955 - app - INFO - Printer handle closed.
+2025-09-19 03:49:33,051 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:49:33,052 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:49:44,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:50:14,018 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:50:33,782 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:50:33,784 - app - INFO - Checking for changes...
+2025-09-19 03:50:35,073 - app - INFO - No new changes found.
+2025-09-19 03:50:35,208 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:50:35,433 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:50:35.433853
+2025-09-19 03:50:36,420 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:50:37,839 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:50:37,840 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:50:37,840 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:50:37,841 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:50:37,842 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:50:37,904 - app - INFO - Print job started with ID: 83
+2025-09-19 03:50:37,904 - app - INFO - Starting print page.
+2025-09-19 03:50:37,904 - app - INFO - Raw data written to printer.
+2025-09-19 03:50:37,905 - app - INFO - Ending print page.
+2025-09-19 03:50:37,906 - app - INFO - Print document ended successfully.
+2025-09-19 03:50:37,906 - app - INFO - Printer handle closed.
+2025-09-19 03:50:41,631 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:50:42,851 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:50:43,970 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:50:44,399 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:50:44,399 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:50:44,400 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:50:44,401 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:50:44,401 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:50:44,447 - app - INFO - Print job started with ID: 84
+2025-09-19 03:50:44,448 - app - INFO - Starting print page.
+2025-09-19 03:50:44,448 - app - INFO - Raw data written to printer.
+2025-09-19 03:50:44,448 - app - INFO - Ending print page.
+2025-09-19 03:50:44,448 - app - INFO - Print document ended successfully.
+2025-09-19 03:50:44,449 - app - INFO - Printer handle closed.
+2025-09-19 03:50:53,434 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:50:58,990 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:50:58,990 - app - INFO - Checking for changes...
+2025-09-19 03:50:59,295 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:51:00,264 - app - INFO - No new changes found.
+2025-09-19 03:51:00,635 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:51:00.635425
+2025-09-19 03:51:00,994 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:51:02,038 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:51:02,038 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:51:02,039 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:51:02,040 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:51:02,041 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:51:02,103 - app - INFO - Print job started with ID: 85
+2025-09-19 03:51:02,103 - app - INFO - Starting print page.
+2025-09-19 03:51:02,103 - app - INFO - Raw data written to printer.
+2025-09-19 03:51:02,103 - app - INFO - Ending print page.
+2025-09-19 03:51:02,104 - app - INFO - Print document ended successfully.
+2025-09-19 03:51:02,105 - app - INFO - Printer handle closed.
+2025-09-19 03:51:07,195 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:51:09,359 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:51:09,360 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:51:09,360 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:51:09,361 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:51:09,362 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:51:09,426 - app - INFO - Print job started with ID: 86
+2025-09-19 03:51:09,427 - app - INFO - Starting print page.
+2025-09-19 03:51:09,427 - app - INFO - Raw data written to printer.
+2025-09-19 03:51:09,428 - app - INFO - Ending print page.
+2025-09-19 03:51:09,429 - app - INFO - Print document ended successfully.
+2025-09-19 03:51:09,430 - app - INFO - Printer handle closed.
+2025-09-19 03:51:22,022 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:51:22,023 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:51:37,350 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:51:44,027 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:51:56,811 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:51:56,811 - app - INFO - Checking for changes...
+2025-09-19 03:51:58,094 - app - INFO - No new changes found.
+2025-09-19 03:51:58,458 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:51:58.458730
+2025-09-19 03:52:01,358 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:52:01,359 - app - INFO - Checking for changes...
+2025-09-19 03:52:02,672 - app - INFO - No new changes found.
+2025-09-19 03:52:03,064 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:52:03.064833
+2025-09-19 03:52:04,247 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:52:05,426 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:52:07,007 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:52:07,007 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:52:07,008 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:52:07,009 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:52:07,010 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:52:07,067 - app - INFO - Print job started with ID: 87
+2025-09-19 03:52:07,067 - app - INFO - Starting print page.
+2025-09-19 03:52:07,067 - app - INFO - Raw data written to printer.
+2025-09-19 03:52:07,067 - app - INFO - Ending print page.
+2025-09-19 03:52:07,069 - app - INFO - Print document ended successfully.
+2025-09-19 03:52:07,069 - app - INFO - Printer handle closed.
+2025-09-19 03:52:10,208 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:52:12,159 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:52:12,160 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:52:12,160 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:52:12,161 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:52:12,162 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:52:12,214 - app - INFO - Print job started with ID: 88
+2025-09-19 03:52:12,215 - app - INFO - Starting print page.
+2025-09-19 03:52:12,215 - app - INFO - Raw data written to printer.
+2025-09-19 03:52:12,215 - app - INFO - Ending print page.
+2025-09-19 03:52:12,216 - app - INFO - Print document ended successfully.
+2025-09-19 03:52:12,216 - app - INFO - Printer handle closed.
+2025-09-19 03:52:14,818 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:52:14,819 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:52:26,427 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:52:26,428 - app - INFO - Checking for changes...
+2025-09-19 03:52:27,126 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:52:27,666 - app - INFO - No new changes found.
+2025-09-19 03:52:28,017 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:52:28.017682
+2025-09-19 03:52:28,348 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:52:29,663 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:52:29,664 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:52:29,664 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:52:29,665 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:52:29,666 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:52:29,728 - app - INFO - Print job started with ID: 89
+2025-09-19 03:52:29,728 - app - INFO - Starting print page.
+2025-09-19 03:52:29,728 - app - INFO - Raw data written to printer.
+2025-09-19 03:52:29,728 - app - INFO - Ending print page.
+2025-09-19 03:52:29,729 - app - INFO - Print document ended successfully.
+2025-09-19 03:52:29,730 - app - INFO - Printer handle closed.
+2025-09-19 03:52:34,564 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:52:36,119 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:52:36,120 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:52:36,120 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:52:36,121 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:52:36,122 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:52:36,169 - app - INFO - Print job started with ID: 90
+2025-09-19 03:52:36,169 - app - INFO - Starting print page.
+2025-09-19 03:52:36,169 - app - INFO - Raw data written to printer.
+2025-09-19 03:52:36,169 - app - INFO - Ending print page.
+2025-09-19 03:52:36,171 - app - INFO - Print document ended successfully.
+2025-09-19 03:52:36,171 - app - INFO - Printer handle closed.
+2025-09-19 03:52:40,184 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:52:44,031 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:52:48,465 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:52:48,469 - app - INFO - Checking for changes...
+2025-09-19 03:52:48,507 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:52:49,745 - app - INFO - No new changes found.
+2025-09-19 03:52:50,101 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:52:50.101812
+2025-09-19 03:52:50,153 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:52:52,447 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:52:52,448 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:52:52,449 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:52:52,450 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:52:52,451 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:52:52,516 - app - INFO - Print job started with ID: 91
+2025-09-19 03:52:52,517 - app - INFO - Starting print page.
+2025-09-19 03:52:52,517 - app - INFO - Raw data written to printer.
+2025-09-19 03:52:52,517 - app - INFO - Ending print page.
+2025-09-19 03:52:52,518 - app - INFO - Print document ended successfully.
+2025-09-19 03:52:52,519 - app - INFO - Printer handle closed.
+2025-09-19 03:52:54,660 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:52:55,696 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:52:58,128 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:52:58,128 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:52:58,129 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:52:58,130 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:52:58,131 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:52:58,181 - app - INFO - Print job started with ID: 92
+2025-09-19 03:52:58,181 - app - INFO - Starting print page.
+2025-09-19 03:52:58,182 - app - INFO - Raw data written to printer.
+2025-09-19 03:52:58,182 - app - INFO - Ending print page.
+2025-09-19 03:52:58,183 - app - INFO - Print document ended successfully.
+2025-09-19 03:52:58,183 - app - INFO - Printer handle closed.
+2025-09-19 03:53:13,981 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:53:38,536 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:53:44,025 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:54:11,171 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:54:14,019 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:54:34,527 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:54:34,527 - app - INFO - Checking for changes...
+2025-09-19 03:54:35,718 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:54:35,766 - app - INFO - No new changes found.
+2025-09-19 03:54:36,120 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:54:36.120424
+2025-09-19 03:54:37,038 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:54:38,168 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:54:38,168 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:54:38,169 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:54:38,170 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:54:38,171 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:54:38,232 - app - INFO - Print job started with ID: 93
+2025-09-19 03:54:38,232 - app - INFO - Starting print page.
+2025-09-19 03:54:38,232 - app - INFO - Raw data written to printer.
+2025-09-19 03:54:38,233 - app - INFO - Ending print page.
+2025-09-19 03:54:38,234 - app - INFO - Print document ended successfully.
+2025-09-19 03:54:38,234 - app - INFO - Printer handle closed.
+2025-09-19 03:54:41,632 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:54:43,976 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:54:45,191 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:54:45,192 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:54:45,192 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:54:45,193 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:54:45,194 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:54:45,257 - app - INFO - Print job started with ID: 94
+2025-09-19 03:54:45,257 - app - INFO - Starting print page.
+2025-09-19 03:54:45,258 - app - INFO - Raw data written to printer.
+2025-09-19 03:54:45,258 - app - INFO - Ending print page.
+2025-09-19 03:54:45,260 - app - INFO - Print document ended successfully.
+2025-09-19 03:54:45,260 - app - INFO - Printer handle closed.
+2025-09-19 03:54:48,992 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:55:03,651 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:55:03,654 - app - INFO - Checking for changes...
+2025-09-19 03:55:03,950 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:55:04,942 - app - INFO - No new changes found.
+2025-09-19 03:55:05,323 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:55:05.323062
+2025-09-19 03:55:08,111 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:55:09,607 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:55:09,607 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:55:09,608 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:55:09,609 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:55:09,610 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:55:09,667 - app - INFO - Print job started with ID: 95
+2025-09-19 03:55:09,668 - app - INFO - Starting print page.
+2025-09-19 03:55:09,668 - app - INFO - Raw data written to printer.
+2025-09-19 03:55:09,668 - app - INFO - Ending print page.
+2025-09-19 03:55:09,669 - app - INFO - Print document ended successfully.
+2025-09-19 03:55:09,670 - app - INFO - Printer handle closed.
+2025-09-19 03:55:10,809 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:55:12,740 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:55:13,965 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:55:14,022 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:55:14,022 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:55:14,023 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:55:14,024 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:55:14,024 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:55:14,072 - app - INFO - Print job started with ID: 96
+2025-09-19 03:55:14,072 - app - INFO - Starting print page.
+2025-09-19 03:55:14,072 - app - INFO - Raw data written to printer.
+2025-09-19 03:55:14,073 - app - INFO - Ending print page.
+2025-09-19 03:55:14,074 - app - INFO - Print document ended successfully.
+2025-09-19 03:55:14,074 - app - INFO - Printer handle closed.
+2025-09-19 03:55:44,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:55:45,049 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:55:45,051 - app - INFO - Checking for changes...
+2025-09-19 03:55:46,335 - app - INFO - No new changes found.
+2025-09-19 03:55:46,701 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:55:46.701280
+2025-09-19 03:55:47,822 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:55:49,332 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:55:50,470 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:55:50,470 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:55:50,471 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:55:50,472 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:55:50,473 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:55:50,532 - app - INFO - Print job started with ID: 97
+2025-09-19 03:55:50,532 - app - INFO - Starting print page.
+2025-09-19 03:55:50,532 - app - INFO - Raw data written to printer.
+2025-09-19 03:55:50,532 - app - INFO - Ending print page.
+2025-09-19 03:55:50,533 - app - INFO - Print document ended successfully.
+2025-09-19 03:55:50,533 - app - INFO - Printer handle closed.
+2025-09-19 03:55:56,518 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:56:14,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:56:15,265 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:56:15,266 - app - INFO - Checking for changes...
+2025-09-19 03:56:15,680 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:56:16,556 - app - INFO - No new changes found.
+2025-09-19 03:56:16,917 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:56:16.917423
+2025-09-19 03:56:19,060 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:56:20,239 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:56:20,239 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:56:20,240 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:56:20,241 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:56:20,241 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:56:20,300 - app - INFO - Print job started with ID: 98
+2025-09-19 03:56:20,300 - app - INFO - Starting print page.
+2025-09-19 03:56:20,301 - app - INFO - Raw data written to printer.
+2025-09-19 03:56:20,301 - app - INFO - Ending print page.
+2025-09-19 03:56:20,302 - app - INFO - Print document ended successfully.
+2025-09-19 03:56:20,302 - app - INFO - Printer handle closed.
+2025-09-19 03:56:21,514 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:56:24,790 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:56:26,711 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:56:26,713 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:56:26,713 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:56:26,713 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:56:26,714 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:56:26,774 - app - INFO - Print job started with ID: 99
+2025-09-19 03:56:26,774 - app - INFO - Starting print page.
+2025-09-19 03:56:26,774 - app - INFO - Raw data written to printer.
+2025-09-19 03:56:26,775 - app - INFO - Ending print page.
+2025-09-19 03:56:26,776 - app - INFO - Print document ended successfully.
+2025-09-19 03:56:26,776 - app - INFO - Printer handle closed.
+2025-09-19 03:56:31,159 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:56:42,338 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:56:42,339 - app - INFO - Checking for changes...
+2025-09-19 03:56:43,657 - app - INFO - No new changes found.
+2025-09-19 03:56:44,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:56:44,033 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:56:44.033776
+2025-09-19 03:56:46,851 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:56:46,852 - app - INFO - Checking for changes...
+2025-09-19 03:56:48,134 - app - INFO - No new changes found.
+2025-09-19 03:56:48,513 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:56:48.513609
+2025-09-19 03:56:48,680 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:56:49,823 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:56:50,911 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:56:50,911 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:56:50,912 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:56:50,913 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:56:50,914 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:56:50,973 - app - INFO - Print job started with ID: 100
+2025-09-19 03:56:50,974 - app - INFO - Starting print page.
+2025-09-19 03:56:50,974 - app - INFO - Raw data written to printer.
+2025-09-19 03:56:50,975 - app - INFO - Ending print page.
+2025-09-19 03:56:50,976 - app - INFO - Print document ended successfully.
+2025-09-19 03:56:50,976 - app - INFO - Printer handle closed.
+2025-09-19 03:56:54,495 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:56:55,566 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:56:55,566 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:56:55,567 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:56:55,568 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:56:55,569 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:56:55,616 - app - INFO - Print job started with ID: 101
+2025-09-19 03:56:55,618 - app - INFO - Starting print page.
+2025-09-19 03:56:55,618 - app - INFO - Raw data written to printer.
+2025-09-19 03:56:55,618 - app - INFO - Ending print page.
+2025-09-19 03:56:55,619 - app - INFO - Print document ended successfully.
+2025-09-19 03:56:55,620 - app - INFO - Printer handle closed.
+2025-09-19 03:57:00,695 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:57:12,791 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:57:14,040 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:57:44,028 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:57:59,896 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:57:59,898 - app - INFO - Checking for changes...
+2025-09-19 03:58:01,177 - app - INFO - No new changes found.
+2025-09-19 03:58:01,541 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:58:01.541122
+2025-09-19 03:58:47,030 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:58:52,606 - app - INFO - Starting sync process with notification support...
+2025-09-19 03:58:52,606 - app - INFO - Checking for changes...
+2025-09-19 03:58:53,899 - app - INFO - No new changes found.
+2025-09-19 03:58:54,265 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T03:58:54.265568
+2025-09-19 03:58:58,384 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:58:59,902 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:59:01,399 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:59:01,400 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:59:01,400 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:59:01,401 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:59:01,402 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:59:01,462 - app - INFO - Print job started with ID: 102
+2025-09-19 03:59:01,462 - app - INFO - Starting print page.
+2025-09-19 03:59:01,462 - app - INFO - Raw data written to printer.
+2025-09-19 03:59:01,463 - app - INFO - Ending print page.
+2025-09-19 03:59:01,464 - app - INFO - Print document ended successfully.
+2025-09-19 03:59:01,464 - app - INFO - Printer handle closed.
+2025-09-19 03:59:06,008 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 03:59:07,501 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 03:59:07,502 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 03:59:07,502 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 03:59:07,503 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 03:59:07,504 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 03:59:07,561 - app - INFO - Print job started with ID: 103
+2025-09-19 03:59:07,561 - app - INFO - Starting print page.
+2025-09-19 03:59:07,561 - app - INFO - Raw data written to printer.
+2025-09-19 03:59:07,562 - app - INFO - Ending print page.
+2025-09-19 03:59:07,563 - app - INFO - Print document ended successfully.
+2025-09-19 03:59:07,563 - app - INFO - Printer handle closed.
+2025-09-19 03:59:12,920 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 03:59:13,967 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:59:44,023 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 03:59:44,923 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:00:14,034 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:00:39,288 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:00:39,288 - app - INFO - Checking for changes...
+2025-09-19 04:00:40,527 - app - INFO - No new changes found.
+2025-09-19 04:00:40,890 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:00:40.890778
+2025-09-19 04:00:44,027 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:00:44,030 - app - INFO - Checking for changes...
+2025-09-19 04:00:44,561 - app - INFO - No new changes found.
+2025-09-19 04:00:45,102 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:00:45.102996
+2025-09-19 04:00:45,799 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:00:45,800 - app - INFO - Checking for changes...
+2025-09-19 04:00:47,078 - app - INFO - No new changes found.
+2025-09-19 04:00:47,439 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:00:47.439871
+2025-09-19 04:00:47,530 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:00:49,319 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:00:51,974 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:00:51,975 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:00:51,975 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:00:51,976 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:00:51,978 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:00:52,047 - app - INFO - Print job started with ID: 104
+2025-09-19 04:00:52,047 - app - INFO - Starting print page.
+2025-09-19 04:00:52,047 - app - INFO - Raw data written to printer.
+2025-09-19 04:00:52,048 - app - INFO - Ending print page.
+2025-09-19 04:00:52,048 - app - INFO - Print document ended successfully.
+2025-09-19 04:00:52,049 - app - INFO - Printer handle closed.
+2025-09-19 04:00:54,400 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:00:55,488 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:00:57,485 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:00:57,486 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:00:57,486 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:00:57,487 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:00:57,488 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:00:57,535 - app - INFO - Print job started with ID: 105
+2025-09-19 04:00:57,535 - app - INFO - Starting print page.
+2025-09-19 04:00:57,535 - app - INFO - Raw data written to printer.
+2025-09-19 04:00:57,535 - app - INFO - Ending print page.
+2025-09-19 04:00:57,536 - app - INFO - Print document ended successfully.
+2025-09-19 04:00:57,536 - app - INFO - Printer handle closed.
+2025-09-19 04:01:03,499 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:01:14,023 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:01:44,036 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:02:47,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:03:36,502 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:03:36,506 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:03:44,029 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:04:14,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:04:47,031 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:05:47,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:06:47,023 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:07:47,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:08:47,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:09:47,024 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:10:47,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:11:47,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:12:33,959 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:12:33,960 - app - INFO - Checking for changes...
+2025-09-19 04:12:35,219 - app - INFO - No new changes found.
+2025-09-19 04:12:35,590 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:12:35.590249
+2025-09-19 04:12:47,027 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:13:47,031 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:13:55,169 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:13:56,215 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:13:57,507 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:13:57,508 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:13:57,508 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:13:57,509 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:13:57,510 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:13:57,572 - app - INFO - Print job started with ID: 106
+2025-09-19 04:13:57,572 - app - INFO - Starting print page.
+2025-09-19 04:13:57,572 - app - INFO - Raw data written to printer.
+2025-09-19 04:13:57,573 - app - INFO - Ending print page.
+2025-09-19 04:13:57,574 - app - INFO - Print document ended successfully.
+2025-09-19 04:13:57,574 - app - INFO - Printer handle closed.
+2025-09-19 04:14:00,688 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:14:02,053 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:14:02,054 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:14:02,054 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:14:02,055 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:14:02,056 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:14:02,103 - app - INFO - Print job started with ID: 107
+2025-09-19 04:14:02,103 - app - INFO - Starting print page.
+2025-09-19 04:14:02,103 - app - INFO - Raw data written to printer.
+2025-09-19 04:14:02,104 - app - INFO - Ending print page.
+2025-09-19 04:14:02,104 - app - INFO - Print document ended successfully.
+2025-09-19 04:14:02,105 - app - INFO - Printer handle closed.
+2025-09-19 04:14:06,386 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:14:13,968 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:14:44,033 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:14:57,900 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:14:57,901 - app - INFO - Checking for changes...
+2025-09-19 04:14:58,960 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:14:59,218 - app - INFO - No new changes found.
+2025-09-19 04:14:59,590 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:14:59.590344
+2025-09-19 04:15:00,544 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:15:02,051 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:15:02,052 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:15:02,052 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:15:02,053 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:15:02,054 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:15:02,111 - app - INFO - Print job started with ID: 108
+2025-09-19 04:15:02,111 - app - INFO - Starting print page.
+2025-09-19 04:15:02,111 - app - INFO - Raw data written to printer.
+2025-09-19 04:15:02,113 - app - INFO - Ending print page.
+2025-09-19 04:15:02,114 - app - INFO - Print document ended successfully.
+2025-09-19 04:15:02,114 - app - INFO - Printer handle closed.
+2025-09-19 04:15:04,479 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:15:05,612 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:15:06,765 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:15:06,765 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:15:06,766 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:15:06,767 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:15:06,767 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:15:06,816 - app - INFO - Print job started with ID: 109
+2025-09-19 04:15:06,816 - app - INFO - Starting print page.
+2025-09-19 04:15:06,816 - app - INFO - Raw data written to printer.
+2025-09-19 04:15:06,816 - app - INFO - Ending print page.
+2025-09-19 04:15:06,817 - app - INFO - Print document ended successfully.
+2025-09-19 04:15:06,818 - app - INFO - Printer handle closed.
+2025-09-19 04:15:15,565 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:15:15,566 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:15:44,028 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:15:45,106 - app - INFO - Checking for changes...
+2025-09-19 04:15:45,642 - app - INFO - No new changes found.
+2025-09-19 04:15:46,210 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:15:46.210668
+2025-09-19 04:16:14,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:16:16,118 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:16:16,119 - app - INFO - Checking for changes...
+2025-09-19 04:16:17,440 - app - INFO - No new changes found.
+2025-09-19 04:16:17,818 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:16:17.818708
+2025-09-19 04:16:25,755 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:16:25,756 - app - INFO - Checking for changes...
+2025-09-19 04:16:27,012 - app - INFO - No new changes found.
+2025-09-19 04:16:27,370 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:16:27.370048
+2025-09-19 04:16:33,318 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:16:34,709 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:16:35,819 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:16:35,820 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:16:35,820 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:16:35,821 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:16:35,822 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:16:35,880 - app - INFO - Print job started with ID: 110
+2025-09-19 04:16:35,880 - app - INFO - Starting print page.
+2025-09-19 04:16:35,880 - app - INFO - Raw data written to printer.
+2025-09-19 04:16:35,880 - app - INFO - Ending print page.
+2025-09-19 04:16:35,881 - app - INFO - Print document ended successfully.
+2025-09-19 04:16:35,881 - app - INFO - Printer handle closed.
+2025-09-19 04:16:38,751 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:16:39,590 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:16:41,012 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:16:41,012 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:16:41,013 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:16:41,014 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:16:41,015 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:16:41,064 - app - INFO - Print job started with ID: 111
+2025-09-19 04:16:41,065 - app - INFO - Starting print page.
+2025-09-19 04:16:41,065 - app - INFO - Raw data written to printer.
+2025-09-19 04:16:41,065 - app - INFO - Ending print page.
+2025-09-19 04:16:41,066 - app - INFO - Print document ended successfully.
+2025-09-19 04:16:41,066 - app - INFO - Printer handle closed.
+2025-09-19 04:16:43,961 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:17:00,942 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:17:00,943 - app - INFO - Checking for changes...
+2025-09-19 04:17:01,578 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:17:02,255 - app - INFO - No new changes found.
+2025-09-19 04:17:02,657 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:17:02.657727
+2025-09-19 04:17:05,349 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:17:06,682 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:17:06,683 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:17:06,683 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:17:06,685 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:17:06,685 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:17:06,744 - app - INFO - Print job started with ID: 112
+2025-09-19 04:17:06,744 - app - INFO - Starting print page.
+2025-09-19 04:17:06,744 - app - INFO - Raw data written to printer.
+2025-09-19 04:17:06,744 - app - INFO - Ending print page.
+2025-09-19 04:17:06,745 - app - INFO - Print document ended successfully.
+2025-09-19 04:17:06,746 - app - INFO - Printer handle closed.
+2025-09-19 04:17:07,624 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:17:09,467 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:17:11,258 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:17:11,259 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:17:11,259 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:17:11,260 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:17:11,261 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:17:11,308 - app - INFO - Print job started with ID: 113
+2025-09-19 04:17:11,308 - app - INFO - Starting print page.
+2025-09-19 04:17:11,308 - app - INFO - Raw data written to printer.
+2025-09-19 04:17:11,309 - app - INFO - Ending print page.
+2025-09-19 04:17:11,310 - app - INFO - Print document ended successfully.
+2025-09-19 04:17:11,310 - app - INFO - Printer handle closed.
+2025-09-19 04:17:18,827 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:17:18,829 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:17:27,060 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:17:27,061 - app - INFO - Checking for changes...
+2025-09-19 04:17:27,886 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:17:28,359 - app - INFO - No new changes found.
+2025-09-19 04:17:28,722 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:17:28.722662
+2025-09-19 04:17:28,916 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:17:30,398 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:17:30,400 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:17:30,404 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:17:30,405 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:17:30,406 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:17:30,468 - app - INFO - Print job started with ID: 114
+2025-09-19 04:17:30,468 - app - INFO - Starting print page.
+2025-09-19 04:17:30,468 - app - INFO - Raw data written to printer.
+2025-09-19 04:17:30,468 - app - INFO - Ending print page.
+2025-09-19 04:17:30,469 - app - INFO - Print document ended successfully.
+2025-09-19 04:17:30,470 - app - INFO - Printer handle closed.
+2025-09-19 04:17:34,185 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:17:35,499 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:17:35,499 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:17:35,500 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:17:35,501 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:17:35,502 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:17:35,549 - app - INFO - Print job started with ID: 115
+2025-09-19 04:17:35,549 - app - INFO - Starting print page.
+2025-09-19 04:17:35,550 - app - INFO - Raw data written to printer.
+2025-09-19 04:17:35,550 - app - INFO - Ending print page.
+2025-09-19 04:17:35,551 - app - INFO - Print document ended successfully.
+2025-09-19 04:17:35,551 - app - INFO - Printer handle closed.
+2025-09-19 04:17:36,861 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:17:44,024 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:18:14,019 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:18:47,018 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:19:04,091 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:19:04,092 - app - INFO - Checking for changes...
+2025-09-19 04:19:05,378 - app - INFO - No new changes found.
+2025-09-19 04:19:05,761 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:19:05.761967
+2025-09-19 04:19:47,027 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:19:57,547 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:20:14,016 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:20:44,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:21:47,035 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:22:47,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:23:33,161 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:23:33,162 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:23:34,614 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:23:43,967 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:24:14,024 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:24:44,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:25:47,029 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:26:47,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:27:47,033 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:27:49,915 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:27:49,915 - app - INFO - Checking for changes...
+2025-09-19 04:27:51,162 - app - INFO - No new changes found.
+2025-09-19 04:27:51,510 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:27:51.510514
+2025-09-19 04:28:00,548 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:28:00,549 - app - INFO - Checking for changes...
+2025-09-19 04:28:01,836 - app - INFO - No new changes found.
+2025-09-19 04:28:02,215 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:28:02.215100
+2025-09-19 04:28:47,023 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:29:47,027 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:29:54,717 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:29:54,718 - app - INFO - Checking for changes...
+2025-09-19 04:29:55,967 - app - INFO - No new changes found.
+2025-09-19 04:29:56,332 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:29:56.332484
+2025-09-19 04:30:34,327 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:30:34,328 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:30:44,066 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:30:46,212 - app - INFO - Checking for changes...
+2025-09-19 04:30:46,770 - app - INFO - No new changes found.
+2025-09-19 04:30:47,307 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:30:47.307093
+2025-09-19 04:31:09,061 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:31:09,061 - app - INFO - Checking for changes...
+2025-09-19 04:31:10,399 - app - INFO - No new changes found.
+2025-09-19 04:31:10,782 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:31:10.782013
+2025-09-19 04:31:12,095 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:31:13,350 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:31:13,961 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:31:14,848 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:31:14,848 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:31:14,849 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:31:14,850 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:31:14,851 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:31:14,907 - app - INFO - Print job started with ID: 116
+2025-09-19 04:31:14,908 - app - INFO - Starting print page.
+2025-09-19 04:31:14,908 - app - INFO - Raw data written to printer.
+2025-09-19 04:31:14,908 - app - INFO - Ending print page.
+2025-09-19 04:31:14,909 - app - INFO - Print document ended successfully.
+2025-09-19 04:31:14,909 - app - INFO - Printer handle closed.
+2025-09-19 04:31:21,904 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:31:34,603 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:31:36,173 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:31:37,857 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:31:37,858 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:31:37,858 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:31:37,860 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:31:37,861 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:31:37,911 - app - INFO - Print job started with ID: 117
+2025-09-19 04:31:37,911 - app - INFO - Starting print page.
+2025-09-19 04:31:37,911 - app - INFO - Raw data written to printer.
+2025-09-19 04:31:37,912 - app - INFO - Ending print page.
+2025-09-19 04:31:37,913 - app - INFO - Print document ended successfully.
+2025-09-19 04:31:37,913 - app - INFO - Printer handle closed.
+2025-09-19 04:31:48,704 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:31:48,705 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:32:14,014 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:32:22,173 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:32:22,174 - app - INFO - Checking for changes...
+2025-09-19 04:32:23,458 - app - INFO - No new changes found.
+2025-09-19 04:32:23,819 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:32:23.819693
+2025-09-19 04:32:31,815 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:32:31,815 - app - INFO - Checking for changes...
+2025-09-19 04:32:31,827 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:32:33,129 - app - INFO - No new changes found.
+2025-09-19 04:32:33,483 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:32:33.483441
+2025-09-19 04:32:33,688 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:32:35,097 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:32:35,098 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:32:35,098 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:32:35,099 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:32:35,100 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:32:35,165 - app - INFO - Print job started with ID: 118
+2025-09-19 04:32:35,165 - app - INFO - Starting print page.
+2025-09-19 04:32:35,165 - app - INFO - Raw data written to printer.
+2025-09-19 04:32:35,165 - app - INFO - Ending print page.
+2025-09-19 04:32:35,167 - app - INFO - Print document ended successfully.
+2025-09-19 04:32:35,168 - app - INFO - Printer handle closed.
+2025-09-19 04:32:37,383 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:32:42,314 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:32:42,314 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:32:42,315 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:32:42,316 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:32:42,317 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:32:42,366 - app - INFO - Print job started with ID: 119
+2025-09-19 04:32:42,366 - app - INFO - Starting print page.
+2025-09-19 04:32:42,367 - app - INFO - Raw data written to printer.
+2025-09-19 04:32:42,367 - app - INFO - Ending print page.
+2025-09-19 04:32:42,368 - app - INFO - Print document ended successfully.
+2025-09-19 04:32:42,368 - app - INFO - Printer handle closed.
+2025-09-19 04:32:46,972 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:32:46,973 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:33:02,842 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:33:02,843 - app - INFO - Checking for changes...
+2025-09-19 04:33:04,129 - app - INFO - No new changes found.
+2025-09-19 04:33:04,161 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:33:04,490 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:33:04.490134
+2025-09-19 04:33:06,690 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:33:09,937 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:33:09,938 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:33:09,939 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:33:09,940 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:33:09,941 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:33:10,000 - app - INFO - Print job started with ID: 120
+2025-09-19 04:33:10,002 - app - INFO - Starting print page.
+2025-09-19 04:33:10,003 - app - INFO - Raw data written to printer.
+2025-09-19 04:33:10,003 - app - INFO - Ending print page.
+2025-09-19 04:33:10,004 - app - INFO - Print document ended successfully.
+2025-09-19 04:33:10,004 - app - INFO - Printer handle closed.
+2025-09-19 04:33:11,818 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:33:12,755 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:33:13,960 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:33:14,129 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:33:14,129 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:33:14,130 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:33:14,131 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:33:14,131 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:33:14,176 - app - INFO - Print job started with ID: 121
+2025-09-19 04:33:14,176 - app - INFO - Starting print page.
+2025-09-19 04:33:14,177 - app - INFO - Raw data written to printer.
+2025-09-19 04:33:14,177 - app - INFO - Ending print page.
+2025-09-19 04:33:14,178 - app - INFO - Print document ended successfully.
+2025-09-19 04:33:14,178 - app - INFO - Printer handle closed.
+2025-09-19 04:33:20,956 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:33:32,003 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:33:32,004 - app - INFO - Checking for changes...
+2025-09-19 04:33:33,277 - app - INFO - No new changes found.
+2025-09-19 04:33:33,655 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:33:33.655015
+2025-09-19 04:33:44,019 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:34:14,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:34:19,447 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:34:19,448 - app - INFO - Checking for changes...
+2025-09-19 04:34:20,407 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:34:20,711 - app - INFO - No new changes found.
+2025-09-19 04:34:21,085 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:34:21.085922
+2025-09-19 04:34:21,794 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:34:23,113 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:34:23,114 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:34:23,114 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:34:23,115 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:34:23,116 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:34:23,178 - app - INFO - Print job started with ID: 122
+2025-09-19 04:34:23,179 - app - INFO - Starting print page.
+2025-09-19 04:34:23,179 - app - INFO - Raw data written to printer.
+2025-09-19 04:34:23,179 - app - INFO - Ending print page.
+2025-09-19 04:34:23,181 - app - INFO - Print document ended successfully.
+2025-09-19 04:34:23,181 - app - INFO - Printer handle closed.
+2025-09-19 04:34:26,352 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:34:28,128 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:34:28,129 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:34:28,129 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:34:28,131 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:34:28,132 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:34:28,181 - app - INFO - Print job started with ID: 123
+2025-09-19 04:34:28,181 - app - INFO - Starting print page.
+2025-09-19 04:34:28,181 - app - INFO - Raw data written to printer.
+2025-09-19 04:34:28,182 - app - INFO - Ending print page.
+2025-09-19 04:34:28,183 - app - INFO - Print document ended successfully.
+2025-09-19 04:34:28,183 - app - INFO - Printer handle closed.
+2025-09-19 04:34:36,731 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:34:44,020 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:35:14,027 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:35:25,269 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:35:44,028 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:36:14,017 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:36:47,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:37:47,019 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:38:37,985 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:38:37,986 - app - INFO - Checking for changes...
+2025-09-19 04:38:39,227 - app - INFO - No new changes found.
+2025-09-19 04:38:39,576 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:38:39.576185
+2025-09-19 04:38:47,020 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:39:26,434 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:39:26,434 - app - INFO - Checking for changes...
+2025-09-19 04:39:27,719 - app - INFO - No new changes found.
+2025-09-19 04:39:28,091 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:39:28.091525
+2025-09-19 04:39:47,344 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:39:47,344 - app - INFO - Checking for changes...
+2025-09-19 04:39:47,354 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:39:48,578 - app - INFO - No new changes found.
+2025-09-19 04:39:48,946 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:39:48.946208
+2025-09-19 04:40:09,227 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:40:09,229 - app - INFO - Checking for changes...
+2025-09-19 04:40:10,568 - app - INFO - No new changes found.
+2025-09-19 04:40:10,944 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:40:10.944660
+2025-09-19 04:40:11,298 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:40:12,821 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:40:13,961 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:40:14,264 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:40:14,265 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:40:14,265 - app - INFO - Generated TSPL commands (copies=1, store_name=Company Name):
+['SIZE 55 mm,12 mm', 'GAP 8 mm,0 mm', 'CLS', 'DIRECTION 1', 'REFERENCE 0,0', 'BARCODE 10,2,"128",40,1,0,2,2,"1757806427788588"', 'TEXT 250,5,"1",0,1,1,"SIRI ART JEWELLERS"', 'TEXT 250,20,"1",0,1,1,"Product:hz rings"', 'TEXT 250,35,"1",0,1,1,"Price:Rs.250.00"', 'PRINT 1,1']
+2025-09-19 04:40:14,266 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:40:14,267 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:40:14,269 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:40:14,330 - app - INFO - Print job started with ID: 124
+2025-09-19 04:40:14,331 - app - INFO - Starting print page.
+2025-09-19 04:40:14,331 - app - INFO - Raw data written to printer.
+2025-09-19 04:40:14,331 - app - INFO - Ending print page.
+2025-09-19 04:40:14,333 - app - INFO - Print document ended successfully.
+2025-09-19 04:40:14,334 - app - INFO - Printer handle closed.
+2025-09-19 04:40:16,950 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:40:18,280 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:40:19,736 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:40:19,736 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:40:19,737 - app - INFO - Generated TSPL commands (copies=1, store_name=Company Name):
+['SIZE 55 mm,12 mm', 'GAP 8 mm,0 mm', 'CLS', 'DIRECTION 1', 'REFERENCE 0,0', 'BARCODE 10,2,"128",40,1,0,2,2,"1757806427788588"', 'TEXT 250,5,"1",0,1,1,"SIRI ART JEWELLERS"', 'TEXT 250,20,"1",0,1,1,"Product:hz rings"', 'TEXT 250,35,"1",0,1,1,"Price:Rs.250.00"', 'PRINT 1,1']
+2025-09-19 04:40:19,737 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:40:19,739 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:40:19,739 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:40:19,786 - app - INFO - Print job started with ID: 125
+2025-09-19 04:40:19,787 - app - INFO - Starting print page.
+2025-09-19 04:40:19,787 - app - INFO - Raw data written to printer.
+2025-09-19 04:40:19,787 - app - INFO - Ending print page.
+2025-09-19 04:40:19,789 - app - INFO - Print document ended successfully.
+2025-09-19 04:40:19,789 - app - INFO - Printer handle closed.
+2025-09-19 04:40:22,688 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:40:44,030 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:40:44,605 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:40:44,606 - app - INFO - Checking for changes...
+2025-09-19 04:40:45,855 - app - INFO - No new changes found.
+2025-09-19 04:40:46,219 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:40:46.219286
+2025-09-19 04:40:54,267 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:40:54,268 - app - INFO - Checking for changes...
+2025-09-19 04:40:54,585 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:40:55,532 - app - INFO - No new changes found.
+2025-09-19 04:40:55,908 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:40:55.908480
+2025-09-19 04:40:57,728 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:41:13,963 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:41:44,013 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:41:59,085 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:42:05,802 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:42:08,337 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:42:08,337 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:42:08,338 - app - INFO - Generated TSPL commands (copies=1, store_name=Company Name):
+['SIZE 55 mm,12 mm', 'GAP 8 mm,0 mm', 'CLS', 'DIRECTION 1', 'REFERENCE 0,0', 'BARCODE 40,2,"128",48,1,0,1,2,"1757806427788588"', 'TEXT 250,5,"1",0,1,1,"SIRI ART JEWELLERS"', 'TEXT 250,20,"1",0,1,1,"Product:hz rings"', 'TEXT 250,35,"1",0,1,1,"Price:Rs.250.00"', 'PRINT 1,1']
+2025-09-19 04:42:08,338 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:42:08,339 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:42:08,341 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:42:08,409 - app - INFO - Print job started with ID: 126
+2025-09-19 04:42:08,409 - app - INFO - Starting print page.
+2025-09-19 04:42:08,409 - app - INFO - Raw data written to printer.
+2025-09-19 04:42:08,410 - app - INFO - Ending print page.
+2025-09-19 04:42:08,411 - app - INFO - Print document ended successfully.
+2025-09-19 04:42:08,411 - app - INFO - Printer handle closed.
+2025-09-19 04:42:10,529 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:42:11,438 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:42:12,464 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:42:12,465 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:42:12,465 - app - INFO - Generated TSPL commands (copies=1, store_name=Company Name):
+['SIZE 55 mm,12 mm', 'GAP 8 mm,0 mm', 'CLS', 'DIRECTION 1', 'REFERENCE 0,0', 'BARCODE 40,2,"128",48,1,0,1,2,"1757806427788588"', 'TEXT 250,5,"1",0,1,1,"SIRI ART JEWELLERS"', 'TEXT 250,20,"1",0,1,1,"Product:hz rings"', 'TEXT 250,35,"1",0,1,1,"Price:Rs.250.00"', 'PRINT 1,1']
+2025-09-19 04:42:12,465 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:42:12,466 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:42:12,467 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:42:12,513 - app - INFO - Print job started with ID: 127
+2025-09-19 04:42:12,514 - app - INFO - Starting print page.
+2025-09-19 04:42:12,514 - app - INFO - Raw data written to printer.
+2025-09-19 04:42:12,514 - app - INFO - Ending print page.
+2025-09-19 04:42:12,515 - app - INFO - Print document ended successfully.
+2025-09-19 04:42:12,515 - app - INFO - Printer handle closed.
+2025-09-19 04:42:45,685 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:42:45,687 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:42:56,068 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:43:14,026 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:43:18,175 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:43:18,175 - app - INFO - Checking for changes...
+2025-09-19 04:43:19,434 - app - INFO - No new changes found.
+2025-09-19 04:43:19,788 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:43:19.787448
+2025-09-19 04:43:20,101 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:43:21,458 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:43:23,102 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:43:23,103 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:43:23,103 - app - INFO - Generated TSPL commands (copies=1, store_name=Company Name):
+['SIZE 55 mm,12 mm', 'GAP 8 mm,0 mm', 'CLS', 'DIRECTION 1', 'REFERENCE 0,0', 'BARCODE 40,2,"128",48,1,0,1,2,"1757806427788588"', 'TEXT 225,5,"1",0,1,1,"SIRI ART JEWELLERS"', 'TEXT 225,20,"1",0,1,1,"Product:hz rings"', 'TEXT 225,35,"1",0,1,1,"Price:Rs.250.00"', 'PRINT 1,1']
+2025-09-19 04:43:23,103 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:43:23,104 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:43:23,105 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:43:23,164 - app - INFO - Print job started with ID: 128
+2025-09-19 04:43:23,165 - app - INFO - Starting print page.
+2025-09-19 04:43:23,165 - app - INFO - Raw data written to printer.
+2025-09-19 04:43:23,165 - app - INFO - Ending print page.
+2025-09-19 04:43:23,166 - app - INFO - Print document ended successfully.
+2025-09-19 04:43:23,166 - app - INFO - Printer handle closed.
+2025-09-19 04:43:26,142 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:43:28,232 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:43:28,232 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:43:28,233 - app - INFO - Generated TSPL commands (copies=1, store_name=Company Name):
+['SIZE 55 mm,12 mm', 'GAP 8 mm,0 mm', 'CLS', 'DIRECTION 1', 'REFERENCE 0,0', 'BARCODE 40,2,"128",48,1,0,1,2,"1757806427788588"', 'TEXT 225,5,"1",0,1,1,"SIRI ART JEWELLERS"', 'TEXT 225,20,"1",0,1,1,"Product:hz rings"', 'TEXT 225,35,"1",0,1,1,"Price:Rs.250.00"', 'PRINT 1,1']
+2025-09-19 04:43:28,233 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:43:28,234 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:43:28,235 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:43:28,293 - app - INFO - Print job started with ID: 129
+2025-09-19 04:43:28,293 - app - INFO - Starting print page.
+2025-09-19 04:43:28,293 - app - INFO - Raw data written to printer.
+2025-09-19 04:43:28,293 - app - INFO - Ending print page.
+2025-09-19 04:43:28,294 - app - INFO - Print document ended successfully.
+2025-09-19 04:43:28,295 - app - INFO - Printer handle closed.
+2025-09-19 04:43:31,268 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:43:44,032 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:43:55,265 - app - INFO - Starting sync process with notification support...
+2025-09-19 04:43:55,266 - app - INFO - Checking for changes...
+2025-09-19 04:43:56,331 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:43:56,512 - app - INFO - No new changes found.
+2025-09-19 04:43:56,869 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:43:56.869429
+2025-09-19 04:43:58,626 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:43:59,888 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:43:59,888 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:43:59,889 - app - INFO - Generated TSPL commands (copies=1, store_name=Company Name):
+['SIZE 55 mm,12 mm', 'GAP 8 mm,0 mm', 'CLS', 'DIRECTION 1', 'REFERENCE 0,0', 'BARCODE 40,2,"128",48,1,0,1,2,"1757806427788588"', 'TEXT 230,5,"1",0,1,1,"SIRI ART JEWELLERS"', 'TEXT 230,20,"1",0,1,1,"Product:hz rings"', 'TEXT 230,35,"1",0,1,1,"Price:Rs.250.00"', 'PRINT 1,1']
+2025-09-19 04:43:59,889 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:43:59,890 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:43:59,891 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:43:59,954 - app - INFO - Print job started with ID: 130
+2025-09-19 04:43:59,955 - app - INFO - Starting print page.
+2025-09-19 04:43:59,955 - app - INFO - Raw data written to printer.
+2025-09-19 04:43:59,955 - app - INFO - Ending print page.
+2025-09-19 04:43:59,957 - app - INFO - Print document ended successfully.
+2025-09-19 04:43:59,957 - app - INFO - Printer handle closed.
+2025-09-19 04:44:02,361 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=None
+2025-09-19 04:44:03,480 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-09-19 04:44:03,480 - app - INFO - Received print request: product_ids=['1757806429472'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Company Name
+2025-09-19 04:44:03,481 - app - INFO - Generated TSPL commands (copies=1, store_name=Company Name):
+['SIZE 55 mm,12 mm', 'GAP 8 mm,0 mm', 'CLS', 'DIRECTION 1', 'REFERENCE 0,0', 'BARCODE 40,2,"128",48,1,0,1,2,"1757806427788588"', 'TEXT 230,5,"1",0,1,1,"SIRI ART JEWELLERS"', 'TEXT 230,20,"1",0,1,1,"Product:hz rings"', 'TEXT 230,35,"1",0,1,1,"Price:Rs.250.00"', 'PRINT 1,1']
+2025-09-19 04:44:03,481 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-09-19 04:44:03,482 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-09-19 04:44:03,483 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-09-19 04:44:03,538 - app - INFO - Print job started with ID: 131
+2025-09-19 04:44:03,538 - app - INFO - Starting print page.
+2025-09-19 04:44:03,538 - app - INFO - Raw data written to printer.
+2025-09-19 04:44:03,538 - app - INFO - Ending print page.
+2025-09-19 04:44:03,539 - app - INFO - Print document ended successfully.
+2025-09-19 04:44:03,539 - app - INFO - Printer handle closed.
+2025-09-19 04:44:05,858 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:44:13,966 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:44:44,015 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:44:45,850 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:45:14,017 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:45:44,022 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:45:47,308 - app - INFO - Checking for changes...
+2025-09-19 04:45:47,864 - app - INFO - No new changes found.
+2025-09-19 04:45:48,408 - app - INFO - [MySQL] Sync table check successful at 2025-09-19T04:45:48.408856
+2025-09-19 04:46:47,023 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:47:27,332 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:47:27,335 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:47:38,443 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-09-19 04:47:44,021 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:48:14,016 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-09-19 04:48:47,023 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000

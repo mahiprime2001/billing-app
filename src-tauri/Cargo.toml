@@ -30,3 +30,4 @@ uuid = { version = "1.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
 tokio = { version = "1.x", features = ["full"] }
 regex = "1.11.2"
 serialport = "4.7.3"
+windows = "0.61.3"

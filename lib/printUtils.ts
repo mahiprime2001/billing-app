@@ -55,7 +55,7 @@ async function browserPrint(htmlContent: string): Promise<void> {
       <head>
         <title>Print Document</title>
         <style>
-          body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+          body { margin: 0; padding: 0px; font-family: Arial, sans-serif; }
           @media print { body { margin: 0; } }
         </style>
       </head>

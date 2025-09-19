@@ -101,6 +101,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tokio",
  "uuid",
+ "windows",
 ]
 
 [[package]]

@@ -14,6 +14,7 @@ from urllib.parse import urlparse # Import urlparse
 from utils.db import DatabaseConnection # Import DatabaseConnection
 from scripts.sync import log_and_apply_sync # Import log_and_apply_sync
 from scripts.sync_check import start_sync_process # Import start_sync_process
+from utils.print_TSPL import generate_tspl, send_raw_to_printer
 
 # Determine the base directory for resource loading
 if getattr(sys, 'frozen', False):
@@ -38,7 +39,16 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(PROJECT_ROOT, '.env')) # Load environment variables from .env file (assuming .env is in the project root)
 
 app = Flask(__name__)
-CORS(app, origins="*", supports_credentials=True) # Enable CORS for all routes and origins
+
+@app.before_request
+def log_request_info():
+    app.logger.info(f"Incoming Request: Method={request.method}, Path={request.path}, Origin={request.headers.get('Origin')}")
+
+# Enable CORS for specific origins and methods
+CORS(app, resources={r"/api/*": {"origins": "*"}}, 
+     supports_credentials=True, 
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], 
+     headers=["Content-Type", "Authorization"])
 
 # Secret key for session management (replace with a strong, random key in production)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'super_secret_key_for_dev')
@@ -143,6 +153,11 @@ def save_stores_data(stores):
 def home():
     return "Hello from Flask Backend!"
 
+@app.errorhandler(404)
+def not_found(error):
+    app.logger.warning(f"404 Not Found: Path={request.path}, Method={request.method}, Origin={request.headers.get('Origin')}")
+    return jsonify({"status": "error", "message": "Resource not found"}), 404
+
 # All API routes will now require explicit authentication checks within their functions
 # or rely on the frontend to send credentials with each request.
 # For now, we are removing the global @app.before_request authentication.
@@ -198,6 +213,61 @@ def delete_product(product_id):
         return jsonify({"message": "Product deleted"}), 200
     return jsonify({"message": "Product not found"}), 404
 
+# Define the printer name (replace with your actual printer name)
+PRINTER_NAME = os.environ.get('PRINTER_NAME', 'SNBC TVSE LP46 Dlite BPLE') # Default to example name
+
+import traceback # Add this import
+
+# Define the printer name (replace with your actual printer name)
+PRINTER_NAME = os.environ.get('PRINTER_NAME', 'SNBC TVSE LP46 Dlite BPLE') # Default to example name
+
+import win32print # Add this import
+
+@app.route('/api/printers', methods=['GET'])
+def get_printers():
+    try:
+        printers = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL, None, 1)
+        printer_names = [name for flags, description, name, comment in printers]
+        return jsonify({"status": "success", "printers": printer_names})
+    except Exception as e:
+        app.logger.error("Exception in get_printers endpoint:\n" + traceback.format_exc())
+        return jsonify({"status": "error", "message": f"Failed to retrieve printers: {e}"}), 500
+
+@app.route('/api/print-label', methods=['POST', 'OPTIONS'])
+def api_print_label():
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        return response, 200
+
+    try:
+        data = request.get_json()
+        product_ids = data.get("productIds", [])
+        copies = int(data.get("copies", 1))
+        printer_name = data.get("printerName", "Your_Printer_Name")
+        store_name = data.get("storeName", "Company Name") # Get storeName from request
+
+        app.logger.info(f"Received print request: product_ids={product_ids}, copies={copies}, printer_name={printer_name}, store_name={store_name}")
+
+        products = get_products_data()
+        selected_products = [p for p in products if p.get('id') in product_ids]
+
+        if not selected_products:
+            app.logger.error("No valid products found for print request.")
+            return {"status": "error", "message": "No valid products found"}, 400
+
+        tspl_commands = generate_tspl(selected_products, copies, store_name, app.logger)
+
+        send_raw_to_printer(printer_name, tspl_commands, app.logger)
+        return {"status": "success", "message": f"Print job sent to printer {printer_name}"}
+    except Exception as e:
+        app.logger.error("Exception in print_label endpoint:\n" + traceback.format_exc())
+        return {"status": "error", "message": f"Printing failed: {e}"}, 500
+    
+    
+    
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.json
