@@ -26,7 +26,8 @@
     "security": {
       "csp": null,
       "capabilities": ["default-capabilities"]
-    }
+    },
+    "withGlobalTauri": true
   },
   "plugins":{
     "updater": {
@@ -49,7 +50,7 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/Siriadmin-backend"
+      "binaries/siriadmin-backend"
     ]
   }
 }
