@@ -317,6 +317,9 @@ export default function UsersPage() {
         return { label: "Billing User", variant: "secondary" as const, icon: User, color: "text-green-600" }
       case "temporary_user":
         return { label: "Temporary User", variant: "outline" as const, icon: Clock, color: "text-orange-600" }
+      default:
+        // Fallback for unknown roles
+        return { label: "Unknown Role", variant: "destructive" as const, icon: User, color: "text-gray-500" }
     }
   }
 

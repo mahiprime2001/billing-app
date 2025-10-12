@@ -1,0 +1,38 @@
+[
+  {
+    "id": "0c1224ca-1219-4f64-bb26-bebf2645c3c2",
+    "name": "V.HARAM",
+    "price": 4800.0,
+    "stock": 2,
+    "tax": null,
+    "createdAt": "2025-09-20T01:07:36",
+    "updatedAt": "2025-09-20T07:52:46",
+    "barcodes": [
+      "1758310655120819"
+    ]
+  },
+  {
+    "id": "53e3d59e-a3f7-40c9-a1a5-adfb33c65827",
+    "name": "V.NECKLECE",
+    "price": 1650.0,
+    "stock": 3,
+    "tax": null,
+    "createdAt": "2025-09-20T07:59:23",
+    "updatedAt": "2025-09-20T07:59:23",
+    "barcodes": [
+      "1758335362818774"
+    ]
+  },
+  {
+    "id": "d3c526df-12b3-4eb2-83e4-c118e1300036",
+    "name": "S.NECKLACE",
+    "price": 1000.0,
+    "stock": 2,
+    "tax": null,
+    "createdAt": "2025-09-20T08:00:27",
+    "updatedAt": "2025-09-20T08:00:27",
+    "barcodes": [
+      "1758335426002500"
+    ]
+  }
+]

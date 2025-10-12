@@ -50,7 +50,7 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/siriadmin-backend"
+      "binaries/Siriadmin-backend"
     ]
   }
 }

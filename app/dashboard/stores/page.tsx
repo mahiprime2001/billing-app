@@ -44,6 +44,9 @@ import {
   Calendar,
   Building,
 } from "lucide-react"
+import ProductAssignmentDialog, {
+  AssignedProduct,
+} from "@/components/product-assignment-dialog";
 
 interface StoreType {
   id: string
@@ -215,6 +218,32 @@ export default function StoresPage() {
       }
     }
   }
+
+  // NEW: Assign products to a store
+  const handleProductAssignment = async (storeId: string, products: AssignedProduct[]) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/stores/${storeId}/assign-products`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ products }),
+        }
+      );
+
+      if (response.ok) {
+        alert(`Successfully assigned ${products.length} products to the store!`);
+        // Optionally refresh any dependent data:
+        // await loadData();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(`Failed to assign products: ${errorData.message || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error("Error assigning products:", error);
+      alert("An error occurred while assigning products.");
+    }
+  };
 
   const toggleStoreStatus = async (id: string) => {
     const store = stores.find((s) => s.id === id)
@@ -464,8 +493,8 @@ export default function StoresPage() {
                   <TableHeader>
                     <TableRow className="bg-gray-50">
                       <TableHead>Store Details</TableHead>
-                      <TableHead>Contact Info</TableHead>
-                      <TableHead>Performance</TableHead>
+                      <TableHead>Store Info</TableHead>
+                      <TableHead>Revenue</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -546,6 +575,24 @@ export default function StoresPage() {
                             <Button variant="outline" size="sm" onClick={() => handleEdit(store)}>
                               <Edit className="h-4 w-4" />
                             </Button>
+
+                            {/* NEW: Plus button with product assignment dialog */}
+                            <ProductAssignmentDialog
+                              storeId={store.id}
+                              storeName={store.name}
+                              trigger={
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="bg-green-50 hover:bg-green-100 border-green-200"
+                                  title="Assign products"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              }
+                              onAssign={handleProductAssignment}
+                            />
+
                             <Button
                               variant="outline"
                               size="sm"

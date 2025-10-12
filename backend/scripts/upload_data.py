@@ -18,7 +18,6 @@ def get_json_data(filename):
 
 async def upload_data():
     """Uploads data from JSON files to the MySQL database."""
-    
     # Define sync log file path
     log_dir = os.path.join(PROJECT_ROOT, 'backend', 'data', 'logs')
     log_filepath = os.path.join(log_dir, 'sync.log')
@@ -61,13 +60,33 @@ async def upload_data():
                         (user.get('id'), store_id)
                     )
 
-        # Upload products
+        # Upload products (with assignedStoreId and tax, and upsert)
         products = get_json_data('products.json')
         for product in products:
             cursor.execute(
-                'INSERT IGNORE INTO Products (id, name, price, stock, createdAt, updatedAt) VALUES (%s, %s, %s, %s, %s, %s)',
-                (product.get('id'), product.get('name'), product.get('price'), product.get('stock'), product.get('createdAt'), product.get('updatedAt'))
+                """
+                INSERT INTO Products (id, name, price, stock, tax, assignedStoreId, createdAt, updatedAt)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                  name = VALUES(name),
+                  price = VALUES(price),
+                  stock = VALUES(stock),
+                  tax = VALUES(tax),
+                  assignedStoreId = VALUES(assignedStoreId),
+                  updatedAt = VALUES(updatedAt)
+                """,
+                (
+                    product.get('id'),
+                    product.get('name'),
+                    product.get('price'),
+                    product.get('stock'),
+                    product.get('tax'),
+                    product.get('assignedStoreId'),
+                    product.get('createdAt'),
+                    product.get('updatedAt'),
+                )
             )
+
             if product.get('barcodes'):
                 for barcode in product['barcodes']:
                     cursor.execute(
@@ -80,17 +99,19 @@ async def upload_data():
         for bill in bills:
             customer_id = None
             if bill.get('customerPhone'):
-                customer_id = bill['customerPhone'] # Use phone number as customer ID
-                now = datetime.now()
-                cursor.execute(
-                    'INSERT IGNORE INTO Customers (id, name, phone, email, address, createdAt, updatedAt) VALUES (%s, %s, %s, %s, %s, %s, %s)',
-                    (customer_id, bill.get('customerName'), bill.get('customerPhone'), bill.get('customerEmail'), bill.get('customerAddress'), now, now)
-                )
+                customer_id = bill['customerPhone']  # Use phone number as customer ID
+
+            now = datetime.now()
+            cursor.execute(
+                'INSERT IGNORE INTO Customers (id, name, phone, email, address, createdAt, updatedAt) VALUES (%s, %s, %s, %s, %s, %s, %s)',
+                (customer_id, bill.get('customerName'), bill.get('customerPhone'), bill.get('customerEmail'), bill.get('customerAddress'), now, now)
+            )
 
             cursor.execute(
                 'INSERT IGNORE INTO Bills (id, storeId, storeName, storeAddress, customerName, customerPhone, customerEmail, customerAddress, customerId, subtotal, taxPercentage, taxAmount, discountPercentage, discountAmount, total, paymentMethod, timestamp, notes, gstin, companyName, companyAddress, companyPhone, companyEmail, billFormat, createdBy) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
                 (bill.get('id'), bill.get('storeId'), bill.get('storeName'), bill.get('storeAddress'), bill.get('customerName'), bill.get('customerPhone'), bill.get('customerEmail'), bill.get('customerAddress'), customer_id, bill.get('subtotal'), bill.get('taxPercentage'), bill.get('taxAmount'), bill.get('discountPercentage'), bill.get('discountAmount'), bill.get('total'), bill.get('paymentMethod'), bill.get('timestamp'), bill.get('notes'), bill.get('gstin'), bill.get('companyName'), bill.get('companyAddress'), bill.get('companyPhone'), bill.get('companyEmail'), bill.get('billFormat'), bill.get('createdBy'))
             )
+
             if bill.get('items'):
                 for item in bill['items']:
                     cursor.execute(
@@ -101,28 +122,22 @@ async def upload_data():
         # Upload settings
         settings_data = get_json_data('settings.json')
         print(f"DEBUG: settings_data from settings.json: {settings_data}")
-        
+
         system_settings = {}
         if isinstance(settings_data, list) and settings_data:
-            # If settings_data is a list, take the first item as the system settings
             system_settings = settings_data[0]
             print(f"DEBUG: settings_data was a list, taking first element: {system_settings}")
         elif isinstance(settings_data, dict):
-            # If settings_data is already a dictionary, use it directly
             system_settings = settings_data
             print(f"DEBUG: settings_data was a dict: {system_settings}")
         else:
             print(f"WARNING: Unexpected format for settings_data: {type(settings_data)}. Skipping system settings upload.")
-            # Skip the rest of the settings upload if format is unexpected
-            system_settings = {} # Ensure system_settings is a dict to prevent further errors
+            system_settings = {}
 
-        if system_settings: # Only proceed if system_settings is a valid dictionary
-            # Check if settings already exist (assuming a single settings entry, e.g., with ID 1)
+        if system_settings:
             cursor.execute('SELECT COUNT(*) FROM SystemSettings WHERE id = 1')
             settings_count = cursor.fetchone()[0]
-
             if settings_count == 0:
-                # Insert if no settings exist
                 cursor.execute(
                     'INSERT INTO SystemSettings (id, gstin, taxPercentage, companyName, companyAddress, companyPhone, companyEmail) VALUES (%s, %s, %s, %s, %s, %s, %s)',
                     (1, system_settings.get('gstin'), system_settings.get('taxPercentage'), system_settings.get('companyName'), system_settings.get('companyAddress'), system_settings.get('companyPhone'), system_settings.get('companyEmail'))
@@ -130,9 +145,6 @@ async def upload_data():
                 print("Initial system settings inserted.")
             else:
                 print("System settings already exist, skipping initial insert.")
-        
-        # The commented-out billFormats section is not relevant to the current task
-        # and can be ignored or removed if not used elsewhere.
 
         conn.commit()
         print('Data uploaded successfully!')
@@ -154,7 +166,8 @@ async def upload_data():
         if conn:
             cursor.close()
             conn.close()
-        # DatabaseConnection.close_pool() is no longer needed here as the pool manages itself
+
+# DatabaseConnection.close_pool() is no longer needed here as the pool manages itself
 
 if __name__ == "__main__":
     import asyncio

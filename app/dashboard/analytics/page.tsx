@@ -135,6 +135,12 @@ interface ProductAnalytics {
   revenueGrowth: number
 }
 
+interface ProductAdditionAnalytics {
+  date: string;
+  productsAdded: number;
+  totalValueAdded: number;
+}
+
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D", "#FFC658", "#FF7C7C"]
 
 export default function AnalyticsPage() {
@@ -146,6 +152,7 @@ export default function AnalyticsPage() {
   const [storeAnalytics, setStoreAnalytics] = useState<StoreAnalytics[]>([])
   const [productAnalytics, setProductAnalytics] = useState<ProductAnalytics[]>([])
   const [userSessionAnalytics, setUserSessionAnalytics] = useState<UserSessionAnalytics[]>([]) // New state for user session analytics
+  const [productAdditionAnalytics, setProductAdditionAnalytics] = useState<ProductAdditionAnalytics[]>([]) // New state for product addition analytics
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [selectedStore, setSelectedStore] = useState<string>("all")
@@ -176,6 +183,7 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (bills.length > 0) {
       calculateAnalytics()
+      calculateProductAdditionAnalytics()
     }
     if (users.length > 0) {
       calculateUserSessionAnalytics()
@@ -285,6 +293,56 @@ export default function AnalyticsPage() {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     setUserSessionAnalytics(sessionAnalytics);
+  };
+
+  const calculateProductAdditionAnalytics = () => {
+    const productFirstSaleDate: Map<string, Date> = new Map();
+
+    // Determine the absolute first sale date for each product across all bills
+    bills.forEach(bill => {
+      const billDate = new Date(bill.timestamp);
+      bill.items.forEach(item => {
+        if (!productFirstSaleDate.has(item.productId) || billDate < (productFirstSaleDate.get(item.productId) as Date)) {
+          productFirstSaleDate.set(item.productId, billDate);
+        }
+      });
+    });
+
+    const dailyProductAdditions: { [key: string]: { productsAdded: Set<string>; totalValueAdded: number } } = {};
+
+    // Aggregate products first sold within the selected date range
+    productFirstSaleDate.forEach((firstSaleDate, productId) => {
+      if (dateRange?.from && dateRange?.to && firstSaleDate >= dateRange.from && firstSaleDate <= dateRange.to) {
+        const dateKey = format(firstSaleDate, "yyyy-MM-dd");
+
+        if (!dailyProductAdditions[dateKey]) {
+          dailyProductAdditions[dateKey] = { productsAdded: new Set(), totalValueAdded: 0 };
+        }
+        dailyProductAdditions[dateKey].productsAdded.add(productId);
+
+        // Find the revenue for this product on its first sale day
+        const relevantBills = bills.filter(bill => 
+          format(new Date(bill.timestamp), "yyyy-MM-dd") === dateKey && 
+          bill.items.some(item => item.productId === productId)
+        );
+
+        relevantBills.forEach(bill => {
+          bill.items.filter(item => item.productId === productId).forEach(item => {
+            dailyProductAdditions[dateKey].totalValueAdded += item.total;
+          });
+        });
+      }
+    });
+
+    const productAdditionData = Object.entries(dailyProductAdditions)
+      .map(([date, stats]) => ({
+        date,
+        productsAdded: stats.productsAdded.size,
+        totalValueAdded: Number(stats.totalValueAdded.toFixed(2)),
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    setProductAdditionAnalytics(productAdditionData);
   };
 
   const calculateAnalytics = () => {
@@ -1025,7 +1083,7 @@ export default function AnalyticsPage() {
                         <p className="text-sm font-medium mb-2">Top Products</p>
                         <div className="space-y-1">
                           {store.topProducts.slice(0, 3).map((product, index) => (
-                            <div key={product.productId} className="flex justify-between text-sm">
+                            <div key={`${store.storeId}-${product.productId}`} className="flex justify-between text-sm">
                               <span className="truncate">
                                 {index + 1}. {product.productName}
                               </span>
@@ -1130,6 +1188,38 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle>Products Added & Value Over Time</CardTitle>
+                <CardDescription>Number of unique products first sold and their total revenue per day</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart
+                    data={productAdditionAnalytics}
+                    margin={{
+                      top: 5,
+                      right: 30,
+                      left: 20,
+                      bottom: 5,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis yAxisId="left" label={{ value: 'Products Added', angle: -90, position: 'insideLeft' }} />
+                    <YAxis yAxisId="right" orientation="right" label={{ value: 'Total Value (₹)', angle: 90, position: 'insideRight' }} />
+                    <Tooltip formatter={(value, name) => {
+                      if (name === "productsAdded") return [`${value} products`, "Products Added"];
+                      if (name === "totalValueAdded") return [`₹${Number(value).toFixed(2)}`, "Total Value Added"];
+                      return value;
+                    }} />
+                    <Line yAxisId="left" type="monotone" dataKey="productsAdded" stroke="#8884d8" activeDot={{ r: 8 }} name="productsAdded" />
+                    <Line yAxisId="right" type="monotone" dataKey="totalValueAdded" stroke="#82ca9d" activeDot={{ r: 8 }} name="totalValueAdded" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader>
@@ -1154,8 +1244,8 @@ export default function AnalyticsPage() {
                         fill="#8884d8"
                         dataKey="value"
                       >
-                        {filteredProductAnalytics.slice(0, 8).map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        {filteredProductAnalytics.slice(0, 8).map((item, index) => (
+                          <Cell key={item.productName} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip formatter={(value) => [`₹${Number(value).toFixed(2)}`, "Revenue"]} />

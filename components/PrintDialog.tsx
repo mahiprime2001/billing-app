@@ -1,11 +1,24 @@
 "use client";
 
-import React, { useState, useEffect } from "react"; // Import useEffect
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import React, { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select components
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { Printer } from "lucide-react";
 import JsBarcode from "jsbarcode";
 
@@ -13,7 +26,7 @@ interface Product {
   id: string;
   name: string;
   price: number;
-  barcodes: string[]; // Assuming products have barcodes
+  barcodes: string[];
 }
 
 interface PrintDialogProps {
@@ -21,49 +34,66 @@ interface PrintDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onPrintSuccess: () => void;
-  storeName: string; // Added storeName prop
+  storeName: string;
 }
 
-export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess, storeName }: PrintDialogProps) {
+function getBackendBase(): string {
+  const envBase = (process.env.NEXT_PUBLIC_BACKEND_API_URL || "").trim();
+  const base = envBase || "";
+  return base.replace(/\/+$/, "");
+}
+
+export default function PrintDialog({
+  products,
+  isOpen,
+  onClose,
+  onPrintSuccess,
+  storeName
+}: PrintDialogProps) {
   const [copies, setCopies] = useState(1);
   const [loading, setLoading] = useState(false);
   const [barcodePreviews, setBarcodePreviews] = useState<{ [productId: string]: string | null }>({});
-  const [availablePrinters, setAvailablePrinters] = useState<string[]>([]); // New state for available printers
-  const [selectedPrinter, setSelectedPrinter] = useState<string>(""); // New state for selected printer
+  const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
+  const [selectedPrinter, setSelectedPrinter] = useState<string>("");
 
   // Editable dimensions states
-  const [labelWidth, setLabelWidth] = useState(81); // in mm
-  const [labelHeight, setLabelHeight] = useState(12); // in mm
-  const [barcodeWidthOption, setBarcodeWidthOption] = useState(2); // JsBarcode width option
-  const [barcodeHeightOption, setBarcodeHeightOption] = useState(35); // JsBarcode height option
-  const [barcodeDisplayValue, setBarcodeDisplayValue] = useState(false); // JsBarcode displayValue option
+  const [labelWidth, setLabelWidth] = useState(81); // mm
+  const [labelHeight, setLabelHeight] = useState(12); // mm
+  const [barcodeWidthOption, setBarcodeWidthOption] = useState(2); // JsBarcode width
+  const [barcodeHeightOption, setBarcodeHeightOption] = useState(35); // JsBarcode height
+  const [barcodeDisplayValue, setBarcodeDisplayValue] = useState(false); // displayValue
 
+  // Load printers when dialog opens
   useEffect(() => {
-    if (isOpen) {
-      const fetchPrinters = async () => {
-        try {
-          const response = await fetch('/api/printers');
-          const data = await response.json();
-          if (data.status === "success") {
-            setAvailablePrinters(data.printers);
-            if (data.printers.length > 0) {
-              const defaultPrinterName = "SNBC TVSE LP46 Dlite BPLE";
-              if (data.printers.includes(defaultPrinterName)) {
-                setSelectedPrinter(defaultPrinterName);
-              } else {
-                setSelectedPrinter(data.printers[0]); // Select the first printer by default if the desired one is not found
-              }
-            }
+    if (!isOpen) return;
+
+    const backendBase = getBackendBase();
+    const printersUrl = `${backendBase}/api/printers`;
+
+    const fetchPrinters = async () => {
+      try {
+        const res = await fetch(printersUrl, { method: "GET" });
+        const data = await res.json();
+        if (res.ok && data.status === "success" && Array.isArray(data.printers)) {
+          setAvailablePrinters(data.printers);
+          if (data.printers.length > 0) {
+            const preferred = "SNBC TVSE LP46 Dlite BPLE";
+            setSelectedPrinter(
+              data.printers.includes(preferred) ? preferred : data.printers[0]
+            );
           } else {
-            console.error("Failed to fetch printers:", data.message);
+            setSelectedPrinter("");
           }
-        } catch (error) {
-          console.error("Error fetching printers:", error);
+        } else {
+          console.error("Failed to fetch printers:", data?.message || "Unknown error");
         }
-      };
-      fetchPrinters();
-    }
-  }, [isOpen]); // Fetch printers when dialog opens
+      } catch (err) {
+        console.error("Error fetching printers:", err);
+      }
+    };
+
+    fetchPrinters();
+  }, [isOpen]);
 
   const createBarcodeImage = (barcodeValue: string): string | null => {
     try {
@@ -79,7 +109,7 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
         displayValue: barcodeDisplayValue,
         margin: 1,
         background: "#ffffff",
-        lineColor: "#000000",
+        lineColor: "#000000"
       };
 
       JsBarcode(canvas, barcodeValue, options);
@@ -90,11 +120,12 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     const generatePreviews = () => {
       const newPreviews: { [productId: string]: string | null } = {};
       for (const product of products) {
-        const barcodeValue = (product.barcodes && product.barcodes.length > 0) ? product.barcodes[0] : product.id;
+        const barcodeValue =
+          product.barcodes && product.barcodes.length > 0 ? product.barcodes[0] : product.id;
         newPreviews[product.id] = createBarcodeImage(barcodeValue);
       }
       setBarcodePreviews(newPreviews);
@@ -103,43 +134,61 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
     if (isOpen && products.length > 0) {
       generatePreviews();
     } else if (!isOpen) {
-      setBarcodePreviews({}); // Clear previews when dialog closes
+      setBarcodePreviews({});
     }
-  }, [isOpen, products, labelWidth, labelHeight, barcodeWidthOption, barcodeHeightOption, barcodeDisplayValue]); // Depend on dimension states
+  }, [
+    isOpen,
+    products,
+    labelWidth,
+    labelHeight,
+    barcodeWidthOption,
+    barcodeHeightOption,
+    barcodeDisplayValue
+  ]);
 
   const handlePrint = async () => {
     if (products.length === 0) {
       alert("No products selected");
       return;
     }
+    if (!selectedPrinter) {
+      alert("No printer selected");
+      return;
+    }
 
     setLoading(true);
     try {
       const productIds = products.map((p) => p.id);
-      const apiUrl = `/api/print-label`;
-      console.log("Attempting to fetch from:", apiUrl); // Log the URL
+      const backendBase = getBackendBase();
+      const apiUrl = `${backendBase}/api/print-label`;
+      console.log("Attempting to POST:", apiUrl);
+
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productIds,
           copies,
-          printerName: selectedPrinter // Use the selected printer name
-        }),
+          printerName: selectedPrinter,
+          storeName: storeName || "Company Name"
+        })
       });
-      const data = await response.json();
-      if (data.status === "success") {
+
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.status === "success") {
         alert("Print job sent successfully.");
         onPrintSuccess();
         onClose();
       } else {
-        alert("Print failed: " + data.message);
+        const msg = data?.message || `${response.status} ${response.statusText}`;
+        alert("Print failed: " + msg);
       }
     } catch (error) {
       alert("Error sending print request.");
       console.error(error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -150,14 +199,19 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
             <Printer className="h-5 w-5 mr-2" />
             Print Labels
           </DialogTitle>
-          <DialogDescription>Configure and preview labels for the selected products.</DialogDescription>
+          <DialogDescription>
+            Configure and preview labels for the selected products.
+          </DialogDescription>
         </DialogHeader>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
           {/* Print Settings Column */}
           <div className="space-y-6">
             {/* Copies per Product */}
             <div className="space-y-2">
-              <Label htmlFor="copies" className="text-base font-medium">Copies per Product</Label>
+              <Label htmlFor="copies" className="text-base font-medium">
+                Copies per Product
+              </Label>
               <Input
                 id="copies"
                 type="number"
@@ -167,7 +221,9 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
                 onChange={(e) => setCopies(Number.parseInt(e.target.value) || 1)}
                 className="w-32"
               />
-              <p className="text-sm text-gray-600">Number of labels to print for each selected product.</p>
+              <p className="text-sm text-gray-600">
+                Number of labels to print for each selected product.
+              </p>
             </div>
 
             {/* Label Dimensions */}
@@ -175,7 +231,9 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
               <Label className="text-base font-medium">Label Dimensions (mm)</Label>
               <div className="flex space-x-2">
                 <div className="flex-1">
-                  <Label htmlFor="label-width" className="sr-only">Width</Label>
+                  <Label htmlFor="label-width" className="sr-only">
+                    Width
+                  </Label>
                   <Input
                     id="label-width"
                     type="number"
@@ -187,7 +245,9 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
                   <p className="text-xs text-gray-500 mt-1">Width (mm)</p>
                 </div>
                 <div className="flex-1">
-                  <Label htmlFor="label-height" className="sr-only">Height</Label>
+                  <Label htmlFor="label-height" className="sr-only">
+                    Height
+                  </Label>
                   <Input
                     id="label-height"
                     type="number"
@@ -199,34 +259,40 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
                   <p className="text-xs text-gray-500 mt-1">Height (mm)</p>
                 </div>
               </div>
-                 </div>
+            </div>
 
-                 {/* Printer Selection */}
-                 <div className="space-y-2">
-                   <Label htmlFor="printer-select" className="text-base font-medium">Select Printer</Label>
-                   <Select value={selectedPrinter} onValueChange={setSelectedPrinter}>
-                     <SelectTrigger id="printer-select" className="w-full">
-                       <SelectValue placeholder="Select a printer" />
-                     </SelectTrigger>
-                     <SelectContent>
-                       {availablePrinters.map((printer) => (
-                         <SelectItem key={printer} value={printer}>
-                           {printer}
-                         </SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
-                   {availablePrinters.length === 0 && (
-                     <p className="text-sm text-red-500">No printers found. Ensure backend is running and printers are installed.</p>
-                   )}
-                 </div>
+            {/* Printer Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="printer-select" className="text-base font-medium">
+                Select Printer
+              </Label>
+              <Select value={selectedPrinter} onValueChange={setSelectedPrinter}>
+                <SelectTrigger id="printer-select" className="w-full">
+                  <SelectValue placeholder="Select a printer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availablePrinters.map((printer) => (
+                    <SelectItem key={printer} value={printer}>
+                      {printer}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {availablePrinters.length === 0 && (
+                <p className="text-sm text-red-500">
+                  No printers found. Ensure backend is running and printers are installed.
+                </p>
+              )}
+            </div>
 
-                 {/* Barcode Options */}
-                 <div className="space-y-2">
-                   <Label className="text-base font-medium">Barcode Options</Label>
+            {/* Barcode Options */}
+            <div className="space-y-2">
+              <Label className="text-base font-medium">Barcode Options</Label>
               <div className="flex space-x-2">
                 <div className="flex-1">
-                  <Label htmlFor="barcode-width" className="sr-only">Barcode Bar Width</Label>
+                  <Label htmlFor="barcode-width" className="sr-only">
+                    Barcode Bar Width
+                  </Label>
                   <Input
                     id="barcode-width"
                     type="number"
@@ -239,7 +305,9 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
                   <p className="text-xs text-gray-500 mt-1">Bar Width (px)</p>
                 </div>
                 <div className="flex-1">
-                  <Label htmlFor="barcode-height" className="sr-only">Barcode Height</Label>
+                  <Label htmlFor="barcode-height" className="sr-only">
+                    Barcode Height
+                  </Label>
                   <Input
                     id="barcode-height"
                     type="number"
@@ -260,7 +328,9 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
                   onChange={(e) => setBarcodeDisplayValue(e.target.checked)}
                   className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <Label htmlFor="display-value" className="text-sm font-medium">Display Barcode Value</Label>
+                <Label htmlFor="display-value" className="text-sm font-medium">
+                  Display Barcode Value
+                </Label>
               </div>
             </div>
 
@@ -295,33 +365,33 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
                   <div
                     key={product.id}
                     className="mb-4 p-2 border rounded-md bg-white shadow-sm"
-                    style={{ width: `${labelWidth}mm`, height: `${labelHeight}mm`, overflow: 'hidden' }}
+                    style={{ width: `${labelWidth}mm`, height: `${labelHeight}mm`, overflow: "hidden" }}
                   >
                     <div
                       className="label-container"
                       style={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        justifyContent: 'flex-start',
-                        alignItems: 'center',
-                        boxSizing: 'border-box',
-                        fontSize: '6px',
-                        lineHeight: '1',
-                        height: '100%',
-                        width: '100%',
+                        display: "flex",
+                        flexDirection: "row",
+                        justifyContent: "flex-start",
+                        alignItems: "center",
+                        boxSizing: "border-box",
+                        fontSize: "6px",
+                        lineHeight: "1",
+                        height: "100%",
+                        width: "100%"
                       }}
                     >
                       {/* Barcode section on left */}
                       <div
                         className="barcode-section"
                         style={{
-                          width: '50%', // Roughly half of the label width
-                          height: '100%',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          paddingTop: '2mm',
+                          width: "50%",
+                          height: "100%",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          paddingTop: "2mm"
                         }}
                       >
                         {barcodePreviews[product.id] && (
@@ -330,9 +400,9 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
                             alt={`Barcode for ${product.name}`}
                             className="barcode-image"
                             style={{
-                              height: `${barcodeHeightOption / 3.779528}mm`, // Convert px to mm for preview
-                              maxWidth: '90%',
-                              marginBottom: '0.5mm',
+                              height: `${barcodeHeightOption / 3.779528}mm`,
+                              maxWidth: "90%",
+                              marginBottom: "0.5mm"
                             }}
                           />
                         )}
@@ -340,13 +410,15 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
                           <div
                             className="barcode-number"
                             style={{
-                              fontSize: '7px',
-                              fontWeight: 'bold',
-                              textAlign: 'center',
-                              letterSpacing: '0.2px',
+                              fontSize: "7px",
+                              fontWeight: "bold",
+                              textAlign: "center",
+                              letterSpacing: "0.2px"
                             }}
                           >
-                            {(product.barcodes && product.barcodes.length > 0) ? product.barcodes[0] : product.id}
+                            {product.barcodes && product.barcodes.length > 0
+                              ? product.barcodes[0]
+                              : product.id}
                           </div>
                         )}
                       </div>
@@ -355,24 +427,24 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
                       <div
                         className="left-section"
                         style={{
-                          width: '50%', // Roughly half of the label width
-                          height: '100%',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'flex-start',
-                          paddingLeft: '2mm',
+                          width: "50%",
+                          height: "100%",
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "center",
+                          alignItems: "flex-start",
+                          paddingLeft: "2mm"
                         }}
                       >
                         <div
                           className="company-name"
                           style={{
-                            fontSize: '6px',
-                            fontWeight: 'bold',
-                            marginBottom: '0.5mm',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
+                            fontSize: "6px",
+                            fontWeight: "bold",
+                            marginBottom: "0.5mm",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis"
                           }}
                         >
                           {storeName}
@@ -380,16 +452,16 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
                         <div
                           className="product-name"
                           style={{
-                            fontSize: '7px',
-                            fontWeight: 'bold',
-                            marginBottom: '0.5mm',
-                            lineHeight: '1.1',
-                            maxHeight: '6mm',
-                            overflow: 'hidden',
-                            display: '-webkit-box',
+                            fontSize: "7px",
+                            fontWeight: "bold",
+                            marginBottom: "0.5mm",
+                            lineHeight: "1.1",
+                            maxHeight: "6mm",
+                            overflow: "hidden",
+                            display: "-webkit-box",
                             WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            wordBreak: 'break-word',
+                            WebkitBoxOrient: "vertical",
+                            wordBreak: "break-word"
                           }}
                         >
                           Product Name: {product.name}
@@ -397,9 +469,9 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
                         <div
                           className="price"
                           style={{
-                            fontSize: '7px',
-                            fontWeight: 'bold',
-                            whiteSpace: 'nowrap',
+                            fontSize: "7px",
+                            fontWeight: "bold",
+                            whiteSpace: "nowrap"
                           }}
                         >
                           Price: ₹{product.price.toFixed(2)}
@@ -412,6 +484,7 @@ export default function PrintDialog({ products, isOpen, onClose, onPrintSuccess,
             </div>
           </div>
         </div>
+
         <DialogFooter>
           <Button
             type="button"

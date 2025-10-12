@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import type { Product } from "@/lib/types";
@@ -44,8 +44,10 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
+  Calendar, // NEW
 } from "lucide-react";
 import PrintDialog from "@/components/PrintDialog";
+import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
 
 interface AdminUser {
   name: string
@@ -66,6 +68,7 @@ const fetcher = (url: string) => fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_UR
 export default function ProductsPage() {
   const router = useRouter();
   const { data: products = [], mutate } = useSWR<Product[]>("/api/products", fetcher);
+  const scrollableDivRef = useRef<HTMLDivElement>(null); // Ref for the scrollable div
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [assignedStores, setAssignedStores] = useState<SystemStore[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -78,6 +81,20 @@ export default function ProductsPage() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [productsToPrint, setProductsToPrint] = useState<Product[]>([]);
 
+  // NEW: Calendar and modal state
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [isByDateDialogOpen, setIsByDateDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (calendarOpen) {
+      setCalendarMonth(new Date()); // ensure opening shows today’s month
+      // Optionally clear any previous selection:
+      // setSelectedDate(null);
+    }
+  }, [calendarOpen]);
+
   // Form states
   const [formData, setFormData] = useState({
     name: "",
@@ -85,7 +102,8 @@ export default function ProductsPage() {
     stock: "",
     tax: "",
     barcodes: [""],
-  })
+  });
+  const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
     const userData = localStorage.getItem("adminUser");
@@ -376,6 +394,108 @@ export default function ProductsPage() {
     }
   };
 
+  // ---------- NEW: Calendar helpers and derived data ----------
+  const fmtMonthYear = (d: Date) =>
+    d.toLocaleString(undefined, { month: "long", year: "numeric" });
+
+  const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
+  const daysInMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  const toKey = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  // Safely read createdAt without changing the imported Product type
+  const productsAny = products as Array<Product & { createdAt?: string }>;
+
+  const productsByDate = useMemo(() => {
+    const map: Record<string, (Product & { createdAt?: string })[]> = {};
+    for (const p of productsAny) {
+      if (!p?.createdAt) continue;
+      const d = new Date(p.createdAt);
+      if (Number.isNaN(d.getTime())) continue;
+      const key = d.toISOString().slice(0, 10);
+      (map[key] ||= []).push(p);
+    }
+    return map;
+  }, [productsAny]);
+
+  const dateCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const k in productsByDate) counts[k] = productsByDate[k].length;
+    return counts;
+  }, [productsByDate]);
+
+  const selectedKey = selectedDate ? toKey(selectedDate) : "";
+
+  function printProductsListForDate(list: Product[], titleDate: Date) {
+    const rows = list
+      .map(
+        (p) => `
+        <tr>
+          <td style="padding:6px;border:1px solid #ddd;">${p.id}</td>
+          <td style="padding:6px;border:1px solid #ddd;">${p.name}</td>
+          <td style="padding:6px;border:1px solid #ddd; text-align:right;">${(p as any).stock ?? 0}</td>
+          <td style="padding:6px;border:1px solid #ddd; text-align:right;">₹${Number(
+            (p as any).price ?? 0
+          ).toFixed(2)}</td>
+        </tr>`
+      )
+      .join("");
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Products on ${titleDate.toDateString()}</title>
+          <style>
+            @media print {
+              @page { margin: 12mm; }
+              body { font-family: ui-sans-serif, system-ui, Arial, sans-serif; }
+              h1 { font-size: 18px; margin-bottom: 12px; }
+              table { width: 100%; border-collapse: collapse; }
+              th { background:#f3f4f6; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Products on ${titleDate.toDateString()}</h1>
+          <table>
+            <thead>
+              <tr>
+                <th style="padding:6px;border:1px solid #ddd; text-align:left;">Product ID</th>
+                <th style="padding:6px;border:1px solid #ddd; text-align:left;">Product Name</th>
+                <th style="padding:6px;border:1px solid #ddd; text-align:right;">Stock</th>
+                <th style="padding:6px;border:1px solid #ddd; text-align:right;">Price</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function(){ window.close(); }, 300);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+  }
+  // ---------- END calendar helpers ----------
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
@@ -385,15 +505,155 @@ export default function ProductsPage() {
             <p className="text-gray-600 mt-2">Manage your inventory and product catalog</p>
           </div>
           <div className="flex items-center space-x-3">
+            {/* NEW: Calendar popover placed to the LEFT of Import */}
+            <div className="relative">
+              <Button variant="outline" onClick={() => setCalendarOpen((v) => !v)}>
+                <Calendar className="h-4 w-4 mr-2" />
+                Calendar
+              </Button>
+
+              {calendarOpen && (
+                <div className="absolute right-0 z-50 mt-2 bg-white border rounded shadow-lg p-3 w-80">
+                  {/* Month header */}
+                  <div className="flex items-center justify-between mb-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
+                      }
+                    >
+                      ◀
+                    </Button>
+                    <div className="text-sm font-medium">{fmtMonthYear(calendarMonth)}</div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+                      }
+                    >
+                      ▶
+                    </Button>
+                  </div>
+
+                  {/* Weekday headers */}
+                  <div className="grid grid-cols-7 text-[11px] text-gray-500 mb-1">
+                    <div className="text-center">Su</div>
+                    <div className="text-center">Mo</div>
+                    <div className="text-center">Tu</div>
+                    <div className="text-center">We</div>
+                    <div className="text-center">Th</div>
+                    <div className="text-center">Fr</div>
+                    <div className="text-center">Sa</div>
+                  </div>
+
+                  {/* Days grid */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {(() => {
+                      const first = startOfMonth(calendarMonth);
+                      const firstWeekday = first.getDay();
+                      const total = daysInMonth(calendarMonth);
+                      const cells: React.JSX.Element[] = [];
+
+                      // Leading blanks
+                      for (let i = 0; i < firstWeekday; i++) {
+                        cells.push(<div key={`b-${i}`} className="h-8" />);
+                      }
+
+                      // Actual days
+                      for (let day = 1; day <= total; day++) {
+                        const d = new Date(
+                          calendarMonth.getFullYear(),
+                          calendarMonth.getMonth(),
+                          day
+                        );
+                        const key = toKey(d);
+                        const count = dateCounts[key] ?? 0;
+                        const today = sameDay(d, new Date());
+
+                        let cls =
+                          "h-8 w-8 mx-auto flex items-center justify-center rounded-full cursor-pointer select-none ";
+                        if (today) {
+                          // Red circle for today
+                          cls += "border-2 border-red-500 text-red-600 ";
+                        } else if (count > 0) {
+                          // Light blue for days with products
+                          cls += "bg-blue-100 text-blue-700 ";
+                        } else {
+                          // Grey for no products
+                          cls += "text-gray-400 ";
+                        }
+
+                        cells.push(
+                          <div key={key} className="flex items-center justify-center">
+                            <div
+                              className={cls}
+                              title={count > 0 ? `${count} products` : "No products"}
+                              onClick={() => setSelectedDate(d)}
+                            >
+                              {day}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return cells;
+                    })()}
+                  </div>
+
+                  {/* Day actions */}
+                  {selectedDate && (
+                    <div className="mt-3 border-t pt-3">
+                      <div className="text-sm mb-2">
+                        {(dateCounts[selectedKey] ?? 0).toString()} products on {selectedDate.toDateString()}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsByDateDialogOpen(true)}
+                        >
+                          View all products
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            printProductsListForDate(
+                              (productsByDate[selectedKey] as Product[]) ?? [],
+                              selectedDate
+                            )
+                          }
+                        >
+                          <Printer className="h-4 w-4 mr-2" />
+                          Print all products
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="mt-3 border-t pt-3 text-right">
+                    <Button variant="outline" size="sm" onClick={() => setCalendarOpen(false)}>
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Import */}
             <input type="file" accept=".json" onChange={importProducts} className="hidden" id="import-products" />
             <Button variant="outline" onClick={() => document.getElementById("import-products")?.click()}>
               <Upload className="h-4 w-4 mr-2" />
               Import
             </Button>
+
+            {/* Export */}
             <Button variant="outline" onClick={exportProducts}>
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
+
+            {/* Add Product */}
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-blue-600 hover:bg-blue-700">
@@ -413,9 +673,23 @@ export default function ProductsPage() {
                       <Input
                         id="name"
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ ...formData, name: e.target.value });
+                          const input = e.target.value.toLowerCase();
+                          const suggestions = products
+                            .map((p) => p.name)
+                            .filter((name) => name.toLowerCase().includes(input) && name.toLowerCase() !== input)
+                            .slice(0, 5); // Limit to 5 suggestions
+                          setNameSuggestions(suggestions);
+                        }}
                         placeholder="Enter product name"
+                        list="product-name-suggestions"
                       />
+                      <datalist id="product-name-suggestions">
+                        {nameSuggestions.map((name, index) => (
+                          <option key={`${name}-${index}`} value={name} />
+                        ))}
+                      </datalist>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="price">Price (₹) *</Label>
@@ -531,8 +805,10 @@ export default function ProductsPage() {
               <div className="flex items-center">
                 <CheckCircle className="h-8 w-8 text-green-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">In Stock</p>
-                  <p className="text-2xl font-bold text-gray-900">{products.filter((p) => p.stock > 5).length}</p>
+                  <p className="text-sm font-medium text-gray-600">Total Stock</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {products.reduce((sum, p) => sum + p.stock, 0)}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -542,9 +818,9 @@ export default function ProductsPage() {
               <div className="flex items-center">
                 <AlertCircle className="h-8 w-8 text-yellow-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Low Stock</p>
+                  <p className="text-sm font-medium text-gray-600">Total Value of Inventory</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {products.filter((p) => p.stock > 0 && p.stock <= 5).length}
+                    ₹{products.reduce((sum, p) => sum + p.stock * p.price, 0).toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -615,7 +891,7 @@ export default function ProductsPage() {
             )}
 
             {/* Products Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[500px] overflow-y-auto relative" ref={scrollableDivRef}>
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
@@ -744,8 +1020,64 @@ export default function ProductsPage() {
                 </div>
               )}
             </div>
+            <ScrollToBottomButton onClick={() => scrollableDivRef.current?.scrollTo({ top: scrollableDivRef.current.scrollHeight, behavior: 'smooth' })} />
           </CardContent>
         </Card>
+
+        {/* NEW: View-all-products dialog for the selected day */}
+        <Dialog open={isByDateDialogOpen} onOpenChange={setIsByDateDialogOpen}>
+          <DialogContent className="sm:max-w-[700px]">
+            <DialogHeader>
+              <DialogTitle>
+                Products on {selectedDate ? selectedDate.toDateString() : ""}
+              </DialogTitle>
+              <DialogDescription>
+                Listed by product id, name, stock, and price.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2">Product ID</th>
+                    <th className="text-left p-2">Product Name</th>
+                    <th className="text-right p-2">Stock</th>
+                    <th className="text-right p-2">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {((productsByDate[selectedKey] as Product[]) ?? []).map((p) => (
+                    <tr key={(p as any).id} className="border-b hover:bg-gray-50">
+                      <td className="p-2">{(p as any).id}</td>
+                      <td className="p-2">{(p as any).name}</td>
+                      <td className="p-2 text-right">{(p as any).stock ?? 0}</td>
+                      <td className="p-2 text-right">₹{Number((p as any).price ?? 0).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsByDateDialogOpen(false)}>
+                Close
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!selectedDate) return;
+                  printProductsListForDate(
+                    ((productsByDate[selectedKey] as Product[]) ?? []),
+                    selectedDate
+                  );
+                }}
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <PrintDialog
           products={productsToPrint}
@@ -769,9 +1101,23 @@ export default function ProductsPage() {
                   <Input
                     id="edit-name"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, name: e.target.value });
+                      const input = e.target.value.toLowerCase();
+                      const suggestions = products
+                        .map((p) => p.name)
+                        .filter((name) => name.toLowerCase().includes(input) && name.toLowerCase() !== input)
+                        .slice(0, 5); // Limit to 5 suggestions
+                      setNameSuggestions(suggestions);
+                    }}
                     placeholder="Enter product name"
+                    list="product-name-suggestions-edit"
                   />
+                  <datalist id="product-name-suggestions-edit">
+                    {nameSuggestions.map((name, index) => (
+                      <option key={`${name}-${index}`} value={name} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

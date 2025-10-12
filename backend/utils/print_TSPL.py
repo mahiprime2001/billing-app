@@ -1,5 +1,3 @@
-# print_TSPL.py
-
 import win32print
 import logging
 
@@ -10,31 +8,33 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
 
     tspl = []
     for product in products:
-        tspl.append("SIZE 55 mm,12 mm")   # Correct size
-        tspl.append("GAP 8 mm,0 mm")
-        tspl.append("CLS")
-        tspl.append("DIRECTION 1") # Changed from 2 to 1 for standard TSPL inverted direction
-        tspl.append("REFERENCE 0,0")
+        tspl.append("GAPDETECT")  # Detects gap to align label; comment out if pre-calibrated
+        tspl.append("SIZE 80 mm,12 mm")  # Total label size (body + tail)
+        tspl.append("GAP 5 mm,0 mm")
+        # Gap between labels
+        tspl.append("CLS")  # Clear buffer
+        tspl.append("DENSITY 10")  # Medium darkness (adjust 0-15 if needed)
+        tspl.append("SPEED 4")  # 4 inches/sec (adjust 1-12 for quality)
+        tspl.append("DIRECTION 1")  # Inverted for rat-tail tag readability
+        tspl.append("REFERENCE 0,0")  # Origin at top-left
+        tspl.append("OFFSET 0,-1000")
 
         barcode = product.get("barcodes", [product.get("id", "")])[0]
 
-        # Barcode on left
-        # x=40 dots (5mm), y=2 dots (0.25mm), height=40 dots (5mm)
-        tspl.append(f'BARCODE 40,2,"128",48,1,0,1,2,"{barcode}"')
+        # Barcode: Code 128, positioned at x=8 (1 mm), y=4 (0.5 mm), height=32 dots (4 mm)
+        tspl.append(f'BARCODE 20,0,"128",55,1,0,1,1,"{barcode}"')  # Narrower barcode for fit
+        # Store name: x=120 (15 mm), y=4 (0.5 mm), font "1", no rotation, 1x scale
+        tspl.append(f'TEXT 225,4,"1",0,1,1,"{store_name}"')
+        # Product name: x=120, y=24 (3 mm)
+        tspl.append(f'TEXT 225,24,"1",0,1,1,"{product["name"]}"')
+        # Price: x=120, y=44 (5.5 mm)
+        tspl.append(f'TEXT 225,44,"1",0,1,1,"Rs.{product.get("price", 0):.2f}"')
 
-        # Barcode number (below barcode) - uncommented and adjusted
-        # x=40 dots (aligned with barcode), y=45 dots (below barcode)
+        tspl.append(f"PRINT 1,{copies}")  # Print specified copies
+        tspl.append("FEED 0")  # Ensure label advances
 
-        # Product info section (right side of the label)
-        # x=250 dots (31.25mm from left edge of label)
-        tspl.append(f'TEXT 230,5,"1",0,1,1,"SIRI ART JEWELLERS"')
-        tspl.append(f'TEXT 230,20,"1",0,1,1,"Product:{product["name"]}"') # Corrected "Prodcut" to "Product"
-        tspl.append(f'TEXT 230,35,"1",0,1,1,"Price:Rs.{product.get("price", 0):.2f}"') # Changed ₹ to Rs.
-
-        tspl.append(f"PRINT 1,{copies}")
-    
     logger.info(f"Generated TSPL commands (copies={copies}, store_name={store_name}):\n{tspl}")
-    return "\n".join(tspl) # Moved return statement outside the loop
+    return "\n".join(tspl)
 
 def send_raw_to_printer(printer_name, raw_data, logger=None):
     """
@@ -49,7 +49,6 @@ def send_raw_to_printer(printer_name, raw_data, logger=None):
 
     logger.info(f"Attempting to send print job to printer: '{printer_name}'")
 
-    # Enumerate printers to find the exact name recognized by the system
     printers = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL, None, 1)
     
     exact_printer_name = None

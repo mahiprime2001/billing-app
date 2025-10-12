@@ -32,8 +32,7 @@ async def export_formatted_data():
     conn = None
     try:
         conn = DatabaseConnection.get_connection()
-        cursor = conn.cursor(dictionary=True) # Return rows as dictionaries
-
+        cursor = conn.cursor(dictionary=True)  # Return rows as dictionaries
         tables = get_tables_from_db()
 
         # Export Bills
@@ -41,7 +40,7 @@ async def export_formatted_data():
         bills = cursor.fetchall()
         cursor.execute('SELECT * FROM BillItems')
         bill_items = cursor.fetchall()
-        
+
         formatted_bills = []
         for bill in bills:
             bill['items'] = [item for item in bill_items if item['billId'] == bill['id']]
@@ -53,7 +52,7 @@ async def export_formatted_data():
         save_json_data('bills.json', formatted_bills)
         print('Successfully exported formatted data to bills.json')
 
-        # Export Products
+        # Export Products (includes assignedStoreId if present)
         cursor.execute('SELECT * FROM Products')
         products = cursor.fetchall()
         cursor.execute('SELECT productId, barcode FROM ProductBarcodes')
@@ -97,8 +96,7 @@ async def export_formatted_data():
 
         # Export Settings (SystemSettings and BillFormats combined)
         cursor.execute('SELECT * FROM SystemSettings')
-        system_settings = cursor.fetchone() # Assuming single row for system settings
-        
+        system_settings = cursor.fetchone()  # Assuming single row for system settings
         cursor.execute('SELECT name, format FROM BillFormats')
         bill_formats_rows = cursor.fetchall()
         bill_formats = {row['name']: json.loads(row['format']) for row in bill_formats_rows}
@@ -112,11 +110,10 @@ async def export_formatted_data():
             for key, value in system_settings.items():
                 if isinstance(value, datetime):
                     system_settings[key] = value.isoformat()
-
         save_json_data('settings.json', settings_data)
         print('Successfully exported data to settings.json')
 
-        # Export Notifications
+        # Export Notifications (if exists)
         if 'notifications' in tables:
             cursor.execute('SELECT * FROM notifications')
             notifications = cursor.fetchall()
@@ -133,7 +130,7 @@ async def export_formatted_data():
         if conn:
             cursor.close()
             conn.close()
-        DatabaseConnection.close_pool()
+    DatabaseConnection.close_pool()
 
 def save_json_data(filename: str, data):
     """Helper function to save data to a JSON file."""
