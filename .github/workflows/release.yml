@@ -60,7 +60,14 @@ jobs:
           esac
 
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-          echo "Calculated new version: $NEW_VERSION"
+
+          # 🔁 Auto-increment if tag already exists
+          while git rev-parse "v${NEW_VERSION}" >/dev/null 2>&1; do
+            PATCH=$((PATCH+1))
+            NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          done
+
+          echo "✅ Calculated new unique version: $NEW_VERSION"
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
   build-and-sign:
@@ -94,10 +101,9 @@ jobs:
           key: ${{ runner.os }}-deps-${{ hashFiles('**/package-lock.json', '**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-deps-
 
-      - name: Install dependencies (ci with fallback)
+      - name: Install dependencies
         shell: pwsh
-        run: |
-         npm i
+        run: npm i
 
       - name: Clean previous builds
         shell: pwsh
@@ -226,19 +232,8 @@ jobs:
           git add $TAURI_FILE changelog.txt || true
           git commit -m "chore: bump version to v${VERSION}" || echo "No changes to commit"
 
-      - name: Create and push tag
-        run: |
-          TAG="v${VERSION}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists!"
-            exit 1
-          fi
-          git tag "$TAG"
-          git push origin "$TAG"
-
       - name: Push version bump commit
-        run: |
-          git push origin main
+        run: git push origin main
 
       - name: Display changelog
         run: |
