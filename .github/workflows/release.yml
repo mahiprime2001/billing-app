@@ -96,7 +96,7 @@ jobs:
           restore-keys: ${{ runner.os }}-deps-
 
       - name: Install dependencies
-        run: npm ci
+        run: npm i
 
       - name: Run build script
         run: npm run build
