@@ -18,7 +18,6 @@ env:
   RUST_TOOLCHAIN: stable
 
 jobs:
-
   prepare-environment:
     runs-on: ubuntu-22.04
     outputs:
@@ -95,11 +94,19 @@ jobs:
           key: ${{ runner.os }}-deps-${{ hashFiles('**/package-lock.json', '**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-deps-
 
-      - name: Install dependencies
-        run: npm i
+      - name: Install dependencies (ci with fallback)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          try {
+            npm ci
+          } catch {
+            npm install --no-audit --no-fund
+          }
 
       - name: Run build script
         run: npm run build
+        shell: pwsh
 
       - name: Clean previous builds
         shell: pwsh
@@ -151,12 +158,11 @@ jobs:
           name: tauri-windows
           path: ./bundle
 
-      - name: Set VERSION environment variable
-        run: echo "VERSION=${{ needs.prepare-environment.outputs.next_version }}" >> $GITHUB_ENV
-
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: "v${{ env.VERSION }}"
           release_name: "Release v${{ env.VERSION }}"
@@ -164,11 +170,24 @@ jobs:
           prerelease: false
           body: "Automatically generated release for version v${{ env.VERSION }}"
 
+      - name: Find MSI path
+        id: msi
+        run: |
+          set -e
+          MSI=$(ls ./bundle/msi/*.msi | head -n 1)
+          if [ -z "$MSI" ]; then
+            echo "No MSI found under ./bundle/msi"
+            exit 1
+          fi
+          echo "path=$MSI" >> $GITHUB_OUTPUT
+
       - name: Upload MSI to release
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: "./bundle/release/bundle/msi/*.msi"
+          asset_path: ${{ steps.msi.outputs.path }}
           asset_name: "app-v${{ env.VERSION }}.msi"
           asset_content_type: application/octet-stream
 
