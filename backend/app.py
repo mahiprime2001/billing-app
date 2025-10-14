@@ -19,6 +19,7 @@ import requests
 from utils.db import DatabaseConnection
 from utils import sync_utils  # Keep existing sync_utils for compatibility
 from scripts.sync import apply_change_to_db  # Keep apply_change_to_db for direct DB operations
+from scripts.export_data import export_formatted_data # NEW: Import export function
 from utils.print_TSPL import generate_tspl, send_raw_to_printer
 from collections import defaultdict
 
@@ -78,12 +79,13 @@ CORS(
 # Secret key for session management (replace with a strong, random key in production)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'super_secret_key_for_dev')
 
-PRODUCTS_FILE = os.path.join(BASE_DIR, 'data', 'json', 'products.json')
-USERS_FILE = os.path.join(BASE_DIR, 'data', 'json', 'users.json')
-BILLS_FILE = os.path.join(BASE_DIR, 'data', 'json', 'bills.json')
-NOTIFICATIONS_FILE = os.path.join(BASE_DIR, 'data', 'json', 'notifications.json')
-SETTINGS_FILE = os.path.join(BASE_DIR, 'data', 'json', 'settings.json')
-STORES_FILE = os.path.join(BASE_DIR, 'data', 'json', 'stores.json')
+PRODUCTS_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'products.json')
+USERS_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'users.json')
+BILLS_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'bills.json')
+NOTIFICATIONS_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'notifications.json')
+SETTINGS_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'settings.json')
+STORES_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'stores.json')
+SESSIONS_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'user_sessions.json')
 
 # Configure logging for the Flask app
 LOG_DIR = os.path.join(PROJECT_ROOT, 'backend', 'data', 'logs')
@@ -148,6 +150,9 @@ def get_stores_data():
 
 def save_stores_data(stores):
     _safe_json_dump(STORES_FILE, stores)
+
+def _get_user_sessions():
+    return _safe_json_load(SESSIONS_FILE, [])
 
 def get_primary_barcode(product: dict) -> str:
     """
@@ -1149,6 +1154,92 @@ def cleanup_old_logs():
         app.logger.error(f"Error cleaning up logs: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# ---------------------------
+# Analytics Endpoints
+# ---------------------------
+
+@app.route('/api/analytics/users/online', methods=['GET'])
+def analytics_users_online():
+    # windowMinutes=5 by default
+    try:
+        window_minutes = int(request.args.get('windowMinutes', 5))
+    except Exception:
+        window_minutes = 5
+    cutoff = datetime.now() - timedelta(minutes=window_minutes)
+
+    rows = _get_user_sessions()
+    last_by_user = {}
+    for r in rows:
+        try:
+            ts = datetime.fromisoformat(r.get('timestamp', ''))
+        except Exception:
+            continue
+        uid = r.get('userId')
+        if not uid:
+            continue
+        if uid not in last_by_user or ts > last_by_user[uid]['ts']:
+            last_by_user[uid] = {'ts': ts, 'type': (r.get('type') or '').upper(), 'details': r.get('details')}
+    online = []
+    for uid, info in last_by_user.items():
+        if info['ts'] >= cutoff and info['type'] == 'LOGIN':
+            online.append({'userId': uid, 'lastEvent': info['type'], 'lastSeen': info['ts'].isoformat(), 'details': info['details']})
+
+    return jsonify({
+        'windowMinutes': window_minutes,
+        'onlineCount': len(online),
+        'online': online
+    }), 200
+
+@app.route('/api/analytics/users/sessions', methods=['GET'])
+def analytics_users_sessions():
+    # Query: ?from=YYYY-MM-DD&to=YYYY-MM-DD
+    q_from = request.args.get('from')
+    q_to = request.args.get('to')
+    start = datetime.fromisoformat(q_from) if q_from else datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    end = datetime.fromisoformat(q_to) + timedelta(days=1) if q_to else datetime.now()
+
+    rows = _get_user_sessions()
+    # Group by user sorted by timestamp
+    by_user = {}
+    for r in rows:
+        try:
+            ts = datetime.fromisoformat(r.get('timestamp', ''))
+        except Exception:
+            continue
+        if ts < start or ts > end:
+            continue
+        uid = r.get('userId')
+        if not uid:
+            continue
+        by_user.setdefault(uid, []).append({'ts': ts, 'type': (r.get('type') or '').upper()})
+
+    # Pair LOGINS with next LOGOUT/CLOSE_NO_LOGOUT
+    sessions = []
+    for uid, events in by_user.items():
+        events.sort(key=lambda x: x['ts'])
+        open_login = None
+        for ev in events:
+            if ev['type'] == 'LOGIN':
+                open_login = ev['ts']
+            elif ev['type'] in {'LOGOUT', 'CLOSE_NO_LOGOUT'} and open_login:
+                dur = (ev['ts'] - open_login).total_seconds()
+                sessions.append({'userId': uid, 'loginAt': open_login.isoformat(), 'logoutAt': ev['ts'].isoformat(), 'durationSec': int(max(0, dur))})
+                open_login = None
+        # If session still open within window, count up to end bound
+        if open_login:
+            dur = (min(end, datetime.now()) - open_login).total_seconds()
+            sessions.append({'userId': uid, 'loginAt': open_login.isoformat(), 'logoutAt': None, 'durationSec': int(max(0, dur))})
+
+    total = len(sessions)
+    avg_sec = int(sum(s['durationSec'] for s in sessions) / total) if total > 0 else 0
+    return jsonify({
+        'from': start.isoformat(),
+        'to': end.isoformat(),
+        'totalSessions': total,
+        'avgSessionSec': avg_sec,
+        'sessions': sessions
+    }), 200
+
 # Legacy sync endpoints (keep for compatibility)
 @app.route('/api/push-sync', methods=['POST'])
 def push_sync():
@@ -1229,6 +1320,15 @@ if __name__ == '__main__':
     backend_api_url = os.environ.get('NEXT_PUBLIC_BACKEND_API_URL', 'http://127.0.0.1:8080')
     parsed_url = urlparse(backend_api_url)
     port = parsed_url.port if parsed_url.port else 8080
+
+    # NEW: Check if JSON data exists, if not, export from DB
+    if not os.path.exists(PRODUCTS_FILE) or os.path.getsize(PRODUCTS_FILE) == 0:
+        app.logger.info("JSON data files not found or empty. Attempting to export from database.")
+        try:
+            export_formatted_data()
+            app.logger.info("Database data successfully exported to JSON files.")
+        except Exception as e:
+            app.logger.error(f"Failed to export data from database to JSON: {e}")
     
     # Start background sync based on environment
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':

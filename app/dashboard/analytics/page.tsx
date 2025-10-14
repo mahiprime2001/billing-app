@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
+
+type OnlineUser = { userId: string; lastEvent: string; lastSeen: string; details?: string }
+type OnlineResp = { windowMinutes: number; onlineCount: number; online: OnlineUser[] }
+type SessionsResp = { from: string; to: string; totalSessions: number; avgSessionSec: number }
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -153,6 +157,8 @@ export default function AnalyticsPage() {
   const [productAnalytics, setProductAnalytics] = useState<ProductAnalytics[]>([])
   const [userSessionAnalytics, setUserSessionAnalytics] = useState<UserSessionAnalytics[]>([]) // New state for user session analytics
   const [productAdditionAnalytics, setProductAdditionAnalytics] = useState<ProductAdditionAnalytics[]>([]) // New state for product addition analytics
+  const [online, setOnline] = useState<OnlineResp | null>(null)
+  const [sessions, setSessions] = useState<SessionsResp | null>(null)
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [selectedStore, setSelectedStore] = useState<string>("all")
@@ -162,37 +168,17 @@ export default function AnalyticsPage() {
     to: endOfMonth(new Date()),
   })
 
-  useEffect(() => {
-    const isLoggedIn = localStorage.getItem("adminLoggedIn")
-    const userData = localStorage.getItem("adminUser")
+  const refresh = async () => {
+    // optional: force a pull on page load for freshness
+    await fetch('/api/sync/pull', { method: 'POST' })
+    const o = await fetch('/api/analytics/users/online?windowMinutes=5').then(r => r.json())
+    const today = new Date().toISOString().slice(0,10)
+    const s = await fetch(`/api/analytics/users/sessions?from=${today}&to=${today}`).then(r => r.json())
+    setOnline(o)
+    setSessions(s)
 
-    if (isLoggedIn !== "true" || !userData) {
-      router.push("/")
-      return
-    }
-
-    const user = JSON.parse(userData)
-    if (user.role !== "super_admin") {
-      router.push("/dashboard")
-      return
-    }
-
-    loadData()
-  }, [router])
-
-  useEffect(() => {
-    if (bills.length > 0) {
-      calculateAnalytics()
-      calculateProductAdditionAnalytics()
-    }
-    if (users.length > 0) {
-      calculateUserSessionAnalytics()
-    }
-  }, [bills, users, dateRange])
-
-  const loadData = async () => {
+    // Existing loadData logic
     setLoading(true)
-    
     try {
       console.log('Fetching data from API endpoints...')
       const [billsResponse, storesResponse, productsResponse, usersResponse] = await Promise.all([
@@ -234,6 +220,36 @@ export default function AnalyticsPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem("adminLoggedIn")
+    const userData = localStorage.getItem("adminUser")
+
+    if (isLoggedIn !== "true" || !userData) {
+      router.push("/")
+      return
+    }
+
+    const user = JSON.parse(userData)
+    if (user.role !== "super_admin") {
+      router.push("/dashboard")
+      return
+    }
+
+    refresh()
+    const t = setInterval(refresh, 60_000) // refresh every minute
+    return () => clearInterval(t)
+  }, [router])
+
+  useEffect(() => {
+    if (bills.length > 0) {
+      calculateAnalytics()
+      calculateProductAdditionAnalytics()
+    }
+    if (users.length > 0) {
+      calculateUserSessionAnalytics()
+    }
+  }, [bills, users, dateRange])
 
   const filterBillsByDateRange = (bills: Bill[]) => {
     if (!dateRange?.from || !dateRange?.to) return bills
@@ -910,7 +926,7 @@ export default function AnalyticsPage() {
               <Download className="h-4 w-4 mr-2" />
               {exporting ? "Exporting..." : "Export Report"}
             </Button>
-            <Button onClick={loadData} variant="outline" disabled={exporting}>
+            <Button onClick={refresh} variant="outline" disabled={exporting}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh Data
             </Button>
@@ -1024,6 +1040,30 @@ export default function AnalyticsPage() {
               <p className="text-xs text-muted-foreground">Per transaction</p>
             </CardContent>
           </Card>
+          <div className="card">
+            <div className="label">Active users (5m)</div>
+            <div className="value">{online?.onlineCount ?? 0}</div>
+          </div>
+          <div className="card">
+            <div className="label">Sessions today</div>
+            <div className="value">{sessions?.totalSessions ?? 0}</div>
+          </div>
+          <div className="card">
+            <div className="label">Avg session</div>
+            <div className="value">
+              {sessions ? Math.round((sessions.avgSessionSec || 0) / 60) : 0} min
+            </div>
+          </div>
+        </div>
+
+        {/* Optionally list online users */}
+        <div className="mt-4">
+          <h3>Online now</h3>
+          <ul>
+            {online?.online.map(u => (
+              <li key={u.userId}>{u.userId} • last seen {new Date(u.lastSeen).toLocaleTimeString()}</li>
+            )) ?? <li>None</li>}
+          </ul>
         </div>
 
         <Tabs defaultValue="stores" className="space-y-4">

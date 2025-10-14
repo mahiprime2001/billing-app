@@ -52,6 +52,19 @@ class EnhancedSyncManager:
         os.makedirs(os.path.dirname(self.local_sync_table_file), exist_ok=True)
         os.makedirs(os.path.dirname(self.sync_logs_file), exist_ok=True)
         os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
+        self.user_sessions_file = os.path.join(base_dir, 'data', 'json', 'user_sessions.json')
+        os.makedirs(os.path.dirname(self.user_sessions_file), exist_ok=True)
+
+    def _get_user_sessions(self) -> List[Dict]:
+        return self._safe_json_load(self.user_sessions_file, [])
+
+    def _save_user_sessions(self, rows: List[Dict]) -> None:
+        self._safe_json_dump(self.user_sessions_file, rows)
+
+    def _append_user_session(self, event: Dict) -> None:
+        rows = self._get_user_sessions()
+        rows.append(event)
+        self._save_user_sessions(rows)
 
     # ---------- JSON helpers ----------
 
@@ -446,16 +459,26 @@ class EnhancedSyncManager:
                 applied = 0
                 for entry in new_entries:
                     try:
+                        change_type = (entry.get('change_type') or '').upper()
+                        ts = entry.get('timestamp')
+                        payload = json.loads(entry.get('change_data') or '{}') if isinstance(entry.get('change_data'), (str, bytes)) else (entry.get('change_data') or {})
+                        # Handle session events
+                        if change_type in {'LOGIN', 'LOGOUT', 'CLOSE_NO_LOGOUT'}:
+                            self._append_user_session({
+                                'timestamp': (ts.isoformat() if hasattr(ts, 'isoformat') else str(ts)),
+                                'type': change_type,
+                                'userId': payload.get('user_id') or payload.get('id') or payload.get('email'),
+                                'details': payload.get('details')
+                            })
+                            continue
+                        # Existing CRUD path:
                         change_data = json.loads(entry.get('change_data', '{}'))
-                        change_type_parts = (entry.get('change_type') or '').split('_')
-
-                        if len(change_type_parts) >= 2:
-                            table_name = '_'.join(change_type_parts[:-1])  # Everything except last part
-                            operation = change_type_parts[-1].upper()      # Last part as operation
-
+                        parts = (change_type or '').split('_')
+                        if len(parts) >= 2:
+                            table_name = '_'.join(parts[:-1])
+                            operation = parts[-1].upper()
                             self._apply_to_local_json(table_name, operation, change_data)
                             applied += 1
-
                     except Exception as e:
                         logger.error(f"Error applying pulled change: {e}")
 

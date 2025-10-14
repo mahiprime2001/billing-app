@@ -7563,3 +7563,59 @@ requests.exceptions.ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5
 2025-10-14 15:21:58,697 - app - INFO - Legacy background sync process started.
 2025-10-14 15:21:58,698 - app - INFO - No pending changes in local sync_table to push.
 2025-10-14 15:21:58,698 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:22:30,457 - app - INFO - Enhanced background sync process started successfully
+2025-10-14 15:22:32,780 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:23:48,784 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:24:48,777 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:25:48,780 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:26:48,798 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:27:48,783 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:28:48,782 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:29:48,784 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:30:48,785 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:31:48,784 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:32:48,777 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:33:48,783 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:34:48,785 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:35:48,776 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:36:48,797 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:37:35,795 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:38:48,779 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:39:48,783 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:40:48,779 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:41:48,778 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:42:48,798 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:43:48,791 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:44:48,777 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:45:48,790 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:46:48,805 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:47:48,781 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:48:48,790 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:49:48,776 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:50:48,786 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:51:48,784 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:52:35,860 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:53:48,784 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:54:48,777 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:55:48,790 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:56:48,783 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:57:48,783 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:58:48,798 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:59:48,794 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:00:48,788 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:01:48,790 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:02:48,790 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:03:48,809 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:04:48,805 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:05:48,792 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:06:48,789 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:07:35,806 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:08:48,783 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:09:48,784 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:10:48,798 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:11:48,792 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:12:48,789 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:13:48,784 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 16:23:52,468 - app - INFO - Enhanced background sync process started successfully
+2025-10-14 16:24:04,891 - app - INFO - Enhanced background sync process started successfully
+2025-10-14 16:24:38,062 - app - INFO - Enhanced background sync process started successfully

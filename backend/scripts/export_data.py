@@ -3,7 +3,8 @@ import json
 from datetime import datetime
 from utils.db import DatabaseConnection
 
-JSON_DIR = os.path.join(os.getcwd(), 'app', 'data', 'json')
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+JSON_DIR = os.path.join(PROJECT_ROOT, 'data', 'json')
 
 def ensure_output_dir():
     """Ensures the output directory for JSON files exists."""
@@ -26,7 +27,7 @@ def get_tables_from_db():
             cursor.close()
             conn.close()
 
-async def export_formatted_data():
+def export_formatted_data():
     """Exports formatted data from MySQL to JSON files."""
     ensure_output_dir()
     conn = None
@@ -139,5 +140,4 @@ def save_json_data(filename: str, data):
         json.dump(data, f, indent=2)
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(export_formatted_data())
+    export_formatted_data()
