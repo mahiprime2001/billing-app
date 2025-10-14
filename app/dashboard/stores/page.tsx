@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
 import {
   Dialog,
   DialogContent,
@@ -43,10 +43,15 @@ import {
   Receipt,
   Calendar,
   Building,
+  Info,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import ProductAssignmentDialog, {
   AssignedProduct,
 } from "@/components/product-assignment-dialog";
+
+const API = process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://127.0.0.1:8080"
 
 interface StoreType {
   id: string
@@ -60,6 +65,385 @@ interface StoreType {
   totalRevenue: number
   totalBills: number
   lastBillDate: string
+}
+
+type DateCard = {
+  date: string
+  count: number
+  totalStock: number
+  totalValue: number
+}
+
+type Row = {
+  id: string
+  barcode: string
+  name: string
+  price: number
+  stock: number
+  rowValue: number
+}
+
+// iOS-style Mini Calendar Component
+function MiniCalendar({
+  dates,
+  selectedDate,
+  onDateSelect,
+}: {
+  dates: DateCard[]
+  selectedDate: string | null
+  onDateSelect: (date: string) => void
+}) {
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+  
+  // Create a map for quick lookup of dates with data
+  const dateDataMap = new Map(dates.map(d => [d.date, d]))
+  
+  const today = new Date()
+  const year = currentMonth.getFullYear()
+  const month = currentMonth.getMonth()
+  
+  // Get first day of month and number of days
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  const daysInMonth = lastDay.getDate()
+  const startingDayOfWeek = firstDay.getDay()
+  
+  // Generate calendar days
+  const calendarDays = []
+  
+  // Add empty cells for days before month starts
+  for (let i = 0; i < startingDayOfWeek; i++) {
+    calendarDays.push(null)
+  }
+  
+  // Add days of the month
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = new Date(year, month, day).toISOString().split('T')[0]
+    const dateData = dateDataMap.get(dateStr)
+    calendarDays.push({
+      day,
+      dateStr,
+      isToday: dateStr === today.toISOString().split('T')[0],
+      hasData: !!dateData,
+      data: dateData
+    })
+  }
+  
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ]
+  
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  
+  const goToPrevMonth = () => {
+    setCurrentMonth(new Date(year, month - 1))
+  }
+  
+  const goToNextMonth = () => {
+    setCurrentMonth(new Date(year, month + 1))
+  }
+  
+  return (
+    <div className="bg-white rounded-lg border p-4">
+      {/* Calendar Header */}
+      <div className="flex items-center justify-between mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={goToPrevMonth}
+          className="h-8 w-8 p-0"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        
+        <h3 className="text-lg font-semibold">
+          {monthNames[month]} {year}
+        </h3>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={goToNextMonth}
+          className="h-8 w-8 p-0"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+      
+      {/* Day Headers */}
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {dayNames.map(day => (
+          <div key={day} className="text-xs font-medium text-gray-500 text-center p-2">
+            {day}
+          </div>
+        ))}
+      </div>
+      
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {calendarDays.map((day, index) => {
+          if (!day) {
+            return <div key={index} className="h-8" />
+          }
+          
+          const isSelected = selectedDate === day.dateStr
+          const isToday = day.isToday
+          const hasData = day.hasData
+          
+          return (
+            <button
+              key={day.dateStr}
+              onClick={() => hasData && onDateSelect(day.dateStr)}
+              disabled={!hasData}
+              className={`
+                h-8 w-8 text-xs rounded-md relative transition-all duration-200
+                ${isSelected && hasData 
+                  ? 'bg-blue-600 text-white font-semibold' 
+                  : hasData 
+                    ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium border border-blue-200' 
+                    : isToday 
+                      ? 'bg-gray-100 text-gray-900 font-medium' 
+                      : 'text-gray-400 hover:bg-gray-50'
+                }
+                ${!hasData ? 'cursor-default' : 'cursor-pointer'}
+              `}
+            >
+              {day.day}
+              {hasData && (
+                <div className={`
+                  absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full
+                  ${isSelected ? 'bg-white' : 'bg-blue-500'}
+                `} />
+              )}
+            </button>
+          )
+        })}
+      </div>
+      
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-500">
+        <div className="flex items-center gap-1">
+          <div className="h-2 w-2 bg-blue-500 rounded-full" />
+          <span>Has inventory</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="h-2 w-2 bg-gray-300 rounded-full" />
+          <span>No data</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Store Insight Modal Component
+function StoreInsightModal({
+  open,
+  onClose,
+  store,
+}: {
+  open: boolean
+  onClose: () => void
+  store: StoreType | null
+}) {
+  const [days, setDays] = useState(90) // Increased to 90 days for better calendar view
+  const [dates, setDates] = useState<DateCard[]>([])
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [rows, setRows] = useState<Row[]>([])
+  const [totals, setTotals] = useState<{ totalStock: number; totalValue: number }>({
+    totalStock: 0,
+    totalValue: 0,
+  })
+
+  useEffect(() => {
+    if (!open || !store) return
+    fetch(`${API}/api/stores/${store.id}/inventory-calendar?days=${days}`)
+      .then((r) => r.json())
+      .then((j) => setDates(j.data || []))
+      .catch(() => setDates([]))
+  }, [open, store, days])
+
+  useEffect(() => {
+    if (!open || !store || !selectedDate) return
+    fetch(`${API}/api/stores/${store.id}/inventory-by-date/${selectedDate}`)
+      .then((r) => r.json())
+      .then((j) => {
+        setRows(j.rows || [])
+        setTotals({ totalStock: j.totalStock || 0, totalValue: j.totalValue || 0 })
+      })
+      .catch(() => {
+        setRows([])
+        setTotals({ totalStock: 0, totalValue: 0 })
+      })
+  }, [open, store, selectedDate])
+
+  const handlePrint = () => {
+    const src = document.getElementById("printable-table")?.outerHTML || ""
+    const printWin = window.open("", "PRINT", "width=900,height=650")
+    if (!printWin) return
+    printWin.document.write(`
+      <html>
+        <head>
+          <title>Store Inventory — ${store?.name || ""}</title>
+          <style>
+            body{font-family:Inter,system-ui,Arial;padding:12px}
+            table{width:100%;border-collapse:collapse}
+            th,td{border:1px solid #000;padding:6px;text-align:left;font-size:12px}
+            tfoot td{font-weight:600}
+            @page{size:auto;margin:10mm}
+          </style>
+        </head>
+        <body>${src}</body>
+      </html>
+    `)
+    printWin.document.close()
+    printWin.focus()
+    printWin.print() // window.print() on the spawned window
+    printWin.close()
+  }
+
+  if (!open || !store) return null
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
+        {/* Header: Store details */}
+        <DialogHeader className="border-b pb-4">
+          <DialogTitle className="text-lg font-semibold flex items-center">
+            <Building className="h-5 w-5 mr-2 text-blue-600" />
+            {store.name} - Inventory Overview
+          </DialogTitle>
+          <DialogDescription>
+            <span>{store.address || "No address"}</span> • <span>{store.phone || "No phone"}</span>
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Body: Calendar + Selected Date Details */}
+        <div className="flex-1 overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+            {/* Left Side - Calendar */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center">
+                  <Calendar className="h-5 w-5 mr-2" />
+                  Inventory Calendar
+                </h3>
+                <Badge variant="secondary" className="text-xs">
+                  {dates.length} days with inventory
+                </Badge>
+              </div>
+              
+              <MiniCalendar
+                dates={dates}
+                selectedDate={selectedDate}
+                onDateSelect={setSelectedDate}
+              />
+              
+              {/* Quick Stats */}
+              {selectedDate && (
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <div className="text-sm font-medium text-blue-800 mb-2">
+                    Selected: {new Date(selectedDate).toDateString()}
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <div className="text-blue-600 font-medium">Products</div>
+                      <div className="text-blue-800 font-semibold">{rows.length}</div>
+                    </div>
+                    <div>
+                      <div className="text-blue-600 font-medium">Total Stock</div>
+                      <div className="text-blue-800 font-semibold">{totals.totalStock}</div>
+                    </div>
+                    <div>
+                      <div className="text-blue-600 font-medium">Total Value</div>
+                      <div className="text-blue-800 font-semibold">₹{totals.totalValue.toFixed(2)}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right Side - Table */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">
+                  {selectedDate ? 'Product Details' : 'Select a date to view products'}
+                </h3>
+                {selectedDate && rows.length > 0 && (
+                  <Button
+                    size="sm"
+                    onClick={handlePrint}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Print Report
+                  </Button>
+                )}
+              </div>
+
+              {selectedDate ? (
+                <div className="border rounded-lg overflow-hidden max-h-[500px] overflow-y-auto">
+                  <Table id="printable-table">
+                    <TableHeader className="bg-slate-100 sticky top-0">
+                      <TableRow>
+                        <TableHead className="text-xs">S.No</TableHead>
+                        <TableHead className="text-xs">Barcode</TableHead>
+                        <TableHead className="text-xs">Product</TableHead>
+                        <TableHead className="text-xs">Price</TableHead>
+                        <TableHead className="text-xs">Stock</TableHead>
+                        <TableHead className="text-xs">Value</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.map((r, i) => (
+                        <TableRow key={r.id} className="hover:bg-gray-50">
+                          <TableCell className="text-xs">{i + 1}</TableCell>
+                          <TableCell className="text-xs font-mono">{r.barcode}</TableCell>
+                          <TableCell className="text-xs">{r.name}</TableCell>
+                          <TableCell className="text-xs">₹{r.price.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs">{r.stock}</TableCell>
+                          <TableCell className="text-xs">₹{r.rowValue.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                    {rows.length > 0 && (
+                      <TableFooter className="bg-slate-50">
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-xs font-semibold">
+                            Totals
+                          </TableCell>
+                          <TableCell className="text-xs font-semibold">{totals.totalStock}</TableCell>
+                          <TableCell className="text-xs font-semibold">₹{totals.totalValue.toFixed(2)}</TableCell>
+                        </TableRow>
+                      </TableFooter>
+                    )}
+                  </Table>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
+                  <div className="text-center">
+                    <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">Click on a highlighted date in the calendar to view inventory details</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <DialogFooter className="border-t pt-4">
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          {selectedDate && rows.length > 0 && (
+            <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
+              Print Selected Date
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 export default function StoresPage() {
@@ -77,6 +461,10 @@ export default function StoresPage() {
     manager: "",
     status: "active" as "active" | "inactive",
   })
+
+  // Store insight modal state
+  const [insightOpen, setInsightOpen] = useState(false)
+  const [selectedStore, setSelectedStore] = useState<StoreType | null>(null)
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem("adminLoggedIn")
@@ -287,6 +675,11 @@ export default function StoresPage() {
     ) : (
       <Badge variant="secondary">Inactive</Badge>
     )
+  }
+
+  const openStoreModal = (store: StoreType) => {
+    setSelectedStore(store)
+    setInsightOpen(true)
   }
 
   const filteredStores = stores.filter((store) => {
@@ -576,7 +969,18 @@ export default function StoresPage() {
                               <Edit className="h-4 w-4" />
                             </Button>
 
-                            {/* NEW: Plus button with product assignment dialog */}
+                            {/* NEW: Info button for store insights */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openStoreModal(store)}
+                              className="bg-blue-50 hover:bg-blue-100 border-blue-200"
+                              title="Store insights"
+                            >
+                              <Info className="h-4 w-4" />
+                            </Button>
+
+                            {/* Product assignment button */}
                             <ProductAssignmentDialog
                               storeId={store.id}
                               storeName={store.name}
@@ -626,6 +1030,13 @@ export default function StoresPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Store Insight Modal */}
+        <StoreInsightModal
+          open={insightOpen}
+          onClose={() => setInsightOpen(false)}
+          store={selectedStore}
+        />
       </div>
     </DashboardLayout>
   )

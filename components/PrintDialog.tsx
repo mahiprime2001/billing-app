@@ -27,6 +27,7 @@ interface Product {
   name: string;
   price: number;
   barcodes: string[];
+  stock: number; // Added stock property
 }
 
 interface PrintDialogProps {
@@ -50,7 +51,7 @@ export default function PrintDialog({
   onPrintSuccess,
   storeName
 }: PrintDialogProps) {
-  const [copies, setCopies] = useState(1);
+  const [copies, setCopies] = useState(1); // Default to 1, will be updated in useEffect
   const [loading, setLoading] = useState(false);
   const [barcodePreviews, setBarcodePreviews] = useState<{ [productId: string]: string | null }>({});
   const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
@@ -94,6 +95,15 @@ export default function PrintDialog({
 
     fetchPrinters();
   }, [isOpen]);
+
+  // Set initial copies based on the first product's stock when dialog opens
+  useEffect(() => {
+    if (isOpen && products.length > 0 && products[0].stock !== undefined) {
+      setCopies(products[0].stock);
+    } else if (!isOpen) {
+      setCopies(1); // Reset copies when dialog closes
+    }
+  }, [isOpen, products]);
 
   const createBarcodeImage = (barcodeValue: string): string | null => {
     try {

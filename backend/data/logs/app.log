@@ -6454,3 +6454,1112 @@ requests.exceptions.ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5
 2025-10-12 23:53:47,900 - app - INFO - Full sync pull completed.
 2025-10-12 23:53:48,142 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
 2025-10-12 23:54:48,050 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-12 23:55:48,054 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-12 23:56:48,041 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-12 23:57:48,062 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-12 23:58:48,045 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-12 23:59:48,052 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:00:48,041 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:00:52,217 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 00:00:52,981 - app - INFO - Wrote 581 products to products.json
+2025-10-13 00:00:52,981 - app - INFO - Wrote 3 users to users.json
+2025-10-13 00:00:52,982 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 00:00:52,982 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 00:00:52,982 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 00:00:52,982 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 00:00:53,152 - app - INFO - Full sync pull completed.
+2025-10-13 00:01:48,053 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:02:48,044 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:03:48,042 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:04:48,063 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:05:48,061 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:06:48,055 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:07:48,042 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:08:47,908 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 00:08:48,037 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:08:48,758 - app - INFO - Wrote 581 products to products.json
+2025-10-13 00:08:48,758 - app - INFO - Wrote 3 users to users.json
+2025-10-13 00:08:48,760 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 00:08:48,760 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 00:08:48,760 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 00:08:48,762 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 00:08:48,930 - app - INFO - Full sync pull completed.
+2025-10-13 00:09:48,045 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:10:48,045 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:11:48,045 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:12:48,046 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:13:48,040 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:14:48,046 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:15:48,050 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:15:53,159 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 00:15:53,912 - app - INFO - Wrote 581 products to products.json
+2025-10-13 00:15:53,919 - app - INFO - Wrote 3 users to users.json
+2025-10-13 00:15:53,919 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 00:15:53,919 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 00:15:53,919 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 00:15:53,919 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 00:15:54,088 - app - INFO - Full sync pull completed.
+2025-10-13 00:16:48,039 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:17:48,051 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:18:48,049 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:19:48,049 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:20:48,039 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:21:48,047 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:22:48,049 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:23:48,044 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:23:48,934 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 00:23:49,863 - app - INFO - Wrote 581 products to products.json
+2025-10-13 00:23:49,863 - app - INFO - Wrote 3 users to users.json
+2025-10-13 00:23:49,863 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 00:23:49,863 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 00:23:49,863 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 00:23:49,863 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 00:23:50,046 - app - INFO - Full sync pull completed.
+2025-10-13 00:24:48,038 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:25:48,048 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:26:48,049 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:27:48,062 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:28:48,054 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:29:48,048 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:30:48,046 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:30:54,103 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 00:30:54,954 - app - INFO - Wrote 581 products to products.json
+2025-10-13 00:30:54,954 - app - INFO - Wrote 3 users to users.json
+2025-10-13 00:30:54,954 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 00:30:54,954 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 00:30:54,954 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 00:30:54,954 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 00:30:55,138 - app - INFO - Full sync pull completed.
+2025-10-13 00:31:48,061 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:32:48,055 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:33:48,056 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:34:48,043 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:35:48,058 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:36:48,048 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:37:48,043 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:38:48,055 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:38:50,048 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 00:38:50,835 - app - INFO - Wrote 581 products to products.json
+2025-10-13 00:38:50,835 - app - INFO - Wrote 3 users to users.json
+2025-10-13 00:38:50,840 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 00:38:50,840 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 00:38:50,840 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 00:38:50,840 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 00:38:51,005 - app - INFO - Full sync pull completed.
+2025-10-13 00:39:48,038 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:40:48,047 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:41:48,051 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:42:48,046 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:43:48,056 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:44:48,056 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:45:48,056 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:45:55,144 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 00:45:55,936 - app - INFO - Wrote 581 products to products.json
+2025-10-13 00:45:55,936 - app - INFO - Wrote 3 users to users.json
+2025-10-13 00:45:55,936 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 00:45:55,936 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 00:45:55,936 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 00:45:55,936 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 00:45:56,101 - app - INFO - Full sync pull completed.
+2025-10-13 00:46:48,053 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:47:48,053 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:48:48,060 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:49:48,043 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:50:48,055 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:51:48,052 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:52:48,039 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:53:48,056 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:53:51,019 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 00:53:51,798 - app - INFO - Wrote 581 products to products.json
+2025-10-13 00:53:51,800 - app - INFO - Wrote 3 users to users.json
+2025-10-13 00:53:51,800 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 00:53:51,800 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 00:53:51,800 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 00:53:51,800 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 00:53:51,971 - app - INFO - Full sync pull completed.
+2025-10-13 00:54:48,049 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:55:48,048 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:56:48,040 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:57:48,062 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:58:48,052 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 00:59:48,058 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 01:00:48,047 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 01:00:56,111 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 01:00:56,913 - app - INFO - Wrote 581 products to products.json
+2025-10-13 01:00:56,913 - app - INFO - Wrote 3 users to users.json
+2025-10-13 01:00:56,914 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 01:00:56,914 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 01:00:56,916 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 01:00:56,916 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 01:00:57,086 - app - INFO - Full sync pull completed.
+2025-10-13 01:01:48,057 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 01:02:48,049 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 01:03:48,056 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 01:04:48,045 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:31:27,101 - app - INFO - Background sync process started (interval=900s).
+2025-10-13 22:31:27,143 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 22:31:27,863 - app - INFO - Background sync process started (interval=900s).
+2025-10-13 22:31:27,864 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 22:31:29,160 - app - INFO - Wrote 581 products to products.json
+2025-10-13 22:31:29,160 - app - INFO - Wrote 3 users to users.json
+2025-10-13 22:31:29,160 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 22:31:29,160 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 22:31:29,160 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 22:31:29,160 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 22:31:29,349 - app - INFO - Full sync pull completed.
+2025-10-13 22:31:29,817 - app - INFO - Wrote 581 products to products.json
+2025-10-13 22:31:29,817 - app - INFO - Wrote 3 users to users.json
+2025-10-13 22:31:29,819 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 22:31:29,819 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 22:31:29,819 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 22:31:29,819 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 22:31:29,999 - app - INFO - Full sync pull completed.
+2025-10-13 22:32:19,652 - app - INFO - Incoming Request: Method=OPTIONS, Path=/api/auth/login, Origin=http://localhost:3000
+2025-10-13 22:32:19,659 - app - INFO - Incoming Request: Method=POST, Path=/api/auth/login, Origin=http://localhost:3000
+2025-10-13 22:32:24,192 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:32:24,193 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-13 22:32:24,193 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-13 22:32:24,196 - app - INFO - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-10-13 22:32:24,197 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-13 22:32:24,216 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:32:24,219 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-13 22:32:24,223 - app - INFO - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-10-13 22:32:24,230 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-13 22:32:24,329 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-13 22:32:50,185 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:33:20,184 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:33:50,189 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:34:20,181 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:34:29,094 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:34:59,191 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:35:29,177 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:35:59,183 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:36:29,170 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:36:59,172 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:37:29,173 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:38:23,177 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:39:23,171 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:40:23,178 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:41:23,178 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:42:23,177 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:43:23,173 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:44:23,182 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:45:23,178 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:46:23,168 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:46:29,359 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 22:46:30,000 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 22:46:30,142 - app - INFO - Wrote 581 products to products.json
+2025-10-13 22:46:30,142 - app - INFO - Wrote 3 users to users.json
+2025-10-13 22:46:30,142 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 22:46:30,142 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 22:46:30,142 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 22:46:30,142 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 22:46:30,316 - app - INFO - Full sync pull completed.
+2025-10-13 22:46:30,822 - app - INFO - Wrote 581 products to products.json
+2025-10-13 22:46:30,822 - app - INFO - Wrote 3 users to users.json
+2025-10-13 22:46:30,822 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 22:46:30,822 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 22:46:30,824 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 22:46:30,824 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 22:46:31,012 - app - INFO - Full sync pull completed.
+2025-10-13 22:46:31,171 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:47:23,178 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:48:23,168 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:49:23,181 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:50:23,180 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:51:23,172 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:52:23,187 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:53:23,184 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:54:23,172 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:55:23,170 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:56:23,170 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:57:23,184 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:57:38,951 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:57:44,856 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-13 22:57:44,859 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:57:44,861 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:58:15,172 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:58:45,177 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:59:15,172 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 22:59:45,185 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:00:15,172 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:01:23,182 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:01:30,323 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 23:01:31,021 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 23:01:31,142 - app - INFO - Wrote 581 products to products.json
+2025-10-13 23:01:31,142 - app - INFO - Wrote 3 users to users.json
+2025-10-13 23:01:31,142 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 23:01:31,142 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 23:01:31,142 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 23:01:31,142 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 23:01:31,331 - app - INFO - Full sync pull completed.
+2025-10-13 23:01:31,830 - app - INFO - Wrote 581 products to products.json
+2025-10-13 23:01:31,837 - app - INFO - Wrote 3 users to users.json
+2025-10-13 23:01:31,837 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 23:01:31,837 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 23:01:31,837 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 23:01:31,837 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 23:01:32,038 - app - INFO - Full sync pull completed.
+2025-10-13 23:02:23,172 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:03:23,187 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:04:23,174 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:04:27,790 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-13 23:04:45,169 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:05:15,170 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:06:23,175 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:07:23,170 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:08:23,168 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:09:23,176 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:10:23,178 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:11:23,177 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:12:23,179 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:13:23,176 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:14:23,177 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:15:23,176 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:16:23,170 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:16:31,339 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 23:16:32,042 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 23:16:32,153 - app - INFO - Wrote 581 products to products.json
+2025-10-13 23:16:32,154 - app - INFO - Wrote 3 users to users.json
+2025-10-13 23:16:32,155 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 23:16:32,155 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 23:16:32,156 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 23:16:32,156 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 23:16:32,339 - app - INFO - Full sync pull completed.
+2025-10-13 23:16:32,842 - app - INFO - Wrote 581 products to products.json
+2025-10-13 23:16:32,842 - app - INFO - Wrote 3 users to users.json
+2025-10-13 23:16:32,842 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 23:16:32,842 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 23:16:32,842 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 23:16:32,842 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 23:16:33,028 - app - INFO - Full sync pull completed.
+2025-10-13 23:17:23,188 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:18:23,168 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:19:23,179 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:20:23,171 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:21:23,176 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:21:30,442 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-13 23:21:37,304 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-13 23:21:43,721 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-13 23:21:45,180 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:22:15,172 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:23:23,186 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:24:23,175 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:25:23,172 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:26:23,183 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:27:23,176 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:28:23,181 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:29:23,173 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:30:23,180 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:31:23,175 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:31:32,355 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 23:31:33,031 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 23:31:33,217 - app - INFO - Wrote 581 products to products.json
+2025-10-13 23:31:33,218 - app - INFO - Wrote 3 users to users.json
+2025-10-13 23:31:33,218 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 23:31:33,218 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 23:31:33,218 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 23:31:33,219 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 23:31:33,411 - app - INFO - Full sync pull completed.
+2025-10-13 23:31:33,826 - app - INFO - Wrote 581 products to products.json
+2025-10-13 23:31:33,826 - app - INFO - Wrote 3 users to users.json
+2025-10-13 23:31:33,827 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 23:31:33,827 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 23:31:33,827 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 23:31:33,827 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 23:31:34,006 - app - INFO - Full sync pull completed.
+2025-10-13 23:32:23,189 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:33:23,175 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:34:23,172 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:35:23,187 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:36:23,178 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:37:23,176 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:38:23,188 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:39:23,185 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:40:23,181 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:41:23,174 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:42:23,176 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:43:23,174 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:44:23,188 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:45:21,854 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:46:21,849 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:46:32,083 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 23:46:32,685 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-13 23:46:32,944 - app - INFO - Wrote 581 products to products.json
+2025-10-13 23:46:32,944 - app - INFO - Wrote 3 users to users.json
+2025-10-13 23:46:32,944 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 23:46:32,944 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 23:46:32,944 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 23:46:32,944 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 23:46:33,157 - app - INFO - Full sync pull completed.
+2025-10-13 23:46:33,559 - app - INFO - Wrote 581 products to products.json
+2025-10-13 23:46:33,559 - app - INFO - Wrote 3 users to users.json
+2025-10-13 23:46:33,559 - app - INFO - Wrote 0 bills to bills.json
+2025-10-13 23:46:33,560 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-13 23:46:33,560 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-13 23:46:33,560 - app - INFO - Wrote 5 stores to stores.json
+2025-10-13 23:46:33,765 - app - INFO - Full sync pull completed.
+2025-10-13 23:47:21,839 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:48:21,850 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:49:21,843 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:50:21,854 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:51:21,851 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:52:21,835 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:53:21,844 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:53:59,217 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:54:21,856 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:55:21,837 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:56:21,837 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:57:21,837 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:58:21,837 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-13 23:59:21,849 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:00:21,992 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:00:23,734 - app - INFO - Background sync process started (interval=900s).
+2025-10-14 00:00:23,734 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-14 00:00:25,844 - app - INFO - Wrote 581 products to products.json
+2025-10-14 00:00:25,844 - app - INFO - Wrote 3 users to users.json
+2025-10-14 00:00:25,844 - app - INFO - Wrote 0 bills to bills.json
+2025-10-14 00:00:25,844 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-14 00:00:25,844 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-14 00:00:25,844 - app - INFO - Wrote 5 stores to stores.json
+2025-10-14 00:00:26,042 - app - INFO - Full sync pull completed.
+2025-10-14 00:01:21,848 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:01:33,158 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-14 00:01:33,985 - app - INFO - Wrote 581 products to products.json
+2025-10-14 00:01:33,985 - app - INFO - Wrote 3 users to users.json
+2025-10-14 00:01:33,985 - app - INFO - Wrote 0 bills to bills.json
+2025-10-14 00:01:33,985 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-14 00:01:33,986 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-14 00:01:33,986 - app - INFO - Wrote 5 stores to stores.json
+2025-10-14 00:01:34,169 - app - INFO - Full sync pull completed.
+2025-10-14 00:02:21,843 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:03:21,845 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:04:13,768 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 00:04:13,772 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:04:19,479 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:04:19,484 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:04:31,461 - app - INFO - Incoming Request: Method=OPTIONS, Path=/api/auth/login, Origin=http://localhost:3000
+2025-10-14 00:04:31,465 - app - INFO - Incoming Request: Method=POST, Path=/api/auth/login, Origin=http://localhost:3000
+2025-10-14 00:04:32,590 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:04:32,594 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-14 00:04:32,604 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 00:04:32,606 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 00:04:32,608 - app - INFO - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-10-14 00:04:32,636 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:04:32,639 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-14 00:04:32,644 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 00:04:32,650 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 00:04:32,665 - app - INFO - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-10-14 00:04:37,171 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:04:37,185 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:07:32,741 - app - INFO - Incoming Request: Method=OPTIONS, Path=/api/auth/login, Origin=http://localhost:3000
+2025-10-14 00:07:32,750 - app - INFO - Incoming Request: Method=POST, Path=/api/auth/login, Origin=http://localhost:3000
+2025-10-14 00:07:33,841 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:07:33,842 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 00:07:33,842 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 00:07:33,843 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-14 00:07:33,844 - app - INFO - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-10-14 00:07:33,857 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:07:33,876 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 00:07:33,886 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 00:07:33,888 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-14 00:07:33,891 - app - INFO - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-10-14 00:07:37,736 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:07:37,738 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 00:07:37,739 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-14 00:07:37,743 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:07:37,752 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 00:07:37,756 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-14 00:07:42,662 - app - INFO - Incoming Request: Method=GET, Path=/api/stores/store_1/inventory-calendar, Origin=http://localhost:3000
+2025-10-14 00:07:53,246 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 00:07:59,095 - app - INFO - Incoming Request: Method=GET, Path=/api/stores/STR-1758042415183/inventory-calendar, Origin=http://localhost:3000
+2025-10-14 00:08:07,754 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:08:37,841 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:09:07,846 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:09:37,844 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:10:07,836 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:10:37,842 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:11:21,841 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:12:21,839 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:13:21,847 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:14:21,842 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:15:21,844 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:15:26,057 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-14 00:15:26,850 - app - INFO - Wrote 581 products to products.json
+2025-10-14 00:15:26,851 - app - INFO - Wrote 3 users to users.json
+2025-10-14 00:15:26,851 - app - INFO - Wrote 0 bills to bills.json
+2025-10-14 00:15:26,851 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-14 00:15:26,851 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-14 00:15:26,851 - app - INFO - Wrote 5 stores to stores.json
+2025-10-14 00:15:27,034 - app - INFO - Full sync pull completed.
+2025-10-14 00:16:21,839 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:16:34,186 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-14 00:16:34,969 - app - INFO - Wrote 581 products to products.json
+2025-10-14 00:16:34,969 - app - INFO - Wrote 3 users to users.json
+2025-10-14 00:16:34,969 - app - INFO - Wrote 0 bills to bills.json
+2025-10-14 00:16:34,971 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-14 00:16:34,971 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-14 00:16:34,971 - app - INFO - Wrote 5 stores to stores.json
+2025-10-14 00:16:35,152 - app - INFO - Full sync pull completed.
+2025-10-14 00:16:37,844 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:17:16,244 - app - INFO - Background sync process started (interval=900s).
+2025-10-14 00:17:16,244 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-14 00:17:16,846 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:17:18,249 - app - INFO - Wrote 581 products to products.json
+2025-10-14 00:17:18,249 - app - INFO - Wrote 3 users to users.json
+2025-10-14 00:17:18,249 - app - INFO - Wrote 0 bills to bills.json
+2025-10-14 00:17:18,249 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-14 00:17:18,250 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-14 00:17:18,250 - app - INFO - Wrote 5 stores to stores.json
+2025-10-14 00:17:18,429 - app - INFO - Full sync pull completed.
+2025-10-14 00:17:37,312 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 00:22:08,901 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:22:08,902 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 00:22:08,904 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-14 00:22:39,852 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:23:09,849 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:23:39,847 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:23:55,025 - app - INFO - Incoming Request: Method=GET, Path=/api/stores/store_1/inventory-calendar, Origin=http://localhost:3000
+2025-10-14 00:23:59,854 - app - INFO - Incoming Request: Method=GET, Path=/api/stores/STR-1758042415183/inventory-calendar, Origin=http://localhost:3000
+2025-10-14 00:24:09,840 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:24:39,837 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:25:09,839 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:26:21,854 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:27:21,850 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:28:21,845 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:29:21,844 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:30:21,834 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:30:29,315 - app - INFO - Incoming Request: Method=GET, Path=/api/stores/store_1/inventory-calendar, Origin=http://localhost:3000
+2025-10-14 00:30:38,900 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:31:09,837 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:31:35,162 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-14 00:31:35,989 - app - INFO - Wrote 581 products to products.json
+2025-10-14 00:31:35,991 - app - INFO - Wrote 3 users to users.json
+2025-10-14 00:31:35,991 - app - INFO - Wrote 0 bills to bills.json
+2025-10-14 00:31:35,991 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-14 00:31:35,991 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-14 00:31:35,991 - app - INFO - Wrote 5 stores to stores.json
+2025-10-14 00:31:36,176 - app - INFO - Full sync pull completed.
+2025-10-14 00:31:39,852 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:32:18,446 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-14 00:32:19,293 - app - INFO - Wrote 581 products to products.json
+2025-10-14 00:32:19,293 - app - INFO - Wrote 3 users to users.json
+2025-10-14 00:32:19,293 - app - INFO - Wrote 0 bills to bills.json
+2025-10-14 00:32:19,293 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-14 00:32:19,293 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-14 00:32:19,293 - app - INFO - Wrote 5 stores to stores.json
+2025-10-14 00:32:19,482 - app - INFO - Full sync pull completed.
+2025-10-14 00:32:19,842 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:33:21,849 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:33:43,508 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:33:50,089 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 00:33:56,128 - app - INFO - Incoming Request: Method=GET, Path=/api/stores/store_1/inventory-calendar, Origin=http://localhost:3000
+2025-10-14 00:34:08,917 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:34:38,907 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:35:08,918 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:35:38,900 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:36:08,904 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:36:38,912 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:37:08,908 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:37:38,903 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:38:08,903 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:38:38,907 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:39:08,900 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:39:33,648 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 00:39:39,041 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:39:57,076 - app - INFO - Incoming Request: Method=OPTIONS, Path=/api/stores/STR-1758042415183/assign-products, Origin=http://localhost:3000
+2025-10-14 00:39:57,079 - app - INFO - Incoming Request: Method=POST, Path=/api/stores/STR-1758042415183/assign-products, Origin=http://localhost:3000
+2025-10-14 00:39:57,582 - app - INFO - Logged to sync_table: Products - UPDATE - 00949931-b894-4321-a28a-7f49af44de2e
+2025-10-14 00:39:58,074 - app - ERROR - Error applying change to DB for Products (ID: 00949931-b894-4321-a28a-7f49af44de2e, Type: UPDATE): 0
+2025-10-14 00:39:58,968 - app - INFO - Logged to sync_table: Products - UPDATE - 01632bca-b8a4-4f48-b2f1-bf1f228ce268
+2025-10-14 00:39:59,484 - app - ERROR - Error applying change to DB for Products (ID: 01632bca-b8a4-4f48-b2f1-bf1f228ce268, Type: UPDATE): 0
+2025-10-14 00:40:00,361 - app - INFO - Logged to sync_table: Products - UPDATE - 01c9193f-c7dd-42c6-a7d0-2fabadfa43f1
+2025-10-14 00:40:00,588 - app - ERROR - Error applying change to DB for Products (ID: 01c9193f-c7dd-42c6-a7d0-2fabadfa43f1, Type: UPDATE): 0
+2025-10-14 00:40:09,848 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:40:39,849 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:41:18,408 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:41:23,245 - app - INFO - Incoming Request: Method=GET, Path=/api/stores/STR-1758042415183/inventory-calendar, Origin=http://localhost:3000
+2025-10-14 00:41:25,111 - app - INFO - Incoming Request: Method=GET, Path=/api/stores/STR-1758042415183/inventory-by-date/2025-10-14, Origin=http://localhost:3000
+2025-10-14 00:41:38,924 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:42:08,904 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:58:18,747 - app - INFO - Background sync process started (interval=900s).
+2025-10-14 00:58:18,753 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-14 00:58:19,487 - app - INFO - Background sync process started (interval=900s).
+2025-10-14 00:58:19,487 - app - INFO - Starting full sync pull from MySQL into JSON files...
+2025-10-14 00:58:21,103 - app - INFO - Wrote 581 products to products.json
+2025-10-14 00:58:21,103 - app - INFO - Wrote 3 users to users.json
+2025-10-14 00:58:21,105 - app - INFO - Wrote 0 bills to bills.json
+2025-10-14 00:58:21,105 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-14 00:58:21,105 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-14 00:58:21,105 - app - INFO - Wrote 5 stores to stores.json
+2025-10-14 00:58:21,282 - app - INFO - Full sync pull completed.
+2025-10-14 00:58:21,494 - app - INFO - Wrote 581 products to products.json
+2025-10-14 00:58:21,496 - app - INFO - Wrote 3 users to users.json
+2025-10-14 00:58:21,497 - app - INFO - Wrote 0 bills to bills.json
+2025-10-14 00:58:21,497 - app - INFO - Wrote 0 notifications to notifications.json
+2025-10-14 00:58:21,497 - app - INFO - Wrote 1 settings row to settings.json
+2025-10-14 00:58:21,497 - app - INFO - Wrote 5 stores to stores.json
+2025-10-14 00:58:21,682 - app - INFO - Full sync pull completed.
+2025-10-14 00:58:34,852 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:58:50,189 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 00:58:50,189 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 00:58:50,190 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-14 00:58:53,163 - app - INFO - Incoming Request: Method=GET, Path=/api/stores/STR-1758042415183/inventory-calendar, Origin=http://localhost:3000
+2025-10-14 13:21:14,036 - app - INFO - Incoming Request: Method=OPTIONS, Path=/api/auth/login, Origin=http://localhost:3000
+2025-10-14 13:21:14,050 - app - INFO - Incoming Request: Method=POST, Path=/api/auth/login, Origin=http://localhost:3000
+2025-10-14 13:21:17,536 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:21:17,542 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-14 13:21:17,549 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 13:21:17,551 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 13:21:17,555 - app - INFO - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-10-14 13:21:17,556 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:21:17,568 - app - INFO - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-10-14 13:21:17,562 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-14 13:21:17,600 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 13:21:17,602 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 13:21:27,204 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 13:21:27,213 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:21:27,256 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:21:30,580 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:21:30,583 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 13:21:30,584 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-14 13:21:30,594 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:21:30,597 - app - INFO - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-14 13:21:30,600 - app - INFO - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-14 13:22:01,137 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:22:31,134 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:23:01,134 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:23:31,127 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:24:01,131 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:24:20,573 - app - INFO - Background sync process started.
+2025-10-14 13:24:20,574 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:24:20,588 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:24:50,135 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:25:20,590 - app - INFO - Background sync process started.
+2025-10-14 13:25:20,590 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:25:20,592 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:25:50,136 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:26:00,577 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:26:09,681 - app - INFO - Incoming Request: Method=GET, Path=/api/stores/STR-1758042415183/inventory-calendar, Origin=http://localhost:3000
+2025-10-14 13:26:20,595 - app - INFO - Background sync process started.
+2025-10-14 13:26:20,596 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:26:20,597 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:26:31,129 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:27:01,138 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:27:20,599 - app - INFO - Background sync process started.
+2025-10-14 13:27:20,599 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:27:20,601 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:27:31,134 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:28:01,132 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:28:20,604 - app - INFO - Background sync process started.
+2025-10-14 13:28:20,604 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:28:20,641 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:28:50,126 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:29:20,642 - app - INFO - Background sync process started.
+2025-10-14 13:29:20,642 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:29:20,642 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:29:50,143 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:30:20,647 - app - INFO - Background sync process started.
+2025-10-14 13:30:20,647 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:30:20,647 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:30:35,360 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:31:20,649 - app - INFO - Background sync process started.
+2025-10-14 13:31:20,649 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:31:20,649 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:31:46,985 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:31:50,685 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:31:50,726 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:31:51,366 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 13:31:54,903 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2025-10-14 13:31:56,952 - app - WARNING - Tauri printers proxy failed: HTTPConnectionPool(host='127.0.0.1', port=5050): Max retries exceeded with url: /api/printers (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002199DEA6150>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
+2025-10-14 13:32:00,218 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2025-10-14 13:32:02,234 - app - WARNING - Tauri printers proxy failed: HTTPConnectionPool(host='127.0.0.1', port=5050): Max retries exceeded with url: /api/printers (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002199E2E1670>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
+2025-10-14 13:32:06,473 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2025-10-14 13:32:08,500 - app - WARNING - Tauri printers proxy failed: HTTPConnectionPool(host='127.0.0.1', port=5050): Max retries exceeded with url: /api/printers (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002199E2AFF80>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
+2025-10-14 13:32:19,348 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2025-10-14 13:32:20,650 - app - INFO - Background sync process started.
+2025-10-14 13:32:20,650 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:32:20,650 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:32:20,731 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:32:21,369 - app - WARNING - Tauri printers proxy failed: HTTPConnectionPool(host='127.0.0.1', port=5050): Max retries exceeded with url: /api/printers (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002199E2E0950>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
+2025-10-14 13:32:51,123 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:33:20,652 - app - INFO - Background sync process started.
+2025-10-14 13:33:20,652 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:33:20,653 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:33:21,123 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:33:51,123 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:34:20,654 - app - INFO - Background sync process started.
+2025-10-14 13:34:20,654 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:34:20,655 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:34:21,134 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:34:23,625 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 13:34:27,697 - app - INFO - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2025-10-14 13:34:29,724 - app - WARNING - Tauri printers proxy failed: HTTPConnectionPool(host='127.0.0.1', port=5050): Max retries exceeded with url: /api/printers (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002199E2AFB00>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
+2025-10-14 13:34:29,896 - app - INFO - Incoming Request: Method=OPTIONS, Path=/api/print-label, Origin=http://localhost:3000
+2025-10-14 13:34:29,900 - app - INFO - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-10-14 13:34:29,900 - app - INFO - Received print request: product_ids=['f0355fbb-19f9-4eb0-bce3-d58a48eaa11a'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Siri Art Jewellers
+2025-10-14 13:34:29,903 - app - INFO - Generated TSPL commands (copies=1, store_name=Siri Art Jewellers):
+['GAPDETECT', 'SIZE 80 mm,12 mm', 'GAP 5 mm,0 mm', 'CLS', 'DENSITY 10', 'SPEED 4', 'DIRECTION 1', 'REFERENCE 0,0', 'OFFSET 0,-1000', 'BARCODE 20,0,"128",55,1,0,1,1,"1758368331818294"', 'TEXT 225,4,"1",0,1,1,"Siri Art Jewellers"', 'TEXT 225,24,"1",0,1,1,"S. Payal "', 'TEXT 225,44,"1",0,1,1,"Rs.200.00"', 'PRINT 1,1', 'FEED 0']
+2025-10-14 13:34:31,946 - app - WARNING - Tauri connection failed (HTTPConnectionPool(host='127.0.0.1', port=5050): Max retries exceeded with url: /api/print (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002199E2AFEF0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))), falling back to direct printing.
+2025-10-14 13:34:31,946 - app - INFO - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-10-14 13:34:31,947 - app - INFO - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-10-14 13:34:31,947 - app - INFO - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-10-14 13:34:32,007 - app - INFO - Print job started with ID: 2
+2025-10-14 13:34:32,007 - app - INFO - Starting print page.
+2025-10-14 13:34:32,007 - app - INFO - Raw data written to printer.
+2025-10-14 13:34:32,007 - app - INFO - Ending print page.
+2025-10-14 13:34:32,007 - app - INFO - Print document ended successfully.
+2025-10-14 13:34:32,007 - app - INFO - Printer handle closed.
+2025-10-14 13:34:32,007 - app - INFO - Direct print job sent to SNBC TVSE LP46 Dlite BPLE successfully.
+2025-10-14 13:34:34,142 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 13:34:41,328 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 13:34:51,117 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:35:20,656 - app - INFO - Background sync process started.
+2025-10-14 13:35:20,656 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:35:20,656 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:35:21,126 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:36:20,658 - app - INFO - Background sync process started.
+2025-10-14 13:36:20,660 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:36:20,662 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:36:50,129 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:37:20,665 - app - INFO - Background sync process started.
+2025-10-14 13:37:20,665 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:37:20,665 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:37:50,122 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:38:20,669 - app - INFO - Background sync process started.
+2025-10-14 13:38:20,670 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:38:20,671 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:38:50,137 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:39:20,672 - app - INFO - Background sync process started.
+2025-10-14 13:39:20,672 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:39:20,672 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:39:50,121 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:40:20,673 - app - INFO - Background sync process started.
+2025-10-14 13:40:20,673 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:40:20,673 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:40:32,037 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 13:40:32,056 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:40:51,127 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:41:20,678 - app - INFO - Background sync process started.
+2025-10-14 13:41:20,678 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:41:20,679 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:41:21,124 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:41:43,657 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 13:41:51,125 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:42:20,681 - app - INFO - Background sync process started.
+2025-10-14 13:42:20,681 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:42:20,683 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:42:21,132 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:43:20,685 - app - INFO - Background sync process started.
+2025-10-14 13:43:20,685 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:43:20,685 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:43:50,138 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:44:20,689 - app - INFO - Background sync process started.
+2025-10-14 13:44:20,689 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:44:20,689 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:44:50,129 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:45:20,691 - app - INFO - Background sync process started.
+2025-10-14 13:45:20,691 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:45:20,691 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:45:50,131 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:46:20,692 - app - INFO - Background sync process started.
+2025-10-14 13:46:20,692 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:46:20,692 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:46:50,132 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:47:20,694 - app - INFO - Background sync process started.
+2025-10-14 13:47:20,696 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:47:20,697 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:47:50,139 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:48:20,699 - app - INFO - Background sync process started.
+2025-10-14 13:48:20,699 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:48:20,699 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:48:50,128 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:49:20,701 - app - INFO - Background sync process started.
+2025-10-14 13:49:20,701 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:49:20,701 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:49:50,133 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:50:20,704 - app - INFO - Background sync process started.
+2025-10-14 13:50:20,705 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:50:20,705 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:50:50,137 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:51:20,706 - app - INFO - Background sync process started.
+2025-10-14 13:51:20,706 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:51:20,706 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:51:50,134 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:52:20,710 - app - INFO - Background sync process started.
+2025-10-14 13:52:20,710 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:52:20,713 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:52:50,126 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:53:20,714 - app - INFO - Background sync process started.
+2025-10-14 13:53:20,714 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:53:20,714 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:53:50,125 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:54:20,716 - app - INFO - Background sync process started.
+2025-10-14 13:54:20,716 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:54:20,716 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:54:50,129 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:55:20,719 - app - INFO - Background sync process started.
+2025-10-14 13:55:20,719 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:55:20,719 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:55:50,131 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:56:20,721 - app - INFO - Background sync process started.
+2025-10-14 13:56:20,722 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:56:20,724 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:56:50,134 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:57:20,725 - app - INFO - Background sync process started.
+2025-10-14 13:57:20,726 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:57:20,726 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:57:50,131 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:58:20,728 - app - INFO - Background sync process started.
+2025-10-14 13:58:20,728 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:58:20,728 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:58:50,133 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 13:59:19,386 - app - INFO - Background sync process started.
+2025-10-14 13:59:19,386 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 13:59:19,386 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 13:59:48,779 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:00:19,387 - app - INFO - Background sync process started.
+2025-10-14 14:00:19,387 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:00:19,406 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:00:48,785 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:01:19,408 - app - INFO - Background sync process started.
+2025-10-14 14:01:19,408 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:01:19,408 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:01:48,779 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:02:19,410 - app - INFO - Background sync process started.
+2025-10-14 14:02:19,410 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:02:19,412 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:02:48,787 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:03:19,412 - app - INFO - Background sync process started.
+2025-10-14 14:03:19,412 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:03:19,413 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:03:48,783 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:04:19,414 - app - INFO - Background sync process started.
+2025-10-14 14:04:19,414 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:04:19,414 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:04:48,798 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:05:19,416 - app - INFO - Background sync process started.
+2025-10-14 14:05:19,416 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:05:19,417 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:05:48,776 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:06:19,417 - app - INFO - Background sync process started.
+2025-10-14 14:06:19,419 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:06:19,420 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:06:48,775 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:07:19,421 - app - INFO - Background sync process started.
+2025-10-14 14:07:19,421 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:07:19,421 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:07:48,777 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:08:19,423 - app - INFO - Background sync process started.
+2025-10-14 14:08:19,424 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:08:19,426 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:08:48,782 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:09:19,428 - app - INFO - Background sync process started.
+2025-10-14 14:09:19,428 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:09:19,429 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:09:48,779 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:10:19,429 - app - INFO - Background sync process started.
+2025-10-14 14:10:19,429 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:10:19,429 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:10:48,795 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:11:19,431 - app - INFO - Background sync process started.
+2025-10-14 14:11:19,431 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:11:19,433 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:11:48,781 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:12:19,434 - app - INFO - Background sync process started.
+2025-10-14 14:12:19,434 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:12:19,434 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:12:41,779 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:12:58,775 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:13:19,438 - app - INFO - Background sync process started.
+2025-10-14 14:13:19,438 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:13:19,438 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:13:21,783 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:13:46,964 - app - INFO - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-14 14:13:49,385 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:14:19,442 - app - INFO - Background sync process started.
+2025-10-14 14:14:19,445 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:14:19,445 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:14:19,788 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:14:49,772 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:15:19,448 - app - INFO - Background sync process started.
+2025-10-14 14:15:19,448 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:15:19,448 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:15:48,793 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:16:19,449 - app - INFO - Background sync process started.
+2025-10-14 14:16:19,449 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:16:19,450 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:16:48,779 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:17:19,451 - app - INFO - Background sync process started.
+2025-10-14 14:17:19,451 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:17:19,451 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:17:48,777 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:18:19,453 - app - INFO - Background sync process started.
+2025-10-14 14:18:19,453 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:18:19,453 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:18:48,789 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:19:19,454 - app - INFO - Background sync process started.
+2025-10-14 14:19:19,455 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:19:19,455 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:19:48,784 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:20:19,456 - app - INFO - Background sync process started.
+2025-10-14 14:20:19,456 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:20:19,456 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:20:48,785 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:21:19,459 - app - INFO - Background sync process started.
+2025-10-14 14:21:19,459 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:21:19,460 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:21:48,785 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:22:19,464 - app - INFO - Background sync process started.
+2025-10-14 14:22:19,464 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:22:19,464 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:22:48,780 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:23:19,465 - app - INFO - Background sync process started.
+2025-10-14 14:23:19,465 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:23:19,465 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:23:48,791 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:24:19,467 - app - INFO - Background sync process started.
+2025-10-14 14:24:19,467 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:24:19,468 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:24:48,791 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:25:19,468 - app - INFO - Background sync process started.
+2025-10-14 14:25:19,469 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:25:19,471 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:25:48,781 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:26:19,472 - app - INFO - Background sync process started.
+2025-10-14 14:26:19,472 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:26:19,472 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:26:48,795 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:27:19,475 - app - INFO - Background sync process started.
+2025-10-14 14:27:19,475 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:27:19,476 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:27:48,778 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:28:19,478 - app - INFO - Background sync process started.
+2025-10-14 14:28:19,478 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:28:19,480 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:28:48,775 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:29:19,480 - app - INFO - Background sync process started.
+2025-10-14 14:29:19,480 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:29:19,480 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:29:48,789 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:30:19,484 - app - INFO - Background sync process started.
+2025-10-14 14:30:19,484 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:30:19,485 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:30:48,787 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:31:19,486 - app - INFO - Background sync process started.
+2025-10-14 14:31:19,486 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:31:19,486 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:31:48,791 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:32:19,488 - app - INFO - Background sync process started.
+2025-10-14 14:32:19,488 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:32:19,491 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:32:48,789 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:33:19,493 - app - INFO - Background sync process started.
+2025-10-14 14:33:19,493 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:33:19,493 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:33:48,790 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:34:19,494 - app - INFO - Background sync process started.
+2025-10-14 14:34:19,494 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:34:19,494 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:34:48,790 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:35:19,496 - app - INFO - Background sync process started.
+2025-10-14 14:35:19,496 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:35:19,498 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:35:48,784 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:36:19,500 - app - INFO - Background sync process started.
+2025-10-14 14:36:19,500 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:36:19,500 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:36:48,785 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:37:19,505 - app - INFO - Background sync process started.
+2025-10-14 14:37:19,505 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:37:19,507 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:37:48,783 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:38:19,510 - app - INFO - Background sync process started.
+2025-10-14 14:38:19,510 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:38:19,510 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:38:48,781 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:39:19,514 - app - INFO - Background sync process started.
+2025-10-14 14:39:19,514 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:39:19,517 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:39:48,788 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:40:19,519 - app - INFO - Background sync process started.
+2025-10-14 14:40:19,520 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:40:19,522 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:40:31,551 - app - INFO - Legacy background sync process started.
+2025-10-14 14:40:31,551 - app - INFO - Legacy background sync process started
+2025-10-14 14:40:31,551 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:40:31,551 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:40:32,787 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:41:31,555 - app - INFO - Legacy background sync process started.
+2025-10-14 14:41:31,555 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:41:31,555 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:41:48,781 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:42:31,556 - app - INFO - Legacy background sync process started.
+2025-10-14 14:42:31,556 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:42:31,557 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:42:48,781 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:43:31,558 - app - INFO - Legacy background sync process started.
+2025-10-14 14:43:31,558 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:43:31,558 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:43:48,779 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:44:31,560 - app - INFO - Legacy background sync process started.
+2025-10-14 14:44:31,561 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:44:31,562 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:44:48,785 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:45:31,563 - app - INFO - Legacy background sync process started.
+2025-10-14 14:45:31,563 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:45:31,563 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:45:48,779 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:46:31,567 - app - INFO - Legacy background sync process started.
+2025-10-14 14:46:31,567 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:46:31,567 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:46:48,777 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:47:31,569 - app - INFO - Legacy background sync process started.
+2025-10-14 14:47:31,569 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:47:31,572 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:47:48,789 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:48:31,574 - app - INFO - Legacy background sync process started.
+2025-10-14 14:48:31,574 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:48:31,574 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:48:48,802 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:49:31,576 - app - INFO - Legacy background sync process started.
+2025-10-14 14:49:31,576 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:49:31,576 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:49:48,777 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:50:31,580 - app - INFO - Legacy background sync process started.
+2025-10-14 14:50:31,580 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:50:31,586 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:50:48,794 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:51:31,588 - app - INFO - Legacy background sync process started.
+2025-10-14 14:51:31,588 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:51:31,588 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:51:48,777 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:52:31,589 - app - INFO - Legacy background sync process started.
+2025-10-14 14:52:31,589 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:52:31,589 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:52:48,792 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:53:31,594 - app - INFO - Legacy background sync process started.
+2025-10-14 14:53:31,594 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:53:31,596 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:53:48,785 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:54:31,599 - app - INFO - Legacy background sync process started.
+2025-10-14 14:54:31,600 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:54:31,600 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:54:48,784 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:55:07,810 - app - INFO - Legacy background sync process started.
+2025-10-14 14:55:07,810 - app - INFO - Legacy background sync process started
+2025-10-14 14:55:07,810 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:55:07,811 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:55:48,787 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:56:07,814 - app - INFO - Legacy background sync process started.
+2025-10-14 14:56:07,814 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:56:07,814 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:56:48,791 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:57:07,818 - app - INFO - Legacy background sync process started.
+2025-10-14 14:57:07,818 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:57:07,818 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:57:36,793 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:58:07,820 - app - INFO - Legacy background sync process started.
+2025-10-14 14:58:07,820 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:58:07,820 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:58:48,775 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 14:59:07,822 - app - INFO - Legacy background sync process started.
+2025-10-14 14:59:07,822 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 14:59:07,822 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 14:59:48,781 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:00:07,824 - app - INFO - Legacy background sync process started.
+2025-10-14 15:00:07,825 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:00:07,827 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:00:48,782 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:01:07,828 - app - INFO - Legacy background sync process started.
+2025-10-14 15:01:07,828 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:01:07,829 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:01:48,782 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:02:07,830 - app - INFO - Legacy background sync process started.
+2025-10-14 15:02:07,831 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:02:07,832 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:02:48,794 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:03:07,834 - app - INFO - Legacy background sync process started.
+2025-10-14 15:03:07,834 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:03:07,834 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:03:48,795 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:04:07,837 - app - INFO - Legacy background sync process started.
+2025-10-14 15:04:07,837 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:04:07,840 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:04:48,784 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:05:07,842 - app - INFO - Legacy background sync process started.
+2025-10-14 15:05:07,842 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:05:07,842 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:05:48,785 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:06:07,846 - app - INFO - Legacy background sync process started.
+2025-10-14 15:06:07,846 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:06:07,846 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:06:48,784 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:07:07,851 - app - INFO - Legacy background sync process started.
+2025-10-14 15:07:07,851 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:07:07,852 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:07:48,790 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:08:07,854 - app - INFO - Legacy background sync process started.
+2025-10-14 15:08:07,854 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:08:07,854 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:08:48,787 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:09:07,855 - app - INFO - Legacy background sync process started.
+2025-10-14 15:09:07,855 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:09:07,855 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:09:48,801 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:10:07,859 - app - INFO - Legacy background sync process started.
+2025-10-14 15:10:07,859 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:10:07,861 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:10:48,780 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:11:07,863 - app - INFO - Legacy background sync process started.
+2025-10-14 15:11:07,865 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:11:07,865 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:11:48,786 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:12:07,867 - app - INFO - Legacy background sync process started.
+2025-10-14 15:12:07,867 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:12:07,867 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:12:48,789 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:13:07,872 - app - INFO - Legacy background sync process started.
+2025-10-14 15:13:07,873 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:13:07,876 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:13:48,777 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:14:07,878 - app - INFO - Legacy background sync process started.
+2025-10-14 15:14:07,878 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:14:07,878 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:14:48,785 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:15:07,880 - app - INFO - Legacy background sync process started.
+2025-10-14 15:15:07,880 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:15:07,880 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:15:48,785 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:16:07,882 - app - INFO - Legacy background sync process started.
+2025-10-14 15:16:07,882 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:16:07,882 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:16:48,788 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:17:07,886 - app - INFO - Legacy background sync process started.
+2025-10-14 15:17:07,886 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:17:07,886 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:17:48,789 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:18:07,890 - app - INFO - Legacy background sync process started.
+2025-10-14 15:18:07,891 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:18:07,893 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:18:48,814 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:19:07,895 - app - INFO - Legacy background sync process started.
+2025-10-14 15:19:07,895 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:19:07,895 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:19:48,791 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:20:07,896 - app - INFO - Legacy background sync process started.
+2025-10-14 15:20:07,896 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:20:07,897 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:20:09,014 - app - INFO - Legacy background sync process started.
+2025-10-14 15:20:09,014 - app - INFO - Legacy background sync process started
+2025-10-14 15:20:09,016 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:20:09,016 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:20:48,786 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:20:58,693 - app - INFO - Legacy background sync process started.
+2025-10-14 15:20:58,694 - app - INFO - Legacy background sync process started
+2025-10-14 15:20:58,694 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:20:58,694 - app - WARNING - No last_sync_time found for pull sync.
+2025-10-14 15:21:48,786 - app - INFO - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-14 15:21:58,697 - app - INFO - Legacy background sync process started.
+2025-10-14 15:21:58,698 - app - INFO - No pending changes in local sync_table to push.
+2025-10-14 15:21:58,698 - app - WARNING - No last_sync_time found for pull sync.

@@ -122,6 +122,10 @@
 
 /* Print styles */
 @media print {
+  body * { visibility: hidden; }
+  #printable-table, #printable-table * { visibility: visible; }
+  #printable-table { position: absolute; left: 0; top: 0; width: 100%; }
+
   .no-print {
     display: none !important;
   }

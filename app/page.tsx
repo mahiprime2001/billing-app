@@ -128,7 +128,8 @@ export default function LoginPage() {
         localStorage.removeItem("rememberedAdminEmail")
       }
 
-      // Store user data and role directly (no adminLoggedIn flag needed for now)
+      // Store user data and role directly
+      localStorage.setItem("adminLoggedIn", "true"); // NEW: Set adminLoggedIn flag
       localStorage.setItem("adminUser", JSON.stringify({ ...userData, role: user_role }))
 
       setSuccess("Login successful! Redirecting...")

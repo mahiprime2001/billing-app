@@ -48,6 +48,15 @@ def load_json_file(filepath: str):
         except json.JSONDecodeError:
             return [] # Or {}
 
+def _safe_json_load(path, default):
+    if not os.path.exists(path):
+        return default
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return default
+
 class AssignedProductManager:
     def __init__(self, filepath="backend/data/json/assigned_products.json"):
         self.filepath = filepath
