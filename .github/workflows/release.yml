@@ -19,23 +19,32 @@ jobs:
     steps:
       - name: 🛒 Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: ⚙️ Install dependencies
         run: sudo apt-get install -y jq
 
       - id: calculate
+        shell: bash
         run: |
+          set -euo pipefail
+
           TAURI_FILE="src-tauri/tauri.conf.json"
+
+          # Ensure tags available locally
+          git fetch --tags --force
+
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           RANGE=${PREV_TAG:+$PREV_TAG..HEAD}
 
-          # Determine bump type
+          # Determine bump type from commit messages
           if git log $RANGE --pretty=%B | grep -q "BREAKING CHANGE"; then TYPE="major"
           elif git log $RANGE --pretty=%B | grep -q "^feat:"; then TYPE="minor"
           elif git log $RANGE --pretty=%B | grep -q "^fix:"; then TYPE="patch"
           else TYPE="patch"; fi
 
-          OLD_VERSION=$(jq -r '.version' $TAURI_FILE)
+          OLD_VERSION=$(jq -r '.version' "$TAURI_FILE")
           if [ -z "$OLD_VERSION" ] || [ "$OLD_VERSION" = "null" ]; then
             echo "❌ Version not found in $TAURI_FILE"
             exit 1
@@ -51,26 +60,30 @@ jobs:
 
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
 
-          # 🔁 Ensure unique version (avoid existing tags)
+          # Ensure unique tag
           while git rev-parse "v${NEW_VERSION}" >/dev/null 2>&1; do
             PATCH=$((PATCH+1))
             NEW_VERSION="$MAJOR.$MINOR.$PATCH"
           done
 
           echo "✅ Calculated new unique version: $NEW_VERSION"
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: 📝 Update version in Tauri config
         run: |
           jq ".version = \"${{ steps.calculate.outputs.version }}\"" src-tauri/tauri.conf.json > tmp.$$.json && mv tmp.$$.json src-tauri/tauri.conf.json
 
-      - name: 💾 Commit updated version
+      - name: 💾 Commit updated version to main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add src-tauri/tauri.conf.json
           git commit -m "chore: bump version to v${{ steps.calculate.outputs.version }}" || echo "No version changes to commit"
-          git tag "v${{ steps.calculate.outputs.version }}"
+          git push origin HEAD:main
+
+      - name: 🏷️ Create and push tag
+        run: |
+          git tag "v${{ steps.calculate.outputs.version }}" || echo "Tag exists"
           git push origin "v${{ steps.calculate.outputs.version }}" || echo "⚠️ Tag already exists, continuing"
 
   build-and-release-windows:
@@ -78,8 +91,11 @@ jobs:
     needs: prepare-environment
     runs-on: windows-latest
     steps:
-      - name: 🛒 Checkout code
+      - name: 🛒 Checkout code (latest main)
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: ⚙️ Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -88,34 +104,33 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: 📦 Install dependencies & build frontend
         run: |
           npm install
           npm run build
 
-      - name: 🔐 Setup Tauri private key (raw format only)
-        run: |
-          echo "${{ secrets.TAURI_PRIVATE_KEY }}" > private.key
-          echo "${{ secrets.TAURI_KEY_PASSWORD }}" > key_password.txt
-        shell: bash
-
       - name: 🏗️ Build Tauri App (Windows)
         env:
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: npm run tauri build
+          # Map your existing secrets to Tauri v2 signing env names
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: npx @tauri-apps/cli build
 
       - name: 🚀 Create or Update GitHub Release
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
+          set -euo pipefail
           TAG="v${{ needs.prepare-environment.outputs.version }}"
           MSI_PATH="src-tauri/target/release/bundle/msi/Siri-billing-app_${{ needs.prepare-environment.outputs.version }}_x64_en-US.msi"
           EXE_PATH="src-tauri/target/release/bundle/nsis/Siri-billing-app_${{ needs.prepare-environment.outputs.version }}_x64-setup.exe"
 
           echo "🧩 Checking for build outputs..."
-          ls src-tauri/target/release/bundle/* || echo "⚠️ No bundle folders found."
+          ls -la src-tauri/target/release/bundle || echo "⚠️ No bundle folders found."
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "⚠️ Release $TAG already exists, updating assets..."
