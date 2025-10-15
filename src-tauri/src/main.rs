@@ -2,9 +2,9 @@
 
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
-use tauri_plugin_shell::process::CommandEvent;
+use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 use warp::Filter;
 use serde::{Deserialize, Serialize};
 use log::{info, error};
@@ -51,7 +51,11 @@ struct PrintersResponse {
 type PrinterList = Arc<Mutex<Vec<String>>>;
 
 #[tauri::command]
-async fn print_to_thermal_printer(printer_name: String, tspl_commands: String, copies: Option<i32>) -> Result<PrintResponse, PrintResponse> {
+async fn print_to_thermal_printer(
+    printer_name: String,
+    tspl_commands: String,
+    copies: Option<i32>,
+) -> Result<PrintResponse, PrintResponse> {
     info!("Printing to thermal printer: {}", printer_name);
     info!("TSPL Commands: {}", tspl_commands);
 
@@ -102,30 +106,40 @@ async fn get_available_printers() -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-async fn send_tspl_to_printer(printer_name: String, tspl_commands: String) -> Result<PrintResponse, PrintResponse> {
+async fn send_tspl_to_printer(
+    printer_name: String,
+    tspl_commands: String,
+) -> Result<PrintResponse, PrintResponse> {
     info!("Sending TSPL commands to printer: {}", printer_name);
 
     #[cfg(target_os = "windows")]
     {
         use std::{ffi::CString, ptr};
         use windows::Win32::Graphics::Printing::{
-            ClosePrinter, DOC_INFO_1A, EndDocPrinter, EndPagePrinter, OpenPrinterA,
-            StartDocPrinterA, StartPagePrinter, WritePrinter, PRINTER_DEFAULTSA,
-            PRINTER_HANDLE, PRINTER_ACCESS_ADMINISTER, PRINTER_ACCESS_USE,
+            ClosePrinter, DOC_INFO_1A, EndDocPrinter, EndPagePrinter, OpenPrinterA, StartDocPrinterA,
+            StartPagePrinter, WritePrinter, PRINTER_DEFAULTSA, PRINTER_HANDLE, PRINTER_ACCESS_ADMINISTER,
+            PRINTER_ACCESS_USE,
         };
         use windows::core::{PCSTR, PSTR};
 
         unsafe {
-            let name_cstr = CString::new(printer_name.clone())
-                .map_err(|e| PrintResponse { status: "error".into(), message: format!("Invalid printer name: {}", e) })?;
+            let name_cstr = CString::new(printer_name.clone()).map_err(|e| PrintResponse {
+                status: "error".into(),
+                message: format!("Invalid printer name: {}", e),
+            })?;
             let mut handle: PRINTER_HANDLE = PRINTER_HANDLE::default();
             let defaults = PRINTER_DEFAULTSA {
                 pDatatype: PSTR::null(),
                 pDevMode: ptr::null_mut(),
                 DesiredAccess: PRINTER_ACCESS_USE | PRINTER_ACCESS_ADMINISTER,
             };
-            if OpenPrinterA(PCSTR(name_cstr.as_ptr() as *const _), &mut handle, Some(&defaults)).is_err() {
-                return Err(PrintResponse { status: "error".into(), message: "OpenPrinterA failed".into() });
+            if OpenPrinterA(PCSTR(name_cstr.as_ptr() as *const _), &mut handle, Some(&defaults))
+                .is_err()
+            {
+                return Err(PrintResponse {
+                    status: "error".into(),
+                    message: "OpenPrinterA failed".into(),
+                });
             }
             let title = CString::new("TSPL Job").unwrap();
             let mut doc_info = DOC_INFO_1A {
@@ -136,31 +150,47 @@ async fn send_tspl_to_printer(printer_name: String, tspl_commands: String) -> Re
             let job_id = StartDocPrinterA(handle, 1, &mut doc_info);
             if job_id == 0 {
                 ClosePrinter(handle).ok();
-                return Err(PrintResponse { status: "error".into(), message: "StartDocPrinterA failed".into() });
+                return Err(PrintResponse {
+                    status: "error".into(),
+                    message: "StartDocPrinterA failed".into(),
+                });
             }
             if StartPagePrinter(handle).0 == 0 {
                 EndDocPrinter(handle);
                 ClosePrinter(handle).ok();
-                return Err(PrintResponse { status: "error".into(), message: "StartPagePrinter failed".into() });
+                return Err(PrintResponse {
+                    status: "error".into(),
+                    message: "StartPagePrinter failed".into(),
+                });
             }
             let bytes = tspl_commands.as_bytes();
             let mut written: u32 = 0;
-            let result = WritePrinter(handle, bytes.as_ptr() as *const _, bytes.len() as u32, &mut written);
+            let result =
+                WritePrinter(handle, bytes.as_ptr() as *const _, bytes.len() as u32, &mut written);
             EndPagePrinter(handle);
             EndDocPrinter(handle);
             ClosePrinter(handle).ok();
             if result.0 == 0 || written != bytes.len() as u32 {
-                return Err(PrintResponse { status: "error".into(), message: "WritePrinter failed or incomplete".into() });
+                return Err(PrintResponse {
+                    status: "error".into(),
+                    message: "WritePrinter failed or incomplete".into(),
+                });
             }
         }
 
-        Ok(PrintResponse { status: "success".into(), message: format!("Sent TSPL to {}", printer_name) })
+        Ok(PrintResponse {
+            status: "success".into(),
+            message: format!("Sent TSPL to {}", printer_name),
+        })
     }
 
     #[cfg(not(target_os = "windows"))]
     {
         info!("Simulated print on non-Windows system");
-        Ok(PrintResponse { status: "success".into(), message: "Simulated print successful".into() })
+        Ok(PrintResponse {
+            status: "success".into(),
+            message: "Simulated print successful".into(),
+        })
     }
 }
 
@@ -183,9 +213,15 @@ async fn start_http_server(printer_list: PrinterList) {
             match get_available_printers().await {
                 Ok(printers) => {
                     *list.lock().unwrap() = printers.clone();
-                    Ok::<_, Infallible>(warp::reply::json(&PrintersResponse { status: "success".into(), printers }))
+                    Ok::<_, Infallible>(warp::reply::json(&PrintersResponse {
+                        status: "success".into(),
+                        printers,
+                    }))
                 }
-                Err(e) => Ok::<_, Infallible>(warp::reply::json(&PrintResponse { status: "error".into(), message: e })),
+                Err(e) => Ok::<_, Infallible>(warp::reply::json(&PrintResponse {
+                    status: "error".into(),
+                    message: e,
+                })),
             }
         });
 
@@ -196,29 +232,46 @@ async fn start_http_server(printer_list: PrinterList) {
         .and_then(move |req: PrintRequest| async move {
             info!("API POST /api/print: {:?}", req);
             if req.printer_name.is_empty() {
-                return Ok::<_, Infallible>(warp::reply::json(&PrintResponse { status: "error".into(), message: "Printer name is required".into() }));
+                return Ok::<_, Infallible>(warp::reply::json(&PrintResponse {
+                    status: "error".into(),
+                    message: "Printer name is required".into(),
+                }));
             }
             if req.tspl_commands.is_empty() {
-                return Ok::<_, Infallible>(warp::reply::json(&PrintResponse { status: "error".into(), message: "TSPL commands are required".into() }));
+                return Ok::<_, Infallible>(warp::reply::json(&PrintResponse {
+                    status: "error".into(),
+                    message: "TSPL commands are required".into(),
+                }));
             }
-            match print_to_thermal_printer(req.printer_name.clone(), req.tspl_commands.clone(), Some(req.copies)).await {
+            match print_to_thermal_printer(
+                req.printer_name.clone(),
+                req.tspl_commands.clone(),
+                Some(req.copies),
+            )
+            .await
+            {
                 Ok(resp) => Ok::<_, Infallible>(warp::reply::json(&resp)),
                 Err(err) => Ok::<_, Infallible>(warp::reply::json(&err)),
             }
         });
 
-    let health_route = warp::path("health")
-        .and(warp::get())
-        .map(|| {
-            info!("API GET /health");
-            warp::reply::json(&PrintResponse { status: "success".into(), message: "Server running".into() })
-        });
+    let health_route = warp::path("health").and(warp::get()).map(|| {
+        info!("API GET /health");
+        warp::reply::json(&PrintResponse {
+            status: "success".into(),
+            message: "Server running".into(),
+        })
+    });
 
     let static_files = warp::path::end()
         .and(warp::fs::file("./static/index.html"))
         .or(warp::fs::dir("./static"));
 
-    let routes = printers_route.or(print_route).or(health_route).or(static_files).with(cors);
+    let routes = printers_route
+        .or(print_route)
+        .or(health_route)
+        .or(static_files)
+        .with(cors);
 
     warp::serve(routes).run(([127, 0, 0, 1], 5050)).await;
 }
@@ -234,18 +287,42 @@ async fn print_html(app: tauri::AppHandle, html: String) -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
 
-    let escaped = html.replace('\\', "\\\\").replace('`', "\\`").replace('\n', "\\n").replace('\r', "\\r");
-    webview.eval(&format!("document.open();document.write(`{}`);document.close();", escaped)).map_err(|e| e.to_string())?;
+    let escaped = html
+        .replace('\\', "\\\\")
+        .replace('`', "\\`")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r");
+    webview
+        .eval(&format!(
+            "document.open();document.write(`{}`);document.close();",
+            escaped
+        ))
+        .map_err(|e| e.to_string())?;
     tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 
     #[cfg(target_os = "windows")]
     {
         let tmp = std::env::temp_dir().join(format!("{}.html", uuid::Uuid::new_v4()));
-        tokio::fs::write(&tmp, html.as_bytes()).await.map_err(|e| e.to_string())?;
-        let wide_path: Vec<u16> = OsString::from(&tmp).encode_wide().chain(std::iter::once(0)).collect();
-        let wide_op: Vec<u16> = OsString::from("print").encode_wide().chain(std::iter::once(0)).collect();
+        tokio::fs::write(&tmp, html.as_bytes())
+            .await
+            .map_err(|e| e.to_string())?;
+        let wide_path: Vec<u16> = OsString::from(&tmp)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let wide_op: Vec<u16> = OsString::from("print")
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
         unsafe {
-            let res = ShellExecuteW(Some(HWND(std::ptr::null_mut())), PCWSTR(wide_op.as_ptr()), PCWSTR(wide_path.as_ptr()), PCWSTR::null(), PCWSTR::null(), SW_SHOW);
+            let res = ShellExecuteW(
+                Some(HWND(std::ptr::null_mut())),
+                PCWSTR(wide_op.as_ptr()),
+                PCWSTR(wide_path.as_ptr()),
+                PCWSTR::null(),
+                PCWSTR::null(),
+                SW_SHOW,
+            );
             if (res.0 as isize) <= 32 {
                 return Err("Failed to open print dialog".into());
             }
@@ -260,13 +337,38 @@ async fn print_html(app: tauri::AppHandle, html: String) -> Result<(), String> {
     Ok(())
 }
 
+// PID-based full tree kill
+fn kill_process_tree(pid: u32) {
+    #[cfg(target_os = "windows")]
+    {
+        // /T = kill child processes, /F = force
+        let _ = std::process::Command::new("taskkill")
+            .args(&["/PID", &pid.to_string(), "/T", "/F"])
+            .status()
+            .map_err(|e| error!("Failed to taskkill {}: {}", pid, e));
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        // -TERM entire process group
+        let _ = std::process::Command::new("kill")
+            .args(&["-TERM", &format!("-{}", pid)])
+            .status()
+            .map_err(|e| error!("Failed to kill -TERM {}: {}", pid, e));
+    }
+}
+
 fn main() {
-    tauri::Builder::default()
+    // Shared handle to the sidecar child
+    let child_handle: Arc<Mutex<Option<CommandChild>>> = Arc::new(Mutex::new(None));
+
+    let app = tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
                 .targets([
                     Target::new(TargetKind::Stdout),
-                    Target::new(TargetKind::LogDir { file_name: Some("tauri-printer-app".into()) }),
+                    Target::new(TargetKind::LogDir {
+                        file_name: Some("tauri-printer-app".into()),
+                    }),
                     Target::new(TargetKind::Webview),
                 ])
                 .level(log::LevelFilter::Info)
@@ -279,30 +381,79 @@ fn main() {
             print_to_thermal_printer,
             print_html
         ])
-        .setup(|app| {
-            let handle = app.app_handle();
-            let cmd = handle.shell().sidecar("Siriadmin-backend")?;
-            let (mut rx, _child) = cmd.spawn()?;
-            tauri::async_runtime::spawn(async move {
-                while let Some(event) = rx.recv().await {
-                    match event {
-                        CommandEvent::Stdout(line) => info!("Flask stdout: {}", String::from_utf8_lossy(&line)),
-                        CommandEvent::Stderr(line) => error!("Flask stderr: {}", String::from_utf8_lossy(&line)),
-                        _ => {}
+        .setup({
+            let child_handle = Arc::clone(&child_handle);
+            move |app| {
+                // Spawn sidecar and keep its CommandChild
+                let handle = app.app_handle();
+                let cmd = handle.shell().sidecar("Siriadmin-backend")?;
+                let (mut rx, mut command_child) = cmd.spawn()?;
+
+                let pid = command_child.pid();
+                info!("Spawned sidecar with PID {}", pid);
+                *child_handle.lock().unwrap() = Some(command_child);
+
+                // Log sidecar output
+                let child_handle_clone = Arc::clone(&child_handle);
+                tauri::async_runtime::spawn(async move {
+                    while let Some(event) = rx.recv().await {
+                        match event {
+                            CommandEvent::Stdout(line) => {
+                                info!("Flask stdout: {}", String::from_utf8_lossy(&line))
+                            }
+                            CommandEvent::Stderr(line) => {
+                                error!("Flask stderr: {}", String::from_utf8_lossy(&line))
+                            }
+                            _ => {}
+                        }
                     }
+                    let _ = child_handle_clone.lock().unwrap().take();
+                });
+
+                // Start HTTP server and initial printer scan
+                let printers = Arc::new(Mutex::new(vec![]));
+                let printers_clone = printers.clone();
+                tauri::async_runtime::spawn(async move {
+                    start_http_server(printers_clone).await
+                });
+                let printers_clone = printers.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Ok(list) = get_available_printers().await {
+                        *printers_clone.lock().unwrap() = list;
+                    }
+                });
+
+                // Kill sidecar on window close (Tauri v2 uses get_webview_window)
+                if let Some(main_win) = app.get_webview_window("main") {
+                    let child_handle_for_close = Arc::clone(&child_handle);
+                    main_win.on_window_event(move |event| {
+                        if let tauri::WindowEvent::CloseRequested { .. } = event {
+                            if let Some(child) = child_handle_for_close.lock().unwrap().take() {
+                                let pid = child.pid();
+                                kill_process_tree(pid);
+                                info!("Killed sidecar tree on window close (PID {})", pid);
+                            }
+                        }
+                    });
                 }
-            });
-            let printers = Arc::new(Mutex::new(vec![]));
-            let printers_clone = printers.clone();
-            tauri::async_runtime::spawn(async move { start_http_server(printers_clone).await });
-            let printers_clone = printers.clone();
-            tauri::async_runtime::spawn(async move {
-                if let Ok(list) = get_available_printers().await {
-                    *printers_clone.lock().unwrap() = list;
-                }
-            });
-            Ok(())
+
+                Ok(())
+            }
         })
-        .run(tauri::generate_context!())
-        .expect("failed to run app");
+        .build(tauri::generate_context!())
+        .expect("error building app");
+
+    // Kill sidecar on app exit
+    app.run({
+        let child_handle = Arc::clone(&child_handle);
+        move |_app_handle, event| {
+            if let RunEvent::Exit = event {
+                if let Some(child) = child_handle.lock().unwrap().take() {
+                    let pid = child.pid();
+                    kill_process_tree(pid);
+                    info!("Killed sidecar tree on app exit (PID {})", pid);
+                }
+            }
+        }
+    });
 }
