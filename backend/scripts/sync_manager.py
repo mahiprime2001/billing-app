@@ -677,11 +677,12 @@ class EnhancedSyncManager:
 # Global instance holder
 sync_manager_instance: Optional[EnhancedSyncManager] = None
 
-def get_sync_manager(base_dir: str) -> EnhancedSyncManager:
+def get_sync_manager(base_dir: Optional[str] = None) -> EnhancedSyncManager:
     """Get or create sync manager instance"""
     global sync_manager_instance
     if sync_manager_instance is None:
-        sync_manager_instance = EnhancedSyncManager(base_dir)
+        base = base_dir or os.environ.get('APP_BASE_DIR', os.getcwd())
+        sync_manager_instance = EnhancedSyncManager(base)
     return sync_manager_instance
 
 
@@ -703,8 +704,8 @@ def log_json_crud_operation(json_type: str, operation: str, record_id: str, data
 
     table_name = json_to_table_mapping.get(json_type)
     if table_name:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        manager = get_sync_manager(os.path.dirname(base_dir))  # pass backend path
+        # reuse existing instance created in app.py; do not recompute base_dir
+        manager = get_sync_manager()
         manager.log_crud_operation(table_name, operation, record_id, data)
 
 

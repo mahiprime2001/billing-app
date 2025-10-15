@@ -56,10 +56,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
 
 app = Flask(__name__)
+os.environ['APP_BASE_DIR'] = os.getcwd()
 
 # NEW: Initialize enhanced sync manager if available
 if ENHANCED_SYNC_AVAILABLE:
-    sync_manager = get_sync_manager(BASE_DIR)
+    sync_manager = get_sync_manager(os.environ['APP_BASE_DIR'])
 else:
     sync_manager = None
 
@@ -79,24 +80,55 @@ CORS(
 # Secret key for session management (replace with a strong, random key in production)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'super_secret_key_for_dev')
 
-PRODUCTS_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'products.json')
-USERS_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'users.json')
-BILLS_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'bills.json')
-NOTIFICATIONS_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'notifications.json')
-SETTINGS_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'settings.json')
-STORES_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'stores.json')
-SESSIONS_FILE = os.path.join(PROJECT_ROOT, 'data', 'json', 'user_sessions.json')
+# --- NEW DATA PATHS ---
+DATA_BASE_DIR = os.path.join(os.getcwd(), 'data')
+JSON_DIR = os.path.join(DATA_BASE_DIR, 'json')
+LOGS_DIR = os.path.join(DATA_BASE_DIR, 'logs')
+
+# Ensure data directories exist
+os.makedirs(JSON_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
+
+PRODUCTS_FILE = os.path.join(JSON_DIR, 'products.json')
+USERS_FILE = os.path.join(JSON_DIR, 'users.json')
+BILLS_FILE = os.path.join(JSON_DIR, 'bills.json')
+NOTIFICATIONS_FILE = os.path.join(JSON_DIR, 'notifications.json')
+SETTINGS_FILE = os.path.join(JSON_DIR, 'settings.json')
+STORES_FILE = os.path.join(JSON_DIR, 'stores.json')
+SESSIONS_FILE = os.path.join(JSON_DIR, 'user_sessions.json')
 
 # Configure logging for the Flask app
-LOG_DIR = os.path.join(PROJECT_ROOT, 'backend', 'data', 'logs')
-os.makedirs(LOG_DIR, exist_ok=True)
+LOG_DIR = LOGS_DIR # Use the new LOGS_DIR
 LOG_FILE = os.path.join(LOG_DIR, 'app.log')
 file_handler = logging.FileHandler(LOG_FILE)
-file_handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
 file_handler.setFormatter(formatter)
 app.logger.addHandler(file_handler)
-app.logger.setLevel(logging.INFO)
+app.logger.setLevel(logging.DEBUG)
+
+# Redirect stdout and stderr to the log file
+class DualLogger:
+    def __init__(self, filename, encoding='utf-8'):
+        self.terminal = sys.stdout
+        self.log = open(filename, 'a', encoding=encoding)
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+        self.log.flush() # Ensure immediate write to file
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+sys.stdout = DualLogger(LOG_FILE)
+sys.stderr = DualLogger(LOG_FILE)
+
+# Verify base directories
+app.logger.info(f"APP_BASE_DIR: {os.environ.get('APP_BASE_DIR', 'Not Set')}")
+app.logger.info(f"JSON_DIR: {JSON_DIR}")
+app.logger.info(f"LOGS_DIR: {LOGS_DIR}")
 
 # Tauri HTTP base
 TAURI_BASE = os.environ.get('TAURI_HTTP_BASE', 'http://127.0.0.1:5050')

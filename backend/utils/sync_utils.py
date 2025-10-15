@@ -13,15 +13,8 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Determine the base directory for resource loading
-if getattr(sys, 'frozen', False):
-    # Running in a PyInstaller bundle
-    PROJECT_ROOT = os.path.dirname(sys._MEIPASS)
-else:
-    # Running in a normal Python environment
-    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# BASE_DIR should still point to the directory of app.py for file loading within the Flask app
-BASE_DIR = os.path.join(PROJECT_ROOT, 'backend')
+# Use APP_BASE_DIR from environment, fallback to current working directory
+BASE_DIR = os.environ.get('APP_BASE_DIR', os.getcwd())
 
 SYNC_TABLE_FILE = os.path.join(BASE_DIR, 'data', 'json', 'sync_table.json')
 SYNC_LOGS_FILE = os.path.join(BASE_DIR, 'data', 'json', 'sync_logs.json')

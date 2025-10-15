@@ -1,10 +1,19 @@
 import os
 import json
 from datetime import datetime
+from decimal import Decimal # Import Decimal
 from utils.db import DatabaseConnection
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-JSON_DIR = os.path.join(PROJECT_ROOT, 'data', 'json')
+JSON_DIR = os.path.join(os.environ.get('APP_BASE_DIR', os.getcwd()), 'data', 'json')
+
+class CustomJsonEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle Decimal and datetime objects."""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)  # Convert Decimal to float
+        if isinstance(obj, datetime):
+            return obj.isoformat() # Convert datetime to ISO format string
+        return json.JSONEncoder.default(self, obj)
 
 def ensure_output_dir():
     """Ensures the output directory for JSON files exists."""
@@ -131,13 +140,12 @@ def export_formatted_data():
         if conn:
             cursor.close()
             conn.close()
-    DatabaseConnection.close_pool()
 
 def save_json_data(filename: str, data):
     """Helper function to save data to a JSON file."""
     filepath = os.path.join(JSON_DIR, filename)
     with open(filepath, 'w') as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f, indent=2, cls=CustomJsonEncoder) # Use custom encoder
 
 if __name__ == "__main__":
     export_formatted_data()
