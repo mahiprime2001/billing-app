@@ -102,6 +102,84 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: npx @tauri-apps/cli build
 
+      - name: 📦 Prepare Updater Assets (Zip & Sign Bundles)
+        env:
+          TAURI_UPDATER_PRIVATE_KEY: ${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUNDLE_DIR="src-tauri/target/release/bundle"
+          VERSION="${{ needs.prepare-environment.outputs.version }}"
+          REPO="${{ github.repository }}"
+          TAG="v$VERSION"
+
+          # Find bundles
+          MSI_FILE=$(find "$BUNDLE_DIR/msi" -name "*.msi" | head -1)
+          EXE_FILE=$(find "$BUNDLE_DIR/nsis" -name "*setup.exe" | head -1)
+
+          if [ -z "$MSI_FILE" ] || [ -z "$EXE_FILE" ]; then
+            echo "❌ No bundle files found!"
+            exit 1
+          fi
+
+          echo "Found MSI: $MSI_FILE"
+          echo "Found EXE: $EXE_FILE"
+
+          # Zip MSI and EXE for updater (convention: .msi.zip and .exe.zip)
+          MSI_ZIP="$BUNDLE_DIR/msi/Siri-billing-app_${VERSION}_x64_en-US.msi.zip"
+          EXE_ZIP="$BUNDLE_DIR/nsis/Siri-billing-app_${VERSION}_x64-setup.exe.zip"
+          7z a "$MSI_ZIP" "$MSI_FILE" || echo "⚠️ Zipping MSI failed, using direct file"
+          7z a "$EXE_ZIP" "$EXE_FILE" || echo "⚠️ Zipping EXE failed, using direct file"
+
+          # Use zips if created, else fall back to originals
+          MSI_ASSET="${MSI_ZIP:-$MSI_FILE}"
+          EXE_ASSET="${EXE_ZIP:-$EXE_FILE}"
+
+          # Sign zips (or originals) with updater key (requires 7z for zip, tauri signer)
+          MSI_SIG="$MSI_ASSET.sig"
+          EXE_SIG="$EXE_ASSET.sig"
+          echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - "$MSI_ASSET" -o "$MSI_SIG"
+          echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - "$EXE_ASSET" -o "$EXE_SIG"
+
+          # Read sig contents (raw signature string)
+          MSI_SIGNATURE=$(cat "$MSI_SIG" | base64 -w 0)  # Base64 if needed; docs expect raw but often base64
+          EXE_SIGNATURE=$(cat "$EXE_SIG" | base64 -w 0)
+
+          # Generate update.json
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          cat > "$BUNDLE_DIR/update.json" << EOF
+          {
+            "version": "$VERSION",
+            "notes": "🚀 Automated release for v$VERSION. Check changelog for details.",
+            "pub_date": "$PUB_DATE",
+            "platforms": {
+              "windows-x86_64": {
+                "signature": "$MSI_SIGNATURE",
+                "url": "https://github.com/$REPO/releases/download/$TAG/$(basename "$MSI_ASSET")"
+              }
+            }
+          }
+          EOF
+
+          # For NSIS EXE, add if desired (updater prefers MSI for Windows typically)
+          # But include both if multi-installer setup
+          cat >> "$BUNDLE_DIR/update.json" << EOF
+          ,
+              "windows-x86_64-nsis": {
+                "signature": "$EXE_SIGNATURE",
+                "url": "https://github.com/$REPO/releases/download/$TAG/$(basename "$EXE_ASSET")"
+              }
+          EOF  # Note: Adjust JSON if adding; use jq for proper merging
+
+          echo "Generated update.json:"
+          cat "$BUNDLE_DIR/update.json"
+
+          # Assets for release: bundles, zips, sigs, update.json
+          ASSETS=("$MSI_ASSET" "$EXE_ASSET" "$MSI_SIG" "$EXE_SIG" "$BUNDLE_DIR/update.json")
+          echo "ASSETS<<EOF" >> $GITHUB_ENV
+          for asset in "${ASSETS[@]}"; do echo "$asset" >> $GITHUB_ENV; done
+          echo "EOF" >> $GITHUB_ENV
+
       - name: 🚀 Create or Update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -110,18 +188,20 @@ jobs:
         run: |
           set -euo pipefail
           TAG="v${{ needs.prepare-environment.outputs.version }}"
-          MSI_PATH="src-tauri/target/release/bundle/msi/Siri-billing-app_${{ needs.prepare-environment.outputs.version }}_x64_en-US.msi"
-          EXE_PATH="src-tauri/target/release/bundle/nsis/Siri-billing-app_${{ needs.prepare-environment.outputs.version }}_x64-setup.exe"
-
-          echo "🧩 Checking for build outputs..."
-          ls -la src-tauri/target/release/bundle || echo "⚠️ No bundle folders found."
+          ASSETS=$(cat << 'EOF' | tr '\n' ' '
+          ${{ env.ASSETS }}
+          EOF
+          )
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "⚠️ Release $TAG already exists, updating assets..."
-            gh release upload "$TAG" "$MSI_PATH" "$EXE_PATH" --clobber || echo "ℹ️ No assets to replace."
+            gh release upload "$TAG" $ASSETS --clobber || echo "ℹ️ No assets to replace."
           else
             echo "🆕 Creating new release $TAG"
-            gh release create "$TAG" "$MSI_PATH" "$EXE_PATH" \
+            gh release create "$TAG" $ASSETS \
               --title "Siri Billing App $TAG" \
-              --notes "Automated Tauri Windows release (.msi and .exe) for version $TAG"
+              --notes "Automated Tauri Windows release with updater support for version $TAG"
           fi
+
+          # Rename upload to latest.json for updater endpoint
+          gh release upload "$TAG" "src-tauri/target/release/bundle/update.json" latest.json --clobber
