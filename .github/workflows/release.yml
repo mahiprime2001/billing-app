@@ -29,44 +29,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           TAURI_FILE="src-tauri/tauri.conf.json"
-
-          # Ensure tags available locally
           git fetch --tags --force
-
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           RANGE=${PREV_TAG:+$PREV_TAG..HEAD}
-
-          # Determine bump type from commit messages
           if git log $RANGE --pretty=%B | grep -q "BREAKING CHANGE"; then TYPE="major"
           elif git log $RANGE --pretty=%B | grep -q "^feat:"; then TYPE="minor"
           elif git log $RANGE --pretty=%B | grep -q "^fix:"; then TYPE="patch"
           else TYPE="patch"; fi
-
           OLD_VERSION=$(jq -r '.version' "$TAURI_FILE")
           if [ -z "$OLD_VERSION" ] || [ "$OLD_VERSION" = "null" ]; then
             echo "❌ Version not found in $TAURI_FILE"
             exit 1
           fi
-
           IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD_VERSION"
-
           case "$TYPE" in
             major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
             minor) MINOR=$((MINOR+1)); PATCH=0 ;;
             patch) PATCH=$((PATCH+1)) ;;
           esac
-
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-
-          # Ensure unique tag
           while git rev-parse "v${NEW_VERSION}" >/dev/null 2>&1; do
             PATCH=$((PATCH+1))
             NEW_VERSION="$MAJOR.$MINOR.$PATCH"
           done
-
-          echo "✅ Calculated new unique version: $NEW_VERSION"
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: 📝 Update version in Tauri config
@@ -104,7 +90,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: 📦 Install dependencies & build frontend
         run: |
@@ -113,7 +98,6 @@ jobs:
 
       - name: 🏗️ Build Tauri App (Windows)
         env:
-          # Map your existing secrets to Tauri v2 signing env names
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: npx @tauri-apps/cli build
