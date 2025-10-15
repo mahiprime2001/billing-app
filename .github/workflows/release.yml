@@ -10,42 +10,41 @@ permissions:
   contents: write
   actions: read
 
-env:
-  TAURI_FILE: src-tauri/tauri.conf.json
-  OUT_DIR: src-tauri/target/release/bundle
-  MSI_DIR: src-tauri/target/release/bundle/msi
-  NODE_VERSION: 20
-  RUST_TOOLCHAIN: stable
-
 jobs:
   prepare-environment:
-    runs-on: ubuntu-22.04
+    name: 🧮 Prepare Version & Environment
+    runs-on: ubuntu-latest
     outputs:
-      next_version: ${{ steps.calculate.outputs.version }}
+      version: ${{ steps.calculate.outputs.version }}
     steps:
-      - name: Checkout code
+      - name: 🛒 Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install dependencies
+      - name: ⚙️ Install dependencies
         run: sudo apt-get install -y jq
 
-      - name: Validate commit messages
-        run: |
-          npx commitlint --from=$(git describe --tags --abbrev=0 || echo "") --to=HEAD || true
-        shell: bash
-
       - id: calculate
+        shell: bash
         run: |
+          set -euo pipefail
+
+          TAURI_FILE="src-tauri/tauri.conf.json"
+
+          # Ensure tags available locally
+          git fetch --tags --force
+
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           RANGE=${PREV_TAG:+$PREV_TAG..HEAD}
+
+          # Determine bump type from commit messages
           if git log $RANGE --pretty=%B | grep -q "BREAKING CHANGE"; then TYPE="major"
           elif git log $RANGE --pretty=%B | grep -q "^feat:"; then TYPE="minor"
           elif git log $RANGE --pretty=%B | grep -q "^fix:"; then TYPE="patch"
           else TYPE="patch"; fi
 
-          OLD_VERSION=$(jq -r '.version' $TAURI_FILE)
+          OLD_VERSION=$(jq -r '.version' "$TAURI_FILE")
           if [ -z "$OLD_VERSION" ] || [ "$OLD_VERSION" = "null" ]; then
             echo "❌ Version not found in $TAURI_FILE"
             exit 1
@@ -61,181 +60,84 @@ jobs:
 
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
 
-          # 🔁 Auto-increment if tag already exists
+          # Ensure unique tag
           while git rev-parse "v${NEW_VERSION}" >/dev/null 2>&1; do
             PATCH=$((PATCH+1))
             NEW_VERSION="$MAJOR.$MINOR.$PATCH"
           done
 
           echo "✅ Calculated new unique version: $NEW_VERSION"
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
-  build-and-sign:
+      - name: 📝 Update version in Tauri config
+        run: |
+          jq ".version = \"${{ steps.calculate.outputs.version }}\"" src-tauri/tauri.conf.json > tmp.$$.json && mv tmp.$$.json src-tauri/tauri.conf.json
+
+      - name: 💾 Commit updated version to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src-tauri/tauri.conf.json
+          git commit -m "chore: bump version to v${{ steps.calculate.outputs.version }}" || echo "No version changes to commit"
+          git push origin HEAD:main
+
+      - name: 🏷️ Create and push tag
+        run: |
+          git tag "v${{ steps.calculate.outputs.version }}" || echo "Tag exists"
+          git push origin "v${{ steps.calculate.outputs.version }}" || echo "⚠️ Tag already exists, continuing"
+
+  build-and-release-windows:
+    name: 🪟 Build & Release Windows
     needs: prepare-environment
     runs-on: windows-latest
-    env:
-      VERSION: ${{ needs.prepare-environment.outputs.next_version }}
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            node_modules
-          key: ${{ runner.os }}-deps-${{ hashFiles('**/package-lock.json', '**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-deps-
-
-      - name: Install dependencies
-        shell: pwsh
-        run: npm i
-
-      - name: Clean previous builds
-        shell: pwsh
-        run: |
-          Remove-Item -Path "src-tauri/target" -Recurse -Force -ErrorAction SilentlyContinue
-
-      - name: Update version in tauri.conf.json
-        shell: pwsh
-        run: |
-          $content = Get-Content $env:TAURI_FILE -Raw | ConvertFrom-Json
-          $content.version = "$env:VERSION"
-          $content | ConvertTo-Json -Depth 10 | Set-Content $env:TAURI_FILE -Encoding utf8
-
-      - name: Build with Tauri
-        shell: pwsh
-        run: npx tauri build
-
-      - name: Sign MSI if key is available
-        if: ${{ env.TAURI_SIGNING_PRIVATE_KEY != '' }}
-        shell: pwsh
-        run: |
-          Write-Host "🔑 Signing MSI..."
-          $privateKey = "$env:TAURI_SIGNING_PRIVATE_KEY"
-          $pwd = "$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
-          $decodedPassword = if ($pwd) { $pwd } else { "" }
-          $privateKey | Out-File private.key -Encoding ascii
-          $msi = Get-ChildItem -Path "$env:MSI_DIR" -Filter "*.msi" | Select-Object -First 1
-          if (-not $msi) { exit 1 }
-          npx tauri signer sign --private-key private.key --password "$decodedPassword" --version "$env:VERSION" --files "$($msi.FullName)" --output-dir "$env:OUT_DIR"
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: tauri-windows
-          path: ${{ env.OUT_DIR }}
-
-  release:
-    needs: build-and-sign
-    runs-on: ubuntu-latest
-    env:
-      VERSION: ${{ needs.prepare-environment.outputs.next_version }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: tauri-windows
-          path: ./bundle
-
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: "v${{ env.VERSION }}"
-          release_name: "Release v${{ env.VERSION }}"
-          draft: false
-          prerelease: false
-          body: "Automatically generated release for version v${{ env.VERSION }}"
-
-      - name: Find MSI path
-        id: msi
-        run: |
-          set -e
-          MSI=$(ls ./bundle/msi/*.msi | head -n 1)
-          if [ -z "$MSI" ]; then
-            echo "No MSI found under ./bundle/msi"
-            exit 1
-          fi
-          echo "path=$MSI" >> $GITHUB_OUTPUT
-
-      - name: Upload MSI to release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.msi.outputs.path }}
-          asset_name: "app-v${{ env.VERSION }}.msi"
-          asset_content_type: application/octet-stream
-
-  bump-version:
-    needs: release
-    if: ${{ needs.release.result == 'success' }}
-    runs-on: ubuntu-latest
-    env:
-      TAURI_FILE: src-tauri/tauri.conf.json
-      VERSION: ${{ needs.prepare-environment.outputs.next_version }}
-    steps:
-      - name: Checkout repository
+      - name: 🛒 Checkout code (latest main)
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
-      - name: Set up git
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+      - name: ⚙️ Setup Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Generate changelog
-        id: changelog
+      - name: 🧰 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 📦 Install dependencies & build frontend
         run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          RANGE=${PREV_TAG}..HEAD
-          if [ -z "$PREV_TAG" ]; then
-            echo "No previous tag found. Generating full commit log."
-            RANGE=""
+          npm install
+          npm run build
+
+      - name: 🏗️ Build Tauri App (Windows)
+        env:
+          # Map your existing secrets to Tauri v2 signing env names
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: npx @tauri-apps/cli build
+
+      - name: 🚀 Create or Update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v${{ needs.prepare-environment.outputs.version }}"
+          MSI_PATH="src-tauri/target/release/bundle/msi/Siri-billing-app_${{ needs.prepare-environment.outputs.version }}_x64_en-US.msi"
+          EXE_PATH="src-tauri/target/release/bundle/nsis/Siri-billing-app_${{ needs.prepare-environment.outputs.version }}_x64-setup.exe"
+
+          echo "🧩 Checking for build outputs..."
+          ls -la src-tauri/target/release/bundle || echo "⚠️ No bundle folders found."
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "⚠️ Release $TAG already exists, updating assets..."
+            gh release upload "$TAG" "$MSI_PATH" "$EXE_PATH" --clobber || echo "ℹ️ No assets to replace."
+          else
+            echo "🆕 Creating new release $TAG"
+            gh release create "$TAG" "$MSI_PATH" "$EXE_PATH" \
+              --title "Siri Billing App $TAG" \
+              --notes "Automated Tauri Windows release (.msi and .exe) for version $TAG"
           fi
-          echo "Generating changelog from $RANGE"
-          git log $RANGE --pretty=format:"- %s (%h)" > changelog.txt
-          cat changelog.txt
-          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
-          cat changelog.txt >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      - name: Update version in tauri.conf.json
-        run: |
-          echo "🔧 Updating version in $TAURI_FILE"
-          jq ".version = \"${VERSION}\"" $TAURI_FILE > tmp.json && mv tmp.json $TAURI_FILE
-
-      - name: Commit version bump and changelog
-        run: |
-          git add $TAURI_FILE changelog.txt || true
-          git commit -m "chore: bump version to v${VERSION}" || echo "No changes to commit"
-
-      - name: Push version bump commit
-        run: git push origin main
-
-      - name: Display changelog
-        run: |
-          echo "📝 Changelog for v${VERSION}:"
-          cat changelog.txt
