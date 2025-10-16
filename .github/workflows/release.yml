@@ -108,28 +108,25 @@ jobs:
         run: |
           set -euo pipefail
           BUNDLE_DIR="src-tauri/target/release/bundle"
-          VERSION="${{ needs.prepare-environment.outputs.version }}"
+          VERSION="${{ needs.prepare_environment.outputs.version }}"
           REPO="${{ github.repository }}"
           TAG="v$VERSION"
 
-          # Write raw PEM key from secret to temp file, clean whitespace/empty lines
+          # Write raw PEM key from secret to temp file, clean whitespace/empty lines (single robust command)
           PRIVATE_KEY_FILE="/tmp/updater.key"
-          # Remove leading/trailing whitespace, empty lines, and normalize (preserve PEM structure)
-          echo "$TAURI_UPDATER_PRIVATE_KEY" | \
-            sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | \  # Trim spaces per line
-            sed '/^$/d' | \  # Remove empty lines
-            sed '1s/^//' | \  # Trim any leading newline from entire content
-            sed '$s/$//' > "$PRIVATE_KEY_FILE"  # Trim trailing newline
+          # Assign secret to var, then clean: trim leading/trailing whitespace/empty lines, normalize
+          KEY_CONTENT=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | sed '1s/^[[:space:]]*//' | sed '$s/[[:space:]]*$//')
+          echo "$KEY_CONTENT" > "$PRIVATE_KEY_FILE"
 
-          # Validate PEM structure (starts with header, ends with footer, no leading issues)
+          # Validate PEM structure (starts/ends exactly with headers)
           if ! head -n 1 "$PRIVATE_KEY_FILE" | grep -q "^-----BEGIN PRIVATE KEY-----$"; then
-            echo "❌ Temp key file malformed (doesn't start with exact PEM header)"
-            echo "First few lines for debug (masked):"
-            head -n 3 "$PRIVATE_KEY_FILE" | sed 's/./*/g'  # Mask content in logs
+            echo "❌ Temp key file malformed (header mismatch)"
+            echo "First line debug (masked):"
+            head -n 1 "$PRIVATE_KEY_FILE" | sed 's/./*/g'
             exit 1
           fi
           if ! tail -n 1 "$PRIVATE_KEY_FILE" | grep -q "^-----END PRIVATE KEY-----$"; then
-            echo "❌ Temp key file malformed (doesn't end with exact PEM footer)"
+            echo "❌ Temp key file malformed (footer mismatch)"
             exit 1
           fi
           echo "✅ Temp key file cleaned and validated (PEM ready)"
@@ -203,7 +200,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="v${{ needs.prepare-environment.outputs.version }}"
+          TAG="v${{ needs.prepare_environment.outputs.version }}"
           ASSETS=$(cat << 'EOF' | tr '\n' ' '
           ${{ env.ASSETS }}
           EOF
