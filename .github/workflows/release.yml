@@ -105,6 +105,7 @@ jobs:
       - name: 📦 Prepare Updater Assets (Zip & Sign Bundles)
         env:
           TAURI_UPDATER_PRIVATE_KEY: ${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}
+          # TAURI_UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}  # Uncomment if your key has a password
         shell: bash
         run: |
           set -euo pipefail
@@ -113,7 +114,7 @@ jobs:
           REPO="${{ github.repository }}"
           TAG="v$VERSION"
 
-          # Find bundles
+          # Find bundles dynamically
           MSI_FILE=$(find "$BUNDLE_DIR/msi" -name "*.msi" | head -1)
           EXE_FILE=$(find "$BUNDLE_DIR/nsis" -name "*setup.exe" | head -1)
 
@@ -125,57 +126,53 @@ jobs:
           echo "Found MSI: $MSI_FILE"
           echo "Found EXE: $EXE_FILE"
 
-          # Zip MSI and EXE for updater (convention: .msi.zip and .exe.zip)
-          MSI_ZIP="$BUNDLE_DIR/msi/Siri-billing-app_${VERSION}_x64_en-US.msi.zip"
-          EXE_ZIP="$BUNDLE_DIR/nsis/Siri-billing-app_${VERSION}_x64-setup.exe.zip"
-          7z a "$MSI_ZIP" "$MSI_FILE" || echo "⚠️ Zipping MSI failed, using direct file"
-          7z a "$EXE_ZIP" "$EXE_FILE" || echo "⚠️ Zipping EXE failed, using direct file"
+          # Dynamic zip paths: basename of file + .zip (e.g., Siri-Admin-app_0.1.13_x64_en-US.msi.zip)
+          MSI_ZIP="$BUNDLE_DIR/msi/$(basename "$MSI_FILE").zip"
+          EXE_ZIP="$BUNDLE_DIR/nsis/$(basename "$EXE_FILE").zip"
 
-          # Use zips if created, else fall back to originals
-          MSI_ASSET="${MSI_ZIP:-$MSI_FILE}"
-          EXE_ASSET="${EXE_ZIP:-$EXE_FILE}"
+          # Zip bundles for updater
+          7z a "$MSI_ZIP" "$MSI_FILE"
+          7z a "$EXE_ZIP" "$EXE_FILE"
 
-          # Sign zips (or originals) with updater key (requires 7z for zip, tauri signer)
-          MSI_SIG="$MSI_ASSET.sig"
-          EXE_SIG="$EXE_ASSET.sig"
-          echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - "$MSI_ASSET" -o "$MSI_SIG"
-          echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - "$EXE_ASSET" -o "$EXE_SIG"
+          echo "Created MSI ZIP: $MSI_ZIP"
+          echo "Created EXE ZIP: $EXE_ZIP"
 
-          # Read sig contents (raw signature string)
-          MSI_SIGNATURE=$(cat "$MSI_SIG" | base64 -w 0)  # Base64 if needed; docs expect raw but often base64
-          EXE_SIGNATURE=$(cat "$EXE_SIG" | base64 -w 0)
+          # Sign zips with updater key (stdout hex signature, no -o or password flag unless needed)
+          MSI_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - "$MSI_ZIP")
+          EXE_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - "$EXE_ZIP")
+          # If password needed, add: --private-key-password "$TAURI_UPDATER_KEY_PASSWORD"
 
-          # Generate update.json
+          # Generate update.json in exact requested format (MSI as primary windows-x86_64)
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           cat > "$BUNDLE_DIR/update.json" << EOF
           {
             "version": "$VERSION",
-            "notes": "🚀 Automated release for v$VERSION. Check changelog for details.",
+            "notes": "🚀 Added auto-update support and fixed minor bugs.",
             "pub_date": "$PUB_DATE",
             "platforms": {
               "windows-x86_64": {
                 "signature": "$MSI_SIGNATURE",
-                "url": "https://github.com/$REPO/releases/download/$TAG/$(basename "$MSI_ASSET")"
+                "url": "https://github.com/$REPO/releases/download/$TAG/$(basename "$MSI_ZIP")"
               }
             }
           }
           EOF
 
-          # For NSIS EXE, add if desired (updater prefers MSI for Windows typically)
-          # But include both if multi-installer setup
-          cat >> "$BUNDLE_DIR/update.json" << EOF
-          ,
-              "windows-x86_64-nsis": {
-                "signature": "$EXE_SIGNATURE",
-                "url": "https://github.com/$REPO/releases/download/$TAG/$(basename "$EXE_ASSET")"
-              }
-          EOF  # Note: Adjust JSON if adding; use jq for proper merging
+          # Optionally add NSIS EXE as secondary platform (uncomment if needed)
+          # cat >> "$BUNDLE_DIR/update.json" << EOF
+          # ,
+          #   "windows-x86_64-nsis": {
+          #     "signature": "$EXE_SIGNATURE",
+          #     "url": "https://github.com/$REPO/releases/download/$TAG/$(basename "$EXE_ZIP")"
+          #   }
+          # EOF
+          # Use jq to validate JSON after edits: jq . "$BUNDLE_DIR/update.json"
 
           echo "Generated update.json:"
           cat "$BUNDLE_DIR/update.json"
 
-          # Assets for release: bundles, zips, sigs, update.json
-          ASSETS=("$MSI_ASSET" "$EXE_ASSET" "$MSI_SIG" "$EXE_SIG" "$BUNDLE_DIR/update.json")
+          # Assets for release: zips and update.json
+          ASSETS=("$MSI_ZIP" "$EXE_ZIP" "$BUNDLE_DIR/update.json")
           echo "ASSETS<<EOF" >> $GITHUB_ENV
           for asset in "${ASSETS[@]}"; do echo "$asset" >> $GITHUB_ENV; done
           echo "EOF" >> $GITHUB_ENV
