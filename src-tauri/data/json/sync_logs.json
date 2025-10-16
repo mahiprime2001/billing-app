@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "timestamp": "2025-10-16T19:46:07.582687",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-16T19:46:07.582687"
+    }
+  }
+]

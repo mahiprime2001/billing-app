@@ -4,6 +4,7 @@ import IdleTimeoutHandler from "@/components/idle-timeout-handler";
 import "./globals.css";
 import OfflineBanner from "@/components/OfflineBanner";
 import ServerErrorHandler from "@/components/server-error-handler";
+import Updater from "@/components/Updater"; // New import for updater component
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -22,9 +23,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-          <OfflineBanner />
-          <IdleTimeoutHandler />
-          <ServerErrorHandler>{children}</ServerErrorHandler>
+        <Updater /> {/* Render updater early for on-load checks */}
+        <OfflineBanner />
+        <IdleTimeoutHandler />
+        <ServerErrorHandler>{children}</ServerErrorHandler>
       </body>
     </html>
   );

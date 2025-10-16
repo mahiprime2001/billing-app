@@ -1,5 +1,5 @@
 Siri Admin App
-Copyright (c) 2025 Siri Admin. All rights reserved.
+Copyright (c) 2025 IFLEON. All rights reserved.
 
 This software is the proprietary and confidential property of Siri Admin.
 Any unauthorized use, reproduction, or distribution of this software is strictly prohibited.

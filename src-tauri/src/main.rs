@@ -9,6 +9,7 @@ use warp::Filter;
 use serde::{Deserialize, Serialize};
 use log::{info, error};
 use tauri_plugin_log::{Target, TargetKind};
+use tauri_plugin_updater; // Import for updater Builder
 
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::HWND;
@@ -384,6 +385,12 @@ fn main() {
         .setup({
             let child_handle = Arc::clone(&child_handle);
             move |app| {
+                // Initialize updater plugin for desktop platforms
+                #[cfg(desktop)]
+                if let Err(e) = app.handle().plugin(tauri_plugin_updater::Builder::new().build()) {
+                    error!("Failed to initialize updater plugin: {}", e);
+                }
+
                 // Spawn sidecar and keep its CommandChild
                 let handle = app.app_handle();
                 let cmd = handle.shell().sidecar("Siriadmin-backend")?;
