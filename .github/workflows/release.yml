@@ -103,7 +103,7 @@ jobs:
       - name: 📦 Prepare Updater Assets (Zip & Sign Bundles)
         env:
           TAURI_UPDATER_PRIVATE_KEY: ${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}
-          TAURI_UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}  # If no password, comment this line
+          TAURI_UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}  # Plain passphrase for protected key
         shell: bash
         run: |
           set -euo pipefail
@@ -111,6 +111,10 @@ jobs:
           VERSION="${{ needs.prepare-environment.outputs.version }}"
           REPO="${{ github.repository }}"
           TAG="v$VERSION"
+
+          # Write raw private key from secret to temp file (for --private-key-path; avoids base64 decoding)
+          PRIVATE_KEY_FILE="/tmp/updater.key"
+          echo "$TAURI_UPDATER_PRIVATE_KEY" > "$PRIVATE_KEY_FILE"
 
           # Find bundles dynamically
           MSI_FILE=$(find "$BUNDLE_DIR/msi" -name "*.msi" | head -1)
@@ -135,11 +139,14 @@ jobs:
           echo "Created MSI ZIP: $MSI_ZIP"
           echo "Created EXE ZIP: $EXE_ZIP"
 
-          # Sign zips (use --password if key has passphrase; comment flag/env if no password)
-          MSI_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - --password "$TAURI_UPDATER_KEY_PASSWORD" "$MSI_ZIP")
-          EXE_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - --password "$TAURI_UPDATER_KEY_PASSWORD" "$EXE_ZIP")
+          # Sign zips using temp raw key file and password
+          MSI_SIGNATURE=$(npx @tauri-apps/cli signer sign --private-key-path "$PRIVATE_KEY_FILE" --password "$TAURI_UPDATER_KEY_PASSWORD" "$MSI_ZIP")
+          EXE_SIGNATURE=$(npx @tauri-apps/cli signer sign --private-key-path "$PRIVATE_KEY_FILE" --password "$TAURI_UPDATER_KEY_PASSWORD" "$EXE_ZIP")
 
-          # Generate update.json (MSI primary; NSIS secondary)
+          # Clean up temp key file
+          rm -f "$PRIVATE_KEY_FILE"
+
+          # Generate update.json in exact requested format (MSI primary; NSIS secondary)
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           cat > "$BUNDLE_DIR/update.json" << EOF
           {
