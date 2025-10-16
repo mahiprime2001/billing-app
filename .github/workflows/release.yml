@@ -94,126 +94,123 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install
 
-      - name: 🏗️ Build Tauri App (Windows)
+      - name: 🗝️ Wrap raw updater key into PEM env
+        shell: pwsh
         env:
+          RAW_UPDATER_KEY: ${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}
+          UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (-not $env:RAW_UPDATER_KEY) { throw "Raw updater key secret empty" }
+
+          # Fold base64 to 64-char lines (PEM standard)
+          $folded = $env:RAW_UPDATER_KEY -replace '(.{64})', "$1`n"
+
+          # Build full PEM string (assume PKCS#8; change to RSA if key starts with MIG/MEY etc.)
+          $pem = "-----BEGIN PRIVATE KEY-----`n$folded`n-----END PRIVATE KEY-----"
+
+          # Debug
+          Write-Host "Wrapped PEM lines: $($pem -split '`n').Count"
+
+          # Set env for Tauri build auto-signing
+          echo "TAURI_SIGNER_KEY=$pem" >> $env:GITHUB_ENV
+          echo "TAURI_SIGNER_PASSWORD=$env:UPDATER_KEY_PASSWORD" >> $env:GITHUB_ENV
+
+      - name: 🏗️ Build Tauri App (Windows) with Auto-Signing
+        env:
+          TAURI_SIGNER_KEY: ${{ env.TAURI_SIGNER_KEY }}
+          TAURI_SIGNER_PASSWORD: ${{ env.TAURI_SIGNER_PASSWORD }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npx @tauri-apps/cli build
 
-      - name: 📦 Prepare Updater Assets (Zip & Sign Bundles)
-        env:
-          TAURI_UPDATER_PRIVATE_KEY: ${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}
-          TAURI_UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}  # Plain passphrase
-        shell: bash
+      - name: 📦 Prepare Updater Assets (Zip, Read Sigs, update.json)
+        shell: pwsh
         run: |
-          set -euo pipefail
-          BUNDLE_DIR="src-tauri/target/release/bundle"
-          VERSION="${{ needs.prepare_environment.outputs.version }}"
-          REPO="${{ github.repository }}"
-          TAG="v$VERSION"
+          $ErrorActionPreference = "Stop"
+          $bundleDir = "src-tauri/target/release/bundle"
+          $version = "${{ needs.prepare-environment.outputs.version }}"
+          $repo = $env:GITHUB_REPOSITORY
+          $tag = "v$version"
 
-          # Write raw PEM key from secret to temp file, clean whitespace/empty lines (single robust command)
-          PRIVATE_KEY_FILE="/tmp/updater.key"
-          # Assign secret to var, then clean: trim leading/trailing whitespace/empty lines, normalize
-          KEY_CONTENT=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | sed '1s/^[[:space:]]*//' | sed '$s/[[:space:]]*$//')
-          echo "$KEY_CONTENT" > "$PRIVATE_KEY_FILE"
+          # Find bundles and auto-generated sigs
+          $msi = Get-ChildItem -Path "$bundleDir/msi" -Filter "*.msi" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $msiSig = Get-ChildItem -Path "$bundleDir/msi" -Filter "*.sig" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $exe = Get-ChildItem -Path "$bundleDir/nsis" -Filter "*setup.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $exeSig = Get-ChildItem -Path "$bundleDir/nsis" -Filter "*.sig" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
-          # Validate PEM structure (starts/ends exactly with headers)
-          if ! head -n 1 "$PRIVATE_KEY_FILE" | grep -q "^-----BEGIN PRIVATE KEY-----$"; then
-            echo "❌ Temp key file malformed (header mismatch)"
-            echo "First line debug (masked):"
-            head -n 1 "$PRIVATE_KEY_FILE" | sed 's/./*/g'
-            exit 1
-          fi
-          if ! tail -n 1 "$PRIVATE_KEY_FILE" | grep -q "^-----END PRIVATE KEY-----$"; then
-            echo "❌ Temp key file malformed (footer mismatch)"
-            exit 1
-          fi
-          echo "✅ Temp key file cleaned and validated (PEM ready)"
+          if (-not $msi -or -not $msiSig -or -not $exe -or -not $exeSig) { throw "Missing bundle or .sig files (check signing)" }
 
-          # Find bundles dynamically
-          MSI_FILE=$(find "$BUNDLE_DIR/msi" -name "*.msi" | head -1)
-          EXE_FILE=$(find "$BUNDLE_DIR/nsis" -name "*setup.exe" | head -1)
-
-          if [ -z "$MSI_FILE" ] || [ -z "$EXE_FILE" ]; then
-            echo "❌ No bundle files found!"
-            exit 1
-          fi
-
-          echo "Found MSI: $MSI_FILE"
-          echo "Found EXE: $EXE_FILE"
-
-          # Dynamic zip paths
-          MSI_ZIP="$BUNDLE_DIR/msi/$(basename "$MSI_FILE").zip"
-          EXE_ZIP="$BUNDLE_DIR/nsis/$(basename "$EXE_FILE").zip"
+          # Read sig contents
+          $msiSigContent = Get-Content -Path $msiSig.FullName -Raw -Encoding UTF8
+          $exeSigContent = Get-Content -Path $exeSig.FullName -Raw -Encoding UTF8
 
           # Zip bundles
-          7z a "$MSI_ZIP" "$MSI_FILE"
-          7z a "$EXE_ZIP" "$EXE_FILE"
+          $msiZip = "$bundleDir/msi/$($msi.Name).zip"
+          $exeZip = "$bundleDir/nsis/$($exe.Name).zip"
+          Compress-Archive -Path $msi.FullName -DestinationPath $msiZip -Force
+          Compress-Archive -Path $exe.FullName -DestinationPath $exeZip -Force
 
-          echo "Created MSI ZIP: $MSI_ZIP"
-          echo "Created EXE ZIP: $EXE_ZIP"
-
-          # Sign using cleaned temp PEM file + password
-          MSI_SIGNATURE=$(npx @tauri-apps/cli signer sign --private-key-path "$PRIVATE_KEY_FILE" --password "$TAURI_UPDATER_KEY_PASSWORD" "$MSI_ZIP")
-          EXE_SIGNATURE=$(npx @tauri-apps/cli signer sign --private-key-path "$PRIVATE_KEY_FILE" --password "$TAURI_UPDATER_KEY_PASSWORD" "$EXE_ZIP")
-
-          # Clean up
-          rm -f "$PRIVATE_KEY_FILE"
+          echo "Created MSI ZIP: $msiZip"
+          echo "Created EXE ZIP: $exeZip"
 
           # Generate update.json
-          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          cat > "$BUNDLE_DIR/update.json" << EOF
-          {
-            "version": "$VERSION",
-            "notes": "🚀 Added auto-update support and fixed minor bugs.",
-            "pub_date": "$PUB_DATE",
-            "platforms": {
-              "windows-x86_64": {
-                "signature": "$MSI_SIGNATURE",
-                "url": "https://github.com/$REPO/releases/download/$TAG/$(basename "$MSI_ZIP")"
-              },
-              "windows-x86_64-nsis": {
-                "signature": "$EXE_SIGNATURE",
-                "url": "https://github.com/$REPO/releases/download/$TAG/$(basename "$EXE_ZIP")"
+          $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+          $msiZipName = [System.Uri]::EscapeDataString($(Split-Path $msiZip -Leaf))
+          $exeZipName = [System.Uri]::EscapeDataString($(Split-Path $exeZip -Leaf))
+          $msiUrl = "https://github.com/$repo/releases/download/$tag/$msiZipName"
+          $exeUrl = "https://github.com/$repo/releases/download/$tag/$exeZipName"
+
+          $updateJson = @{
+            version = $version
+            notes = "🚀 Added auto-update support and fixed minor bugs."
+            pub_date = $pubDate
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = $msiSigContent.Trim()
+                url = $msiUrl
+              }
+              "windows-x86_64-nsis" = @{
+                signature = $exeSigContent.Trim()
+                url = $exeUrl
               }
             }
-          }
-          EOF
+          } | ConvertTo-Json -Depth 6
 
-          # Validate JSON
-          jq . "$BUNDLE_DIR/update.json" > /dev/null || { echo "❌ Invalid JSON"; exit 1; }
+          $updatePath = "$bundleDir/update.json"
+          $updateJson | Out-File -FilePath $updatePath -Encoding UTF8
+          jq . $updatePath > $null || { throw "Invalid JSON" }
+          Write-Host "Generated update.json"
 
-          echo "Generated update.json:"
-          cat "$BUNDLE_DIR/update.json"
-
-          # Assets
-          ASSETS=("$MSI_ZIP" "$EXE_ZIP" "$BUNDLE_DIR/update.json")
-          echo "ASSETS<<EOF" >> $GITHUB_ENV
-          for asset in "${ASSETS[@]}"; do echo "$asset" >> $GITHUB_ENV; done
-          echo "EOF" >> $GITHUB_ENV
+          # Set assets (space-separated for later step)
+          $assets = "$msiZip $exeZip $updatePath"
+          echo "ASSETS=$assets" >> $env:GITHUB_ENV
 
       - name: 🚀 Create or Update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
+        shell: pwsh
         run: |
-          set -euo pipefail
-          TAG="v${{ needs.prepare_environment.outputs.version }}"
-          ASSETS=$(cat << 'EOF' | tr '\n' ' '
-          ${{ env.ASSETS }}
-          EOF
-          )
+          $ErrorActionPreference = "Stop"
+          $tag = "v${{ needs.prepare-environment.outputs.version }}"
+          $assets = $env:ASSETS -split ' '
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "⚠️ Release $TAG exists, updating..."
-            gh release upload "$TAG" $ASSETS --clobber || echo "ℹ️ No assets to replace."
-          else
-            echo "🆕 Creating release $TAG"
-            gh release create "$TAG" $ASSETS \
-              --title "Siri Admin App $TAG" \
-              --notes "Automated Tauri Windows release with updater support for version $TAG"
-          fi
+          # Install gh if needed (usually pre-installed on runners)
+          gh auth status
 
-          gh release upload "$TAG" "src-tauri/target/release/bundle/update.json" latest.json --clobber
+          # Create if not exists
+          gh release view $tag --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "Siri Admin App $tag" --notes "Automated Tauri Windows release with updater support for version $tag" --repo $env:GITHUB_REPOSITORY
+          }
+
+          # Upload assets (clobber)
+          foreach ($asset in $assets) {
+            if (Test-Path $asset) {
+              gh release upload $tag $asset --clobber --repo $env:GITHUB_REPOSITORY
+            }
+          }
+
+          # Optional: Upload to latest.json if needed, but your original uploads update.json already
+          # gh release upload $tag "$bundleDir/update.json" latest.json --clobber --repo $env:GITHUB_REPOSITORY
