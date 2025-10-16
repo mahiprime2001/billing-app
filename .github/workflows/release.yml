@@ -98,14 +98,14 @@ jobs:
 
       - name: 🏗️ Build Tauri App (Windows)
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npx @tauri-apps/cli build
 
       - name: 📦 Prepare Updater Assets (Zip & Sign Bundles)
         env:
           TAURI_UPDATER_PRIVATE_KEY: ${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}
-          # TAURI_UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}  # Uncomment if your key has a password
+          TAURI_UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}  # Uncommented: Use if key has password
         shell: bash
         run: |
           set -euo pipefail
@@ -126,7 +126,7 @@ jobs:
           echo "Found MSI: $MSI_FILE"
           echo "Found EXE: $EXE_FILE"
 
-          # Dynamic zip paths: basename of file + .zip (e.g., Siri-Admin-app_0.1.14_x64_en-US.msi.zip)
+          # Dynamic zip paths: basename of file + .zip
           MSI_ZIP="$BUNDLE_DIR/msi/$(basename "$MSI_FILE").zip"
           EXE_ZIP="$BUNDLE_DIR/nsis/$(basename "$EXE_FILE").zip"
 
@@ -137,12 +137,11 @@ jobs:
           echo "Created MSI ZIP: $MSI_ZIP"
           echo "Created EXE ZIP: $EXE_ZIP"
 
-          # Sign zips with updater key (stdout hex signature, no -o or password flag unless needed)
-          MSI_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - "$MSI_ZIP")
-          EXE_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - "$EXE_ZIP")
-          # If password needed, add: --private-key-password "$TAURI_UPDATER_KEY_PASSWORD" to both commands
+          # Sign zips (add password flag if used; base64 key from secret)
+          MSI_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - --private-key-password "$TAURI_UPDATER_KEY_PASSWORD" "$MSI_ZIP")
+          EXE_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - --private-key-password "$TAURI_UPDATER_KEY_PASSWORD" "$EXE_ZIP")
 
-          # Generate update.json in exact requested format (MSI primary; NSIS secondary for completeness)
+          # Generate update.json (MSI primary; NSIS secondary)
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           cat > "$BUNDLE_DIR/update.json" << EOF
           {
@@ -162,7 +161,7 @@ jobs:
           }
           EOF
 
-          # Validate JSON (requires jq; optional but good for debugging)
+          # Validate JSON
           jq . "$BUNDLE_DIR/update.json" > /dev/null || { echo "❌ Invalid JSON in update.json"; exit 1; }
 
           echo "Generated update.json:"
@@ -197,5 +196,5 @@ jobs:
               --notes "Automated Tauri Windows release with updater support for version $TAG"
           fi
 
-          # Upload/rename to latest.json for updater endpoint (overwrites if exists)
+          # Upload as latest.json for updater endpoint
           gh release upload "$TAG" "src-tauri/target/release/bundle/update.json" latest.json --clobber
