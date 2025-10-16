@@ -20,7 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"; // NEW
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea"
 import {
   AlertDialog,
@@ -45,11 +45,12 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  Calendar, // NEW
+  Calendar,
+  Filter, // NEW: For filters button icon
 } from "lucide-react";
 import PrintDialog from "@/components/PrintDialog";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
-import { BatchInput } from "@/components/BatchInput"; // NEW
+import { BatchInput } from "@/components/BatchInput";
 
 interface AdminUser {
   name: string
@@ -70,13 +71,19 @@ const fetcher = (url: string) => fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_UR
 export default function ProductsPage() {
   const router = useRouter();
   const { data: products = [], mutate } = useSWR<Product[]>("/api/products", fetcher);
-  const { data: batches = [], mutate: mutateBatches } = useSWR<Batch[]>("/api/batches", fetcher); // NEW: Fetch batches
-  const scrollableDivRef = useRef<HTMLDivElement>(null); // Ref for the scrollable div
+  const { data: batches = [], mutate: mutateBatches } = useSWR<Batch[]>("/api/batches", fetcher);
+  const scrollableDivRef = useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [assignedStores, setAssignedStores] = useState<SystemStore[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [stockFilter, setStockFilter] = useState("all")
+  // NEW: Advanced filters state
+  const [priceRange, setPriceRange] = useState({ min: "", max: "" });
+  const [batchFilter, setBatchFilter] = useState("all");
+  const [taxRange, setTaxRange] = useState({ min: "", max: "" });
+  const [dateAddedFilter, setDateAddedFilter] = useState({ from: "", to: "" });
+  const [isFiltersDialogOpen, setIsFiltersDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -84,23 +91,17 @@ export default function ProductsPage() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [productsToPrint, setProductsToPrint] = useState<Product[]>([]);
 
-  // NEW: Calendar and modal state
+  // Calendar and modal state
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isByDateDialogOpen, setIsByDateDialogOpen] = useState(false);
-  const [isBatchInputOpen, setIsBatchInputOpen] = useState(false); // NEW
-  // const [batches, setBatches] = useState<{ id: string; batchNumber: string; place: string }[]>([ // REMOVED
-  //   { id: "1", batchNumber: "BATCH-A", place: "Warehouse 1" },
-  //   { id: "2", batchNumber: "BATCH-B", place: "Store Room 2" },
-  // ]);
-  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null); // NEW
+  const [isBatchInputOpen, setIsBatchInputOpen] = useState(false);
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
 
   useEffect(() => {
     if (calendarOpen) {
-      setCalendarMonth(new Date()); // ensure opening shows today’s month
-      // Optionally clear any previous selection:
-      // setSelectedDate(null);
+      setCalendarMonth(new Date());
     }
   }, [calendarOpen]);
 
@@ -111,21 +112,9 @@ export default function ProductsPage() {
     stock: "",
     tax: "",
     barcodes: [""],
-    batchId: "", // NEW
+    batchId: "",
   });
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
-
-  // NEW: Handle saving a new batch - REMOVED, BatchInput handles it directly
-  // const handleSaveNewBatch = (batchNumber: string, place: string) => {
-  //   const newBatch = {
-  //     id: (batches.length + 1).toString(), // Simple ID generation
-  //     batchNumber,
-  //     place,
-  //   };
-  //   setBatches((prev) => [...prev, newBatch]);
-  //   setSelectedBatchId(newBatch.id); // Select the newly added batch
-  //   setFormData((prev) => ({ ...prev, batchId: newBatch.id }));
-  // };
 
   useEffect(() => {
     const userData = localStorage.getItem("adminUser");
@@ -133,7 +122,6 @@ export default function ProductsPage() {
       const user = JSON.parse(userData);
       setCurrentUser(user);
 
-      // Load assigned stores for billing users
       if (user.role === "billing_user" && user.assignedStores) {
         const savedStores = localStorage.getItem("stores");
         if (savedStores) {
@@ -154,7 +142,7 @@ export default function ProductsPage() {
       stock: "",
       tax: "",
       barcodes: [""],
-      batchId: "", // NEW
+      batchId: "",
     })
   }
 
@@ -185,7 +173,6 @@ export default function ProductsPage() {
   }
 
   const generateBarcode = () => {
-    // Generate CODE128 compatible barcode
     const timestamp = Date.now().toString()
     const randomNum = Math.floor(Math.random() * 1000)
       .toString()
@@ -195,7 +182,6 @@ export default function ProductsPage() {
 
   const validateBarcode = (barcode: string): boolean => {
     if (!barcode || barcode.trim() === "") return false
-    // CODE128 can handle any ASCII character and length between 1-80
     return barcode.length >= 1 && barcode.length <= 80
   }
 
@@ -205,7 +191,7 @@ export default function ProductsPage() {
       return;
     }
 
-    if (!formData.batchId) { // NEW
+    if (!formData.batchId) {
       alert("Please select a batch.");
       return;
     }
@@ -217,7 +203,6 @@ export default function ProductsPage() {
       return;
     }
 
-    // Check for duplicate barcodes
     const existingBarcodes = products.flatMap((p) => p.barcodes || []);
     const duplicates = validBarcodes.filter((barcode) => existingBarcodes.includes(barcode));
 
@@ -232,7 +217,7 @@ export default function ProductsPage() {
       stock: Number.parseInt(formData.stock),
       tax: Number.parseFloat(formData.tax),
       barcodes: validBarcodes,
-      batchId: formData.batchId, // NEW
+      batchId: formData.batchId,
     };
 
     try {
@@ -246,7 +231,7 @@ export default function ProductsPage() {
         throw new Error("Failed to add product");
       }
 
-      mutate(); // Re-fetch the products list
+      mutate();
       resetForm();
       setIsAddDialogOpen(false);
     } catch (error) {
@@ -268,7 +253,6 @@ export default function ProductsPage() {
       return;
     }
 
-    // Check for duplicate barcodes (excluding current product's barcodes)
     const otherProducts = products.filter((p) => p.id !== editingProduct.id);
     const existingBarcodes = otherProducts.flatMap((p) => p.barcodes || []);
     const duplicates = validBarcodes.filter((barcode) => existingBarcodes.includes(barcode));
@@ -297,7 +281,7 @@ export default function ProductsPage() {
         throw new Error("Failed to update product");
       }
 
-      mutate(); // Re-fetch the products list
+      mutate();
       resetForm();
       setEditingProduct(null);
       setIsEditDialogOpen(false);
@@ -317,7 +301,7 @@ export default function ProductsPage() {
         throw new Error("Failed to delete product");
       }
 
-      mutate(); // Re-fetch the products list
+      mutate();
     } catch (error) {
       console.error("Error deleting product:", error);
       alert("Failed to delete product.");
@@ -330,9 +314,9 @@ export default function ProductsPage() {
       name: product.name,
       price: product.price.toString(),
       stock: product.stock.toString(),
-      tax: product.tax != null ? product.tax.toString() : "", // Handle null tax
+      tax: product.tax != null ? product.tax.toString() : "",
       barcodes: product.barcodes.length > 0 ? product.barcodes : [""],
-      batchId: product.batchId || "", // NEW
+      batchId: product.batchId || "",
     })
     setIsEditDialogOpen(true)
   }
@@ -369,8 +353,6 @@ export default function ProductsPage() {
       try {
         const importedProducts = JSON.parse(e.target?.result as string);
         if (Array.isArray(importedProducts)) {
-          // Here you might want to call a bulk-add API endpoint
-          // For simplicity, we'll add them one by one.
           for (const product of importedProducts) {
             await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products`, {
               method: "POST",
@@ -378,7 +360,7 @@ export default function ProductsPage() {
               body: JSON.stringify(product),
             });
           }
-          mutate(); // Re-fetch the products list
+          mutate();
           alert(`Successfully imported ${importedProducts.length} products`);
         } else {
           alert("Invalid file format");
@@ -390,24 +372,66 @@ export default function ProductsPage() {
     reader.readAsText(file);
   };
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = searchTerm === "" || 
+  // NEW: Reset advanced filters
+  const resetAdvancedFilters = () => {
+    setPriceRange({ min: "", max: "" });
+    setBatchFilter("all");
+    setTaxRange({ min: "", max: "" });
+    setDateAddedFilter({ from: "", to: "" });
+  };
+
+  // Dynamically get unique categories
+  const uniqueCategories = useMemo(() => {
+    const cats = [...new Set(products.map(p => (p as any).category).filter(Boolean))];
+    return ["all", ...cats];
+  }, [products]);
+
+  // Extended filtered products logic
+  const filteredProducts = useMemo(() => products.filter((product) => {
+    const matchesSearch = searchTerm === "" ||
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.barcodes.some(barcode => barcode.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+
     const matchesStock =
       stockFilter === "all" ||
       (stockFilter === "low" && product.stock <= 5) ||
       (stockFilter === "out" && product.stock === 0) ||
       (stockFilter === "available" && product.stock > 5);
 
-    // NEW: Category filter logic
     const matchesCategory =
       categoryFilter === "all" ||
       (product as any).category?.toLowerCase() === categoryFilter.toLowerCase();
 
-    return matchesSearch && matchesStock && matchesCategory;
-  });
+    // NEW: Price range filter
+    const priceMin = priceRange.min ? parseFloat(priceRange.min) : 0;
+    const priceMax = priceRange.max ? parseFloat(priceRange.max) : Infinity;
+    const matchesPrice = product.price >= priceMin && product.price <= priceMax;
+
+    // NEW: Batch filter
+    const matchesBatch = batchFilter === "all" || product.batchId === batchFilter;
+
+    // NEW: Tax range filter
+    const taxMin = taxRange.min ? parseFloat(taxRange.min) : 0;
+    const taxMax = taxRange.max ? parseFloat(taxRange.max) : Infinity;
+    const productTax = product.tax || 0;
+    const matchesTax = productTax >= taxMin && productTax <= taxMax;
+
+    // NEW: Date added filter (using createdAt if available)
+    let matchesDate = true;
+    if (dateAddedFilter.from || dateAddedFilter.to) {
+      const createdAt = (product as any).createdAt ? new Date((product as any).createdAt) : null;
+      if (createdAt && !isNaN(createdAt.getTime())) {
+        const fromDate = dateAddedFilter.from ? new Date(dateAddedFilter.from) : null;
+        const toDate = dateAddedFilter.to ? new Date(dateAddedFilter.to) : null;
+        if (fromDate) matchesDate = matchesDate && createdAt >= fromDate;
+        if (toDate) matchesDate = matchesDate && createdAt <= toDate;
+      } else {
+        matchesDate = false; // Skip if no createdAt
+      }
+    }
+
+    return matchesSearch && matchesStock && matchesCategory && matchesPrice && matchesBatch && matchesTax && matchesDate;
+  }), [products, searchTerm, stockFilter, categoryFilter, priceRange, batchFilter, taxRange, dateAddedFilter]);
 
   const getStockStatus = (stock: number) => {
     if (stock === 0) return { label: "Out of Stock", variant: "destructive" as const, icon: XCircle }
@@ -429,7 +453,7 @@ export default function ProductsPage() {
     }
   };
 
-  // ---------- NEW: Calendar helpers and derived data ----------
+  // Calendar helpers (unchanged from original)
   const fmtMonthYear = (d: Date) =>
     d.toLocaleString(undefined, { month: "long", year: "numeric" });
 
@@ -448,7 +472,6 @@ export default function ProductsPage() {
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  // Safely read createdAt without changing the imported Product type
   const productsAny = products as Array<Product & { createdAt?: string }>;
 
   const productsByDate = useMemo(() => {
@@ -463,7 +486,8 @@ export default function ProductsPage() {
     return map;
   }, [productsAny]);
 
-  const dateCounts = useMemo(() => {    const counts: Record<string, number> = {};
+  const dateCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
     for (const k in productsByDate) counts[k] = productsByDate[k].length;
     return counts;
   }, [productsByDate]);
@@ -510,7 +534,6 @@ export default function ProductsPage() {
               table { width: 100%; border-collapse: collapse; }
               th { background:#f3f4f6; }
               tfoot { font-weight: bold; }
-              /* Hide tfoot on all pages by default */
               tfoot { display: table-footer-group; }
               @page {
                 @bottom-right {
@@ -518,10 +541,9 @@ export default function ProductsPage() {
                 }
               }
             }
-            /* Show tfoot only on the last page */
             @media print {
               tfoot {
-                display: table-row-group; /* Ensure it's displayed as a table row group */
+                display: table-row-group;
               }
             }
           </style>
@@ -563,7 +585,6 @@ export default function ProductsPage() {
     w.document.write(html);
     w.document.close();
   }
-  // ---------- END calendar helpers ----------
 
   return (
     <DashboardLayout>
@@ -574,13 +595,12 @@ export default function ProductsPage() {
             <p className="text-gray-600 mt-2">Manage your inventory and product catalog</p>
           </div>
           <div className="flex items-center space-x-3">
-            {/* NEW: Calendar popover placed to the LEFT of Import */}
+            {/* Calendar popover */}
             <div className="relative">
               <Button variant="outline" onClick={() => setCalendarOpen((v) => !v)}>
                 <Calendar className="h-4 w-4 mr-2" />
                 Calendar
               </Button>
-
               {calendarOpen && (
                 <div className="absolute right-0 z-50 mt-2 bg-white border rounded shadow-lg p-3 w-80">
                   {/* Month header */}
@@ -644,13 +664,10 @@ export default function ProductsPage() {
                         let cls =
                           "h-8 w-8 mx-auto flex items-center justify-center rounded-full cursor-pointer select-none ";
                         if (today) {
-                          // Red circle for today
                           cls += "border-2 border-red-500 text-red-600 ";
                         } else if (count > 0) {
-                          // Light blue for days with products
                           cls += "bg-blue-100 text-blue-700 ";
                         } else {
-                          // Grey for no products
                           cls += "text-gray-400 ";
                         }
 
@@ -722,6 +739,12 @@ export default function ProductsPage() {
               Export
             </Button>
 
+            {/* NEW: Filters Button */}
+            <Button variant="outline" onClick={() => setIsFiltersDialogOpen(true)}>
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
+
             {/* Add Product */}
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
@@ -748,7 +771,7 @@ export default function ProductsPage() {
                           const suggestions = products
                             .map((p) => p.name)
                             .filter((name) => name.toLowerCase().includes(input) && name.toLowerCase() !== input)
-                            .slice(0, 5); // Limit to 5 suggestions
+                            .slice(0, 5);
                           setNameSuggestions(suggestions);
                         }}
                         placeholder="Enter product name"
@@ -759,9 +782,21 @@ export default function ProductsPage() {
                           <option key={`${name}-${index}`} value={name} />
                         ))}
                       </datalist>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="price">Price (₹) *</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="stock">Stock Quantity *</Label>
                       <Input
@@ -773,6 +808,8 @@ export default function ProductsPage() {
                         placeholder="0"
                       />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="tax">Tax (%)</Label>
                       <Input
@@ -786,7 +823,7 @@ export default function ProductsPage() {
                       />
                     </div>
                   </div>
-                  {/* NEW: Batch Selection */}
+                  {/* Batch Selection */}
                   <div className="space-y-2">
                     <Label htmlFor="batch">Batch *</Label>
                     <Select
@@ -808,7 +845,7 @@ export default function ProductsPage() {
                             </div>
                           </SelectItem>
                         ))}
-                        <Separator className="my-2" /> {/* Replaced DropdownMenuSeparator with Separator */}
+                        <Separator className="my-2" />
                         <Button
                           variant="ghost"
                           className="w-full justify-start"
@@ -875,11 +912,10 @@ export default function ProductsPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            {/* NEW: Batch Input Dialog */}
+            {/* Batch Input Dialog */}
             <BatchInput
               isOpen={isBatchInputOpen}
               onOpenChange={setIsBatchInputOpen}
-              // onSave={handleSaveNewBatch} // REMOVED
             />
           </div>
         </div>
@@ -954,18 +990,17 @@ export default function ProductsPage() {
                   />
                 </div>
               </div>
-              {/* NEW: Category Filter */}
+              {/* Inline Category Filter (dynamic) */}
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {/* You would dynamically load categories here, e.g., from a product.category field */}
-                  <SelectItem value="electronics">Electronics</SelectItem>
-                  <SelectItem value="clothing">Clothing</SelectItem>
-                  <SelectItem value="books">Books</SelectItem>
-                  <SelectItem value="home">Home & Kitchen</SelectItem>
+                  {uniqueCategories.map(cat => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat === "all" ? "All Categories" : cat}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={stockFilter} onValueChange={setStockFilter}>
@@ -1013,14 +1048,22 @@ export default function ProductsPage() {
                         onChange={selectAllProducts}
                         className="rounded"
                       />
-                    </th><th className="text-left p-4 font-medium">Product</th><th className="text-left p-4 font-medium">Batch</th> {/* NEW */}<th className="text-left p-4 font-medium">Price</th><th className="text-left p-4 font-medium">Tax</th><th className="text-left p-4 font-medium">Stock</th><th className="text-left p-4 font-medium">Barcodes</th><th className="text-left p-4 font-medium">Status</th><th className="text-left p-4 font-medium">Actions</th>
+                    </th>
+                    <th className="text-left p-4 font-medium">Product</th>
+                    <th className="text-left p-4 font-medium">Batch</th>
+                    <th className="text-left p-4 font-medium">Price</th>
+                    <th className="text-left p-4 font-medium">Tax</th>
+                    <th className="text-left p-4 font-medium">Stock</th>
+                    <th className="text-left p-4 font-medium">Barcodes</th>
+                    <th className="text-left p-4 font-medium">Status</th>
+                    <th className="text-left p-4 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredProducts.map((product) => {
                     const stockStatus = getStockStatus(product.stock)
                     const StatusIcon = stockStatus.icon
-                    const productBatch = batches.find(batch => batch.id === product.batchId); // NEW
+                    const productBatch = batches.find(batch => batch.id === product.batchId);
                     return (
                       <tr key={product.id} className="border-b hover:bg-gray-50">
                         <td className="p-4">
@@ -1036,7 +1079,7 @@ export default function ProductsPage() {
                             <div className="font-medium">{product.name}</div>
                           </div>
                         </td>
-                        <td className="p-4"> {/* NEW */}
+                        <td className="p-4">
                           <div>
                             <div className="font-medium">{productBatch?.batchNumber || "N/A"}</div>
                             <div className="text-xs text-muted-foreground">{productBatch?.place || ""}</div>
@@ -1112,13 +1155,16 @@ export default function ProductsPage() {
                   })}
                 </tbody>
               </table>
-
               {filteredProducts.length === 0 && (
                 <div className="text-center py-12">
                   <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-xl font-medium text-gray-900 mb-2">No products found</h3>
                   <p className="text-gray-500 mb-4">
-                    {searchTerm || categoryFilter !== "all" || stockFilter !== "all"
+                    {searchTerm || categoryFilter !== "all" || stockFilter !== "all" ||
+                    (priceRange.min !== "" || priceRange.max !== "") ||
+                    batchFilter !== "all" ||
+                    (taxRange.min !== "" || taxRange.max !== "") ||
+                    (dateAddedFilter.from !== "" || dateAddedFilter.to !== "")
                       ? "Try adjusting your search or filters"
                       : "Get started by adding your first product"}
                   </p>
@@ -1135,7 +1181,101 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
 
-        {/* NEW: View-all-products dialog for the selected day */}
+        {/* NEW: Advanced Filters Dialog */}
+        <Dialog open={isFiltersDialogOpen} onOpenChange={setIsFiltersDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Advanced Filters</DialogTitle>
+              <DialogDescription>Refine your product search with additional criteria.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              {/* Price Range */}
+              <div className="space-y-2">
+                <Label>Price Range (₹)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Min"
+                    value={priceRange.min}
+                    onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Max"
+                    value={priceRange.max}
+                    onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Batch Filter */}
+              <div className="space-y-2">
+                <Label>Batch</Label>
+                <Select value={batchFilter} onValueChange={setBatchFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select batch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Batches</SelectItem>
+                    {batches.map((batch) => (
+                      <SelectItem key={batch.id} value={batch.id}>
+                        {batch.batchNumber} ({batch.place})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Tax Range */}
+              <div className="space-y-2">
+                <Label>Tax Range (%)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Min"
+                    value={taxRange.min}
+                    onChange={(e) => setTaxRange({ ...taxRange, min: e.target.value })}
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Max"
+                    value={taxRange.max}
+                    onChange={(e) => setTaxRange({ ...taxRange, max: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Date Added Range */}
+              <div className="space-y-2">
+                <Label>Date Added</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="date"
+                    value={dateAddedFilter.from}
+                    onChange={(e) => setDateAddedFilter({ ...dateAddedFilter, from: e.target.value })}
+                  />
+                  <Input
+                    type="date"
+                    value={dateAddedFilter.to}
+                    onChange={(e) => setDateAddedFilter({ ...dateAddedFilter, to: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={resetAdvancedFilters}>
+                Reset All
+              </Button>
+              <Button onClick={() => setIsFiltersDialogOpen(false)}>
+                Apply Filters
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* View-all-products dialog for the selected day (unchanged) */}
         <Dialog open={isByDateDialogOpen} onOpenChange={setIsByDateDialogOpen}>
           <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -1233,7 +1373,7 @@ export default function ProductsPage() {
           storeName={assignedStores?.[0]?.name || "Siri Art Jewellers"}
         />
 
-        {/* Edit Product Dialog */}
+        {/* Edit Product Dialog (unchanged, but with formData updates if needed) */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -1253,7 +1393,7 @@ export default function ProductsPage() {
                       const suggestions = products
                         .map((p) => p.name)
                         .filter((name) => name.toLowerCase().includes(input) && name.toLowerCase() !== input)
-                        .slice(0, 5); // Limit to 5 suggestions
+                        .slice(0, 5);
                       setNameSuggestions(suggestions);
                     }}
                     placeholder="Enter product name"
