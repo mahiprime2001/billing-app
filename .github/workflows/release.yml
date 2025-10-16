@@ -12,17 +12,17 @@ permissions:
 
 jobs:
   prepare-environment:
-    name: 🧮 Prepare Version & Environment
+    name: Prepare Version & Environment
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.calculate.outputs.version }}
     steps:
-      - name: 🛒 Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: ⚙️ Install dependencies
+      - name: Install dependencies
         run: sudo apt-get install -y jq
 
       - id: calculate
@@ -39,7 +39,7 @@ jobs:
           else TYPE="patch"; fi
           OLD_VERSION=$(jq -r '.version' "$TAURI_FILE")
           if [ -z "$OLD_VERSION" ] || [ "$OLD_VERSION" = "null" ]; then
-            echo "❌ Version not found in $TAURI_FILE"
+            echo "Version not found in $TAURI_FILE"
             exit 1
           fi
           IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD_VERSION"
@@ -55,11 +55,11 @@ jobs:
           done
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: 📝 Update version in Tauri config
+      - name: Update version in Tauri config
         run: |
           jq ".version = \"${{ steps.calculate.outputs.version }}\"" src-tauri/tauri.conf.json > tmp.$$.json && mv tmp.$$.json src-tauri/tauri.conf.json
 
-      - name: 💾 Commit updated version to main
+      - name: Commit updated version to main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -67,42 +67,42 @@ jobs:
           git commit -m "chore: bump version to v${{ steps.calculate.outputs.version }}" || echo "No version changes to commit"
           git push origin HEAD:main
 
-      - name: 🏷️ Create and push tag
+      - name: Create and push tag
         run: |
           git tag "v${{ steps.calculate.outputs.version }}" || echo "Tag exists"
-          git push origin "v${{ steps.calculate.outputs.version }}" || echo "⚠️ Tag already exists, continuing"
+          git push origin "v${{ steps.calculate.outputs.version }}" || echo "Tag already exists, continuing"
 
   build-and-release-windows:
-    name: 🪟 Build & Release Windows
+    name: Build & Release Windows
     needs: prepare-environment
     runs-on: windows-latest
     steps:
-      - name: 🛒 Checkout code (latest main)
+      - name: Checkout code (latest main)
         uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
 
-      - name: ⚙️ Setup Rust
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: 🧰 Setup Node
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: npm install
 
-      - name: 🗝️ Wrap raw updater key into PEM env
+      - name: Wrap raw updater key into PEM env
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           
-          # Load raw key (make throw non-fatal for debug; will fail later if empty)
+          # Load raw key (handle empty)
           $rawKey = "${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}".Trim()
           if (-not $rawKey) {
-            Write-Host "⚠️ Raw updater key secret is empty or not set. Skipping signing (build may fail if required)."
+            Write-Host "Raw updater key secret is empty or not set. Skipping signing (build may fail if required)."
             echo "TAURI_SIGNER_KEY=" >> $env:GITHUB_ENV
             echo "TAURI_SIGNER_PASSWORD=" >> $env:GITHUB_ENV
             exit 0
@@ -111,11 +111,11 @@ jobs:
           # Fold base64 to 64-char lines (PEM standard)
           $folded = $rawKey -replace '(.{64})', "$1`n"
 
-          # Build full PEM string (assume PKCS#8; if key starts with 'MIG' or 'MIIB' etc., change to RSA header below)
+          # Build full PEM string (assume PKCS#8; change to RSA if needed, e.g., if starts with 'MIG')
           $pem = "-----BEGIN PRIVATE KEY-----`n$folded`n-----END PRIVATE KEY-----"
-          # Alternative for RSA: "-----BEGIN RSA PRIVATE KEY-----`n$folded`n-----END RSA PRIVATE KEY-----"
+          # For RSA keys: "-----BEGIN RSA PRIVATE KEY-----`n$folded`n-----END RSA PRIVATE KEY-----"
 
-          # Debug (masked)
+          # Debug
           Write-Host "Wrapped PEM lines: $($pem -split '`n').Count"
           Write-Host "First 50 chars masked: $($pem.Substring(0, [Math]::Min(50, $pem.Length)) -replace '.', '*')"
 
@@ -123,7 +123,7 @@ jobs:
           echo "TAURI_SIGNER_KEY=$pem" >> $env:GITHUB_ENV
           echo "TAURI_SIGNER_PASSWORD=${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}" >> $env:GITHUB_ENV
 
-      - name: 🏗️ Build Tauri App (Windows) with Auto-Signing
+      - name: Build Tauri App (Windows) with Auto-Signing
         env:
           TAURI_SIGNER_KEY: ${{ env.TAURI_SIGNER_KEY }}
           TAURI_SIGNER_PASSWORD: ${{ env.TAURI_SIGNER_PASSWORD }}
@@ -131,7 +131,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npx @tauri-apps/cli build
 
-      - name: 📦 Prepare Updater Assets (Zip, Read Sigs, update.json)
+      - name: Prepare Updater Assets (Read Sigs, update.json, Set Bundles for Upload)
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -140,7 +140,7 @@ jobs:
           $repo = $env:GITHUB_REPOSITORY
           $tag = "v$version"
 
-          # Find bundles and auto-generated sigs (or fallback if missing)
+          # Find bundles and auto-generated sigs
           $msi = Get-ChildItem -Path "$bundleDir/msi" -Filter "*.msi" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           $msiSig = Get-ChildItem -Path "$bundleDir/msi" -Filter "*.sig" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           $exe = Get-ChildItem -Path "$bundleDir/nsis" -Filter "*setup.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -148,29 +148,23 @@ jobs:
 
           if (-not $msi -or -not $exe) { throw "Missing bundle files (MSI/EXE not found)" }
 
-          # Handle sigs if exist (else placeholder or skip signing check)
+          # Read sig contents (or empty if missing)
           $msiSigContent = if ($msiSig) { Get-Content -Path $msiSig.FullName -Raw -Encoding UTF8 } else { Write-Host "No MSI .sig found"; "" }
           $exeSigContent = if ($exeSig) { Get-Content -Path $exeSig.FullName -Raw -Encoding UTF8 } else { Write-Host "No EXE .sig found"; "" }
 
-          # Zip bundles
-          $msiZip = "$bundleDir/msi/$($msi.Name).zip"
-          $exeZip = "$bundleDir/nsis/$($exe.Name).zip"
-          Compress-Archive -Path $msi.FullName -DestinationPath $msiZip -Force
-          Compress-Archive -Path $exe.FullName -DestinationPath $exeZip -Force
+          Write-Host "Found MSI: $($msi.FullName)"
+          Write-Host "Found EXE: $($exe.FullName)"
 
-          Write-Host "Created MSI ZIP: $msiZip"
-          Write-Host "Created EXE ZIP: $exeZip"
-
-          # Generate update.json (use empty sig if missing)
+          # Generate update.json with direct URLs to .msi and .exe (for Tauri updater ingestion format)
           $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-          $msiZipName = [System.Uri]::EscapeDataString($(Split-Path $msiZip -Leaf))
-          $exeZipName = [System.Uri]::EscapeDataString($(Split-Path $exeZip -Leaf))
-          $msiUrl = "https://github.com/$repo/releases/download/$tag/$msiZipName"
-          $exeUrl = "https://github.com/$repo/releases/download/$tag/$exeZipName"
+          $msiName = [System.Uri]::EscapeDataString($(Split-Path $msi.FullName -Leaf))
+          $exeName = [System.Uri]::EscapeDataString($(Split-Path $exe.FullName -Leaf))
+          $msiUrl = "https://github.com/$repo/releases/download/$tag/$msiName"
+          $exeUrl = "https://github.com/$repo/releases/download/$tag/$exeName"
 
           $updateJson = @{
             version = $version
-            notes = "🚀 Added auto-update support and fixed minor bugs."
+            notes = "Added auto-update support and fixed minor bugs."
             pub_date = $pubDate
             platforms = @{
               "windows-x86_64" = @{
@@ -186,14 +180,13 @@ jobs:
 
           $updatePath = "$bundleDir/update.json"
           $updateJson | Out-File -FilePath $updatePath -Encoding UTF8
-          # Validate JSON (install jq if needed, or skip)
-          Write-Host "Generated update.json (sig may be empty if signing skipped)"
+          Write-Host "Generated update.json"
 
-          # Set assets (space-separated)
-          $assets = "$msiZip $exeZip $updatePath"
+          # Set assets: .msi, .exe, and update.json
+          $assets = "$($msi.FullName) $($exe.FullName) $updatePath"
           echo "ASSETS=$assets" >> $env:GITHUB_ENV
 
-      - name: 🚀 Create or Update GitHub Release
+      - name: Create or Update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -211,7 +204,7 @@ jobs:
             gh release create $tag --title "Siri Admin App $tag" --notes "Automated Tauri Windows release with updater support for version $tag" --repo $env:GITHUB_REPOSITORY
           }
 
-          # Upload assets
+          # Upload assets (.msi, .exe, update.json)
           foreach ($asset in $assets) {
             if (Test-Path $asset) {
               Write-Host "Uploading $asset..."
