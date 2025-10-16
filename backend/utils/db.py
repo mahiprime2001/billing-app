@@ -93,6 +93,80 @@ class DatabaseConnection:
                 except Exception:
                     pass
 
+    @classmethod
+    def create_batch_table(cls):
+        """
+        Creates the 'batch' table if it doesn't already exist and applies schema migrations.
+        """
+        create_table_query = """
+        CREATE TABLE IF NOT EXISTS batch (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            batch_number VARCHAR(255) NOT NULL UNIQUE,
+            place TEXT,
+            product_id VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        );
+        """
+        try:
+            with cls.get_connection_ctx() as conn:
+                with cls.get_cursor_ctx(conn) as cursor:
+                    cursor.execute(create_table_query)
+                    conn.commit()
+                    print("Table 'batch' checked/created successfully.")
+                    cls._apply_batch_table_migrations(conn, cursor) # Apply migrations after creation
+        except MySQLError as err:
+            print(f"Error creating 'batch' table: {err}")
+            raise
+
+    @classmethod
+    def _apply_batch_table_migrations(cls, conn, cursor):
+        """
+        Applies necessary ALTER TABLE statements to update the batch table schema.
+        This method is idempotent.
+        """
+        # Check if 'name' column exists and rename it to 'batch_number'
+        try:
+            cursor.execute("SHOW COLUMNS FROM batch LIKE 'name';")
+            if cursor.fetchone():
+                cursor.execute("ALTER TABLE batch CHANGE COLUMN name batch_number VARCHAR(255) NOT NULL UNIQUE;")
+                conn.commit()
+                print("Renamed 'name' to 'batch_number' in 'batch' table.")
+        except MySQLError as err:
+            if err.errno == 1060: # Duplicate column name, already renamed
+                print("Column 'batch_number' already exists, no rename needed.")
+            else:
+                print(f"Error renaming 'name' to 'batch_number': {err}")
+                raise
+
+        # Check if 'description' column exists and rename it to 'place'
+        try:
+            cursor.execute("SHOW COLUMNS FROM batch LIKE 'description';")
+            if cursor.fetchone():
+                cursor.execute("ALTER TABLE batch CHANGE COLUMN description place TEXT;")
+                conn.commit()
+                print("Renamed 'description' to 'place' in 'batch' table.")
+        except MySQLError as err:
+            if err.errno == 1060: # Duplicate column name, already renamed
+                print("Column 'place' already exists, no rename needed.")
+            else:
+                print(f"Error renaming 'description' to 'place': {err}")
+                raise
+
+        # Add 'product_id' column if it doesn't exist
+        try:
+            cursor.execute("SHOW COLUMNS FROM batch LIKE 'product_id';")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE batch ADD COLUMN product_id VARCHAR(255) NOT NULL;")
+                conn.commit()
+                print("Added 'product_id' column to 'batch' table.")
+        except MySQLError as err:
+            if err.errno == 1060: # Duplicate column name, already exists
+                print("Column 'product_id' already exists, no add needed.")
+            else:
+                print(f"Error adding 'product_id' column: {err}")
+                raise
+
     @staticmethod
     @contextmanager
     def get_cursor_ctx(conn: mysql.connector.MySQLConnection, dictionary: bool = False):

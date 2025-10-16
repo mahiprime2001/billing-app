@@ -5,8 +5,15 @@ export interface Product {
   barcodes: string[];
   stock: number;
   tax: number;
+  batchId?: string; // NEW
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Batch {
+  id: string;
+  batchNumber: string;
+  place: string;
 }
 
 export interface BillItem {

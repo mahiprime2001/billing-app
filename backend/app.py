@@ -96,6 +96,7 @@ NOTIFICATIONS_FILE = os.path.join(JSON_DIR, 'notifications.json')
 SETTINGS_FILE = os.path.join(JSON_DIR, 'settings.json')
 STORES_FILE = os.path.join(JSON_DIR, 'stores.json')
 SESSIONS_FILE = os.path.join(JSON_DIR, 'user_sessions.json')
+BATCHES_FILE = os.path.join(JSON_DIR, 'batches.json') # NEW
 
 # Configure logging for the Flask app
 LOG_DIR = LOGS_DIR # Use the new LOGS_DIR
@@ -182,6 +183,12 @@ def get_stores_data():
 
 def save_stores_data(stores):
     _safe_json_dump(STORES_FILE, stores)
+
+def get_batches_data():
+    return _safe_json_load(BATCHES_FILE, [])
+
+def save_batches_data(batches):
+    _safe_json_dump(BATCHES_FILE, batches)
 
 def _get_user_sessions():
     return _safe_json_load(SESSIONS_FILE, [])
@@ -333,6 +340,34 @@ def delete_product(product_id):
         return jsonify({"message": "Product deleted"}), 200
     
     return jsonify({"message": "Product not found"}), 404
+
+# ---------------------------
+# Batches - NEW
+# ---------------------------
+
+@app.route('/api/batches', methods=['GET'])
+def get_batches():
+    batches = get_batches_data()
+    return jsonify(batches)
+
+@app.route('/api/batches', methods=['POST'])
+def add_batch():
+    new_batch = request.json or {}
+    batches = get_batches_data()
+    
+    if not new_batch.get('batchNumber') or not new_batch.get('place'):
+        return jsonify({"message": "Batch number and place are required"}), 400
+
+    new_batch['id'] = str(uuid.uuid4())
+    new_batch['createdAt'] = datetime.now().isoformat()
+    new_batch['updatedAt'] = datetime.now().isoformat()
+    
+    batches.append(new_batch)
+    save_batches_data(batches)
+    
+    log_crud_operation('batches', 'CREATE', new_batch['id'], new_batch)
+    
+    return jsonify(new_batch), 201
 
 # ---------------------------
 # Product Assignment Endpoints
@@ -1361,6 +1396,12 @@ if __name__ == '__main__':
             app.logger.info("Database data successfully exported to JSON files.")
         except Exception as e:
             app.logger.error(f"Failed to export data from database to JSON: {e}")
+
+    # NEW: Ensure batch table is created (and updated if schema changed)
+    try:
+        DatabaseConnection.create_batch_table()
+    except Exception as e:
+        app.logger.error(f"Failed to create/update batch table: {e}")
     
     # Start background sync based on environment
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':

@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import type { Product } from "@/lib/types";
+import type { Product, Batch } from "@/lib/types";
 import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,6 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"; // NEW
 import { Textarea } from "@/components/ui/textarea"
 import {
   AlertDialog,
@@ -48,6 +49,7 @@ import {
 } from "lucide-react";
 import PrintDialog from "@/components/PrintDialog";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
+import { BatchInput } from "@/components/BatchInput"; // NEW
 
 interface AdminUser {
   name: string
@@ -68,6 +70,7 @@ const fetcher = (url: string) => fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_UR
 export default function ProductsPage() {
   const router = useRouter();
   const { data: products = [], mutate } = useSWR<Product[]>("/api/products", fetcher);
+  const { data: batches = [], mutate: mutateBatches } = useSWR<Batch[]>("/api/batches", fetcher); // NEW: Fetch batches
   const scrollableDivRef = useRef<HTMLDivElement>(null); // Ref for the scrollable div
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [assignedStores, setAssignedStores] = useState<SystemStore[]>([])
@@ -86,6 +89,12 @@ export default function ProductsPage() {
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isByDateDialogOpen, setIsByDateDialogOpen] = useState(false);
+  const [isBatchInputOpen, setIsBatchInputOpen] = useState(false); // NEW
+  // const [batches, setBatches] = useState<{ id: string; batchNumber: string; place: string }[]>([ // REMOVED
+  //   { id: "1", batchNumber: "BATCH-A", place: "Warehouse 1" },
+  //   { id: "2", batchNumber: "BATCH-B", place: "Store Room 2" },
+  // ]);
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null); // NEW
 
   useEffect(() => {
     if (calendarOpen) {
@@ -102,8 +111,21 @@ export default function ProductsPage() {
     stock: "",
     tax: "",
     barcodes: [""],
+    batchId: "", // NEW
   });
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
+
+  // NEW: Handle saving a new batch - REMOVED, BatchInput handles it directly
+  // const handleSaveNewBatch = (batchNumber: string, place: string) => {
+  //   const newBatch = {
+  //     id: (batches.length + 1).toString(), // Simple ID generation
+  //     batchNumber,
+  //     place,
+  //   };
+  //   setBatches((prev) => [...prev, newBatch]);
+  //   setSelectedBatchId(newBatch.id); // Select the newly added batch
+  //   setFormData((prev) => ({ ...prev, batchId: newBatch.id }));
+  // };
 
   useEffect(() => {
     const userData = localStorage.getItem("adminUser");
@@ -132,6 +154,7 @@ export default function ProductsPage() {
       stock: "",
       tax: "",
       barcodes: [""],
+      batchId: "", // NEW
     })
   }
 
@@ -182,6 +205,11 @@ export default function ProductsPage() {
       return;
     }
 
+    if (!formData.batchId) { // NEW
+      alert("Please select a batch.");
+      return;
+    }
+
     const validBarcodes = formData.barcodes.filter((barcode) => barcode.trim() !== "");
 
     if (validBarcodes.length === 0) {
@@ -204,6 +232,7 @@ export default function ProductsPage() {
       stock: Number.parseInt(formData.stock),
       tax: Number.parseFloat(formData.tax),
       barcodes: validBarcodes,
+      batchId: formData.batchId, // NEW
     };
 
     try {
@@ -303,6 +332,7 @@ export default function ProductsPage() {
       stock: product.stock.toString(),
       tax: product.tax != null ? product.tax.toString() : "", // Handle null tax
       barcodes: product.barcodes.length > 0 ? product.barcodes : [""],
+      batchId: product.batchId || "", // NEW
     })
     setIsEditDialogOpen(true)
   }
@@ -371,7 +401,12 @@ export default function ProductsPage() {
       (stockFilter === "out" && product.stock === 0) ||
       (stockFilter === "available" && product.stock > 5);
 
-    return matchesSearch && matchesStock;
+    // NEW: Category filter logic
+    const matchesCategory =
+      categoryFilter === "all" ||
+      (product as any).category?.toLowerCase() === categoryFilter.toLowerCase();
+
+    return matchesSearch && matchesStock && matchesCategory;
   });
 
   const getStockStatus = (stock: number) => {
@@ -428,8 +463,7 @@ export default function ProductsPage() {
     return map;
   }, [productsAny]);
 
-  const dateCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
+  const dateCounts = useMemo(() => {    const counts: Record<string, number> = {};
     for (const k in productsByDate) counts[k] = productsByDate[k].length;
     return counts;
   }, [productsByDate]);
@@ -437,18 +471,29 @@ export default function ProductsPage() {
   const selectedKey = selectedDate ? toKey(selectedDate) : "";
 
   function printProductsListForDate(list: Product[], titleDate: Date) {
+    let totalStock = 0;
+    let totalValue = 0;
+
     const rows = list
-      .map(
-        (p) => `
+      .map((p) => {
+        const productBatch = batches.find(batch => batch.id === p.batchId);
+        const stock = (p as any).stock ?? 0;
+        const price = Number((p as any).price ?? 0);
+        const value = stock * price;
+
+        totalStock += stock;
+        totalValue += value;
+
+        return `
         <tr>
-          <td style="padding:6px;border:1px solid #ddd;">${p.id}</td>
+          <td style="padding:6px;border:1px solid #ddd;">${(p.barcodes && p.barcodes.length > 0) ? p.barcodes[0] : "N/A"}</td>
           <td style="padding:6px;border:1px solid #ddd;">${p.name}</td>
-          <td style="padding:6px;border:1px solid #ddd; text-align:right;">${(p as any).stock ?? 0}</td>
-          <td style="padding:6px;border:1px solid #ddd; text-align:right;">₹${Number(
-            (p as any).price ?? 0
-          ).toFixed(2)}</td>
-        </tr>`
-      )
+          <td style="padding:6px;border:1px solid #ddd;">${productBatch?.batchNumber || "N/A"} (${productBatch?.place || "N/A"})</td>
+          <td style="padding:6px;border:1px solid #ddd; text-align:right;">${stock}</td>
+          <td style="padding:6px;border:1px solid #ddd; text-align:right;">₹${price.toFixed(2)}</td>
+          <td style="padding:6px;border:1px solid #ddd; text-align:right;">₹${value.toFixed(2)}</td>
+        </tr>`;
+      })
       .join("");
 
     const html = `
@@ -464,6 +509,20 @@ export default function ProductsPage() {
               h1 { font-size: 18px; margin-bottom: 12px; }
               table { width: 100%; border-collapse: collapse; }
               th { background:#f3f4f6; }
+              tfoot { font-weight: bold; }
+              /* Hide tfoot on all pages by default */
+              tfoot { display: table-footer-group; }
+              @page {
+                @bottom-right {
+                  content: "Page " counter(page) " of " counter(pages);
+                }
+              }
+            }
+            /* Show tfoot only on the last page */
+            @media print {
+              tfoot {
+                display: table-row-group; /* Ensure it's displayed as a table row group */
+              }
             }
           </style>
         </head>
@@ -472,13 +531,23 @@ export default function ProductsPage() {
           <table>
             <thead>
               <tr>
-                <th style="padding:6px;border:1px solid #ddd; text-align:left;">Product ID</th>
+                <th style="padding:6px;border:1px solid #ddd; text-align:left;">Product Barcode Number</th>
                 <th style="padding:6px;border:1px solid #ddd; text-align:left;">Product Name</th>
+                <th style="padding:6px;border:1px solid #ddd; text-align:left;">Product Batch</th>
                 <th style="padding:6px;border:1px solid #ddd; text-align:right;">Stock</th>
                 <th style="padding:6px;border:1px solid #ddd; text-align:right;">Price</th>
+                <th style="padding:6px;border:1px solid #ddd; text-align:right;">Value (Total Value)</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3" style="padding:6px;border:1px solid #ddd; text-align:right;">Total:</td>
+                <td style="padding:6px;border:1px solid #ddd; text-align:right;">${totalStock}</td>
+                <td style="padding:6px;border:1px solid #ddd; text-align:right;"></td>
+                <td style="padding:6px;border:1px solid #ddd; text-align:right;">₹${totalValue.toFixed(2)}</td>
+              </tr>
+            </tfoot>
           </table>
           <script>
             window.onload = function() {
@@ -690,21 +759,9 @@ export default function ProductsPage() {
                           <option key={`${name}-${index}`} value={name} />
                         ))}
                       </datalist>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="price">Price (₹) *</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="stock">Stock Quantity *</Label>
                       <Input
@@ -728,6 +785,40 @@ export default function ProductsPage() {
                         placeholder="0.00"
                       />
                     </div>
+                  </div>
+                  {/* NEW: Batch Selection */}
+                  <div className="space-y-2">
+                    <Label htmlFor="batch">Batch *</Label>
+                    <Select
+                      value={selectedBatchId || ""}
+                      onValueChange={(value) => {
+                        setSelectedBatchId(value);
+                        setFormData({ ...formData, batchId: value });
+                      }}
+                    >
+                      <SelectTrigger id="batch">
+                        <SelectValue placeholder="Select a batch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {batches.map((batch) => (
+                          <SelectItem key={batch.id} value={batch.id}>
+                            <div className="flex flex-col">
+                              <span>{batch.place}</span>
+                              <span className="text-xs text-muted-foreground">{batch.batchNumber}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                        <Separator className="my-2" /> {/* Replaced DropdownMenuSeparator with Separator */}
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start"
+                          onClick={() => setIsBatchInputOpen(true)}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          New Batch
+                        </Button>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -784,6 +875,12 @@ export default function ProductsPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            {/* NEW: Batch Input Dialog */}
+            <BatchInput
+              isOpen={isBatchInputOpen}
+              onOpenChange={setIsBatchInputOpen}
+              // onSave={handleSaveNewBatch} // REMOVED
+            />
           </div>
         </div>
 
@@ -857,6 +954,20 @@ export default function ProductsPage() {
                   />
                 </div>
               </div>
+              {/* NEW: Category Filter */}
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full md:w-48">
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {/* You would dynamically load categories here, e.g., from a product.category field */}
+                  <SelectItem value="electronics">Electronics</SelectItem>
+                  <SelectItem value="clothing">Clothing</SelectItem>
+                  <SelectItem value="books">Books</SelectItem>
+                  <SelectItem value="home">Home & Kitchen</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={stockFilter} onValueChange={setStockFilter}>
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by stock" />
@@ -902,20 +1013,14 @@ export default function ProductsPage() {
                         onChange={selectAllProducts}
                         className="rounded"
                       />
-                    </th>
-                    <th className="text-left p-4 font-medium">Product</th>
-                    <th className="text-left p-4 font-medium">Price</th>
-                    <th className="text-left p-4 font-medium">Tax</th>
-                    <th className="text-left p-4 font-medium">Stock</th>
-                    <th className="text-left p-4 font-medium">Barcodes</th>
-                    <th className="text-left p-4 font-medium">Status</th>
-                    <th className="text-left p-4 font-medium">Actions</th>
+                    </th><th className="text-left p-4 font-medium">Product</th><th className="text-left p-4 font-medium">Batch</th> {/* NEW */}<th className="text-left p-4 font-medium">Price</th><th className="text-left p-4 font-medium">Tax</th><th className="text-left p-4 font-medium">Stock</th><th className="text-left p-4 font-medium">Barcodes</th><th className="text-left p-4 font-medium">Status</th><th className="text-left p-4 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredProducts.map((product) => {
                     const stockStatus = getStockStatus(product.stock)
                     const StatusIcon = stockStatus.icon
+                    const productBatch = batches.find(batch => batch.id === product.batchId); // NEW
                     return (
                       <tr key={product.id} className="border-b hover:bg-gray-50">
                         <td className="p-4">
@@ -929,6 +1034,12 @@ export default function ProductsPage() {
                         <td className="p-4">
                           <div>
                             <div className="font-medium">{product.name}</div>
+                          </div>
+                        </td>
+                        <td className="p-4"> {/* NEW */}
+                          <div>
+                            <div className="font-medium">{productBatch?.batchNumber || "N/A"}</div>
+                            <div className="text-xs text-muted-foreground">{productBatch?.place || ""}</div>
                           </div>
                         </td>
                         <td className="p-4">
@@ -1026,7 +1137,7 @@ export default function ProductsPage() {
 
         {/* NEW: View-all-products dialog for the selected day */}
         <Dialog open={isByDateDialogOpen} onOpenChange={setIsByDateDialogOpen}>
-          <DialogContent className="sm:max-w-[700px]">
+          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 Products on {selectedDate ? selectedDate.toDateString() : ""}
@@ -1036,30 +1147,65 @@ export default function ProductsPage() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[calc(90vh-180px)] relative" ref={scrollableDivRef}>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left p-2">Product ID</th>
+                    <th className="text-left p-2">Product Barcode Number</th>
                     <th className="text-left p-2">Product Name</th>
+                    <th className="text-left p-2">Product Batch</th>
                     <th className="text-right p-2">Stock</th>
                     <th className="text-right p-2">Price</th>
+                    <th className="text-right p-2">Value (Total Value)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {((productsByDate[selectedKey] as Product[]) ?? []).map((p) => (
-                    <tr key={(p as any).id} className="border-b hover:bg-gray-50">
-                      <td className="p-2">{(p as any).id}</td>
-                      <td className="p-2">{(p as any).name}</td>
-                      <td className="p-2 text-right">{(p as any).stock ?? 0}</td>
-                      <td className="p-2 text-right">₹{Number((p as any).price ?? 0).toFixed(2)}</td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    let totalStock = 0;
+                    let totalValue = 0;
+                    const productsForDate = (productsByDate[selectedKey] as Product[]) ?? [];
+
+                    const rows = productsForDate.map((p) => {
+                      const productBatch = batches.find(batch => batch.id === p.batchId);
+                      const stock = (p as any).stock ?? 0;
+                      const price = Number((p as any).price ?? 0);
+                      const value = stock * price;
+
+                      totalStock += stock;
+                      totalValue += value;
+
+                      return (
+                        <tr key={(p as any).id} className="border-b hover:bg-gray-50">
+                          <td className="p-2">{(p.barcodes && p.barcodes.length > 0) ? p.barcodes[0] : "N/A"}</td>
+                          <td className="p-2">{(p as any).name}</td>
+                          <td className="p-2">{productBatch?.batchNumber || "N/A"} ({productBatch?.place || "N/A"})</td>
+                          <td className="p-2 text-right">{stock}</td>
+                          <td className="p-2 text-right">₹{price.toFixed(2)}</td>
+                          <td className="p-2 text-right">₹{value.toFixed(2)}</td>
+                        </tr>
+                      );
+                    });
+
+                    return (
+                      <>
+                        {rows}
+                        <tr className="font-bold border-t">
+                          <td colSpan={3} className="p-2 text-right">Total:</td>
+                          <td className="p-2 text-right">{totalStock}</td>
+                          <td className="p-2 text-right"></td>
+                          <td className="p-2 text-right">₹{totalValue.toFixed(2)}</td>
+                        </tr>
+                      </>
+                    );
+                  })()}
                 </tbody>
               </table>
             </div>
+            <div className="relative mt-4">
+              <ScrollToBottomButton onClick={() => scrollableDivRef.current?.scrollTo({ top: scrollableDivRef.current.scrollHeight, behavior: 'smooth' })} />
+            </div>
 
-            <DialogFooter>
+            <DialogFooter className="mt-4">
               <Button variant="outline" onClick={() => setIsByDateDialogOpen(false)}>
                 Close
               </Button>
