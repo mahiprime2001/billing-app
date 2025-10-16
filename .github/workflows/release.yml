@@ -103,7 +103,7 @@ jobs:
       - name: 📦 Prepare Updater Assets (Zip & Sign Bundles)
         env:
           TAURI_UPDATER_PRIVATE_KEY: ${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}
-          TAURI_UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}  # Plain passphrase for protected key
+          TAURI_UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}  # Plain passphrase
         shell: bash
         run: |
           set -euo pipefail
@@ -112,9 +112,27 @@ jobs:
           REPO="${{ github.repository }}"
           TAG="v$VERSION"
 
-          # Write raw private key from secret to temp file (for --private-key-path; avoids base64 decoding)
+          # Write raw PEM key from secret to temp file, clean whitespace/empty lines
           PRIVATE_KEY_FILE="/tmp/updater.key"
-          echo "$TAURI_UPDATER_PRIVATE_KEY" > "$PRIVATE_KEY_FILE"
+          # Remove leading/trailing whitespace, empty lines, and normalize (preserve PEM structure)
+          echo "$TAURI_UPDATER_PRIVATE_KEY" | \
+            sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | \  # Trim spaces per line
+            sed '/^$/d' | \  # Remove empty lines
+            sed '1s/^//' | \  # Trim any leading newline from entire content
+            sed '$s/$//' > "$PRIVATE_KEY_FILE"  # Trim trailing newline
+
+          # Validate PEM structure (starts with header, ends with footer, no leading issues)
+          if ! head -n 1 "$PRIVATE_KEY_FILE" | grep -q "^-----BEGIN PRIVATE KEY-----$"; then
+            echo "❌ Temp key file malformed (doesn't start with exact PEM header)"
+            echo "First few lines for debug (masked):"
+            head -n 3 "$PRIVATE_KEY_FILE" | sed 's/./*/g'  # Mask content in logs
+            exit 1
+          fi
+          if ! tail -n 1 "$PRIVATE_KEY_FILE" | grep -q "^-----END PRIVATE KEY-----$"; then
+            echo "❌ Temp key file malformed (doesn't end with exact PEM footer)"
+            exit 1
+          fi
+          echo "✅ Temp key file cleaned and validated (PEM ready)"
 
           # Find bundles dynamically
           MSI_FILE=$(find "$BUNDLE_DIR/msi" -name "*.msi" | head -1)
@@ -128,25 +146,25 @@ jobs:
           echo "Found MSI: $MSI_FILE"
           echo "Found EXE: $EXE_FILE"
 
-          # Dynamic zip paths: basename of file + .zip
+          # Dynamic zip paths
           MSI_ZIP="$BUNDLE_DIR/msi/$(basename "$MSI_FILE").zip"
           EXE_ZIP="$BUNDLE_DIR/nsis/$(basename "$EXE_FILE").zip"
 
-          # Zip bundles for updater
+          # Zip bundles
           7z a "$MSI_ZIP" "$MSI_FILE"
           7z a "$EXE_ZIP" "$EXE_FILE"
 
           echo "Created MSI ZIP: $MSI_ZIP"
           echo "Created EXE ZIP: $EXE_ZIP"
 
-          # Sign zips using temp raw key file and password
+          # Sign using cleaned temp PEM file + password
           MSI_SIGNATURE=$(npx @tauri-apps/cli signer sign --private-key-path "$PRIVATE_KEY_FILE" --password "$TAURI_UPDATER_KEY_PASSWORD" "$MSI_ZIP")
           EXE_SIGNATURE=$(npx @tauri-apps/cli signer sign --private-key-path "$PRIVATE_KEY_FILE" --password "$TAURI_UPDATER_KEY_PASSWORD" "$EXE_ZIP")
 
-          # Clean up temp key file
+          # Clean up
           rm -f "$PRIVATE_KEY_FILE"
 
-          # Generate update.json in exact requested format (MSI primary; NSIS secondary)
+          # Generate update.json
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           cat > "$BUNDLE_DIR/update.json" << EOF
           {
@@ -167,12 +185,12 @@ jobs:
           EOF
 
           # Validate JSON
-          jq . "$BUNDLE_DIR/update.json" > /dev/null || { echo "❌ Invalid JSON in update.json"; exit 1; }
+          jq . "$BUNDLE_DIR/update.json" > /dev/null || { echo "❌ Invalid JSON"; exit 1; }
 
           echo "Generated update.json:"
           cat "$BUNDLE_DIR/update.json"
 
-          # Assets for release: zips and update.json
+          # Assets
           ASSETS=("$MSI_ZIP" "$EXE_ZIP" "$BUNDLE_DIR/update.json")
           echo "ASSETS<<EOF" >> $GITHUB_ENV
           for asset in "${ASSETS[@]}"; do echo "$asset" >> $GITHUB_ENV; done
@@ -192,14 +210,13 @@ jobs:
           )
 
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "⚠️ Release $TAG already exists, updating assets..."
+            echo "⚠️ Release $TAG exists, updating..."
             gh release upload "$TAG" $ASSETS --clobber || echo "ℹ️ No assets to replace."
           else
-            echo "🆕 Creating new release $TAG"
+            echo "🆕 Creating release $TAG"
             gh release create "$TAG" $ASSETS \
               --title "Siri Admin App $TAG" \
               --notes "Automated Tauri Windows release with updater support for version $TAG"
           fi
 
-          # Upload as latest.json for updater endpoint
           gh release upload "$TAG" "src-tauri/target/release/bundle/update.json" latest.json --clobber
