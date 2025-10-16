@@ -91,10 +91,8 @@ jobs:
         with:
           node-version: 20
 
-      - name: 📦 Install dependencies & build frontend
-        run: |
-          npm install
-          npm run build
+      - name: 📦 Install dependencies
+        run: npm install
 
       - name: 🏗️ Build Tauri App (Windows)
         env:
@@ -105,7 +103,7 @@ jobs:
       - name: 📦 Prepare Updater Assets (Zip & Sign Bundles)
         env:
           TAURI_UPDATER_PRIVATE_KEY: ${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}
-          TAURI_UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}  # Uncommented: Use if key has password
+          TAURI_UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}  # If no password, comment this line
         shell: bash
         run: |
           set -euo pipefail
@@ -137,9 +135,9 @@ jobs:
           echo "Created MSI ZIP: $MSI_ZIP"
           echo "Created EXE ZIP: $EXE_ZIP"
 
-          # Sign zips (add password flag if used; base64 key from secret)
-          MSI_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - --private-key-password "$TAURI_UPDATER_KEY_PASSWORD" "$MSI_ZIP")
-          EXE_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - --private-key-password "$TAURI_UPDATER_KEY_PASSWORD" "$EXE_ZIP")
+          # Sign zips (use --password if key has passphrase; comment flag/env if no password)
+          MSI_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - --password "$TAURI_UPDATER_KEY_PASSWORD" "$MSI_ZIP")
+          EXE_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - --password "$TAURI_UPDATER_KEY_PASSWORD" "$EXE_ZIP")
 
           # Generate update.json (MSI primary; NSIS secondary)
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
