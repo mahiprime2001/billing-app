@@ -126,7 +126,7 @@ jobs:
           echo "Found MSI: $MSI_FILE"
           echo "Found EXE: $EXE_FILE"
 
-          # Dynamic zip paths: basename of file + .zip (e.g., Siri-Admin-app_0.1.13_x64_en-US.msi.zip)
+          # Dynamic zip paths: basename of file + .zip (e.g., Siri-Admin-app_0.1.14_x64_en-US.msi.zip)
           MSI_ZIP="$BUNDLE_DIR/msi/$(basename "$MSI_FILE").zip"
           EXE_ZIP="$BUNDLE_DIR/nsis/$(basename "$EXE_FILE").zip"
 
@@ -140,9 +140,9 @@ jobs:
           # Sign zips with updater key (stdout hex signature, no -o or password flag unless needed)
           MSI_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - "$MSI_ZIP")
           EXE_SIGNATURE=$(echo "$TAURI_UPDATER_PRIVATE_KEY" | npx @tauri-apps/cli signer sign --private-key - "$EXE_ZIP")
-          # If password needed, add: --private-key-password "$TAURI_UPDATER_KEY_PASSWORD"
+          # If password needed, add: --private-key-password "$TAURI_UPDATER_KEY_PASSWORD" to both commands
 
-          # Generate update.json in exact requested format (MSI as primary windows-x86_64)
+          # Generate update.json in exact requested format (MSI primary; NSIS secondary for completeness)
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           cat > "$BUNDLE_DIR/update.json" << EOF
           {
@@ -153,20 +153,17 @@ jobs:
               "windows-x86_64": {
                 "signature": "$MSI_SIGNATURE",
                 "url": "https://github.com/$REPO/releases/download/$TAG/$(basename "$MSI_ZIP")"
+              },
+              "windows-x86_64-nsis": {
+                "signature": "$EXE_SIGNATURE",
+                "url": "https://github.com/$REPO/releases/download/$TAG/$(basename "$EXE_ZIP")"
               }
             }
           }
           EOF
 
-          # Optionally add NSIS EXE as secondary platform (uncomment if needed)
-          # cat >> "$BUNDLE_DIR/update.json" << EOF
-          # ,
-          #   "windows-x86_64-nsis": {
-          #     "signature": "$EXE_SIGNATURE",
-          #     "url": "https://github.com/$REPO/releases/download/$TAG/$(basename "$EXE_ZIP")"
-          #   }
-          # EOF
-          # Use jq to validate JSON after edits: jq . "$BUNDLE_DIR/update.json"
+          # Validate JSON (requires jq; optional but good for debugging)
+          jq . "$BUNDLE_DIR/update.json" > /dev/null || { echo "❌ Invalid JSON in update.json"; exit 1; }
 
           echo "Generated update.json:"
           cat "$BUNDLE_DIR/update.json"
@@ -196,9 +193,9 @@ jobs:
           else
             echo "🆕 Creating new release $TAG"
             gh release create "$TAG" $ASSETS \
-              --title "Siri Billing App $TAG" \
+              --title "Siri Admin App $TAG" \
               --notes "Automated Tauri Windows release with updater support for version $TAG"
           fi
 
-          # Rename upload to latest.json for updater endpoint
+          # Upload/rename to latest.json for updater endpoint (overwrites if exists)
           gh release upload "$TAG" "src-tauri/target/release/bundle/update.json" latest.json --clobber
