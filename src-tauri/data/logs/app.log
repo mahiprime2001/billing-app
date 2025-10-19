@@ -31,3 +31,927 @@ WARNING: This is a development server. Do not use it in a production deployment.
  * Running on http://127.0.0.1:8080
 Press CTRL+C to quitPress CTRL+C to quit
 
+[2025-10-19 11:27:52,392] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:27:52,392] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:27:52,392 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:27:52,534] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:27:52,534] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:27:52,534 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:27:52,534] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:27:52,534] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:27:52,534 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:27:54,693] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:27:54,693] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:27:54,693 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:28:15,343] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:28:15,343] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:28:15,343 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:28:15,343] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:28:15,343] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:28:15,343 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:28:15,344] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:28:15,344] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:28:15,344 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:28:17,275] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:28:17,275] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:28:17,275 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:28:47,197] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:28:47,197] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:28:47,197 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:28:47,197] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:28:47,197] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:28:47,197 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:28:47,197] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:28:47,197] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:28:47,197 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:28:49,120] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:28:49,120] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:28:49,120 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:29:23,798] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:29:23,798] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:29:23,798 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:29:23,798] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:29:23,798] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:29:23,798 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:29:23,799] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:29:23,799] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:29:23,799 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:29:25,754] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:29:25,754] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:29:25,754 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:29:39,728] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:29:39,728] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:29:39,728 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:29:39,729] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:29:39,729] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:29:39,729 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:29:39,729] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:29:39,729] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:29:39,729 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:29:41,631] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:29:41,631] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:29:41,631 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:29:56,679] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:29:56,679] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:29:56,679 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:29:56,679] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:29:56,679] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:29:56,679 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:29:56,680] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:29:56,680] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:29:56,680 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:29:58,585] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:29:58,585] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:29:58,585 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:30:14,853] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:30:14,853] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:30:14,853 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:30:14,853] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:30:14,853] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:30:14,853 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:30:14,853] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:30:14,853] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:30:14,853 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:30:16,797] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:30:16,797] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:30:16,797 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:30:34,017] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:30:34,017] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:30:34,017 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:30:34,019] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:30:34,019] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:30:34,019 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:30:34,020] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:30:34,020] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:30:34,020 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:30:36,045] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:30:36,045] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:30:36,045 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:30:53,381] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:30:53,381] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:30:53,381 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:30:53,383] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:30:53,383] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:30:53,383 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:30:53,383] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:30:53,383] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:30:53,383 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:30:55,261] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:30:55,261] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:30:55,261 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:31:12,291] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:31:12,291] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:31:12,291 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:31:12,291] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:31:12,291] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:31:12,291 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:31:12,291] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:31:12,291] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:31:12,291 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:31:14,179] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:31:14,179] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:31:14,179 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:31:31,790] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:31:31,790] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:31:31,790 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:31:31,792] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:31:31,792] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:31:31,792 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:31:31,793] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:31:31,793] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:31:31,793 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:31:33,714] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:31:33,714] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:31:33,714 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:31:49,741] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:31:49,741] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:31:49,741 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:31:49,741] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:31:49,741] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:31:49,741 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:31:49,742] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:31:49,742] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:31:49,742 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:31:51,638] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:31:51,638] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:31:51,638 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:32:09,195] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:32:09,195] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:32:09,195 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:32:09,195] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:32:09,195] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:32:09,195 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:32:09,196] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:32:09,196] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:32:09,196 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:32:11,074] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:32:11,074] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:32:11,074 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:32:30,446] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:32:30,446] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:32:30,446 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:32:30,446] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:32:30,446] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:32:30,446 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:32:30,446] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:32:30,446] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:32:30,446 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:32:32,353] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:32:32,353] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:32:32,353 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:32:48,394] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:32:48,394] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:32:48,394 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:32:48,396] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:32:48,396] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:32:48,396 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:32:48,396] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:32:48,396] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:32:48,396 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:32:50,333] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:32:50,333] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:32:50,333 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:33:10,254] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:33:10,254] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:33:10,254 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:33:10,256] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:33:10,256] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:33:10,256 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:33:10,256] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:33:10,256] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:33:10,256 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:33:12,199] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:33:12,199] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:33:12,199 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:33:29,816] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:33:29,816] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:33:29,816 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:33:29,816] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:33:29,816] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:33:29,816 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:33:29,818] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:33:29,818] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:33:29,818 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:33:31,729] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:33:31,729] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:33:31,729 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:33:53,915] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:33:53,915] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:33:53,915 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:33:53,917] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:33:53,917] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:33:53,917 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:33:53,918] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:33:53,918] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:33:53,918 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:33:55,931] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:33:55,931] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:33:55,931 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:34:15,302] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:34:15,302] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:34:15,302 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:34:15,302] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:34:15,302] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:34:15,302 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:34:15,303] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:34:15,303] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:34:15,303 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:34:17,247] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:34:17,247] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:34:17,247 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:34:33,850] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:34:33,850] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:34:33,850 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:34:33,851] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:34:33,851] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:34:33,851 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:34:33,851] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:34:33,851] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:34:33,851 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:34:35,728] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:34:35,728] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:34:35,728 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:34:53,974] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:34:53,974] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:34:53,974 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:34:53,976] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:34:53,976] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:34:53,976 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:34:53,977] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:34:53,977] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:34:53,977 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:34:55,848] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:34:55,848] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:34:55,848 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:35:14,009] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:35:14,009] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:35:14,009 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:35:14,011] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:35:14,011] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:35:14,011 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:35:14,011] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:35:14,011] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:35:14,011 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:35:15,894] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:35:15,894] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:35:15,894 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:35:32,768] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:35:32,768] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:35:32,768 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:35:32,769] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:35:32,769] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:35:32,769 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:35:32,770] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:35:32,770] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:35:32,770 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:35:34,646] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:35:34,646] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:35:34,646 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:35:49,792] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:35:49,792] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:35:49,792 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:35:49,793] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:35:49,793] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:35:49,793 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:35:49,794] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:35:49,794] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:35:49,794 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:35:51,660] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:35:51,660] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:35:51,660 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:36:06,784] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:36:06,784] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:36:06,784 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:36:06,784] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:36:06,784] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:36:06,784 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:36:06,785] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:36:06,785] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:36:06,785 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:36:08,765] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:36:08,765] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:36:08,765 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:36:23,752] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:36:23,752] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:36:23,752 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:36:23,752] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:36:23,752] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:36:23,752 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:36:23,752] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:36:23,752] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:36:23,752 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:36:25,663] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:36:25,663] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:36:25,663 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:36:41,211] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:36:41,211] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:36:41,211 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:36:41,211] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:36:41,211] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:36:41,211 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:36:41,211] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:36:41,211] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:36:41,211 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:36:43,162] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:36:43,162] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:36:43,162 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:36:57,864] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:36:57,864] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:36:57,864 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:36:57,864] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:36:57,864] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:36:57,864 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:36:57,864] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:36:57,864] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:36:57,864 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:36:59,736] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:36:59,736] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:36:59,736 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:37:14,919] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:37:14,919] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:37:14,919 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:37:14,919] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:37:14,919] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:37:14,919 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:37:14,919] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:37:14,919] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:37:14,919 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:37:16,877] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:37:16,877] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:37:16,877 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:37:34,652] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:37:34,652] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:37:34,652 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:37:34,652] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:37:34,652] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:37:34,652 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:37:34,652] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:37:34,652] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:37:34,652 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:37:36,570] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:37:36,570] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:37:36,570 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:37:53,803] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:37:53,803] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:37:53,803 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:37:53,804] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:37:53,804] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:37:53,804 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:37:53,804] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:37:53,804] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:37:53,804 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:37:55,690] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:37:55,690] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:37:55,690 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:38:13,017] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:38:13,017] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:38:13,017 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:38:13,017] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:38:13,017] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:38:13,017 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:38:13,017] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:38:13,017] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:38:13,017 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:38:14,853] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:38:14,853] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:38:14,853 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:38:31,330] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:38:31,330] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:38:31,330 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:38:31,330] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:38:31,330] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:38:31,330 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:38:31,330] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:38:31,330] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:38:31,330 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:38:33,195] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:38:33,195] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:38:33,195 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:38:51,209] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:38:51,209] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:38:51,209 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:38:51,209] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:38:51,209] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:38:51,209 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:38:51,209] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:38:51,209] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:38:51,209 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:38:53,183] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:38:53,183] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:38:53,183 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:39:09,021] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:39:09,021] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:39:09,021 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:39:09,021] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:39:09,021] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:39:09,021 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:39:09,022] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:39:09,022] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:39:09,022 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:39:10,984] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:39:10,984] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:39:10,984 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:39:27,529] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:39:27,529] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:39:27,529 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:39:27,529] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:39:27,529] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:39:27,529 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:39:27,531] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:39:27,531] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:39:27,531 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:39:29,474] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:39:29,474] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:39:29,474 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:39:46,037] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:39:46,037] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:39:46,037 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:39:46,037] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:39:46,037] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:39:46,037 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:39:46,038] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:39:46,038] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:39:46,038 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:39:47,927] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:39:47,927] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:39:47,927 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:40:04,849] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:40:04,849] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:40:04,849 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:40:04,850] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:40:04,850] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:40:04,850 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:40:04,850] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:40:04,850] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:40:04,850 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:40:06,801] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:40:06,801] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:40:06,801 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:40:23,715] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:40:23,715] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:40:23,715 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:40:23,715] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:40:23,715] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:40:23,715 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:40:23,719] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:40:23,719] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:40:23,719 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:40:25,605] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:40:25,605] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:40:25,605 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:40:42,343] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:40:42,343] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:40:42,343 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:40:42,344] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:40:42,344] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:40:42,344 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:40:42,344] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:40:42,344] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:40:42,344 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:40:44,193] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:40:44,193] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:40:44,193 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:41:06,677] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:41:06,677] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:41:06,677 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:41:06,677] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:41:06,677] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:41:06,677 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:41:06,678] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:41:06,678] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:41:06,678 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:41:08,658] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:41:08,658] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:41:08,658 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+[2025-10-19 11:49:54,975] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:49:54,975] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-19 11:49:54,975 - app - INFO - app.py:130 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-19 11:49:54,976] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:49:54,976] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-19 11:49:54,976 - app - INFO - app.py:131 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-19 11:49:54,976] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-19 11:49:54,976] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-19 11:49:54,976 - app - INFO - app.py:132 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully.
+Table 'batch' checked/created successfully.
+[2025-10-19 11:49:56,948] INFO in app: Enhanced background sync process started successfully
+[2025-10-19 11:49:56,948] INFO in app: Enhanced background sync process started successfully
+2025-10-19 11:49:56,948 - app - INFO - app.py:1361 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+

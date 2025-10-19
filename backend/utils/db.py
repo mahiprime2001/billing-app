@@ -1,46 +1,41 @@
-import os
 from typing import Optional, Generator
 
 import mysql.connector
 from mysql.connector import pooling, Error as MySQLError
 from contextlib import contextmanager
-from dotenv import load_dotenv
-
-# Load environment variables from .env
-load_dotenv()
 
 
 class DatabaseConnection:
     """
     Centralized MySQL pooled-connection manager with safe context helpers.
-    - Respects env vars: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, DB_POOL_SIZE
+    - Hardcoded connection details for DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, DB_POOL_SIZE
     - Connections default to autocommit=False (explicit commit/rollback)
     - Provides context managers for connection and cursor lifecycles
     """
 
     _pool: Optional[pooling.MySQLConnectionPool] = None
-    _pool_size: int = int(os.getenv("DB_POOL_SIZE", "5"))
+    _pool_size: int = 5  # Hardcoded pool size
 
     @classmethod
     def get_connection_pool(cls) -> pooling.MySQLConnectionPool:
         """
-        Lazily create (or return) a global MySQL connection pool.
+        Lazily create (or return) a global MySQL connection pool with hardcoded values.
         """
         if cls._pool is None:
             try:
                 cls._pool = pooling.MySQLConnectionPool(
                     pool_name="billing_app_pool",
                     pool_size=cls._pool_size,
-                    host=os.getenv("DB_HOST", "localhost"),
-                    port=int(os.getenv("DB_PORT", "3306")),
-                    user=os.getenv("DB_USER", "root"),
-                    password=os.getenv("DB_PASSWORD", ""),
-                    database=os.getenv("DB_NAME", "billing_app"),
-                    autocommit=False,              # manual transaction control
-                    pool_reset_session=True,       # reset session between borrows
-                    connection_timeout=10,         # seconds
+                    host="86.38.243.155",  # Hardcoded DB_HOST
+                    port=3306,         # Hardcoded DB_PORT
+                    user="u408450631_siri",       # Hardcoded DB_USER
+                    password="Siriart@2025",       # Hardcoded DB_PASSWORD
+                    database="u408450631_siri",  # Hardcoded DB_NAME
+                    autocommit=False,  # manual transaction control
+                    pool_reset_session=True,  # reset session between borrows
+                    connection_timeout=10,  # seconds
                 )
-                print("MySQL connection pool created successfully.")
+                print("MySQL connection pool created successfully with hardcoded values.")
             except MySQLError as err:
                 print(f"Error creating connection pool: {err}")
                 raise
