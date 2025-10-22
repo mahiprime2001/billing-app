@@ -1,0 +1,1386 @@
+[
+  {
+    "id": 1,
+    "sync_time": "2025-10-19T21:03:29.382180",
+    "table_name": "SystemSettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "systemSettings": {
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyEmail": "info@siriartjewellery.com",
+        "companyName": "SIRI ART JEWELLERY",
+        "companyPhone": "+91 98765 43210",
+        "gstin": "27AAFCV2449G1Z7",
+        "id": 1,
+        "taxPercentage": 10
+      },
+      "billFormats": {
+        "A4": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "A5": {
+          "height": 210,
+          "margins": {
+            "bottom": 15,
+            "left": 15,
+            "right": 15,
+            "top": 15
+          },
+          "unit": "mm",
+          "width": 148
+        },
+        "Custom": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "Thermal_58mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 3,
+            "left": 3,
+            "right": 3,
+            "top": 3
+          },
+          "unit": "mm",
+          "width": 58
+        },
+        "Thermal_80mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 5,
+            "left": 5,
+            "right": 5,
+            "top": 5
+          },
+          "unit": "mm",
+          "width": 80
+        }
+      },
+      "storeFormats": {}
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T21:03:29.382180",
+    "completed_at": "2025-10-19T21:11:21.467100"
+  },
+  {
+    "id": 2,
+    "sync_time": "2025-10-19T21:47:25.143289",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "0532c207-53ab-4ce4-be26-afe982042d36",
+    "change_data": {
+      "id": "0532c207-53ab-4ce4-be26-afe982042d36",
+      "name": "Test Product 0532c207",
+      "price": 123.45,
+      "updatedAt": "2025-10-19T21:47:25.143289"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T21:47:25.143289",
+    "completed_at": "2025-10-19T21:47:27.036538"
+  },
+  {
+    "id": 3,
+    "sync_time": "2025-10-19T21:55:44.826202",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "970b7698-5db9-4304-9c47-ef36c939d576",
+    "change_data": {
+      "id": "970b7698-5db9-4304-9c47-ef36c939d576",
+      "name": "Test Product 970b7698",
+      "price": 123.45,
+      "updatedAt": "2025-10-19T21:55:44.826202"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T21:55:44.826202",
+    "completed_at": "2025-10-19T21:55:46.780347"
+  },
+  {
+    "id": 4,
+    "sync_time": "2025-10-19T21:57:18.147536",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "0405f678-4542-40cb-98d8-dcb815b52eb0",
+    "change_data": {
+      "id": "0405f678-4542-40cb-98d8-dcb815b52eb0",
+      "name": "Test Product 0405f678",
+      "price": 123.45,
+      "updatedAt": "2025-10-19T21:57:18.147536"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T21:57:18.147536",
+    "completed_at": "2025-10-19T21:57:20.052109"
+  },
+  {
+    "id": 5,
+    "sync_time": "2025-10-19T21:58:26.941001",
+    "table_name": "SystemSettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "systemSettings": {
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyEmail": "info@siriartjewellery.com",
+        "companyName": "SIRI ART JEWELLERY",
+        "companyPhone": "+91 98765 43210",
+        "gstin": "27AAFCV2449G1Z7",
+        "id": 1,
+        "taxPercentage": 13.2
+      },
+      "billFormats": {
+        "A4": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "A5": {
+          "height": 210,
+          "margins": {
+            "bottom": 15,
+            "left": 15,
+            "right": 15,
+            "top": 15
+          },
+          "unit": "mm",
+          "width": 148
+        },
+        "Custom": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "Thermal_58mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 3,
+            "left": 3,
+            "right": 3,
+            "top": 3
+          },
+          "unit": "mm",
+          "width": 58
+        },
+        "Thermal_80mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 5,
+            "left": 5,
+            "right": 5,
+            "top": 5
+          },
+          "unit": "mm",
+          "width": 80
+        }
+      },
+      "storeFormats": {}
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T21:58:26.941001",
+    "completed_at": "2025-10-19T22:03:19.948865"
+  },
+  {
+    "id": 6,
+    "sync_time": "2025-10-19T22:04:28.928709",
+    "table_name": "SystemSettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "systemSettings": {
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyEmail": "info@siriartjewellery.com",
+        "companyName": "SIRI ART JEWELLERY",
+        "companyPhone": "+91 98765 43210",
+        "gstin": "27AAFCV2449G1Z7",
+        "id": 1,
+        "taxPercentage": 13
+      },
+      "billFormats": {
+        "A4": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "A5": {
+          "height": 210,
+          "margins": {
+            "bottom": 15,
+            "left": 15,
+            "right": 15,
+            "top": 15
+          },
+          "unit": "mm",
+          "width": 148
+        },
+        "Custom": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "Thermal_58mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 3,
+            "left": 3,
+            "right": 3,
+            "top": 3
+          },
+          "unit": "mm",
+          "width": 58
+        },
+        "Thermal_80mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 5,
+            "left": 5,
+            "right": 5,
+            "top": 5
+          },
+          "unit": "mm",
+          "width": 80
+        }
+      },
+      "storeFormats": {}
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:04:28.928709",
+    "completed_at": "2025-10-19T22:04:29.677768"
+  },
+  {
+    "id": 7,
+    "sync_time": "2025-10-19T22:08:02.800796",
+    "table_name": "Stores",
+    "change_type": "DELETE",
+    "record_id": "store_2",
+    "change_data": {
+      "id": "store_2",
+      "name": "Branch Store",
+      "address": "456 Market Road, City",
+      "phone": null,
+      "status": "active",
+      "createdAt": null,
+      "updatedAt": null
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:08:02.800796",
+    "completed_at": "2025-10-19T22:08:03.546192"
+  },
+  {
+    "id": 8,
+    "sync_time": "2025-10-19T22:08:32.797968",
+    "table_name": "Stores",
+    "change_type": "DELETE",
+    "record_id": "STR-1758004817814",
+    "change_data": {
+      "id": "STR-1758004817814",
+      "name": "Test Store",
+      "address": null,
+      "phone": null,
+      "status": "active",
+      "createdAt": "2025-09-16T12:10:17",
+      "updatedAt": "2025-09-20T19:50:14"
+    },
+    "status": "completed",
+    "retry_count": 2,
+    "last_retry": "2025-10-19T22:21:40.111374",
+    "error_message": "Database operation failed",
+    "created_at": "2025-10-19T22:08:32.797968",
+    "completed_at": "2025-10-19T22:25:01.725727"
+  },
+  {
+    "id": 9,
+    "sync_time": "2025-10-19T22:12:29.715038",
+    "table_name": "Stores",
+    "change_type": "CREATE",
+    "record_id": "STR-1760892149713",
+    "change_data": {
+      "name": "testing store",
+      "address": "Nv Gardens, Ashok Nagar,Mypadu Road",
+      "phone": "06300936015",
+      "email": "MAHENDRAREDDY965@GMAIL.COM",
+      "manager": "",
+      "status": "active",
+      "id": "STR-1760892149713",
+      "createdAt": "2025-10-19T22:12:29.713923"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:12:29.715038",
+    "completed_at": "2025-10-19T22:12:30.508164"
+  },
+  {
+    "id": 10,
+    "sync_time": "2025-10-19T22:12:49.799636",
+    "table_name": "Stores",
+    "change_type": "DELETE",
+    "record_id": "STR-1760892149713",
+    "change_data": {
+      "name": "testing store",
+      "address": "Nv Gardens, Ashok Nagar,Mypadu Road",
+      "phone": "06300936015",
+      "email": "MAHENDRAREDDY965@GMAIL.COM",
+      "manager": "",
+      "status": "active",
+      "id": "STR-1760892149713",
+      "createdAt": "2025-10-19T22:12:29.713923"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:12:49.799636",
+    "completed_at": "2025-10-19T22:12:50.559637"
+  },
+  {
+    "id": 11,
+    "sync_time": "2025-10-19T22:14:33.344987",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "d225d717-ce2c-48c7-895c-50ca86887f3d",
+    "change_data": {
+      "name": "testing",
+      "price": 500,
+      "stock": 10,
+      "tax": null,
+      "barcodes": [
+        "1760892271553301"
+      ],
+      "batchId": "c2d5df1e-07a8-458a-bbd0-3b0e362adcb6",
+      "id": "d225d717-ce2c-48c7-895c-50ca86887f3d",
+      "createdAt": "2025-10-19T22:14:33.313847",
+      "updatedAt": "2025-10-19T22:14:33.313847"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:14:33.344987",
+    "completed_at": "2025-10-19T22:14:34.155836"
+  },
+  {
+    "id": 12,
+    "sync_time": "2025-10-19T22:19:00.974070",
+    "table_name": "Users",
+    "change_type": "CREATE",
+    "record_id": "1c4e640a-58a1-41b3-ba6c-6343c0b058c3",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "email": "19jn1a0596@gmail.com",
+      "password": "AB8.>D2S",
+      "role": "billing_user",
+      "assignedStores": [
+        "store3"
+      ],
+      "status": "active",
+      "id": "1c4e640a-58a1-41b3-ba6c-6343c0b058c3",
+      "createdAt": "2025-10-19T22:19:00.958955",
+      "updatedAt": "2025-10-19T22:19:00.958955"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:19:00.974070",
+    "completed_at": "2025-10-19T22:19:01.703745"
+  },
+  {
+    "id": 13,
+    "sync_time": "2025-10-19T22:19:24.639767",
+    "table_name": "Users",
+    "change_type": "DELETE",
+    "record_id": "1c4e640a-58a1-41b3-ba6c-6343c0b058c3",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "email": "19jn1a0596@gmail.com",
+      "password": "AB8.>D2S",
+      "role": "billing_user",
+      "assignedStores": [
+        "store3"
+      ],
+      "status": "active",
+      "id": "1c4e640a-58a1-41b3-ba6c-6343c0b058c3",
+      "createdAt": "2025-10-19T22:19:00.958955",
+      "updatedAt": "2025-10-19T22:19:00.958955"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:19:24.639767",
+    "completed_at": "2025-10-19T22:19:25.394538"
+  },
+  {
+    "id": 14,
+    "sync_time": "2025-10-19T22:51:08.915035",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "d225d717-ce2c-48c7-895c-50ca86887f3d",
+    "change_data": {
+      "name": "testing",
+      "price": 500,
+      "stock": 10,
+      "tax": null,
+      "barcodes": [
+        "1760892271553301"
+      ],
+      "batchId": "c2d5df1e-07a8-458a-bbd0-3b0e362adcb6",
+      "id": "d225d717-ce2c-48c7-895c-50ca86887f3d",
+      "createdAt": "2025-10-19T22:14:33.313847",
+      "updatedAt": "2025-10-19T22:14:33.313847"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:51:08.915035",
+    "completed_at": "2025-10-19T22:51:09.695998"
+  },
+  {
+    "id": 15,
+    "sync_time": "2025-10-19T22:51:51.201169",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "b876faa0-7cf7-489d-a078-a6ad790b5c71",
+    "change_data": {
+      "name": "testing",
+      "price": 250,
+      "stock": 25,
+      "tax": null,
+      "barcodes": [
+        "1760894509489441"
+      ],
+      "batchId": "c2d5df1e-07a8-458a-bbd0-3b0e362adcb6",
+      "id": "b876faa0-7cf7-489d-a078-a6ad790b5c71",
+      "createdAt": "2025-10-19T22:51:51.187254",
+      "updatedAt": "2025-10-19T22:51:51.187254"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:51:51.201169",
+    "completed_at": "2025-10-19T22:51:52.014218"
+  },
+  {
+    "id": 16,
+    "sync_time": "2025-10-19T22:52:38.939319",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "b876faa0-7cf7-489d-a078-a6ad790b5c71",
+    "change_data": {
+      "name": "testing",
+      "price": 250,
+      "stock": 25,
+      "tax": null,
+      "barcodes": [
+        "1760894509489441"
+      ],
+      "batchId": "c2d5df1e-07a8-458a-bbd0-3b0e362adcb6",
+      "id": "b876faa0-7cf7-489d-a078-a6ad790b5c71",
+      "createdAt": "2025-10-19T22:51:51.187254",
+      "updatedAt": "2025-10-19T22:51:51.187254"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:52:38.939319",
+    "completed_at": "2025-10-19T22:52:39.690789"
+  },
+  {
+    "id": 17,
+    "sync_time": "2025-10-19T22:54:11.514705",
+    "table_name": "SystemSettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "systemSettings": {
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyEmail": "info@siriartjewellery.com",
+        "companyName": "SIRI ART JEWELLERY",
+        "companyPhone": "+91 98765 43210",
+        "gstin": "27AAFCV2449G1Z7",
+        "id": 1,
+        "taxPercentage": 11.1
+      },
+      "billFormats": {
+        "A4": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "A5": {
+          "height": 210,
+          "margins": {
+            "bottom": 15,
+            "left": 15,
+            "right": 15,
+            "top": 15
+          },
+          "unit": "mm",
+          "width": 148
+        },
+        "Custom": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "Thermal_58mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 3,
+            "left": 3,
+            "right": 3,
+            "top": 3
+          },
+          "unit": "mm",
+          "width": 58
+        },
+        "Thermal_80mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 5,
+            "left": 5,
+            "right": 5,
+            "top": 5
+          },
+          "unit": "mm",
+          "width": 80
+        }
+      },
+      "storeFormats": {}
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:54:11.514705",
+    "completed_at": "2025-10-19T22:54:12.251702"
+  },
+  {
+    "id": 18,
+    "sync_time": "2025-10-19T22:54:43.294704",
+    "table_name": "SystemSettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "systemSettings": {
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyEmail": "info@siriartjewellery.com",
+        "companyName": "SIRI ART JEWELLERY",
+        "companyPhone": "+91 889771771",
+        "gstin": "27AAFCV2449G1Z7",
+        "id": 1,
+        "taxPercentage": 11.1
+      },
+      "billFormats": {
+        "A4": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "A5": {
+          "height": 210,
+          "margins": {
+            "bottom": 15,
+            "left": 15,
+            "right": 15,
+            "top": 15
+          },
+          "unit": "mm",
+          "width": 148
+        },
+        "Custom": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "Thermal_58mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 3,
+            "left": 3,
+            "right": 3,
+            "top": 3
+          },
+          "unit": "mm",
+          "width": 58
+        },
+        "Thermal_80mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 5,
+            "left": 5,
+            "right": 5,
+            "top": 5
+          },
+          "unit": "mm",
+          "width": 80
+        }
+      },
+      "storeFormats": {}
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:54:43.294704",
+    "completed_at": "2025-10-19T22:54:44.046111"
+  },
+  {
+    "id": 19,
+    "sync_time": "2025-10-19T22:57:03.220931",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "4d74028c-927f-4ae9-a8c9-24eee3c8874d",
+    "change_data": {
+      "name": "proven testing sets ",
+      "price": 105040,
+      "stock": 15424,
+      "tax": null,
+      "barcodes": [
+        "1760894821648803"
+      ],
+      "batchId": "c2d5df1e-07a8-458a-bbd0-3b0e362adcb6",
+      "id": "4d74028c-927f-4ae9-a8c9-24eee3c8874d",
+      "createdAt": "2025-10-19T22:57:03.193300",
+      "updatedAt": "2025-10-19T22:57:03.193300"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:57:03.220931",
+    "completed_at": "2025-10-19T22:57:04.129745"
+  },
+  {
+    "id": 20,
+    "sync_time": "2025-10-19T22:59:30.567487",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "030da3ec-16f9-45ce-ad8c-4c99578f20e3",
+    "change_data": {
+      "id": "030da3ec-16f9-45ce-ad8c-4c99578f20e3",
+      "name": "V. Belt",
+      "price": 3100.0,
+      "stock": 0,
+      "assignedStoreId": null,
+      "selling_price": null,
+      "createdAt": "2025-09-20T12:58:02",
+      "updatedAt": "2025-10-19T22:59:30.543583",
+      "barcodes": [
+        "1758353281834799"
+      ]
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T22:59:30.567487",
+    "completed_at": "2025-10-19T22:59:31.381112"
+  },
+  {
+    "id": 21,
+    "sync_time": "2025-10-19T22:59:31.418456",
+    "table_name": "Bills",
+    "change_type": "CREATE",
+    "record_id": "1760894970535",
+    "change_data": {
+      "id": "1760894970535",
+      "customerName": "primetest",
+      "customerEmail": "",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": "030da3ec-16f9-45ce-ad8c-4c99578f20e3",
+          "productName": "V. Belt",
+          "price": 3100,
+          "quantity": 1,
+          "total": 3100
+        }
+      ],
+      "subtotal": 3100,
+      "tax": 310,
+      "discountPercentage": 10,
+      "discountAmount": 310,
+      "total": 3100,
+      "date": "2025-10-19T17:29:30.535Z",
+      "status": "Paid"
+    },
+    "status": "completed",
+    "retry_count": 2,
+    "last_retry": "2025-10-19T23:06:43.202216",
+    "error_message": "Database operation failed",
+    "created_at": "2025-10-19T22:59:31.418456",
+    "completed_at": "2025-10-19T23:19:20.213772"
+  },
+  {
+    "id": 22,
+    "sync_time": "2025-10-19T23:06:01.787687",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "030da3ec-16f9-45ce-ad8c-4c99578f20e3",
+    "change_data": {
+      "id": "030da3ec-16f9-45ce-ad8c-4c99578f20e3",
+      "name": "V. Belt",
+      "price": 3100.0,
+      "stock": 1,
+      "assignedStoreId": null,
+      "selling_price": null,
+      "createdAt": "2025-09-20T12:58:02",
+      "updatedAt": "2025-10-19T23:06:01.774220",
+      "barcodes": [
+        "1758353281834799"
+      ]
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T23:06:01.787687",
+    "completed_at": "2025-10-19T23:06:02.588316"
+  },
+  {
+    "id": 23,
+    "sync_time": "2025-10-19T23:06:02.635933",
+    "table_name": "Bills",
+    "change_type": "DELETE",
+    "record_id": "1760894970535",
+    "change_data": {
+      "id": "1760894970535",
+      "customerName": "primetest",
+      "customerEmail": "",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": "030da3ec-16f9-45ce-ad8c-4c99578f20e3",
+          "productName": "V. Belt",
+          "price": 3100,
+          "quantity": 1,
+          "total": 3100
+        }
+      ],
+      "subtotal": 3100,
+      "tax": 310,
+      "discountPercentage": 10,
+      "discountAmount": 310,
+      "total": 3100,
+      "date": "2025-10-19T17:29:30.535Z",
+      "status": "Paid"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T23:06:02.635933",
+    "completed_at": "2025-10-19T23:06:03.366152"
+  },
+  {
+    "id": 24,
+    "sync_time": "2025-10-19T23:06:32.697061",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "4d74028c-927f-4ae9-a8c9-24eee3c8874d",
+    "change_data": {
+      "name": "proven testing sets ",
+      "price": 105040,
+      "stock": 15424,
+      "tax": null,
+      "barcodes": [
+        "1760894821648803"
+      ],
+      "batchId": "c2d5df1e-07a8-458a-bbd0-3b0e362adcb6",
+      "id": "4d74028c-927f-4ae9-a8c9-24eee3c8874d",
+      "createdAt": "2025-10-19T22:57:03.193300",
+      "updatedAt": "2025-10-19T22:57:03.193300"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T23:06:32.697061",
+    "completed_at": "2025-10-19T23:06:33.430298"
+  },
+  {
+    "id": 25,
+    "sync_time": "2025-10-19T23:08:39.255792",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "e8f0a7e5-8ef3-459c-b852-44305121e0fc",
+    "change_data": {
+      "name": "testing",
+      "price": 8756433,
+      "stock": 432456,
+      "tax": null,
+      "barcodes": [
+        "1760895517686865"
+      ],
+      "batchId": "c2d5df1e-07a8-458a-bbd0-3b0e362adcb6",
+      "id": "e8f0a7e5-8ef3-459c-b852-44305121e0fc",
+      "createdAt": "2025-10-19T23:08:39.231693",
+      "updatedAt": "2025-10-19T23:08:39.231693"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T23:08:39.255792",
+    "completed_at": "2025-10-19T23:08:40.093523"
+  },
+  {
+    "id": 26,
+    "sync_time": "2025-10-19T23:11:34.349651",
+    "table_name": "SystemSettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "systemSettings": {
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyEmail": "info@siriartjewellery.com",
+        "companyName": "SIRI ART JEWELLERY",
+        "companyPhone": "+91 889771771",
+        "gstin": "27AAFCV2449G1Z7",
+        "id": 1,
+        "taxPercentage": 9.6
+      },
+      "billFormats": {
+        "A4": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "A5": {
+          "height": 210,
+          "margins": {
+            "bottom": 15,
+            "left": 15,
+            "right": 15,
+            "top": 15
+          },
+          "unit": "mm",
+          "width": 148
+        },
+        "Custom": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "Thermal_58mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 3,
+            "left": 3,
+            "right": 3,
+            "top": 3
+          },
+          "unit": "mm",
+          "width": 58
+        },
+        "Thermal_80mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 5,
+            "left": 5,
+            "right": 5,
+            "top": 5
+          },
+          "unit": "mm",
+          "width": 80
+        }
+      },
+      "storeFormats": {}
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T23:11:34.349651",
+    "completed_at": "2025-10-19T23:11:35.063926"
+  },
+  {
+    "id": 27,
+    "sync_time": "2025-10-20T00:24:41.477660",
+    "table_name": "SystemSettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "systemSettings": {
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyEmail": "info@siriartjewellery.com",
+        "companyName": "SIRI ART JEWELLERY",
+        "companyPhone": "+91 889771771",
+        "gstin": "27AAFCV2449G1Z7",
+        "id": 1,
+        "taxPercentage": 9.9
+      },
+      "billFormats": {
+        "A4": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "A5": {
+          "height": 210,
+          "margins": {
+            "bottom": 15,
+            "left": 15,
+            "right": 15,
+            "top": 15
+          },
+          "unit": "mm",
+          "width": 148
+        },
+        "Custom": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "Thermal_58mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 3,
+            "left": 3,
+            "right": 3,
+            "top": 3
+          },
+          "unit": "mm",
+          "width": 58
+        },
+        "Thermal_80mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 5,
+            "left": 5,
+            "right": 5,
+            "top": 5
+          },
+          "unit": "mm",
+          "width": 80
+        }
+      },
+      "storeFormats": {}
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-20T00:24:41.479447",
+    "completed_at": "2025-10-20T00:24:42.249218"
+  },
+  {
+    "id": 28,
+    "sync_time": "2025-10-20T00:25:22.683905",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "0261247f-cf41-4278-ac97-b3186a5a9d5c",
+    "change_data": {
+      "id": "0261247f-cf41-4278-ac97-b3186a5a9d5c",
+      "name": "Side Tops",
+      "price": 50.0,
+      "stock": 47,
+      "assignedStoreId": null,
+      "selling_price": null,
+      "createdAt": "2025-09-20T15:15:40",
+      "updatedAt": "2025-10-20T00:25:22.661999",
+      "barcodes": [
+        "1758361539016689"
+      ]
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-20T00:25:22.683905",
+    "completed_at": "2025-10-20T00:25:23.435950"
+  },
+  {
+    "id": 29,
+    "sync_time": "2025-10-20T00:25:23.466068",
+    "table_name": "Bills",
+    "change_type": "CREATE",
+    "record_id": "1760900122638",
+    "change_data": {
+      "id": "1760900122638",
+      "customerName": "testing user",
+      "customerEmail": "",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": "0261247f-cf41-4278-ac97-b3186a5a9d5c",
+          "productName": "Side Tops",
+          "price": 50,
+          "quantity": 1,
+          "total": 50
+        }
+      ],
+      "subtotal": 50,
+      "tax": 5,
+      "discountPercentage": 10,
+      "discountAmount": 5,
+      "total": 50,
+      "date": "2025-10-19T18:55:22.638Z",
+      "status": "Paid"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-20T00:25:23.466068",
+    "completed_at": "2025-10-20T00:25:24.307401"
+  },
+  {
+    "id": 30,
+    "sync_time": "2025-10-20T10:09:22.263977",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "00949931-b894-4321-a28a-7f49af44de2e",
+    "change_data": {
+      "id": "00949931-b894-4321-a28a-7f49af44de2e",
+      "name": "S.NECKLACE",
+      "price": 1450,
+      "stock": 1,
+      "assignedStoreId": null,
+      "selling_price": null,
+      "createdAt": "2025-09-20T12:11:58",
+      "updatedAt": "2025-10-20T10:09:22.251834",
+      "barcodes": [
+        "1758350517003889"
+      ],
+      "tax": null,
+      "batchId": "c2d5df1e-07a8-458a-bbd0-3b0e362adcb6"
+    },
+    "status": "skipped",
+    "retry_count": 3,
+    "last_retry": "2025-10-20T10:19:13.004779",
+    "error_message": "Exceeded max retry attempts (3)",
+    "created_at": "2025-10-20T10:09:22.263977"
+  },
+  {
+    "id": 31,
+    "sync_time": "2025-10-21T11:55:15.569620",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "e8f0a7e5-8ef3-459c-b852-44305121e0fc",
+    "change_data": {
+      "name": "testing",
+      "price": 8756433,
+      "stock": 432456,
+      "tax": null,
+      "barcodes": [
+        "1760895517686865"
+      ],
+      "batchId": "c2d5df1e-07a8-458a-bbd0-3b0e362adcb6",
+      "id": "e8f0a7e5-8ef3-459c-b852-44305121e0fc",
+      "createdAt": "2025-10-19T23:08:39.231693",
+      "updatedAt": "2025-10-19T23:08:39.231693"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-21T11:55:15.569620",
+    "completed_at": "2025-10-21T11:55:16.311353"
+  },
+  {
+    "id": 32,
+    "sync_time": "2025-10-21T12:05:29.721142",
+    "table_name": "batch",
+    "change_type": "CREATE",
+    "record_id": "aed5887b-aef0-4f90-b18b-a0ce5484590d",
+    "change_data": {
+      "batchNumber": "btch-q4ivll",
+      "place": "purijfhgdyfyhfhyfyhftgfgtb",
+      "id": "aed5887b-aef0-4f90-b18b-a0ce5484590d",
+      "createdAt": "2025-10-21T12:05:29.710122",
+      "updatedAt": "2025-10-21T12:05:29.710122"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-21T12:05:29.721142",
+    "completed_at": "2025-10-21T12:05:30.477961"
+  },
+  {
+    "id": 33,
+    "sync_time": "2025-10-21T12:17:49.689358",
+    "table_name": "batch",
+    "change_type": "DELETE",
+    "record_id": "c2d5df1e-07a8-458a-bbd0-3b0e362adcb6",
+    "change_data": {
+      "batchNumber": "btch-1y54s3",
+      "place": "Nellore",
+      "id": "c2d5df1e-07a8-458a-bbd0-3b0e362adcb6",
+      "createdAt": "2025-10-19T22:14:26.280141",
+      "updatedAt": "2025-10-19T22:14:26.280141"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-21T12:17:49.689358",
+    "completed_at": "2025-10-21T12:17:50.388179"
+  },
+  {
+    "id": 34,
+    "sync_time": "2025-10-21T12:18:11.041586",
+    "table_name": "batch",
+    "change_type": "DELETE",
+    "record_id": "aed5887b-aef0-4f90-b18b-a0ce5484590d",
+    "change_data": {
+      "batchNumber": "btch-q4ivll",
+      "place": "purijfhgdyfyhfhyfyhftgfgtb",
+      "id": "aed5887b-aef0-4f90-b18b-a0ce5484590d",
+      "createdAt": "2025-10-21T12:05:29.710122",
+      "updatedAt": "2025-10-21T12:05:29.710122"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-21T12:18:11.041586",
+    "completed_at": "2025-10-21T12:18:11.715336"
+  },
+  {
+    "id": 35,
+    "sync_time": "2025-10-21T12:22:16.400677",
+    "table_name": "batch",
+    "change_type": "CREATE",
+    "record_id": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+    "change_data": {
+      "batchNumber": "btch-yazfnu",
+      "place": "ygtyfyhfjvhvhnvnhvhnvhcvc",
+      "id": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "createdAt": "2025-10-21T12:22:16.385655",
+      "updatedAt": "2025-10-21T12:22:16.385655"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-21T12:22:16.400677",
+    "completed_at": "2025-10-21T12:22:17.131165"
+  },
+  {
+    "id": 36,
+    "sync_time": "2025-10-21T12:22:28.234098",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "33b243e8-842a-45ae-b88d-135b5a10fdda",
+    "change_data": {
+      "name": "testingtereses",
+      "price": 1555000,
+      "stock": 3.216563463416343e+21,
+      "tax": null,
+      "barcodes": [
+        "1761029542444707"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "33b243e8-842a-45ae-b88d-135b5a10fdda",
+      "createdAt": "2025-10-21T12:22:28.205730",
+      "updatedAt": "2025-10-21T12:22:28.205730"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-21T12:22:28.234098",
+    "completed_at": "2025-10-21T12:22:29.017589"
+  },
+  {
+    "id": 37,
+    "sync_time": "2025-10-21T12:23:44.779107",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "33b243e8-842a-45ae-b88d-135b5a10fdda",
+    "change_data": {
+      "name": "testingtereses",
+      "price": 1555000,
+      "stock": 3.216563463416343e+21,
+      "tax": null,
+      "barcodes": [
+        "1761029542444707"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "33b243e8-842a-45ae-b88d-135b5a10fdda",
+      "createdAt": "2025-10-21T12:22:28.205730",
+      "updatedAt": "2025-10-21T12:22:28.205730"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-21T12:23:44.779107",
+    "completed_at": "2025-10-21T12:23:45.491408"
+  },
+  {
+    "id": 38,
+    "sync_time": "2025-10-22T09:43:56.234345",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "0261247f-cf41-4278-ac97-b3186a5a9d5c",
+    "change_data": {
+      "id": "0261247f-cf41-4278-ac97-b3186a5a9d5c",
+      "name": "Side Tops",
+      "price": 50.0,
+      "stock": 48,
+      "assignedStoreId": null,
+      "selling_price": null,
+      "createdAt": "2025-09-20T15:15:40",
+      "updatedAt": "2025-10-22T09:43:56.209890",
+      "barcodes": [
+        "1758361539016689"
+      ]
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-22T09:43:56.234345",
+    "completed_at": "2025-10-22T09:43:57.179220"
+  },
+  {
+    "id": 39,
+    "sync_time": "2025-10-22T09:43:57.240908",
+    "table_name": "Bills",
+    "change_type": "DELETE",
+    "record_id": "1760900122638",
+    "change_data": {
+      "id": "1760900122638",
+      "customerName": "testing user",
+      "customerEmail": "",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": "0261247f-cf41-4278-ac97-b3186a5a9d5c",
+          "productName": "Side Tops",
+          "price": 50,
+          "quantity": 1,
+          "total": 50
+        }
+      ],
+      "subtotal": 50,
+      "tax": 5,
+      "discountPercentage": 10,
+      "discountAmount": 5,
+      "total": 50,
+      "date": "2025-10-19T18:55:22.638Z",
+      "status": "Paid"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-22T09:43:57.240908",
+    "completed_at": "2025-10-22T09:43:58.054516"
+  }
+]

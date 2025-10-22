@@ -118,8 +118,6 @@ export default function BillingPage() {
 
   const saveBills = (updatedBills: Bill[]) => {
     setBills(updatedBills)
-    // Note: Bill creation/deletion is now in-memory and will not persist
-    // to the JSON file without further backend implementation.
   }
 
   const addItemToBill = () => {
@@ -167,7 +165,7 @@ export default function BillingPage() {
     setDiscountPercentage(validPercentage)
   }
 
-  const createBill = () => {
+  const createBill = async () => {
     if (!customerName || billItems.length === 0) return
 
     const { subtotal, tax, discountAmount, total } = calculateTotals()
@@ -187,17 +185,38 @@ export default function BillingPage() {
       status: "Paid",
     }
 
-    const updatedBills = [...bills, newBill]
-    saveBills(updatedBills)
+    // The saveBills(updatedBills) and subsequent resets were moved inside the try block
+    // to ensure they only happen after a successful API call.
+    // The original code had them outside, which would update local state even if API failed.
 
-    // Reset form
-    setCustomerName("")
-    setCustomerEmail("")
-    setCustomerPhone("")
-    setBillItems([])
-    setDiscountPercentage(0)
-    setIsCreateDialogOpen(false)
-  }
+    try {
+      const response = await fetch("/api/bills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newBill),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create bill");
+      }
+
+      // Only update local state and reset form if API call is successful
+      const updatedBills = [...bills, newBill];
+      saveBills(updatedBills); // Update local state
+      loadData(); // Reload bills after successful creation
+      
+      // Reset form
+      setCustomerName("");
+      setCustomerEmail("");
+      setCustomerPhone("");
+      setBillItems([]);
+      setDiscountPercentage(0);
+      setIsCreateDialogOpen(false);
+    } catch (error) {
+      console.error("Error creating bill:", error);
+      alert("Failed to create bill.");
+    }
+  };
 
   const deleteBill = async (id: string) => {
     try {

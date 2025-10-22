@@ -1,0 +1,160 @@
+[
+  {
+    "id": 1,
+    "sync_time": "2025-10-19T16:15:44.098205",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "8aa8519b-b061-43ad-a504-742a4ed99be8",
+    "change_data": {
+      "name": "this is a testing prodcut ",
+      "price": 500,
+      "stock": 25,
+      "selling_price": 750,
+      "barcodes": [
+        "1760870742142414"
+      ],
+      "batchId": "694077bb-c723-4e96-87d4-97d7ac2c2912",
+      "id": "8aa8519b-b061-43ad-a504-742a4ed99be8",
+      "createdAt": "2025-10-19T16:15:44.085288",
+      "updatedAt": "2025-10-19T16:15:44.085288"
+    },
+    "status": "failed",
+    "retry_count": 3,
+    "last_retry": "2025-10-19T16:32:20.016489",
+    "error_message": "Database operation failed",
+    "created_at": "2025-10-19T16:15:44.098205"
+  },
+  {
+    "id": 2,
+    "sync_time": "2025-10-19T16:37:17.678098",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "8aa8519b-b061-43ad-a504-742a4ed99be8",
+    "change_data": {
+      "name": "this is a testing prodcut ",
+      "price": 500,
+      "stock": 25,
+      "selling_price": 750,
+      "barcodes": [
+        "1760870742142414"
+      ],
+      "batchId": "694077bb-c723-4e96-87d4-97d7ac2c2912",
+      "id": "8aa8519b-b061-43ad-a504-742a4ed99be8",
+      "createdAt": "2025-10-19T16:15:44.085288",
+      "updatedAt": "2025-10-19T16:15:44.085288"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-19T16:37:17.678098",
+    "completed_at": "2025-10-19T16:47:20.793129"
+  },
+  {
+    "id": 3,
+    "sync_time": "2025-10-19T17:32:51.378575",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "d8b9a244-755e-4a16-bfb5-4e1e71bc924b",
+    "change_data": {
+      "name": "this is a testung ",
+      "price": 500,
+      "stock": 50,
+      "tax": null,
+      "barcodes": [
+        "1760875367846938"
+      ],
+      "batchId": "694077bb-c723-4e96-87d4-97d7ac2c2912",
+      "id": "d8b9a244-755e-4a16-bfb5-4e1e71bc924b",
+      "createdAt": "2025-10-19T17:32:51.365197",
+      "updatedAt": "2025-10-19T17:32:51.365197"
+    },
+    "status": "failed",
+    "retry_count": 3,
+    "last_retry": "2025-10-19T17:43:11.972726",
+    "error_message": "Database operation failed",
+    "created_at": "2025-10-19T17:32:51.378575"
+  },
+  {
+    "id": 4,
+    "sync_time": "2025-10-19T17:39:25.879674",
+    "table_name": "SystemSettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "systemSettings": {
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyEmail": "info@siriartjewellery.com",
+        "companyName": "SIRI ART JEWELLERY",
+        "companyPhone": "+91 98765 43210",
+        "gstin": "27AAFCV2449G1Z7",
+        "id": 1,
+        "taxPercentage": 8.9
+      },
+      "billFormats": {
+        "A4": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "A5": {
+          "height": 210,
+          "margins": {
+            "bottom": 15,
+            "left": 15,
+            "right": 15,
+            "top": 15
+          },
+          "unit": "mm",
+          "width": 148
+        },
+        "Custom": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "Thermal_58mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 3,
+            "left": 3,
+            "right": 3,
+            "top": 3
+          },
+          "unit": "mm",
+          "width": 58
+        },
+        "Thermal_80mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 5,
+            "left": 5,
+            "right": 5,
+            "top": 5
+          },
+          "unit": "mm",
+          "width": 80
+        }
+      },
+      "storeFormats": {}
+    },
+    "status": "completed",
+    "retry_count": 2,
+    "last_retry": "2025-10-19T17:43:12.675575",
+    "error_message": "Database operation failed",
+    "created_at": "2025-10-19T17:39:25.879674",
+    "completed_at": "2025-10-19T17:51:22.195087"
+  }
+]

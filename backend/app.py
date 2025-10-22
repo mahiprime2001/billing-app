@@ -86,8 +86,22 @@ JSON_DIR = os.path.join(DATA_BASE_DIR, 'json')
 LOGS_DIR = os.path.join(DATA_BASE_DIR, 'logs')
 
 # Ensure data directories exist
-os.makedirs(JSON_DIR, exist_ok=True)
-os.makedirs(LOGS_DIR, exist_ok=True)
+def ensure_data_directories():
+    """Safely ensure data directories exist without overwriting"""
+    dirs_to_check = [JSON_DIR, LOGS_DIR]
+    
+    for directory in dirs_to_check:
+        if not os.path.exists(directory):
+            try:
+                os.makedirs(directory, exist_ok=True)
+                app.logger.info(f"Created directory: {directory}")
+            except Exception as e:
+                app.logger.error(f"Failed to create directory {directory}: {e}")
+        else:
+            app.logger.debug(f"Directory already exists: {directory}")
+
+# Call once during startup
+ensure_data_directories()
 
 PRODUCTS_FILE = os.path.join(JSON_DIR, 'products.json')
 USERS_FILE = os.path.join(JSON_DIR, 'users.json')
@@ -144,9 +158,21 @@ def _safe_json_load(path, default):
         return default
 
 def _safe_json_dump(path, data):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    # Only create directory if parent doesn't exist
+    parent_dir = os.path.dirname(path)
+    if not os.path.exists(parent_dir):
+        try:
+            os.makedirs(parent_dir, exist_ok=True)
+            app.logger.debug(f"Created parent directory: {parent_dir}")
+        except Exception as e:
+            app.logger.error(f"Failed to create directory {parent_dir}: {e}")
+            return
+    
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        app.logger.error(f"Failed to write JSON to {path}: {e}")
 
 def get_products_data():
     return _safe_json_load(PRODUCTS_FILE, [])
@@ -368,6 +394,48 @@ def add_batch():
     log_crud_operation('batches', 'CREATE', new_batch['id'], new_batch)
     
     return jsonify(new_batch), 201
+
+@app.route('/api/batches/<batch_id>', methods=['PUT'])
+def update_batch(batch_id):
+    updated_data = request.json or {}
+    batches = get_batches_data()
+    batch_found = False
+    idx = -1
+
+    for i, batch in enumerate(batches):
+        if batch['id'] == batch_id:
+            batches[i].update(updated_data)
+            batches[i]['updatedAt'] = datetime.now().isoformat()
+            batch_found = True
+            idx = i
+            break
+
+    if batch_found:
+        save_batches_data(batches)
+        log_crud_operation('batches', 'UPDATE', batch_id, batches[idx])
+        return jsonify(batches[idx])
+
+    return jsonify({"message": "Batch not found"}), 404
+
+@app.route('/api/batches/<batch_id>', methods=['DELETE'])
+def delete_batch(batch_id):
+    batches = get_batches_data()
+    initial_len = len(batches)
+
+    deleted_batch = None
+    for batch in batches:
+        if batch['id'] == batch_id:
+            deleted_batch = batch
+            break
+
+    batches = [batch for batch in batches if batch['id'] != batch_id]
+
+    if len(batches) < initial_len:
+        save_batches_data(batches)
+        log_crud_operation('batches', 'DELETE', batch_id, deleted_batch or {})
+        return jsonify({"message": "Batch deleted"}), 200
+
+    return jsonify({"message": "Batch not found"}), 404
 
 # ---------------------------
 # Product Assignment Endpoints
@@ -1033,7 +1101,7 @@ def get_settings():
     
     return jsonify(response_data)
 
-@app.route('/api/settings', methods=['POST'])
+@app.route("/api/settings", methods=["POST"])
 def update_settings():
     data = request.json or {}
     existing_settings = get_settings_data()
@@ -1045,12 +1113,64 @@ def update_settings():
     if "storeFormats" in data:
         existing_settings["storeFormats"] = data["storeFormats"]
     
+    # Save to JSON
     save_settings_data(existing_settings)
     
-    setting_id = existing_settings.get('systemSettings', {}).get('id', '1')
+    setting_id = existing_settings.get("systemSettings", {}).get("id", "1")
+    system_settings = existing_settings.get("systemSettings", {})
     
-    # ENHANCED: Log CRUD operation to sync system
-    log_crud_operation('settings', 'UPDATE', setting_id, existing_settings)
+    # DIRECTLY UPDATE MySQL DATABASE
+    try:
+        with DatabaseConnection.get_connection() as conn:
+            cursor = conn.cursor(dictionary=True)
+            
+            # Check if record exists
+            cursor.execute("SELECT * FROM SystemSettings WHERE id = %s", (setting_id,))
+            existing_record = cursor.fetchone()
+            
+            if existing_record:
+                # UPDATE existing record
+                update_query = """
+                    UPDATE SystemSettings 
+                    SET gstin = %s, taxPercentage = %s, companyName = %s, 
+                        companyAddress = %s, companyPhone = %s, companyEmail = %s
+                    WHERE id = %s
+                """
+                cursor.execute(update_query, (
+                    system_settings.get("gstin", ""),
+                    system_settings.get("taxPercentage", 0),
+                    system_settings.get("companyName", ""),
+                    system_settings.get("companyAddress", ""),
+                    system_settings.get("companyPhone", ""),
+                    system_settings.get("companyEmail", ""),
+                    setting_id
+                ))
+            else:
+                # INSERT new record
+                insert_query = """
+                    INSERT INTO SystemSettings 
+                    (id, gstin, taxPercentage, companyName, companyAddress, companyPhone, companyEmail)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """
+                cursor.execute(insert_query, (
+                    setting_id,
+                    system_settings.get("gstin", ""),
+                    system_settings.get("taxPercentage", 0),
+                    system_settings.get("companyName", ""),
+                    system_settings.get("companyAddress", ""),
+                    system_settings.get("companyPhone", ""),
+                    system_settings.get("companyEmail", "")
+                ))
+            
+            conn.commit()
+            app.logger.info("SystemSettings updated in database")
+            
+    except Exception as e:
+        app.logger.error(f"Error updating SystemSettings in database: {e}", exc_info=True)
+        return jsonify({"error": "Failed to update database", "message": str(e)}), 500
+    
+    # Log to sync system for audit trail
+    log_crud_operation("settings", "UPDATE", setting_id, existing_settings)
     
     return jsonify(existing_settings), 200
 

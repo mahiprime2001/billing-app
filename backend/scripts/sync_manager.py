@@ -10,20 +10,44 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import schedule
-
-# Setup logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-if not logger.handlers:
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    logger.addHandler(handler)
+import glob # Import glob for file pattern matching
 
 # Determine the base directory for resource loading
 if getattr(sys, 'frozen', False):
     PROJECT_ROOT = os.path.dirname(sys._MEIPASS)  # type: ignore
 else:
     PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Setup logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+if not logger.handlers:
+    # Ensure logs directory exists
+    log_dir = os.path.join(PROJECT_ROOT, 'backend', 'data', 'logs')
+    # Safely ensure log directory exists
+    if not os.path.exists(log_dir):
+        try:
+            os.makedirs(log_dir, exist_ok=True)
+            logger.info(f"Created log directory: {log_dir}")
+        except Exception as e:
+            logger.error(f"Failed to create log directory {log_dir}: {e}")
+    else:
+        logger.debug(f"Log directory already exists: {log_dir}")
+
+    # File handler for daily logs
+    log_file_name = datetime.now().strftime("sync_manager-%Y-%m-%d.log")
+    file_handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(file_handler)
+
+    # Stream handler for console output (optional, can be removed if only file logging is desired)
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(stream_handler)
+
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -40,6 +64,8 @@ class EnhancedSyncManager:
     4. Cleanup of logs older than 30 days
     """
 
+    MAX_RETRY_ATTEMPTS = 3 # Define max retry attempts for failed sync logs
+
     def __init__(self, base_dir: str):
         self.base_dir = base_dir
         self.local_sync_table_file = os.path.join(base_dir, 'data', 'json', 'local_sync_table.json')
@@ -49,11 +75,38 @@ class EnhancedSyncManager:
         self.sync_thread = None
 
         # Ensure directories exist
-        os.makedirs(os.path.dirname(self.local_sync_table_file), exist_ok=True)
-        os.makedirs(os.path.dirname(self.sync_logs_file), exist_ok=True)
-        os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
+        self._ensure_directory_exists(os.path.dirname(self.local_sync_table_file))
+        self._ensure_directory_exists(os.path.dirname(self.sync_logs_file))
+        self._ensure_directory_exists(os.path.dirname(self.settings_file))
         self.user_sessions_file = os.path.join(base_dir, 'data', 'json', 'user_sessions.json')
-        os.makedirs(os.path.dirname(self.user_sessions_file), exist_ok=True)
+        self._ensure_directory_exists(os.path.dirname(self.user_sessions_file))
+        self.log_dir = os.path.join(PROJECT_ROOT, 'backend', 'data', 'logs') # Store log directory
+
+    def _cleanup_log_files(self, days_to_keep: int = 15) -> None:
+        """
+        Cleans up old sync_manager log files from the log directory.
+        Files older than `days_to_keep` will be deleted.
+        """
+        logger.info(f"Starting cleanup of log files older than {days_to_keep} days.")
+        cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+        log_files = glob.glob(os.path.join(self.log_dir, "sync_manager-*.log"))
+
+        cleaned_count = 0
+        for log_file in log_files:
+            try:
+                # Extract date from filename (e.g., sync_manager-YYYY-MM-DD.log)
+                file_date_str = os.path.basename(log_file).replace('sync_manager-', '').replace('.log', '')
+                file_date = datetime.strptime(file_date_str, "%Y-%m-%d")
+
+                if file_date < cutoff_date:
+                    os.remove(log_file)
+                    logger.debug(f"Deleted old log file: {log_file}")
+                    cleaned_count += 1
+            except ValueError:
+                logger.warning(f"Could not parse date from log file name: {log_file}. Skipping.")
+            except Exception as e:
+                logger.error(f"Error deleting log file {log_file}: {e}", exc_info=True)
+        logger.info(f"Finished log file cleanup. Removed {cleaned_count} old log files.")
 
     def _get_user_sessions(self) -> List[Dict]:
         return self._safe_json_load(self.user_sessions_file, [])
@@ -65,6 +118,17 @@ class EnhancedSyncManager:
         rows = self._get_user_sessions()
         rows.append(event)
         self._save_user_sessions(rows)
+
+    def _ensure_directory_exists(self, path: str) -> None:
+        """Safely ensures a directory exists, logging creation or existence."""
+        if not os.path.exists(path):
+            try:
+                os.makedirs(path, exist_ok=True)
+                logger.info(f"Created directory: {path}")
+            except Exception as e:
+                logger.error(f"Failed to create directory {path}: {e}")
+        else:
+            logger.debug(f"Directory already exists: {path}")
 
     # ---------- JSON helpers ----------
 
@@ -170,6 +234,10 @@ class EnhancedSyncManager:
             "operation_type": operation_type
         })
 
+        # Immediately process pending logs after a new operation is logged
+        logger.info(f"Triggering immediate processing for {table_name} - {operation_type} - {record_id}")
+        self.process_pending_logs()
+
     def log_sync_event(self, event_type: str, status: str, details: Dict) -> None:
         """Log sync event to sync logs"""
         sync_logs = self.get_sync_logs()
@@ -207,24 +275,37 @@ class EnhancedSyncManager:
                             cursor.execute("DELETE FROM `ProductBarcodes` WHERE `productId` = %s", (record_id,))
                         elif table_name == 'Users':
                             cursor.execute("DELETE FROM `UserStores` WHERE `userId` = %s", (record_id,))
+                        elif table_name == 'Stores':
+                            cursor.execute("DELETE FROM `UserStores` WHERE `storeId` = %s", (record_id,))
 
                         cursor.execute(f"DELETE FROM `{table_name}` WHERE `id` = %s", (record_id,))
-                        logger.info(f"DELETE - {table_name} - ID: {record_id}")
+                        logger.info(f"DELETE operation on table `{table_name}` for record ID: {record_id} successful.")
 
                     elif change_type in ['CREATE', 'UPDATE']:
+                        logger.debug(f"Attempting {change_type} operation on table `{table_name}` for record ID: {record_id}")
                         # Get table columns
                         cursor.execute(f"DESCRIBE `{table_name}`")
-                        table_columns = [row[0] for row in cursor.fetchall()]
+                        table_columns = [row['Field'] for row in cursor.fetchall()]
+                        logger.debug(f"Table `{table_name}` columns: {table_columns}")
+
+                        # Apply specific mappings for 'batch' table to match DB schema
+                        processed_change_data = dict(change_data) # Create a mutable copy
+                        if table_name == 'batch':
+                            if 'batchNumber' in processed_change_data and 'batch_number' in table_columns:
+                                processed_change_data['batch_number'] = processed_change_data.pop('batchNumber')
+                            # 'place' is already correctly named as 'place' in both frontend and DB, no change needed.
 
                         # Filter data by valid columns
-                        filtered_data = {k: v for k, v in change_data.items() if k in table_columns}
+                        filtered_data = {k: v for k, v in processed_change_data.items() if k in table_columns}
+                        logger.debug(f"Filtered data for {change_type} on `{table_name}`: {filtered_data}")
 
                         # Ensure primary key exists for upsert path
                         if 'id' not in filtered_data and record_id and 'id' in table_columns:
                             filtered_data['id'] = record_id
+                            logger.debug(f"Added record_id {record_id} to filtered_data for {table_name}.")
 
                         if not filtered_data:
-                            logger.warning(f"No valid columns found for {table_name}")
+                            logger.warning(f"No valid columns found for {table_name} after filtering. Rolling back transaction.")
                             conn.rollback()
                             return False
 
@@ -238,40 +319,45 @@ class EnhancedSyncManager:
                         VALUES ({placeholders})
                         ON DUPLICATE KEY UPDATE {update_placeholders}
                         """
-
                         values = list(filtered_data.values())
+                        logger.debug(f"Executing UPSERT query for `{table_name}`: {query} with values: {values}")
                         cursor.execute(query, values)
 
                         # Handle related tables
                         self._handle_related_tables(cursor, table_name, record_id, change_data)
 
-                        logger.info(f"{change_type} - {table_name} - ID: {record_id}")
+                        logger.info(f"{change_type} operation on table `{table_name}` for record ID: {record_id} successful.")
 
                     conn.commit()
+                    logger.debug(f"Transaction committed for {change_type} on `{table_name}` for record ID: {record_id}.")
                     return True
 
                 except Exception as e:
                     conn.rollback()
-                    logger.error(f"Error in database operation: {e}")
+                    logger.error(f"Error in database operation for {table_name} (ID: {record_id}): {e}", exc_info=True)
                     return False
 
         except Exception as e:
-            logger.error(f"Error connecting to database: {e}")
+            logger.error(f"Error connecting to database for operation on {table_name} (ID: {record_id}): {e}", exc_info=True)
             return False
 
     def _handle_related_tables(self, cursor, table_name: str, record_id: str, change_data: Dict) -> None:
         """Handle related table operations"""
+        logger.debug(f"Handling related tables for {table_name} with record ID: {record_id} and change data: {change_data}")
         if table_name == 'Products' and 'barcodes' in change_data:
             # ProductBarcodes maintenance
             barcodes = change_data.get('barcodes')
             barcodes = barcodes if isinstance(barcodes, list) else []
+            logger.debug(f"Processing barcodes for product ID {record_id}: {barcodes}")
 
             cursor.execute("SELECT `barcode` FROM `ProductBarcodes` WHERE `productId` = %s", (record_id,))
             existing_barcodes = {row['barcode'] for row in cursor.fetchall()}
             new_barcodes = {str(b) for b in barcodes}
+            logger.debug(f"Existing barcodes: {existing_barcodes}, New barcodes: {new_barcodes}")
 
             # Add new
             for b in (new_barcodes - existing_barcodes):
+                logger.debug(f"Adding new barcode {b} for product ID {record_id}")
                 cursor.execute(
                     "INSERT INTO `ProductBarcodes` (`productId`, `barcode`) VALUES (%s, %s)",
                     (record_id, b)
@@ -279,35 +365,44 @@ class EnhancedSyncManager:
 
             # Remove old
             for b in (existing_barcodes - new_barcodes):
+                logger.debug(f"Removing old barcode {b} for product ID {record_id}")
                 cursor.execute(
                     "DELETE FROM `ProductBarcodes` WHERE `productId` = %s AND `barcode` = %s",
                     (record_id, b)
                 )
+            logger.debug(f"Finished barcode maintenance for product ID {record_id}")
 
         elif table_name == 'Bills' and 'items' in change_data:
             # Replace BillItems
             bill_items = change_data.get('items') or []
             bill_items = bill_items if isinstance(bill_items, list) else []
+            logger.debug(f"Processing bill items for bill ID {record_id}: {bill_items}")
 
+            logger.debug(f"Deleting existing bill items for bill ID {record_id}")
             cursor.execute("DELETE FROM `BillItems` WHERE `billId` = %s", (record_id,))
 
             cursor.execute("DESCRIBE `BillItems`")
-            bill_item_columns = [row[0] for row in cursor.fetchall()]
+            bill_item_columns = [row['Field'] for row in cursor.fetchall()]
+            logger.debug(f"BillItems table columns: {bill_item_columns}")
 
             for item in bill_items:
                 if not isinstance(item, dict):
+                    logger.warning(f"Skipping invalid bill item format: {item}")
                     continue
 
                 filtered_item_data = {k: v for k, v in item.items() if k in bill_item_columns}
                 filtered_item_data['billId'] = record_id
 
                 if 'productId' not in filtered_item_data:
+                    logger.warning(f"Bill item missing 'productId', skipping: {item}")
                     continue
 
                 item_columns = ', '.join([f"`{key}`" for key in filtered_item_data.keys()])
                 item_placeholders = ', '.join(['%s'] * len(filtered_item_data))
                 item_query = f"INSERT INTO `BillItems` ({item_columns}) VALUES ({item_placeholders})"
+                logger.debug(f"Inserting bill item for bill ID {record_id}: {item_query} with values {list(filtered_item_data.values())}")
                 cursor.execute(item_query, list(filtered_item_data.values()))
+            logger.debug(f"Finished bill item maintenance for bill ID {record_id}")
 
     # ---------- Process pipeline ----------
 
@@ -320,7 +415,7 @@ class EnhancedSyncManager:
         pending_logs = [log for log in sync_table if log.get('status') == 'pending']
 
         if not pending_logs:
-            logger.info("No pending sync logs to process")
+            logger.info("No pending sync logs to process.")
             return {"status": "success", "message": "No pending logs", "processed": 0, "failed": 0}
 
         logger.info(f"Processing {len(pending_logs)} pending sync logs sequentially...")
@@ -335,7 +430,8 @@ class EnhancedSyncManager:
             record_id = log_entry.get('record_id')
             change_data = log_entry.get('change_data', {})
 
-            logger.info(f"Processing log {log_id}: {table_name} - {change_type} - {record_id}")
+            logger.info(f"Attempting to process log ID {log_id}: Table `{table_name}`, Type `{change_type}`, Record ID `{record_id}`.")
+            logger.debug(f"Log ID {log_id} details: {log_entry}")
 
             # Attempt to apply change
             success = self.apply_change_to_mysql_db(table_name, change_type, record_id, change_data)
@@ -345,6 +441,7 @@ class EnhancedSyncManager:
                     if entry.get('id') == log_id:
                         entry['status'] = 'completed'
                         entry['completed_at'] = datetime.now().isoformat()
+                        logger.debug(f"Log ID {log_id} marked as 'completed'.")
                         break
 
                 self.log_sync_event(f"{table_name}_{change_type.lower()}_success", "completed", {
@@ -354,7 +451,7 @@ class EnhancedSyncManager:
                 })
 
                 processed += 1
-                logger.info(f"Successfully processed log {log_id}")
+                logger.info(f"Successfully processed log ID {log_id}.")
 
             else:
                 for entry in sync_table:
@@ -363,6 +460,7 @@ class EnhancedSyncManager:
                         entry['retry_count'] = entry.get('retry_count', 0) + 1
                         entry['last_retry'] = datetime.now().isoformat()
                         entry['error_message'] = "Database operation failed"
+                        logger.debug(f"Log ID {log_id} marked as 'failed'. Retry count: {entry['retry_count']}")
                         break
 
                 self.log_sync_event(f"{table_name}_{change_type.lower()}_failed", "failed", {
@@ -372,9 +470,10 @@ class EnhancedSyncManager:
                 })
 
                 failed += 1
-                logger.warning(f"Failed to process log {log_id}, will retry later")
+                logger.warning(f"Failed to process log ID {log_id}. Will retry later if attempts remain.")
 
         self.save_local_sync_table(sync_table)
+        logger.info(f"Finished processing pending logs. Processed: {processed}, Failed: {failed}.")
 
         return {
             "status": "success",
@@ -391,10 +490,10 @@ class EnhancedSyncManager:
         failed_logs = [log for log in sync_table if log.get('status') == 'failed']
 
         if not failed_logs:
-            logger.info("No failed logs to retry")
+            logger.info("No failed logs to retry.")
             return {"status": "success", "message": "No failed logs", "retried": 0}
 
-        logger.info(f"Retrying {len(failed_logs)} failed sync logs...")
+        logger.info(f"Attempting to retry {len(failed_logs)} failed sync logs...")
 
         retried = 0
 
@@ -403,13 +502,19 @@ class EnhancedSyncManager:
             retry_count = log_entry.get('retry_count', 0)
 
             # Limit retries
-            if retry_count >= 3:
-                logger.warning(f"Log {log_id} has exceeded max retry attempts")
+            if retry_count >= self.MAX_RETRY_ATTEMPTS:
+                logger.warning(f"Log ID {log_id} has exceeded max retry attempts ({retry_count}). Marking as 'skipped'.")
+                for entry in sync_table:
+                    if entry.get('id') == log_id:
+                        entry['status'] = 'skipped' # Mark as skipped to prevent further retries
+                        entry['error_message'] = f"Exceeded max retry attempts ({self.MAX_RETRY_ATTEMPTS})"
+                        break
                 continue
 
             for entry in sync_table:
                 if entry.get('id') == log_id:
                     entry['status'] = 'pending'
+                    logger.debug(f"Log ID {log_id} status reset to 'pending' for retry. Current retry count: {retry_count}.")
                     break
 
             retried += 1
@@ -417,10 +522,12 @@ class EnhancedSyncManager:
         self.save_local_sync_table(sync_table)
 
         if retried > 0:
+            logger.info(f"Successfully reset {retried} failed logs to 'pending'. Now processing them.")
             result = self.process_pending_logs()
             result['retried'] = retried
             return result
 
+        logger.info("No logs eligible for retry after checking retry counts.")
         return {"status": "success", "message": "No logs eligible for retry", "retried": 0}
 
     # ---------- Pull pipeline ----------
@@ -434,6 +541,7 @@ class EnhancedSyncManager:
                 cursor = conn.cursor(dictionary=True)
 
                 last_sync = self.get_last_sync_timestamp()
+                logger.info(f"Starting pull from MySQL sync_table. Last sync timestamp: {last_sync or 'None (fetching last 1 day)'}")
 
                 if last_sync:
                     cursor.execute("""
@@ -451,10 +559,10 @@ class EnhancedSyncManager:
                 new_entries = cursor.fetchall()
 
                 if not new_entries:
-                    logger.info("No new entries from MySQL sync_table")
+                    logger.info("No new entries found in MySQL sync_table.")
                     return {"status": "success", "message": "No new entries", "pulled": 0}
 
-                logger.info(f"Pulled {len(new_entries)} new entries from MySQL sync_table")
+                logger.info(f"Pulled {len(new_entries)} new entries from MySQL sync_table.")
 
                 applied = 0
                 for entry in new_entries:
@@ -462,6 +570,8 @@ class EnhancedSyncManager:
                         change_type = (entry.get('change_type') or '').upper()
                         ts = entry.get('timestamp')
                         payload = json.loads(entry.get('change_data') or '{}') if isinstance(entry.get('change_data'), (str, bytes)) else (entry.get('change_data') or {})
+                        logger.debug(f"Processing pulled entry: Type `{change_type}`, Timestamp `{ts}`, Payload: {payload}")
+
                         # Handle session events
                         if change_type in {'LOGIN', 'LOGOUT', 'CLOSE_NO_LOGOUT'}:
                             self._append_user_session({
@@ -470,6 +580,7 @@ class EnhancedSyncManager:
                                 'userId': payload.get('user_id') or payload.get('id') or payload.get('email'),
                                 'details': payload.get('details')
                             })
+                            logger.info(f"Logged user session event: {change_type} for user {payload.get('user_id') or payload.get('id') or payload.get('email')}")
                             continue
                         # Existing CRUD path:
                         change_data = json.loads(entry.get('change_data', '{}'))
@@ -477,16 +588,21 @@ class EnhancedSyncManager:
                         if len(parts) >= 2:
                             table_name = '_'.join(parts[:-1])
                             operation = parts[-1].upper()
+                            logger.debug(f"Applying pulled CRUD change to local JSON: Table `{table_name}`, Operation `{operation}`, Data: {change_data}")
                             self._apply_to_local_json(table_name, operation, change_data)
                             applied += 1
+                        else:
+                            logger.warning(f"Skipping malformed change_type from MySQL sync_table: {change_type}")
                     except Exception as e:
-                        logger.error(f"Error applying pulled change: {e}")
+                        logger.error(f"Error applying pulled change from MySQL sync_table (entry ID: {entry.get('id')}): {e}", exc_info=True)
 
                 if new_entries:
                     latest_timestamp = max(entry['timestamp'] for entry in new_entries if entry.get('timestamp'))
                     if latest_timestamp:
                         self.set_last_sync_timestamp(latest_timestamp.isoformat())
+                        logger.info(f"Updated last sync timestamp to: {latest_timestamp.isoformat()}")
 
+                logger.info(f"Finished pulling from MySQL sync_table. Pulled: {len(new_entries)}, Applied: {applied}.")
                 return {
                     "status": "success",
                     "message": f"Pulled {len(new_entries)} entries, applied {applied}",
@@ -495,7 +611,7 @@ class EnhancedSyncManager:
                 }
 
         except Exception as e:
-            logger.error(f"Error pulling from MySQL sync_table: {e}")
+            logger.error(f"Error pulling from MySQL sync_table: {e}", exc_info=True)
             return {"status": "error", "message": str(e)}
 
     def _apply_to_local_json(self, table_name: str, operation: str, change_data: Dict) -> None:
@@ -512,20 +628,24 @@ class EnhancedSyncManager:
 
         json_file = json_file_mapping.get(table_name)
         if not json_file:
+            logger.warning(f"No local JSON file mapping found for table name: {table_name}. Skipping local application.")
             return
 
         file_path = os.path.join(self.base_dir, 'data', 'json', json_file)
+        logger.debug(f"Applying {operation} operation to local JSON file: {file_path} for table `{table_name}`.")
 
         if json_file == 'settings.json':
             settings = self._safe_json_load(file_path, {})
             if operation in ['CREATE', 'UPDATE']:
                 settings.update(change_data)
+                logger.debug(f"Updating settings.json with data: {change_data}")
             self._safe_json_dump(file_path, settings)
-            logger.info(f"Applied {operation} to {json_file}")
+            logger.info(f"Applied {operation} to {json_file}.")
             return
 
         data = self._safe_json_load(file_path, [])
         record_id = change_data.get('id')
+        logger.debug(f"Current data in {json_file}: {data}")
 
         if operation in ['CREATE', 'UPDATE']:
             found = False
@@ -533,15 +653,22 @@ class EnhancedSyncManager:
                 if item.get('id') == record_id:
                     data[i] = change_data
                     found = True
+                    logger.debug(f"Record ID {record_id} found and updated in {json_file}.")
                     break
             if not found:
                 data.append(change_data)
+                logger.debug(f"Record ID {record_id} not found, appended to {json_file}.")
 
         elif operation == 'DELETE':
+            initial_len = len(data)
             data = [item for item in data if item.get('id') != record_id]
+            if len(data) < initial_len:
+                logger.debug(f"Record ID {record_id} deleted from {json_file}.")
+            else:
+                logger.debug(f"Record ID {record_id} not found for deletion in {json_file}.")
 
         self._safe_json_dump(file_path, data)
-        logger.info(f"Applied {operation} to {json_file} for record {record_id}")
+        logger.info(f"Applied {operation} to {json_file} for record {record_id}.")
 
     # ---------- Maintenance ----------
 
@@ -550,6 +677,7 @@ class EnhancedSyncManager:
         Clean up logs older than 30 days (local sync table, local sync logs, and MySQL sync_table).
         """
         cutoff_date = datetime.now() - timedelta(days=30)
+        logger.info(f"Starting cleanup of logs older than 30 days. Cutoff date: {cutoff_date.isoformat()}")
 
         # Local sync table
         sync_table = self.get_local_sync_table()
@@ -560,6 +688,7 @@ class EnhancedSyncManager:
         ]
         local_cleaned = original_count - len(sync_table)
         self.save_local_sync_table(sync_table)
+        logger.info(f"Local sync table cleanup: {local_cleaned} entries removed.")
 
         # Local sync logs
         sync_logs = self.get_sync_logs()
@@ -570,19 +699,22 @@ class EnhancedSyncManager:
         ]
         logs_cleaned = original_logs_count - len(sync_logs)
         self.save_sync_logs(sync_logs)
+        logger.info(f"Local sync logs cleanup: {logs_cleaned} entries removed.")
 
         # MySQL sync_table
         mysql_cleaned = 0
         try:
             with DatabaseConnection.get_connection_ctx() as conn:
                 cursor = conn.cursor()
+                logger.debug(f"Deleting entries from MySQL `sync_table` older than {cutoff_date.isoformat()}")
                 cursor.execute("DELETE FROM `sync_table` WHERE `timestamp` < %s", (cutoff_date,))
                 mysql_cleaned = cursor.rowcount
                 conn.commit()
+                logger.info(f"MySQL sync_table cleanup: {mysql_cleaned} entries removed.")
         except Exception as e:
-            logger.error(f"Error cleaning MySQL sync_table: {e}")
+            logger.error(f"Error cleaning MySQL sync_table: {e}", exc_info=True)
 
-        logger.info(f"Cleanup completed: {local_cleaned} local entries, {logs_cleaned} logs, {mysql_cleaned} MySQL entries")
+        logger.info(f"Cleanup completed: {local_cleaned} local entries, {logs_cleaned} logs, {mysql_cleaned} MySQL entries.")
 
         return {
             "status": "success",
@@ -601,33 +733,38 @@ class EnhancedSyncManager:
         - daily 02:00: cleanup old logs
         """
         if self.is_running:
-            logger.info("Background sync already running")
+            logger.info("Background sync already running.")
             return
 
         self.is_running = True
+        logger.info("Starting background sync scheduler setup.")
 
         schedule.every(15).minutes.do(self.scheduled_sync)
         schedule.every(15).minutes.do(self.retry_failed_logs)
         schedule.every().day.at("02:00").do(self.cleanup_old_logs)
+        schedule.every().day.at("02:00").do(self._cleanup_log_files, days_to_keep=15) # Schedule log file cleanup
+        logger.debug("Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).")
 
         def run_scheduler():
-            logger.info("Background sync scheduler started")
+            logger.info("Background sync scheduler thread started.")
 
             # Initial run
+            logger.info("Performing initial scheduled sync run.")
             self.scheduled_sync()
 
             while self.is_running:
                 schedule.run_pending()
                 time.sleep(60)  # Check every minute
+            logger.info("Background sync scheduler thread stopped.")
 
         self.sync_thread = threading.Thread(target=run_scheduler, daemon=True)
         self.sync_thread.start()
 
-        logger.info("Background sync process started")
+        logger.info("Background sync process started.")
 
     def scheduled_sync(self) -> None:
         """Scheduled sync operation - runs every 15 minutes"""
-        logger.info("Starting scheduled sync...")
+        logger.info("Initiating scheduled sync operation.")
 
         try:
             push_result = self.process_pending_logs()
@@ -641,20 +778,25 @@ class EnhancedSyncManager:
                 "pull_result": pull_result,
                 "sync_time": datetime.now().isoformat()
             })
+            logger.info("Scheduled sync operation completed successfully.")
 
         except Exception as e:
-            logger.error(f"Error in scheduled sync: {e}")
+            logger.error(f"Error during scheduled sync: {e}", exc_info=True)
             self.log_sync_event("scheduled_sync", "failed", {
                 "error": str(e),
                 "sync_time": datetime.now().isoformat()
             })
+            logger.error("Scheduled sync operation failed.")
 
     def stop_background_sync(self) -> None:
         """Stop background sync process"""
         self.is_running = False
         if self.sync_thread:
+            logger.info("Attempting to join sync thread.")
             self.sync_thread.join(timeout=5)
-        logger.info("Background sync process stopped")
+            if self.sync_thread.is_alive():
+                logger.warning("Sync thread did not terminate within timeout.")
+        logger.info("Background sync process stopped.")
 
     def get_sync_status(self) -> Dict:
         """Get current sync status"""
@@ -663,6 +805,7 @@ class EnhancedSyncManager:
         pending_count = len([log for log in sync_table if log.get('status') == 'pending'])
         failed_count = len([log for log in sync_table if log.get('status') == 'failed'])
         completed_count = len([log for log in sync_table if log.get('status') == 'completed'])
+        logger.debug(f"Current sync status: Pending={pending_count}, Failed={failed_count}, Completed={completed_count}")
 
         return {
             "is_running": self.is_running,
@@ -699,7 +842,8 @@ def log_json_crud_operation(json_type: str, operation: str, record_id: str, data
         'customers': 'Customers',
         'stores': 'Stores',
         'notifications': 'Notifications',
-        'settings': 'SystemSettings'
+        'settings': 'SystemSettings',
+        'batches': 'batch' # NEW: Add batches to mapping
     }
 
     table_name = json_to_table_mapping.get(json_type)

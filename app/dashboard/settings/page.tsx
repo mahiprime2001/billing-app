@@ -21,6 +21,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Package } from "lucide-react" // NEW: Import Package icon
+import { BatchManagementTab } from "@/components/BatchManagementTab" // NEW: Import BatchManagementTab component
 
 interface SystemSettings {
   gstin: string
@@ -126,6 +128,7 @@ export default function SettingsPage() {
         throw new Error("Failed to save settings")
       }
 
+      loadSettings(); // Reload settings after successful save
       toast({
         title: "Settings Saved",
         description: "System settings have been updated successfully.",
@@ -426,10 +429,14 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="formats" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4"> {/* MODIFIED: grid-cols-4 for new tab */}
                 <TabsTrigger value="formats">Bill Formats</TabsTrigger>
                 <TabsTrigger value="stores">Store Assignment</TabsTrigger>
                 <TabsTrigger value="preview">Preview</TabsTrigger>
+                <TabsTrigger value="batches">
+                  <Package className="h-4 w-4 mr-2" /> {/* NEW: Icon for Batch Management */}
+                  Batch Management
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="formats" className="space-y-6">
@@ -573,6 +580,11 @@ export default function SettingsPage() {
                     <div key={formatName}>{generatePreview(formatName)}</div>
                   ))}
                 </div>
+              </TabsContent>
+
+              {/* NEW: Batch Management Tab Content */}
+              <TabsContent value="batches" className="space-y-6">
+                <BatchManagementTab />
               </TabsContent>
             </Tabs>
           </CardContent>

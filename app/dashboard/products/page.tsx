@@ -8,7 +8,7 @@ import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import PrintDialog from "@/components/PrintDialog";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { BatchInput } from "@/components/BatchInput";
 
 interface AdminUser {
@@ -98,12 +99,37 @@ export default function ProductsPage() {
   const [isByDateDialogOpen, setIsByDateDialogOpen] = useState(false);
   const [isBatchInputOpen, setIsBatchInputOpen] = useState(false);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+  const [batchesForSelectedDate, setBatchesForSelectedDate] = useState<Batch[]>([]);
+  const [isBatchesForDayDialogOpen, setIsBatchesForDayDialogOpen] = useState(false);
+  const [selectedBatchForProducts, setSelectedBatchForProducts] = useState<Batch | null>(null);
+  const [isViewProductsForBatchDialogOpen, setIsViewProductsForBatchDialogOpen] = useState(false);
 
   useEffect(() => {
     if (calendarOpen) {
       setCalendarMonth(new Date());
     }
   }, [calendarOpen]);
+
+  const handleDayClick = (date: Date) => {
+    setSelectedDate(date);
+    const dateKey = toKey(date);
+    const productsOnDate = productsByDate[dateKey] || [];
+    const batchIdsOnDate = [...new Set(productsOnDate.map(p => p.batchId).filter(Boolean))];
+    const filteredBatches = batches.filter(batch => batchIdsOnDate.includes(batch.id));
+    setBatchesForSelectedDate(filteredBatches);
+
+    if (filteredBatches.length === 0 && productsOnDate.length > 0) {
+      // If no batches but products are present, show products directly
+      setIsByDateDialogOpen(true);
+    } else {
+      setIsBatchesForDayDialogOpen(true);
+    }
+  };
+
+  const handleBatchCardClick = (batch: Batch) => {
+    setSelectedBatchForProducts(batch);
+    setIsViewProductsForBatchDialogOpen(true);
+  };
 
   // Form states
   const [formData, setFormData] = useState({
@@ -190,11 +216,7 @@ export default function ProductsPage() {
       alert("Please fill in all required fields");
       return;
     }
-
-    if (!formData.batchId) {
-      alert("Please select a batch.");
-      return;
-    }
+    // Batch is now optional, no check needed here
 
     const validBarcodes = formData.barcodes.filter((barcode) => barcode.trim() !== "");
 
@@ -268,6 +290,7 @@ export default function ProductsPage() {
       stock: Number.parseInt(formData.stock),
       tax: Number.parseFloat(formData.tax),
       barcodes: validBarcodes,
+      batchId: formData.batchId === "" ? undefined : formData.batchId, // Send undefined if batchId is empty
     };
 
     try {
@@ -387,7 +410,9 @@ export default function ProductsPage() {
   }, [products]);
 
   // Extended filtered products logic
-  const filteredProducts = useMemo(() => products.filter((product) => {
+  const filteredProducts = useMemo(() => {
+    const typedProducts: Product[] = products;
+    return typedProducts.filter((product) => {
     const matchesSearch = searchTerm === "" ||
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.barcodes.some(barcode => barcode.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -431,7 +456,8 @@ export default function ProductsPage() {
     }
 
     return matchesSearch && matchesStock && matchesCategory && matchesPrice && matchesBatch && matchesTax && matchesDate;
-  }), [products, searchTerm, stockFilter, categoryFilter, priceRange, batchFilter, taxRange, dateAddedFilter]);
+  });
+}, [products, searchTerm, stockFilter, categoryFilter, priceRange, batchFilter, taxRange, dateAddedFilter]);
 
   const getStockStatus = (stock: number) => {
     if (stock === 0) return { label: "Out of Stock", variant: "destructive" as const, icon: XCircle }
@@ -676,7 +702,7 @@ export default function ProductsPage() {
                             <div
                               className={cls}
                               title={count > 0 ? `${count} products` : "No products"}
-                              onClick={() => setSelectedDate(d)}
+                              onClick={() => handleDayClick(d)}
                             >
                               {day}
                             </div>
@@ -694,27 +720,7 @@ export default function ProductsPage() {
                       <div className="text-sm mb-2">
                         {(dateCounts[selectedKey] ?? 0).toString()} products on {selectedDate.toDateString()}
                       </div>
-                      <div className="flex items-center justify-between">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsByDateDialogOpen(true)}
-                        >
-                          View all products
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            printProductsListForDate(
-                              (productsByDate[selectedKey] as Product[]) ?? [],
-                              selectedDate
-                            )
-                          }
-                        >
-                          <Printer className="h-4 w-4 mr-2" />
-                          Print all products
-                        </Button>
-                      </div>
+                      {/* Removed "View all products" and "Print all products" buttons */}
                     </div>
                   )}
                   <div className="mt-3 border-t pt-3 text-right">
@@ -823,9 +829,9 @@ export default function ProductsPage() {
                       />
                     </div>
                   </div>
-                  {/* Batch Selection */}
+                  {/* Batch Selection (Optional) */}
                   <div className="space-y-2">
-                    <Label htmlFor="batch">Batch *</Label>
+                    <Label htmlFor="batch">Batch (Optional)</Label>
                     <Select
                       value={selectedBatchId || ""}
                       onValueChange={(value) => {
@@ -837,6 +843,7 @@ export default function ProductsPage() {
                         <SelectValue placeholder="Select a batch" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="">No Batch</SelectItem> {/* Option for no batch */}
                         {batches.map((batch) => (
                           <SelectItem key={batch.id} value={batch.id}>
                             <div className="flex flex-col">
@@ -1177,7 +1184,12 @@ export default function ProductsPage() {
                 </div>
               )}
             </div>
-            <ScrollToBottomButton onClick={() => scrollableDivRef.current?.scrollTo({ top: scrollableDivRef.current.scrollHeight, behavior: 'smooth' })} />
+            {filteredProducts.length > 15 && (
+              <div className="flex justify-between mt-4">
+                <ScrollToTopButton onClick={() => scrollableDivRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} />
+                <ScrollToBottomButton onClick={() => scrollableDivRef.current?.scrollTo({ top: scrollableDivRef.current.scrollHeight, behavior: 'smooth' })} />
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1275,7 +1287,127 @@ export default function ProductsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* View-all-products dialog for the selected day (unchanged) */}
+        {/* Dialog to display batches for the selected day */}
+        <Dialog open={isBatchesForDayDialogOpen} onOpenChange={setIsBatchesForDayDialogOpen}>
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Batches on {selectedDate ? selectedDate.toDateString() : ""}</DialogTitle>
+              <DialogDescription>Select a batch to view its products.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              {batchesForSelectedDate.length > 0 ? (
+                batchesForSelectedDate.map((batch) => (
+                  <Card key={batch.id} className="cursor-pointer hover:bg-gray-50" onClick={() => handleBatchCardClick(batch)}>
+                    <CardHeader>
+                      <CardTitle>{batch.batchNumber}</CardTitle>
+                      <CardDescription>{batch.place}</CardDescription>
+                    </CardHeader>
+                  </Card>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground">No batches found for this date.</p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsBatchesForDayDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog to view products for a specific batch on a specific date */}
+        <Dialog open={isViewProductsForBatchDialogOpen} onOpenChange={setIsViewProductsForBatchDialogOpen}>
+          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Products in Batch {selectedBatchForProducts?.batchNumber} on {selectedDate ? selectedDate.toDateString() : ""}
+              </DialogTitle>
+              <DialogDescription>
+                Listed by product id, name, stock, and price.
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Logic for productsForBatchAndDate moved outside IIFE */}
+            {(() => {
+              let totalStock = 0;
+              let totalValue = 0;
+              const productsForBatchAndDate = (productsByDate[selectedKey] || []).filter(
+                (p) => p.batchId === selectedBatchForProducts?.id
+              );
+
+              const rows = productsForBatchAndDate.map((p) => {
+                const productBatch = batches.find(batch => batch.id === p.batchId);
+                const stock = (p as any).stock ?? 0;
+                const price = Number((p as any).price ?? 0);
+                const value = stock * price;
+
+                totalStock += stock;
+                totalValue += value;
+
+                return (
+                  <tr key={(p as any).id} className="border-b hover:bg-gray-50">
+                    <td className="p-2">{(p.barcodes && p.barcodes.length > 0) ? p.barcodes[0] : "N/A"}</td>
+                    <td className="p-2">{(p as any).name}</td>
+                    <td className="p-2">{productBatch?.batchNumber || "N/A"} ({productBatch?.place || "N/A"})</td>
+                    <td className="p-2 text-right">{stock}</td>
+                    <td className="p-2 text-right">₹{price.toFixed(2)}</td>
+                    <td className="p-2 text-right">₹{value.toFixed(2)}</td>
+                  </tr>
+                );
+              });
+
+              return (
+                <div className="overflow-x-auto max-h-[calc(90vh-180px)] relative" ref={scrollableDivRef}>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">Product Barcode Number</th>
+                        <th className="text-left p-2">Product Name</th>
+                        <th className="text-left p-2">Product Batch</th>
+                        <th className="text-right p-2">Stock</th>
+                        <th className="text-right p-2">Price</th>
+                        <th className="text-right p-2">Value (Total Value)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows}
+                      <tr className="font-bold border-t">
+                        <td colSpan={3} className="p-2 text-right">Total:</td>
+                        <td className="p-2 text-right">{totalStock}</td>
+                        <td className="p-2 text-right"></td>
+                        <td className="p-2 text-right">₹{totalValue.toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+
+            <DialogFooter className="mt-4 flex justify-end items-center space-x-2">
+                <Button variant="outline" onClick={() => setIsViewProductsForBatchDialogOpen(false)}>
+                  Close
+                </Button>
+              <Button
+                onClick={() => {
+                  if (!selectedDate || !selectedBatchForProducts) return;
+                  const productsToPrint = (productsByDate[selectedKey] || []).filter(
+                    (p) => p.batchId === selectedBatchForProducts.id
+                  );
+                  printProductsListForDate(
+                    productsToPrint as Product[],
+                    selectedDate
+                  );
+                }}
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* NEW: Dialog to display products for the selected day when no batches are present */}
         <Dialog open={isByDateDialogOpen} onOpenChange={setIsByDateDialogOpen}>
           <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -1287,73 +1419,69 @@ export default function ProductsPage() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="overflow-x-auto max-h-[calc(90vh-180px)] relative" ref={scrollableDivRef}>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">Product Barcode Number</th>
-                    <th className="text-left p-2">Product Name</th>
-                    <th className="text-left p-2">Product Batch</th>
-                    <th className="text-right p-2">Stock</th>
-                    <th className="text-right p-2">Price</th>
-                    <th className="text-right p-2">Value (Total Value)</th>
+            {(() => {
+              let totalStock = 0;
+              let totalValue = 0;
+              const productsForSelectedDate = productsByDate[selectedKey] || [];
+
+              const rows = productsForSelectedDate.map((p) => {
+                const productBatch = batches.find(batch => batch.id === p.batchId);
+                const stock = (p as any).stock ?? 0;
+                const price = Number((p as any).price ?? 0);
+                const value = stock * price;
+
+                totalStock += stock;
+                totalValue += value;
+
+                return (
+                  <tr key={(p as any).id} className="border-b hover:bg-gray-50">
+                    <td className="p-2">{(p.barcodes && p.barcodes.length > 0) ? p.barcodes[0] : "N/A"}</td>
+                    <td className="p-2">{(p as any).name}</td>
+                    <td className="p-2">{productBatch?.batchNumber || "N/A"} ({productBatch?.place || "N/A"})</td>
+                    <td className="p-2 text-right">{stock}</td>
+                    <td className="p-2 text-right">₹{price.toFixed(2)}</td>
+                    <td className="p-2 text-right">₹{value.toFixed(2)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    let totalStock = 0;
-                    let totalValue = 0;
-                    const productsForDate = (productsByDate[selectedKey] as Product[]) ?? [];
+                );
+              });
 
-                    const rows = productsForDate.map((p) => {
-                      const productBatch = batches.find(batch => batch.id === p.batchId);
-                      const stock = (p as any).stock ?? 0;
-                      const price = Number((p as any).price ?? 0);
-                      const value = stock * price;
+              return (
+                <div className="overflow-x-auto max-h-[calc(90vh-180px)] relative" ref={scrollableDivRef}>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">Product Barcode Number</th>
+                        <th className="text-left p-2">Product Name</th>
+                        <th className="text-left p-2">Product Batch</th>
+                        <th className="text-right p-2">Stock</th>
+                        <th className="text-right p-2">Price</th>
+                        <th className="text-right p-2">Value (Total Value)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows}
+                      <tr className="font-bold border-t">
+                        <td colSpan={3} className="p-2 text-right">Total:</td>
+                        <td className="p-2 text-right">{totalStock}</td>
+                        <td className="p-2 text-right"></td>
+                        <td className="p-2 text-right">₹{totalValue.toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
 
-                      totalStock += stock;
-                      totalValue += value;
-
-                      return (
-                        <tr key={(p as any).id} className="border-b hover:bg-gray-50">
-                          <td className="p-2">{(p.barcodes && p.barcodes.length > 0) ? p.barcodes[0] : "N/A"}</td>
-                          <td className="p-2">{(p as any).name}</td>
-                          <td className="p-2">{productBatch?.batchNumber || "N/A"} ({productBatch?.place || "N/A"})</td>
-                          <td className="p-2 text-right">{stock}</td>
-                          <td className="p-2 text-right">₹{price.toFixed(2)}</td>
-                          <td className="p-2 text-right">₹{value.toFixed(2)}</td>
-                        </tr>
-                      );
-                    });
-
-                    return (
-                      <>
-                        {rows}
-                        <tr className="font-bold border-t">
-                          <td colSpan={3} className="p-2 text-right">Total:</td>
-                          <td className="p-2 text-right">{totalStock}</td>
-                          <td className="p-2 text-right"></td>
-                          <td className="p-2 text-right">₹{totalValue.toFixed(2)}</td>
-                        </tr>
-                      </>
-                    );
-                  })()}
-                </tbody>
-              </table>
-            </div>
-            <div className="relative mt-4">
-              <ScrollToBottomButton onClick={() => scrollableDivRef.current?.scrollTo({ top: scrollableDivRef.current.scrollHeight, behavior: 'smooth' })} />
-            </div>
-
-            <DialogFooter className="mt-4">
-              <Button variant="outline" onClick={() => setIsByDateDialogOpen(false)}>
-                Close
-              </Button>
+            <DialogFooter className="mt-4 flex justify-end items-center space-x-2">
+                <Button variant="outline" onClick={() => setIsByDateDialogOpen(false)}>
+                  Close
+                </Button>
               <Button
                 onClick={() => {
                   if (!selectedDate) return;
+                  const productsToPrint = productsByDate[selectedKey] || [];
                   printProductsListForDate(
-                    ((productsByDate[selectedKey] as Product[]) ?? []),
+                    productsToPrint as Product[],
                     selectedDate
                   );
                 }}
@@ -1442,6 +1570,40 @@ export default function ProductsPage() {
                   onChange={(e) => setFormData({ ...formData, tax: e.target.value })}
                   placeholder="0.00"
                 />
+              </div>
+              {/* Batch Selection for Edit Product (Optional) */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-batch">Batch (Optional)</Label>
+                <Select
+                  value={formData.batchId || ""}
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, batchId: value });
+                  }}
+                >
+                  <SelectTrigger id="edit-batch">
+                    <SelectValue placeholder="Select a batch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No Batch</SelectItem> {/* Option for no batch */}
+                    {batches.map((batch) => (
+                      <SelectItem key={batch.id} value={batch.id}>
+                        <div className="flex flex-col">
+                          <span>{batch.place}</span>
+                          <span className="text-xs text-muted-foreground">{batch.batchNumber}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <Separator className="my-2" />
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => setIsBatchInputOpen(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Batch
+                    </Button>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">

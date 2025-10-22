@@ -1,0 +1,29 @@
+[
+  {
+    "id": "store_1",
+    "name": "Main Store",
+    "address": "123 Jewellery Street, City",
+    "phone": null,
+    "status": "active",
+    "createdAt": null,
+    "updatedAt": null
+  },
+  {
+    "id": "store3",
+    "name": "SIRI ART JEWELLERY - Mall",
+    "address": "789 Mall Complex, City",
+    "phone": null,
+    "status": "active",
+    "createdAt": null,
+    "updatedAt": null
+  },
+  {
+    "id": "STR-1758042415183",
+    "name": "dress cricle ",
+    "address": "kanakamahall gate, nellore",
+    "phone": "6300936015",
+    "status": "active",
+    "createdAt": "2025-09-16T22:36:55",
+    "updatedAt": null
+  }
+]

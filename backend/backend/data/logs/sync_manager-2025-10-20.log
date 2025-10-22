@@ -1,0 +1,409 @@
+2025-10-20 00:19:38,817 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 00:19:38,817 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 00:19:38,817 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 00:19:38,817 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 00:19:38,817 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 00:19:38,817 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 00:19:38,831 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 00:19:38,833 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 00:19:38,940 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 00:19:38,976 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 00:19:39,153 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 00:19:39,202 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 00:19:39,202 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 00:23:55,539 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 00:23:55,542 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 00:23:55,542 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 00:23:55,542 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 00:23:55,542 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 00:23:55,542 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 00:23:55,542 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 00:23:55,544 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 00:23:55,657 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 00:23:55,694 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 00:23:55,871 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 00:23:55,917 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 00:23:55,917 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 00:24:41,479 - scripts.sync_manager - INFO - Logged CRUD operation: SystemSettings - UPDATE - 1
+2025-10-20 00:24:41,523 - scripts.sync_manager - INFO - Logged sync event: SystemSettings_update_logged - pending
+2025-10-20 00:24:41,524 - scripts.sync_manager - INFO - Triggering immediate processing for SystemSettings - UPDATE - 1
+2025-10-20 00:24:41,537 - scripts.sync_manager - INFO - Processing 1 pending sync logs sequentially...
+2025-10-20 00:24:41,539 - scripts.sync_manager - INFO - Attempting to process log ID 27: Table `SystemSettings`, Type `UPDATE`, Record ID `1`.
+2025-10-20 00:24:41,539 - scripts.sync_manager - DEBUG - Log ID 27 details: {'id': 27, 'sync_time': '2025-10-20T00:24:41.477660', 'table_name': 'SystemSettings', 'change_type': 'UPDATE', 'record_id': 1, 'change_data': {'systemSettings': {'companyAddress': '123 Jewelry Street, Mumbai, Maharashtra 400001', 'companyEmail': 'info@siriartjewellery.com', 'companyName': 'SIRI ART JEWELLERY', 'companyPhone': '+91 889771771', 'gstin': '27AAFCV2449G1Z7', 'id': 1, 'taxPercentage': 9.9}, 'billFormats': {'A4': {'height': 297, 'margins': {'bottom': 20, 'left': 20, 'right': 20, 'top': 20}, 'unit': 'mm', 'width': 210}, 'A5': {'height': 210, 'margins': {'bottom': 15, 'left': 15, 'right': 15, 'top': 15}, 'unit': 'mm', 'width': 148}, 'Custom': {'height': 297, 'margins': {'bottom': 20, 'left': 20, 'right': 20, 'top': 20}, 'unit': 'mm', 'width': 210}, 'Thermal_58mm': {'height': 'auto', 'margins': {'bottom': 3, 'left': 3, 'right': 3, 'top': 3}, 'unit': 'mm', 'width': 58}, 'Thermal_80mm': {'height': 'auto', 'margins': {'bottom': 5, 'left': 5, 'right': 5, 'top': 5}, 'unit': 'mm', 'width': 80}}, 'storeFormats': {}}, 'status': 'pending', 'retry_count': 0, 'last_retry': None, 'error_message': None, 'created_at': '2025-10-20T00:24:41.479447'}
+2025-10-20 00:24:41,951 - scripts.sync_manager - DEBUG - Attempting UPDATE operation on table `SystemSettings` for record ID: 1
+2025-10-20 00:24:41,991 - scripts.sync_manager - DEBUG - Table `SystemSettings` columns: ['id', 'gstin', 'taxPercentage', 'companyName', 'companyAddress', 'companyPhone', 'companyEmail']
+2025-10-20 00:24:41,992 - scripts.sync_manager - DEBUG - Filtered data for UPDATE on `SystemSettings`: {}
+2025-10-20 00:24:41,993 - scripts.sync_manager - DEBUG - Added record_id 1 to filtered_data for SystemSettings.
+2025-10-20 00:24:41,994 - scripts.sync_manager - DEBUG - Executing UPSERT query for `SystemSettings`: 
+                        INSERT INTO `SystemSettings` (`id`)
+                        VALUES (%s)
+                        ON DUPLICATE KEY UPDATE `id` = VALUES(`id`)
+                         with values: [1]
+2025-10-20 00:24:42,031 - scripts.sync_manager - DEBUG - Handling related tables for SystemSettings with record ID: 1 and change data: {'systemSettings': {'companyAddress': '123 Jewelry Street, Mumbai, Maharashtra 400001', 'companyEmail': 'info@siriartjewellery.com', 'companyName': 'SIRI ART JEWELLERY', 'companyPhone': '+91 889771771', 'gstin': '27AAFCV2449G1Z7', 'id': 1, 'taxPercentage': 9.9}, 'billFormats': {'A4': {'height': 297, 'margins': {'bottom': 20, 'left': 20, 'right': 20, 'top': 20}, 'unit': 'mm', 'width': 210}, 'A5': {'height': 210, 'margins': {'bottom': 15, 'left': 15, 'right': 15, 'top': 15}, 'unit': 'mm', 'width': 148}, 'Custom': {'height': 297, 'margins': {'bottom': 20, 'left': 20, 'right': 20, 'top': 20}, 'unit': 'mm', 'width': 210}, 'Thermal_58mm': {'height': 'auto', 'margins': {'bottom': 3, 'left': 3, 'right': 3, 'top': 3}, 'unit': 'mm', 'width': 58}, 'Thermal_80mm': {'height': 'auto', 'margins': {'bottom': 5, 'left': 5, 'right': 5, 'top': 5}, 'unit': 'mm', 'width': 80}}, 'storeFormats': {}}
+2025-10-20 00:24:42,031 - scripts.sync_manager - INFO - UPDATE operation on table `SystemSettings` for record ID: 1 successful.
+2025-10-20 00:24:42,062 - scripts.sync_manager - DEBUG - Transaction committed for UPDATE on `SystemSettings` for record ID: 1.
+2025-10-20 00:24:42,249 - scripts.sync_manager - DEBUG - Log ID 27 marked as 'completed'.
+2025-10-20 00:24:42,262 - scripts.sync_manager - INFO - Logged sync event: SystemSettings_update_success - completed
+2025-10-20 00:24:42,262 - scripts.sync_manager - INFO - Successfully processed log ID 27.
+2025-10-20 00:24:42,265 - scripts.sync_manager - INFO - Finished processing pending logs. Processed: 1, Failed: 0.
+2025-10-20 00:25:22,683 - scripts.sync_manager - INFO - Logged CRUD operation: Products - UPDATE - 0261247f-cf41-4278-ac97-b3186a5a9d5c
+2025-10-20 00:25:22,695 - scripts.sync_manager - INFO - Logged sync event: Products_update_logged - pending
+2025-10-20 00:25:22,695 - scripts.sync_manager - INFO - Triggering immediate processing for Products - UPDATE - 0261247f-cf41-4278-ac97-b3186a5a9d5c
+2025-10-20 00:25:22,712 - scripts.sync_manager - INFO - Processing 1 pending sync logs sequentially...
+2025-10-20 00:25:22,712 - scripts.sync_manager - INFO - Attempting to process log ID 28: Table `Products`, Type `UPDATE`, Record ID `0261247f-cf41-4278-ac97-b3186a5a9d5c`.
+2025-10-20 00:25:22,712 - scripts.sync_manager - DEBUG - Log ID 28 details: {'id': 28, 'sync_time': '2025-10-20T00:25:22.683905', 'table_name': 'Products', 'change_type': 'UPDATE', 'record_id': '0261247f-cf41-4278-ac97-b3186a5a9d5c', 'change_data': {'id': '0261247f-cf41-4278-ac97-b3186a5a9d5c', 'name': 'Side Tops', 'price': 50.0, 'stock': 47, 'assignedStoreId': None, 'selling_price': None, 'createdAt': '2025-09-20T15:15:40', 'updatedAt': '2025-10-20T00:25:22.661999', 'barcodes': ['1758361539016689']}, 'status': 'pending', 'retry_count': 0, 'last_retry': None, 'error_message': None, 'created_at': '2025-10-20T00:25:22.683905'}
+2025-10-20 00:25:23,113 - scripts.sync_manager - DEBUG - Attempting UPDATE operation on table `Products` for record ID: 0261247f-cf41-4278-ac97-b3186a5a9d5c
+2025-10-20 00:25:23,149 - scripts.sync_manager - DEBUG - Table `Products` columns: ['id', 'name', 'price', 'stock', 'assignedStoreId', 'selling_price', 'createdAt', 'updatedAt']
+2025-10-20 00:25:23,151 - scripts.sync_manager - DEBUG - Filtered data for UPDATE on `Products`: {'id': '0261247f-cf41-4278-ac97-b3186a5a9d5c', 'name': 'Side Tops', 'price': 50.0, 'stock': 47, 'assignedStoreId': None, 'selling_price': None, 'createdAt': '2025-09-20T15:15:40', 'updatedAt': '2025-10-20T00:25:22.661999'}
+2025-10-20 00:25:23,153 - scripts.sync_manager - DEBUG - Executing UPSERT query for `Products`: 
+                        INSERT INTO `Products` (`id`, `name`, `price`, `stock`, `assignedStoreId`, `selling_price`, `createdAt`, `updatedAt`)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE `id` = VALUES(`id`), `name` = VALUES(`name`), `price` = VALUES(`price`), `stock` = VALUES(`stock`), `assignedStoreId` = VALUES(`assignedStoreId`), `selling_price` = VALUES(`selling_price`), `createdAt` = VALUES(`createdAt`), `updatedAt` = VALUES(`updatedAt`)
+                         with values: ['0261247f-cf41-4278-ac97-b3186a5a9d5c', 'Side Tops', 50.0, 47, None, None, '2025-09-20T15:15:40', '2025-10-20T00:25:22.661999']
+2025-10-20 00:25:23,189 - scripts.sync_manager - DEBUG - Handling related tables for Products with record ID: 0261247f-cf41-4278-ac97-b3186a5a9d5c and change data: {'id': '0261247f-cf41-4278-ac97-b3186a5a9d5c', 'name': 'Side Tops', 'price': 50.0, 'stock': 47, 'assignedStoreId': None, 'selling_price': None, 'createdAt': '2025-09-20T15:15:40', 'updatedAt': '2025-10-20T00:25:22.661999', 'barcodes': ['1758361539016689']}
+2025-10-20 00:25:23,190 - scripts.sync_manager - DEBUG - Processing barcodes for product ID 0261247f-cf41-4278-ac97-b3186a5a9d5c: ['1758361539016689']
+2025-10-20 00:25:23,223 - scripts.sync_manager - DEBUG - Existing barcodes: {'1758361539016689'}, New barcodes: {'1758361539016689'}
+2025-10-20 00:25:23,223 - scripts.sync_manager - DEBUG - Finished barcode maintenance for product ID 0261247f-cf41-4278-ac97-b3186a5a9d5c
+2025-10-20 00:25:23,227 - scripts.sync_manager - INFO - UPDATE operation on table `Products` for record ID: 0261247f-cf41-4278-ac97-b3186a5a9d5c successful.
+2025-10-20 00:25:23,262 - scripts.sync_manager - DEBUG - Transaction committed for UPDATE on `Products` for record ID: 0261247f-cf41-4278-ac97-b3186a5a9d5c.
+2025-10-20 00:25:23,435 - scripts.sync_manager - DEBUG - Log ID 28 marked as 'completed'.
+2025-10-20 00:25:23,451 - scripts.sync_manager - INFO - Logged sync event: Products_update_success - completed
+2025-10-20 00:25:23,451 - scripts.sync_manager - INFO - Successfully processed log ID 28.
+2025-10-20 00:25:23,453 - scripts.sync_manager - INFO - Finished processing pending logs. Processed: 1, Failed: 0.
+2025-10-20 00:25:23,468 - scripts.sync_manager - INFO - Logged CRUD operation: Bills - CREATE - 1760900122638
+2025-10-20 00:25:23,483 - scripts.sync_manager - INFO - Logged sync event: Bills_create_logged - pending
+2025-10-20 00:25:23,483 - scripts.sync_manager - INFO - Triggering immediate processing for Bills - CREATE - 1760900122638
+2025-10-20 00:25:23,495 - scripts.sync_manager - INFO - Processing 1 pending sync logs sequentially...
+2025-10-20 00:25:23,495 - scripts.sync_manager - INFO - Attempting to process log ID 29: Table `Bills`, Type `CREATE`, Record ID `1760900122638`.
+2025-10-20 00:25:23,495 - scripts.sync_manager - DEBUG - Log ID 29 details: {'id': 29, 'sync_time': '2025-10-20T00:25:23.466068', 'table_name': 'Bills', 'change_type': 'CREATE', 'record_id': '1760900122638', 'change_data': {'id': '1760900122638', 'customerName': 'testing user', 'customerEmail': '', 'customerPhone': '', 'items': [{'productId': '0261247f-cf41-4278-ac97-b3186a5a9d5c', 'productName': 'Side Tops', 'price': 50, 'quantity': 1, 'total': 50}], 'subtotal': 50, 'tax': 5, 'discountPercentage': 10, 'discountAmount': 5, 'total': 50, 'date': '2025-10-19T18:55:22.638Z', 'status': 'Paid'}, 'status': 'pending', 'retry_count': 0, 'last_retry': None, 'error_message': None, 'created_at': '2025-10-20T00:25:23.466068'}
+2025-10-20 00:25:23,898 - scripts.sync_manager - DEBUG - Attempting CREATE operation on table `Bills` for record ID: 1760900122638
+2025-10-20 00:25:23,934 - scripts.sync_manager - DEBUG - Table `Bills` columns: ['id', 'storeId', 'storeName', 'storeAddress', 'customerName', 'customerPhone', 'customerEmail', 'customerAddress', 'customerId', 'subtotal', 'taxPercentage', 'taxAmount', 'discountPercentage', 'discountAmount', 'total', 'paymentMethod', 'timestamp', 'notes', 'gstin', 'companyName', 'companyAddress', 'companyPhone', 'companyEmail', 'billFormat', 'createdBy']
+2025-10-20 00:25:23,937 - scripts.sync_manager - DEBUG - Filtered data for CREATE on `Bills`: {'id': '1760900122638', 'customerName': 'testing user', 'customerEmail': '', 'customerPhone': '', 'subtotal': 50, 'discountPercentage': 10, 'discountAmount': 5, 'total': 50}
+2025-10-20 00:25:23,937 - scripts.sync_manager - DEBUG - Executing UPSERT query for `Bills`: 
+                        INSERT INTO `Bills` (`id`, `customerName`, `customerEmail`, `customerPhone`, `subtotal`, `discountPercentage`, `discountAmount`, `total`)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE `id` = VALUES(`id`), `customerName` = VALUES(`customerName`), `customerEmail` = VALUES(`customerEmail`), `customerPhone` = VALUES(`customerPhone`), `subtotal` = VALUES(`subtotal`), `discountPercentage` = VALUES(`discountPercentage`), `discountAmount` = VALUES(`discountAmount`), `total` = VALUES(`total`)
+                         with values: ['1760900122638', 'testing user', '', '', 50, 10, 5, 50]
+2025-10-20 00:25:23,973 - scripts.sync_manager - DEBUG - Handling related tables for Bills with record ID: 1760900122638 and change data: {'id': '1760900122638', 'customerName': 'testing user', 'customerEmail': '', 'customerPhone': '', 'items': [{'productId': '0261247f-cf41-4278-ac97-b3186a5a9d5c', 'productName': 'Side Tops', 'price': 50, 'quantity': 1, 'total': 50}], 'subtotal': 50, 'tax': 5, 'discountPercentage': 10, 'discountAmount': 5, 'total': 50, 'date': '2025-10-19T18:55:22.638Z', 'status': 'Paid'}
+2025-10-20 00:25:23,976 - scripts.sync_manager - DEBUG - Processing bill items for bill ID 1760900122638: [{'productId': '0261247f-cf41-4278-ac97-b3186a5a9d5c', 'productName': 'Side Tops', 'price': 50, 'quantity': 1, 'total': 50}]
+2025-10-20 00:25:23,976 - scripts.sync_manager - DEBUG - Deleting existing bill items for bill ID 1760900122638
+2025-10-20 00:25:24,048 - scripts.sync_manager - DEBUG - BillItems table columns: ['id', 'billId', 'productId', 'productName', 'quantity', 'price', 'total', 'tax', 'gstRate', 'barcodes']
+2025-10-20 00:25:24,048 - scripts.sync_manager - DEBUG - Inserting bill item for bill ID 1760900122638: INSERT INTO `BillItems` (`productId`, `productName`, `price`, `quantity`, `total`, `billId`) VALUES (%s, %s, %s, %s, %s, %s) with values ['0261247f-cf41-4278-ac97-b3186a5a9d5c', 'Side Tops', 50, 1, 50, '1760900122638']
+2025-10-20 00:25:24,082 - scripts.sync_manager - DEBUG - Finished bill item maintenance for bill ID 1760900122638
+2025-10-20 00:25:24,082 - scripts.sync_manager - INFO - CREATE operation on table `Bills` for record ID: 1760900122638 successful.
+2025-10-20 00:25:24,112 - scripts.sync_manager - DEBUG - Transaction committed for CREATE on `Bills` for record ID: 1760900122638.
+2025-10-20 00:25:24,307 - scripts.sync_manager - DEBUG - Log ID 29 marked as 'completed'.
+2025-10-20 00:25:24,334 - scripts.sync_manager - INFO - Logged sync event: Bills_create_success - completed
+2025-10-20 00:25:24,334 - scripts.sync_manager - INFO - Successfully processed log ID 29.
+2025-10-20 00:25:24,338 - scripts.sync_manager - INFO - Finished processing pending logs. Processed: 1, Failed: 0.
+2025-10-20 00:34:18,608 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 00:34:18,608 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 00:34:18,608 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 00:34:18,608 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 00:34:18,608 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 00:34:18,608 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 00:34:18,646 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 00:34:18,646 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 00:34:18,756 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 00:34:18,795 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 00:34:18,976 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 00:34:19,029 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 00:34:19,029 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 00:34:29,221 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 00:34:29,221 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 00:34:29,221 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 00:34:29,221 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 00:34:29,221 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 00:34:29,221 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 00:34:29,235 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 00:34:29,235 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 00:34:29,338 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 00:34:29,381 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 00:34:29,559 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 00:34:29,574 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 00:34:29,574 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 00:34:43,257 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 00:34:43,257 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 00:34:43,263 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 00:34:43,263 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 00:34:43,263 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 00:34:43,267 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 00:34:43,271 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 00:34:43,278 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 00:34:43,388 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 00:34:43,422 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 00:34:43,604 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 00:34:43,660 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 00:34:43,660 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 00:36:12,312 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 00:36:12,314 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 00:36:12,316 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 00:36:12,317 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 00:36:12,317 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 00:36:12,319 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 00:36:12,332 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 00:36:12,333 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 00:36:12,445 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 00:36:12,483 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 00:36:12,666 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 00:36:12,680 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 00:36:12,680 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 00:36:24,445 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 00:36:24,445 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 00:36:24,449 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 00:36:24,449 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 00:36:24,449 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 00:36:24,449 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 00:36:24,464 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 00:36:24,464 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 00:36:24,580 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 00:36:24,619 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 00:36:24,805 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 00:36:24,861 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 00:36:24,861 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 00:36:34,213 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 00:36:34,213 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 00:36:34,213 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 00:36:34,213 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 00:36:34,213 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 00:36:34,215 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 00:36:34,215 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 00:36:34,239 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 00:36:34,359 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 00:36:34,396 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 00:36:34,582 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 00:36:34,605 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 00:36:34,605 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 00:36:46,131 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 00:36:46,131 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 00:36:46,131 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 00:36:46,131 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 00:36:48,062 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 00:36:48,062 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 00:36:48,062 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 00:36:48,062 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 00:36:48,062 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 00:36:48,062 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 00:36:48,062 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 00:36:48,062 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 00:36:48,175 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 00:36:48,212 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 00:36:48,390 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 00:36:48,408 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 00:36:48,409 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 00:38:14,480 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 00:38:14,480 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 00:38:14,480 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 00:38:14,480 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 00:38:16,396 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 00:38:16,396 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 00:38:16,396 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 00:38:16,396 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 00:38:16,396 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 00:38:16,396 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 00:38:16,410 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 00:38:16,415 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 00:38:16,524 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 00:38:16,566 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 00:38:16,744 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 00:38:16,760 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 00:38:16,761 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 00:40:14,622 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 00:40:14,622 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 00:40:14,622 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 00:40:14,622 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 00:40:16,482 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 00:40:16,482 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 00:40:16,482 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 00:40:16,493 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 00:40:16,495 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 00:40:16,499 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 00:40:16,502 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 00:40:16,504 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 00:40:16,616 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 00:40:16,660 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 00:40:16,836 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 00:40:16,878 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 00:40:16,880 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 00:55:16,888 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 00:55:16,888 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 00:55:16,888 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 00:55:17,268 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 00:55:17,311 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 00:55:17,481 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 00:55:17,535 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 00:55:17,535 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 00:55:17,535 - scripts.sync_manager - INFO - No failed logs to retry.
+2025-10-20 01:10:17,545 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 01:10:17,545 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 01:10:17,545 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 01:10:17,936 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 01:10:17,974 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 01:10:18,152 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 01:10:18,192 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 01:10:18,192 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 01:10:18,194 - scripts.sync_manager - INFO - No failed logs to retry.
+2025-10-20 10:04:05,952 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 10:04:05,965 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 10:04:05,966 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 10:04:05,967 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 10:04:07,959 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 10:04:07,959 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 10:04:07,959 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 10:04:07,959 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 10:04:07,959 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 10:04:07,967 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 10:04:07,996 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 10:04:07,996 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 10:04:08,126 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 10:04:08,158 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 10:04:08,357 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 10:04:08,368 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 10:04:08,369 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 10:04:09,244 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 10:04:09,244 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 10:04:09,244 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 10:04:09,244 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-20 10:04:11,158 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-20 10:04:11,158 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-20 10:04:11,158 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-20 10:04:11,172 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-20 10:04:11,172 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-20 10:04:11,176 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 10:04:11,180 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 10:04:11,186 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 10:04:11,294 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 10:04:11,323 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 10:04:11,502 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 10:04:11,555 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 10:04:11,556 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 10:09:22,266 - scripts.sync_manager - INFO - Logged CRUD operation: Products - UPDATE - 00949931-b894-4321-a28a-7f49af44de2e
+2025-10-20 10:09:22,286 - scripts.sync_manager - INFO - Logged sync event: Products_update_logged - pending
+2025-10-20 10:09:22,286 - scripts.sync_manager - INFO - Triggering immediate processing for Products - UPDATE - 00949931-b894-4321-a28a-7f49af44de2e
+2025-10-20 10:09:22,303 - scripts.sync_manager - INFO - Processing 1 pending sync logs sequentially...
+2025-10-20 10:09:22,303 - scripts.sync_manager - INFO - Attempting to process log ID 30: Table `Products`, Type `UPDATE`, Record ID `00949931-b894-4321-a28a-7f49af44de2e`.
+2025-10-20 10:09:22,303 - scripts.sync_manager - DEBUG - Log ID 30 details: {'id': 30, 'sync_time': '2025-10-20T10:09:22.263977', 'table_name': 'Products', 'change_type': 'UPDATE', 'record_id': '00949931-b894-4321-a28a-7f49af44de2e', 'change_data': {'id': '00949931-b894-4321-a28a-7f49af44de2e', 'name': 'S.NECKLACE', 'price': 1450, 'stock': 1, 'assignedStoreId': None, 'selling_price': None, 'createdAt': '2025-09-20T12:11:58', 'updatedAt': '2025-10-20T10:09:22.251834', 'barcodes': ['1758350517003889'], 'tax': None, 'batchId': 'c2d5df1e-07a8-458a-bbd0-3b0e362adcb6'}, 'status': 'pending', 'retry_count': 0, 'last_retry': None, 'error_message': None, 'created_at': '2025-10-20T10:09:22.263977'}
+2025-10-20 10:09:22,704 - scripts.sync_manager - DEBUG - Attempting UPDATE operation on table `Products` for record ID: 00949931-b894-4321-a28a-7f49af44de2e
+2025-10-20 10:09:22,740 - scripts.sync_manager - DEBUG - Table `Products` columns: ['id', 'name', 'price', 'stock', 'assignedStoreId', 'batchId', 'selling_price', 'createdAt', 'updatedAt']
+2025-10-20 10:09:22,740 - scripts.sync_manager - DEBUG - Filtered data for UPDATE on `Products`: {'id': '00949931-b894-4321-a28a-7f49af44de2e', 'name': 'S.NECKLACE', 'price': 1450, 'stock': 1, 'assignedStoreId': None, 'selling_price': None, 'createdAt': '2025-09-20T12:11:58', 'updatedAt': '2025-10-20T10:09:22.251834', 'batchId': 'c2d5df1e-07a8-458a-bbd0-3b0e362adcb6'}
+2025-10-20 10:09:22,740 - scripts.sync_manager - DEBUG - Executing UPSERT query for `Products`: 
+                        INSERT INTO `Products` (`id`, `name`, `price`, `stock`, `assignedStoreId`, `selling_price`, `createdAt`, `updatedAt`, `batchId`)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE `id` = VALUES(`id`), `name` = VALUES(`name`), `price` = VALUES(`price`), `stock` = VALUES(`stock`), `assignedStoreId` = VALUES(`assignedStoreId`), `selling_price` = VALUES(`selling_price`), `createdAt` = VALUES(`createdAt`), `updatedAt` = VALUES(`updatedAt`), `batchId` = VALUES(`batchId`)
+                         with values: ['00949931-b894-4321-a28a-7f49af44de2e', 'S.NECKLACE', 1450, 1, None, None, '2025-09-20T12:11:58', '2025-10-20T10:09:22.251834', 'c2d5df1e-07a8-458a-bbd0-3b0e362adcb6']
+2025-10-20 10:09:22,814 - scripts.sync_manager - ERROR - Error in database operation for Products (ID: 00949931-b894-4321-a28a-7f49af44de2e): 1452 (23000): Cannot add or update a child row: a foreign key constraint fails (`u408450631_siri`.`Products`, CONSTRAINT `fk_products_batch` FOREIGN KEY (`batchId`) REFERENCES `batch` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\site-packages\mysql\connector\connection_cext.py", line 697, in cmd_query
+    self._cmysql.query(
+_mysql_connector.MySQLInterfaceError: Cannot add or update a child row: a foreign key constraint fails (`u408450631_siri`.`Products`, CONSTRAINT `fk_products_batch` FOREIGN KEY (`batchId`) REFERENCES `batch` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Siri-apps\billing-app\backend\scripts\sync_manager.py", line 317, in apply_change_to_mysql_db
+    cursor.execute(query, values)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\site-packages\mysql\connector\cursor_cext.py", line 372, in execute
+    result = self._cnx.cmd_query(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\site-packages\mysql\connector\opentelemetry\context_propagation.py", line 111, in wrapper
+    result = method(cnx, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\site-packages\mysql\connector\connection_cext.py", line 705, in cmd_query
+    raise get_mysql_exception(
+mysql.connector.errors.IntegrityError: 1452 (23000): Cannot add or update a child row: a foreign key constraint fails (`u408450631_siri`.`Products`, CONSTRAINT `fk_products_batch` FOREIGN KEY (`batchId`) REFERENCES `batch` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+2025-10-20 10:09:23,013 - scripts.sync_manager - DEBUG - Log ID 30 marked as 'failed'. Retry count: 1
+2025-10-20 10:09:23,025 - scripts.sync_manager - INFO - Logged sync event: Products_update_failed - failed
+2025-10-20 10:09:23,025 - scripts.sync_manager - WARNING - Failed to process log ID 30. Will retry later if attempts remain.
+2025-10-20 10:09:23,029 - scripts.sync_manager - INFO - Finished processing pending logs. Processed: 0, Failed: 1.
+2025-10-20 10:19:08,377 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 10:19:08,430 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 10:19:08,431 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 10:19:08,807 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 10:19:08,851 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 10:19:09,022 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 10:19:09,041 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 10:19:09,041 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 10:19:09,041 - scripts.sync_manager - INFO - Attempting to retry 1 failed sync logs...
+2025-10-20 10:19:09,041 - scripts.sync_manager - DEBUG - Log ID 30 status reset to 'pending' for retry. Current retry count: 1.
+2025-10-20 10:19:09,043 - scripts.sync_manager - INFO - Successfully reset 1 failed logs to 'pending'. Now processing them.
+2025-10-20 10:19:09,051 - scripts.sync_manager - INFO - Processing 1 pending sync logs sequentially...
+2025-10-20 10:19:09,051 - scripts.sync_manager - INFO - Attempting to process log ID 30: Table `Products`, Type `UPDATE`, Record ID `00949931-b894-4321-a28a-7f49af44de2e`.
+2025-10-20 10:19:09,051 - scripts.sync_manager - DEBUG - Log ID 30 details: {'id': 30, 'sync_time': '2025-10-20T10:09:22.263977', 'table_name': 'Products', 'change_type': 'UPDATE', 'record_id': '00949931-b894-4321-a28a-7f49af44de2e', 'change_data': {'id': '00949931-b894-4321-a28a-7f49af44de2e', 'name': 'S.NECKLACE', 'price': 1450, 'stock': 1, 'assignedStoreId': None, 'selling_price': None, 'createdAt': '2025-09-20T12:11:58', 'updatedAt': '2025-10-20T10:09:22.251834', 'barcodes': ['1758350517003889'], 'tax': None, 'batchId': 'c2d5df1e-07a8-458a-bbd0-3b0e362adcb6'}, 'status': 'pending', 'retry_count': 1, 'last_retry': '2025-10-20T10:09:23.013508', 'error_message': 'Database operation failed', 'created_at': '2025-10-20T10:09:22.263977'}
+2025-10-20 10:19:09,466 - scripts.sync_manager - DEBUG - Attempting UPDATE operation on table `Products` for record ID: 00949931-b894-4321-a28a-7f49af44de2e
+2025-10-20 10:19:09,498 - scripts.sync_manager - DEBUG - Table `Products` columns: ['id', 'name', 'price', 'stock', 'assignedStoreId', 'batchId', 'selling_price', 'createdAt', 'updatedAt']
+2025-10-20 10:19:09,504 - scripts.sync_manager - DEBUG - Filtered data for UPDATE on `Products`: {'id': '00949931-b894-4321-a28a-7f49af44de2e', 'name': 'S.NECKLACE', 'price': 1450, 'stock': 1, 'assignedStoreId': None, 'selling_price': None, 'createdAt': '2025-09-20T12:11:58', 'updatedAt': '2025-10-20T10:09:22.251834', 'batchId': 'c2d5df1e-07a8-458a-bbd0-3b0e362adcb6'}
+2025-10-20 10:19:09,504 - scripts.sync_manager - DEBUG - Executing UPSERT query for `Products`: 
+                        INSERT INTO `Products` (`id`, `name`, `price`, `stock`, `assignedStoreId`, `selling_price`, `createdAt`, `updatedAt`, `batchId`)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE `id` = VALUES(`id`), `name` = VALUES(`name`), `price` = VALUES(`price`), `stock` = VALUES(`stock`), `assignedStoreId` = VALUES(`assignedStoreId`), `selling_price` = VALUES(`selling_price`), `createdAt` = VALUES(`createdAt`), `updatedAt` = VALUES(`updatedAt`), `batchId` = VALUES(`batchId`)
+                         with values: ['00949931-b894-4321-a28a-7f49af44de2e', 'S.NECKLACE', 1450, 1, None, None, '2025-09-20T12:11:58', '2025-10-20T10:09:22.251834', 'c2d5df1e-07a8-458a-bbd0-3b0e362adcb6']
+2025-10-20 10:19:09,583 - scripts.sync_manager - ERROR - Error in database operation for Products (ID: 00949931-b894-4321-a28a-7f49af44de2e): 1452 (23000): Cannot add or update a child row: a foreign key constraint fails (`u408450631_siri`.`Products`, CONSTRAINT `fk_products_batch` FOREIGN KEY (`batchId`) REFERENCES `batch` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\site-packages\mysql\connector\connection_cext.py", line 697, in cmd_query
+    self._cmysql.query(
+_mysql_connector.MySQLInterfaceError: Cannot add or update a child row: a foreign key constraint fails (`u408450631_siri`.`Products`, CONSTRAINT `fk_products_batch` FOREIGN KEY (`batchId`) REFERENCES `batch` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Siri-apps\billing-app\backend\scripts\sync_manager.py", line 317, in apply_change_to_mysql_db
+    cursor.execute(query, values)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\site-packages\mysql\connector\cursor_cext.py", line 372, in execute
+    result = self._cnx.cmd_query(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\site-packages\mysql\connector\opentelemetry\context_propagation.py", line 111, in wrapper
+    result = method(cnx, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\site-packages\mysql\connector\connection_cext.py", line 705, in cmd_query
+    raise get_mysql_exception(
+mysql.connector.errors.IntegrityError: 1452 (23000): Cannot add or update a child row: a foreign key constraint fails (`u408450631_siri`.`Products`, CONSTRAINT `fk_products_batch` FOREIGN KEY (`batchId`) REFERENCES `batch` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+2025-10-20 10:19:09,756 - scripts.sync_manager - DEBUG - Log ID 30 marked as 'failed'. Retry count: 2
+2025-10-20 10:19:09,784 - scripts.sync_manager - INFO - Logged sync event: Products_update_failed - failed
+2025-10-20 10:19:09,784 - scripts.sync_manager - WARNING - Failed to process log ID 30. Will retry later if attempts remain.
+2025-10-20 10:19:09,786 - scripts.sync_manager - INFO - Finished processing pending logs. Processed: 0, Failed: 1.
+2025-10-20 10:19:11,564 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-20 10:19:11,593 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-20 10:19:11,594 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-20 10:19:11,984 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-20 10:19:12,027 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-20 10:19:12,227 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-20 10:19:12,256 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-20 10:19:12,257 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-20 10:19:12,259 - scripts.sync_manager - INFO - Attempting to retry 1 failed sync logs...
+2025-10-20 10:19:12,259 - scripts.sync_manager - DEBUG - Log ID 30 status reset to 'pending' for retry. Current retry count: 2.
+2025-10-20 10:19:12,261 - scripts.sync_manager - INFO - Successfully reset 1 failed logs to 'pending'. Now processing them.
+2025-10-20 10:19:12,277 - scripts.sync_manager - INFO - Processing 1 pending sync logs sequentially...
+2025-10-20 10:19:12,277 - scripts.sync_manager - INFO - Attempting to process log ID 30: Table `Products`, Type `UPDATE`, Record ID `00949931-b894-4321-a28a-7f49af44de2e`.
+2025-10-20 10:19:12,278 - scripts.sync_manager - DEBUG - Log ID 30 details: {'id': 30, 'sync_time': '2025-10-20T10:09:22.263977', 'table_name': 'Products', 'change_type': 'UPDATE', 'record_id': '00949931-b894-4321-a28a-7f49af44de2e', 'change_data': {'id': '00949931-b894-4321-a28a-7f49af44de2e', 'name': 'S.NECKLACE', 'price': 1450, 'stock': 1, 'assignedStoreId': None, 'selling_price': None, 'createdAt': '2025-09-20T12:11:58', 'updatedAt': '2025-10-20T10:09:22.251834', 'barcodes': ['1758350517003889'], 'tax': None, 'batchId': 'c2d5df1e-07a8-458a-bbd0-3b0e362adcb6'}, 'status': 'pending', 'retry_count': 2, 'last_retry': '2025-10-20T10:19:09.756487', 'error_message': 'Database operation failed', 'created_at': '2025-10-20T10:09:22.263977'}
+2025-10-20 10:19:12,719 - scripts.sync_manager - DEBUG - Attempting UPDATE operation on table `Products` for record ID: 00949931-b894-4321-a28a-7f49af44de2e
+2025-10-20 10:19:12,757 - scripts.sync_manager - DEBUG - Table `Products` columns: ['id', 'name', 'price', 'stock', 'assignedStoreId', 'batchId', 'selling_price', 'createdAt', 'updatedAt']
+2025-10-20 10:19:12,758 - scripts.sync_manager - DEBUG - Filtered data for UPDATE on `Products`: {'id': '00949931-b894-4321-a28a-7f49af44de2e', 'name': 'S.NECKLACE', 'price': 1450, 'stock': 1, 'assignedStoreId': None, 'selling_price': None, 'createdAt': '2025-09-20T12:11:58', 'updatedAt': '2025-10-20T10:09:22.251834', 'batchId': 'c2d5df1e-07a8-458a-bbd0-3b0e362adcb6'}
+2025-10-20 10:19:12,758 - scripts.sync_manager - DEBUG - Executing UPSERT query for `Products`: 
+                        INSERT INTO `Products` (`id`, `name`, `price`, `stock`, `assignedStoreId`, `selling_price`, `createdAt`, `updatedAt`, `batchId`)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE `id` = VALUES(`id`), `name` = VALUES(`name`), `price` = VALUES(`price`), `stock` = VALUES(`stock`), `assignedStoreId` = VALUES(`assignedStoreId`), `selling_price` = VALUES(`selling_price`), `createdAt` = VALUES(`createdAt`), `updatedAt` = VALUES(`updatedAt`), `batchId` = VALUES(`batchId`)
+                         with values: ['00949931-b894-4321-a28a-7f49af44de2e', 'S.NECKLACE', 1450, 1, None, None, '2025-09-20T12:11:58', '2025-10-20T10:09:22.251834', 'c2d5df1e-07a8-458a-bbd0-3b0e362adcb6']
+2025-10-20 10:19:12,827 - scripts.sync_manager - ERROR - Error in database operation for Products (ID: 00949931-b894-4321-a28a-7f49af44de2e): 1452 (23000): Cannot add or update a child row: a foreign key constraint fails (`u408450631_siri`.`Products`, CONSTRAINT `fk_products_batch` FOREIGN KEY (`batchId`) REFERENCES `batch` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\site-packages\mysql\connector\connection_cext.py", line 697, in cmd_query
+    self._cmysql.query(
+_mysql_connector.MySQLInterfaceError: Cannot add or update a child row: a foreign key constraint fails (`u408450631_siri`.`Products`, CONSTRAINT `fk_products_batch` FOREIGN KEY (`batchId`) REFERENCES `batch` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\Siri-apps\billing-app\backend\scripts\sync_manager.py", line 317, in apply_change_to_mysql_db
+    cursor.execute(query, values)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\site-packages\mysql\connector\cursor_cext.py", line 372, in execute
+    result = self._cnx.cmd_query(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\site-packages\mysql\connector\opentelemetry\context_propagation.py", line 111, in wrapper
+    result = method(cnx, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\site-packages\mysql\connector\connection_cext.py", line 705, in cmd_query
+    raise get_mysql_exception(
+mysql.connector.errors.IntegrityError: 1452 (23000): Cannot add or update a child row: a foreign key constraint fails (`u408450631_siri`.`Products`, CONSTRAINT `fk_products_batch` FOREIGN KEY (`batchId`) REFERENCES `batch` (`id`) ON DELETE SET NULL ON UPDATE CASCADE)
+2025-10-20 10:19:13,004 - scripts.sync_manager - DEBUG - Log ID 30 marked as 'failed'. Retry count: 3
+2025-10-20 10:19:13,019 - scripts.sync_manager - INFO - Logged sync event: Products_update_failed - failed
+2025-10-20 10:19:13,020 - scripts.sync_manager - WARNING - Failed to process log ID 30. Will retry later if attempts remain.
+2025-10-20 10:19:13,022 - scripts.sync_manager - INFO - Finished processing pending logs. Processed: 0, Failed: 1.

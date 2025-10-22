@@ -1,0 +1,104 @@
+2025-10-22 09:40:24,790 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:40:24,792 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:40:24,794 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:40:24,796 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:40:27,194 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-22 09:40:27,196 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-22 09:40:27,198 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-22 09:40:27,198 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-22 09:40:27,200 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-22 09:40:27,211 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-22 09:40:27,257 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-22 09:40:27,259 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-22 09:40:27,403 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-22 09:40:27,444 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-22 09:40:27,643 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-22 09:40:27,718 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-22 09:40:27,741 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-22 09:40:31,649 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:40:31,694 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:40:31,713 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:40:31,725 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:40:34,553 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-22 09:40:34,553 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-22 09:40:34,555 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-22 09:40:34,555 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-22 09:40:34,556 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-22 09:40:34,556 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-22 09:40:34,560 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-22 09:40:34,560 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-22 09:40:34,674 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-22 09:40:34,712 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-22 09:40:34,894 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-22 09:40:34,906 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-22 09:40:34,908 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-22 09:43:56,242 - scripts.sync_manager - INFO - Logged CRUD operation: Products - UPDATE - 0261247f-cf41-4278-ac97-b3186a5a9d5c
+2025-10-22 09:43:56,262 - scripts.sync_manager - INFO - Logged sync event: Products_update_logged - pending
+2025-10-22 09:43:56,262 - scripts.sync_manager - INFO - Triggering immediate processing for Products - UPDATE - 0261247f-cf41-4278-ac97-b3186a5a9d5c
+2025-10-22 09:43:56,397 - scripts.sync_manager - INFO - Processing 1 pending sync logs sequentially...
+2025-10-22 09:43:56,397 - scripts.sync_manager - INFO - Attempting to process log ID 38: Table `Products`, Type `UPDATE`, Record ID `0261247f-cf41-4278-ac97-b3186a5a9d5c`.
+2025-10-22 09:43:56,399 - scripts.sync_manager - DEBUG - Log ID 38 details: {'id': 38, 'sync_time': '2025-10-22T09:43:56.234345', 'table_name': 'Products', 'change_type': 'UPDATE', 'record_id': '0261247f-cf41-4278-ac97-b3186a5a9d5c', 'change_data': {'id': '0261247f-cf41-4278-ac97-b3186a5a9d5c', 'name': 'Side Tops', 'price': 50.0, 'stock': 48, 'assignedStoreId': None, 'selling_price': None, 'createdAt': '2025-09-20T15:15:40', 'updatedAt': '2025-10-22T09:43:56.209890', 'barcodes': ['1758361539016689']}, 'status': 'pending', 'retry_count': 0, 'last_retry': None, 'error_message': None, 'created_at': '2025-10-22T09:43:56.234345'}
+2025-10-22 09:43:56,828 - scripts.sync_manager - DEBUG - Attempting UPDATE operation on table `Products` for record ID: 0261247f-cf41-4278-ac97-b3186a5a9d5c
+2025-10-22 09:43:56,869 - scripts.sync_manager - DEBUG - Table `Products` columns: ['id', 'name', 'price', 'stock', 'assignedStoreId', 'batchId', 'selling_price', 'createdAt', 'updatedAt']
+2025-10-22 09:43:56,871 - scripts.sync_manager - DEBUG - Filtered data for UPDATE on `Products`: {'id': '0261247f-cf41-4278-ac97-b3186a5a9d5c', 'name': 'Side Tops', 'price': 50.0, 'stock': 48, 'assignedStoreId': None, 'selling_price': None, 'createdAt': '2025-09-20T15:15:40', 'updatedAt': '2025-10-22T09:43:56.209890'}
+2025-10-22 09:43:56,875 - scripts.sync_manager - DEBUG - Executing UPSERT query for `Products`: 
+                        INSERT INTO `Products` (`id`, `name`, `price`, `stock`, `assignedStoreId`, `selling_price`, `createdAt`, `updatedAt`)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE `id` = VALUES(`id`), `name` = VALUES(`name`), `price` = VALUES(`price`), `stock` = VALUES(`stock`), `assignedStoreId` = VALUES(`assignedStoreId`), `selling_price` = VALUES(`selling_price`), `createdAt` = VALUES(`createdAt`), `updatedAt` = VALUES(`updatedAt`)
+                         with values: ['0261247f-cf41-4278-ac97-b3186a5a9d5c', 'Side Tops', 50.0, 48, None, None, '2025-09-20T15:15:40', '2025-10-22T09:43:56.209890']
+2025-10-22 09:43:56,915 - scripts.sync_manager - DEBUG - Handling related tables for Products with record ID: 0261247f-cf41-4278-ac97-b3186a5a9d5c and change data: {'id': '0261247f-cf41-4278-ac97-b3186a5a9d5c', 'name': 'Side Tops', 'price': 50.0, 'stock': 48, 'assignedStoreId': None, 'selling_price': None, 'createdAt': '2025-09-20T15:15:40', 'updatedAt': '2025-10-22T09:43:56.209890', 'barcodes': ['1758361539016689']}
+2025-10-22 09:43:56,916 - scripts.sync_manager - DEBUG - Processing barcodes for product ID 0261247f-cf41-4278-ac97-b3186a5a9d5c: ['1758361539016689']
+2025-10-22 09:43:56,952 - scripts.sync_manager - DEBUG - Existing barcodes: {'1758361539016689'}, New barcodes: {'1758361539016689'}
+2025-10-22 09:43:56,955 - scripts.sync_manager - DEBUG - Finished barcode maintenance for product ID 0261247f-cf41-4278-ac97-b3186a5a9d5c
+2025-10-22 09:43:56,957 - scripts.sync_manager - INFO - UPDATE operation on table `Products` for record ID: 0261247f-cf41-4278-ac97-b3186a5a9d5c successful.
+2025-10-22 09:43:56,995 - scripts.sync_manager - DEBUG - Transaction committed for UPDATE on `Products` for record ID: 0261247f-cf41-4278-ac97-b3186a5a9d5c.
+2025-10-22 09:43:57,179 - scripts.sync_manager - DEBUG - Log ID 38 marked as 'completed'.
+2025-10-22 09:43:57,191 - scripts.sync_manager - INFO - Logged sync event: Products_update_success - completed
+2025-10-22 09:43:57,193 - scripts.sync_manager - INFO - Successfully processed log ID 38.
+2025-10-22 09:43:57,197 - scripts.sync_manager - INFO - Finished processing pending logs. Processed: 1, Failed: 0.
+2025-10-22 09:43:57,245 - scripts.sync_manager - INFO - Logged CRUD operation: Bills - DELETE - 1760900122638
+2025-10-22 09:43:57,279 - scripts.sync_manager - INFO - Logged sync event: Bills_delete_logged - pending
+2025-10-22 09:43:57,281 - scripts.sync_manager - INFO - Triggering immediate processing for Bills - DELETE - 1760900122638
+2025-10-22 09:43:57,341 - scripts.sync_manager - INFO - Processing 1 pending sync logs sequentially...
+2025-10-22 09:43:57,341 - scripts.sync_manager - INFO - Attempting to process log ID 39: Table `Bills`, Type `DELETE`, Record ID `1760900122638`.
+2025-10-22 09:43:57,343 - scripts.sync_manager - DEBUG - Log ID 39 details: {'id': 39, 'sync_time': '2025-10-22T09:43:57.240908', 'table_name': 'Bills', 'change_type': 'DELETE', 'record_id': '1760900122638', 'change_data': {'id': '1760900122638', 'customerName': 'testing user', 'customerEmail': '', 'customerPhone': '', 'items': [{'productId': '0261247f-cf41-4278-ac97-b3186a5a9d5c', 'productName': 'Side Tops', 'price': 50, 'quantity': 1, 'total': 50}], 'subtotal': 50, 'tax': 5, 'discountPercentage': 10, 'discountAmount': 5, 'total': 50, 'date': '2025-10-19T18:55:22.638Z', 'status': 'Paid'}, 'status': 'pending', 'retry_count': 0, 'last_retry': None, 'error_message': None, 'created_at': '2025-10-22T09:43:57.240908'}
+2025-10-22 09:43:57,839 - scripts.sync_manager - INFO - DELETE operation on table `Bills` for record ID: 1760900122638 successful.
+2025-10-22 09:43:57,874 - scripts.sync_manager - DEBUG - Transaction committed for DELETE on `Bills` for record ID: 1760900122638.
+2025-10-22 09:43:58,054 - scripts.sync_manager - DEBUG - Log ID 39 marked as 'completed'.
+2025-10-22 09:43:58,087 - scripts.sync_manager - INFO - Logged sync event: Bills_delete_success - completed
+2025-10-22 09:43:58,088 - scripts.sync_manager - INFO - Successfully processed log ID 39.
+2025-10-22 09:43:58,096 - scripts.sync_manager - INFO - Finished processing pending logs. Processed: 1, Failed: 0.
+2025-10-22 09:53:30,917 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:53:30,923 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:53:30,923 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:53:30,923 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:53:33,100 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-22 09:53:33,102 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-22 09:53:33,102 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-22 09:53:33,102 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-22 09:53:33,104 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-22 09:53:33,108 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-22 09:53:33,237 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-22 09:53:33,238 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-22 09:53:33,373 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-22 09:53:33,426 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-22 09:53:33,613 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-22 09:53:33,718 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-22 09:53:33,718 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-22 09:53:36,516 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:53:36,519 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:53:36,519 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:53:36,521 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-22 09:53:38,677 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-22 09:53:38,679 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-22 09:53:38,683 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-22 09:53:38,683 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-22 09:53:38,685 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-22 09:53:38,685 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-22 09:53:38,717 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-22 09:53:38,726 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-22 09:53:38,846 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-22 09:53:38,883 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-22 09:53:39,076 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-22 09:53:39,163 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-22 09:53:39,166 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.

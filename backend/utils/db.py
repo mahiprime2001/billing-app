@@ -98,7 +98,6 @@ class DatabaseConnection:
             id INT AUTO_INCREMENT PRIMARY KEY,
             batch_number VARCHAR(255) NOT NULL UNIQUE,
             place TEXT,
-            product_id VARCHAR(255) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         );
@@ -148,18 +147,18 @@ class DatabaseConnection:
                 print(f"Error renaming 'description' to 'place': {err}")
                 raise
 
-        # Add 'product_id' column if it doesn't exist
+        # Remove 'product_id' column if it exists
         try:
             cursor.execute("SHOW COLUMNS FROM batch LIKE 'product_id';")
-            if not cursor.fetchone():
-                cursor.execute("ALTER TABLE batch ADD COLUMN product_id VARCHAR(255) NOT NULL;")
+            if cursor.fetchone():
+                cursor.execute("ALTER TABLE batch DROP COLUMN product_id;")
                 conn.commit()
-                print("Added 'product_id' column to 'batch' table.")
+                print("Removed 'product_id' column from 'batch' table.")
         except MySQLError as err:
-            if err.errno == 1060: # Duplicate column name, already exists
-                print("Column 'product_id' already exists, no add needed.")
+            if err.errno == 1054: # Unknown column, already dropped
+                print("Column 'product_id' does not exist, no drop needed.")
             else:
-                print(f"Error adding 'product_id' column: {err}")
+                print(f"Error dropping 'product_id' column: {err}")
                 raise
 
     @staticmethod

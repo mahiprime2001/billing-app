@@ -1,5 +1,20 @@
 import win32print
 import logging
+import os
+import sys
+from datetime import datetime
+import uuid # Import uuid for unique IDs
+
+# Resolve project root for imports (supports both development and PyInstaller bundle)
+if getattr(sys, "frozen", False):
+    PROJECT_ROOT = os.path.dirname(sys._MEIPASS)  # type: ignore
+else:
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from backend.scripts.sync_manager import EnhancedSyncManager, get_sync_manager # noqa: E402
 
 def send_tspl_file(printer_name, tspl_file_path, logger=None):
     if logger is None:
@@ -59,9 +74,50 @@ def send_tspl_file(printer_name, tspl_file_path, logger=None):
         win32print.ClosePrinter(handle)
         logger.info("Printer handle closed.")
 
-# Run the function
+# Run the printer function (original test)
 if __name__ == "__main__":
-    printer_name = "SNBC TVSE LP46 Dlite BPLE"  # Replace with your printer name from Devices and Printers
-    tspl_file_path = "label.tspl"  # Path to your TSPL file
-    logger = logging.getLogger(__name__)
-    send_tspl_file(printer_name, tspl_file_path, logger)
+    # Configure logging for the test script
+    test_logger = logging.getLogger("sync_test_logger")
+    if not test_logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
+        test_logger.addHandler(handler)
+    test_logger.setLevel(logging.INFO)
+
+    manager = get_sync_manager(PROJECT_ROOT)
+
+    # Always add a dummy pending log entry for testing
+    unique_id = str(uuid.uuid4())
+    dummy_data = {
+        "id": unique_id,
+        "sync_time": datetime.now().isoformat(),
+        "table_name": "Products",
+        "change_type": "CREATE",
+        "record_id": unique_id,
+        "change_data": {"id": unique_id, "name": f"Test Product {unique_id[:8]}", "price": 123.45, "updatedAt": datetime.now().isoformat()},
+        "status": "pending",
+        "retry_count": 0,
+        "last_retry": None,
+        "error_message": None,
+        "created_at": datetime.now().isoformat()
+    }
+    manager.log_crud_operation(
+        dummy_data["table_name"],
+        dummy_data["change_type"],
+        dummy_data["record_id"],
+        dummy_data["change_data"]
+    )
+    test_logger.info(f"Dummy entry '{unique_id}' added to local_sync_table.json. Please ensure your MySQL 'Products' table exists and has 'id', 'name', 'price', 'updatedAt' columns.")
+
+    test_logger.info("Manually triggering process_pending_logs()...")
+    sync_result = manager.process_pending_logs()
+    test_logger.info(f"Manual sync result: {sync_result}")
+
+    # Optional: Printer test (uncomment if needed)
+    # printer_name = "SNBC TVSE LP46 Dlite BPLE"  # Replace with your printer name
+    # tspl_file_path = "label.tspl"  # Path to your TSPL file
+    # try:
+    #     send_tspl_file(printer_name, tspl_file_path, test_logger)
+    # except Exception as e:
+    #     test_logger.error(f"Printer test failed: {e}")

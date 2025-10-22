@@ -2,15 +2,17 @@
   {
     "id": "00949931-b894-4321-a28a-7f49af44de2e",
     "name": "S.NECKLACE",
-    "price": 1450.0,
+    "price": 1450,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:11:58",
-    "updatedAt": "2025-09-20T12:11:58",
+    "updatedAt": "2025-10-20T10:09:22.251834",
     "barcodes": [
       "1758350517003889"
-    ]
+    ],
+    "tax": null,
+    "batchId": "c2d5df1e-07a8-458a-bbd0-3b0e362adcb6"
   },
   {
     "id": "01632bca-b8a4-4f48-b2f1-bf1f228ce268",
@@ -18,7 +20,7 @@
     "price": 900.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:16:01",
     "updatedAt": "2025-09-20T00:16:01",
     "barcodes": [
@@ -31,7 +33,7 @@
     "price": 700.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:10:18",
     "updatedAt": "2025-09-19T23:10:18",
     "barcodes": [
@@ -44,7 +46,7 @@
     "price": 450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:26:26",
     "updatedAt": "2025-09-20T16:27:00",
     "barcodes": [
@@ -57,7 +59,7 @@
     "price": 350.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:58:17",
     "updatedAt": "2025-09-20T16:58:17",
     "barcodes": [
@@ -70,7 +72,7 @@
     "price": 950.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:30:47",
     "updatedAt": "2025-09-20T00:30:47",
     "barcodes": [
@@ -83,9 +85,9 @@
     "price": 50.0,
     "stock": 48,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:15:40",
-    "updatedAt": "2025-09-20T15:15:40",
+    "updatedAt": "2025-10-22T09:43:56.209890",
     "barcodes": [
       "1758361539016689"
     ]
@@ -96,9 +98,9 @@
     "price": 3100.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:58:02",
-    "updatedAt": "2025-09-20T12:58:02",
+    "updatedAt": "2025-10-19T23:06:01.774220",
     "barcodes": [
       "1758353281834799"
     ]
@@ -109,7 +111,7 @@
     "price": 2350.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:52:13",
     "updatedAt": "2025-09-20T11:52:13",
     "barcodes": [
@@ -122,7 +124,7 @@
     "price": 4400.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:29:50",
     "updatedAt": "2025-09-19T23:29:50",
     "barcodes": [
@@ -135,7 +137,7 @@
     "price": 2595.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:59:31",
     "updatedAt": "2025-09-20T08:59:31",
     "barcodes": [
@@ -148,7 +150,7 @@
     "price": 4500.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:09:49",
     "updatedAt": "2025-09-20T01:09:49",
     "barcodes": [
@@ -161,7 +163,7 @@
     "price": 4500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:51:16",
     "updatedAt": "2025-09-20T08:51:16",
     "barcodes": [
@@ -174,7 +176,7 @@
     "price": 150.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:14:31",
     "updatedAt": "2025-09-20T17:14:31",
     "barcodes": [
@@ -187,7 +189,7 @@
     "price": 3150.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:11:44",
     "updatedAt": "2025-09-19T23:11:44",
     "barcodes": [
@@ -200,7 +202,7 @@
     "price": 250.0,
     "stock": 14,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:16:18",
     "updatedAt": "2025-09-20T13:16:18",
     "barcodes": [
@@ -213,7 +215,7 @@
     "price": 750.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T22:54:38",
     "updatedAt": "2025-09-19T22:54:38",
     "barcodes": [
@@ -226,7 +228,7 @@
     "price": 2190.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:30:28",
     "updatedAt": "2025-09-20T12:30:28",
     "barcodes": [
@@ -239,7 +241,7 @@
     "price": 3000.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:12:59",
     "updatedAt": "2025-09-20T11:12:59",
     "barcodes": [
@@ -252,7 +254,7 @@
     "price": 2850.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:09:00",
     "updatedAt": "2025-09-20T08:09:00",
     "barcodes": [
@@ -265,7 +267,7 @@
     "price": 500.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:42:06",
     "updatedAt": "2025-09-20T16:42:06",
     "barcodes": [
@@ -278,7 +280,7 @@
     "price": 3000.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:27:08",
     "updatedAt": "2025-09-20T08:27:08",
     "barcodes": [
@@ -291,7 +293,7 @@
     "price": 2250.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:12:52",
     "updatedAt": "2025-09-20T12:12:52",
     "barcodes": [
@@ -304,7 +306,7 @@
     "price": 450.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:23:59",
     "updatedAt": "2025-09-20T16:23:59",
     "barcodes": [
@@ -317,7 +319,7 @@
     "price": 1150.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:31:32",
     "updatedAt": "2025-09-20T17:31:32",
     "barcodes": [
@@ -330,7 +332,7 @@
     "price": 2050.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:47:14",
     "updatedAt": "2025-09-20T08:47:14",
     "barcodes": [
@@ -343,7 +345,7 @@
     "price": 1250.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:07:55",
     "updatedAt": "2025-09-20T08:07:55",
     "barcodes": [
@@ -356,7 +358,7 @@
     "price": 675.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:11:20",
     "updatedAt": "2025-09-20T20:11:20",
     "barcodes": [
@@ -369,7 +371,7 @@
     "price": 1500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T14:11:06",
     "updatedAt": "2025-09-20T14:11:06",
     "barcodes": [
@@ -382,7 +384,7 @@
     "price": 1300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:58:23",
     "updatedAt": "2025-09-20T08:58:23",
     "barcodes": [
@@ -395,7 +397,7 @@
     "price": 395.0,
     "stock": 50,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:48:26",
     "updatedAt": "2025-09-20T17:48:26",
     "barcodes": [
@@ -408,7 +410,7 @@
     "price": 950.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:13:08",
     "updatedAt": "2025-09-20T08:13:08",
     "barcodes": [
@@ -421,7 +423,7 @@
     "price": 1900.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:47:30",
     "updatedAt": "2025-09-20T08:47:30",
     "barcodes": [
@@ -434,7 +436,7 @@
     "price": 1450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:27:14",
     "updatedAt": "2025-09-20T11:27:14",
     "barcodes": [
@@ -447,7 +449,7 @@
     "price": 1700.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:56:08",
     "updatedAt": "2025-09-20T10:56:08",
     "barcodes": [
@@ -460,7 +462,7 @@
     "price": 3840.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:44:55",
     "updatedAt": "2025-09-20T00:44:55",
     "barcodes": [
@@ -473,7 +475,7 @@
     "price": 4695.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:53:06",
     "updatedAt": "2025-09-20T11:53:06",
     "barcodes": [
@@ -486,7 +488,7 @@
     "price": 4800.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:07:36",
     "updatedAt": "2025-09-20T07:52:46",
     "barcodes": [
@@ -499,7 +501,7 @@
     "price": 2500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:34:57",
     "updatedAt": "2025-09-20T10:34:57",
     "barcodes": [
@@ -512,7 +514,7 @@
     "price": 950.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:11:30",
     "updatedAt": "2025-09-20T08:11:30",
     "barcodes": [
@@ -525,7 +527,7 @@
     "price": 2850.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:49:45",
     "updatedAt": "2025-09-20T10:49:45",
     "barcodes": [
@@ -538,7 +540,7 @@
     "price": 600.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T18:27:08",
     "updatedAt": "2025-09-20T18:27:08",
     "barcodes": [
@@ -551,7 +553,7 @@
     "price": 2800.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:19:37",
     "updatedAt": "2025-09-20T12:19:37",
     "barcodes": [
@@ -564,7 +566,7 @@
     "price": 5250.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:44:08",
     "updatedAt": "2025-09-20T08:44:08",
     "barcodes": [
@@ -577,7 +579,7 @@
     "price": 300.0,
     "stock": 16,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:21:10",
     "updatedAt": "2025-09-20T13:21:10",
     "barcodes": [
@@ -590,7 +592,7 @@
     "price": 1560.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:03:26",
     "updatedAt": "2025-09-20T11:03:26",
     "barcodes": [
@@ -603,7 +605,7 @@
     "price": 850.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:11:46",
     "updatedAt": "2025-09-20T08:11:46",
     "barcodes": [
@@ -616,7 +618,7 @@
     "price": 650.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T14:00:30",
     "updatedAt": "2025-09-20T14:00:30",
     "barcodes": [
@@ -629,7 +631,7 @@
     "price": 3500.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:13:55",
     "updatedAt": "2025-09-19T23:13:55",
     "barcodes": [
@@ -642,7 +644,7 @@
     "price": 250.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:11:57",
     "updatedAt": "2025-09-20T15:11:57",
     "barcodes": [
@@ -655,7 +657,7 @@
     "price": 1750.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:16:09",
     "updatedAt": "2025-09-20T11:16:09",
     "barcodes": [
@@ -668,7 +670,7 @@
     "price": 2700.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:22:51",
     "updatedAt": "2025-09-20T11:23:26",
     "barcodes": [
@@ -681,7 +683,7 @@
     "price": 1050.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:04:40",
     "updatedAt": "2025-09-20T00:05:43",
     "barcodes": [
@@ -694,7 +696,7 @@
     "price": 1250.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:43:05",
     "updatedAt": "2025-09-20T00:43:05",
     "barcodes": [
@@ -707,7 +709,7 @@
     "price": 450.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:37:09",
     "updatedAt": "2025-09-20T17:37:09",
     "barcodes": [
@@ -720,7 +722,7 @@
     "price": 3000.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:29:36",
     "updatedAt": "2025-09-20T11:29:36",
     "barcodes": [
@@ -733,7 +735,7 @@
     "price": 3300.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:22:55",
     "updatedAt": "2025-09-20T08:22:55",
     "barcodes": [
@@ -746,7 +748,7 @@
     "price": 2850.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:08:23",
     "updatedAt": "2025-09-20T11:08:23",
     "barcodes": [
@@ -759,7 +761,7 @@
     "price": 1700.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:13:24",
     "updatedAt": "2025-09-20T00:13:24",
     "barcodes": [
@@ -772,7 +774,7 @@
     "price": 350.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:32:54",
     "updatedAt": "2025-09-20T16:32:54",
     "barcodes": [
@@ -785,7 +787,7 @@
     "price": 2200.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:47:48",
     "updatedAt": "2025-09-20T08:47:48",
     "barcodes": [
@@ -798,7 +800,7 @@
     "price": 1200.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:38:53",
     "updatedAt": "2025-09-20T00:38:53",
     "barcodes": [
@@ -811,7 +813,7 @@
     "price": 700.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:16:29",
     "updatedAt": "2025-09-20T08:16:29",
     "barcodes": [
@@ -824,7 +826,7 @@
     "price": 234.0,
     "stock": 50,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-07-21T05:31:43",
     "updatedAt": "2025-07-21T05:31:43",
     "barcodes": []
@@ -835,7 +837,7 @@
     "price": 200.0,
     "stock": 20,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-13T10:03:17",
     "updatedAt": "2025-09-13T10:03:17",
     "barcodes": [
@@ -848,7 +850,7 @@
     "price": 250.0,
     "stock": 30,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-13T11:46:04",
     "updatedAt": "2025-09-13T11:46:04",
     "barcodes": [
@@ -861,7 +863,7 @@
     "price": 100.0,
     "stock": 20,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-13T18:53:08",
     "updatedAt": "2025-09-13T18:53:08",
     "barcodes": [
@@ -874,7 +876,7 @@
     "price": 350.0,
     "stock": 15,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:08:49",
     "updatedAt": "2025-09-20T20:08:49",
     "barcodes": [
@@ -887,7 +889,7 @@
     "price": 1600.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:47:00",
     "updatedAt": "2025-09-20T08:47:00",
     "barcodes": [
@@ -900,7 +902,7 @@
     "price": 2310.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:25:05",
     "updatedAt": "2025-09-20T10:25:05",
     "barcodes": [
@@ -913,7 +915,7 @@
     "price": 2200.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:49:46",
     "updatedAt": "2025-09-20T08:49:46",
     "barcodes": [
@@ -926,7 +928,7 @@
     "price": 750.0,
     "stock": 7,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:17:59",
     "updatedAt": "2025-09-19T23:17:59",
     "barcodes": [
@@ -939,7 +941,7 @@
     "price": 2150.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:10:34",
     "updatedAt": "2025-09-20T08:10:34",
     "barcodes": [
@@ -952,7 +954,7 @@
     "price": 750.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:08:25",
     "updatedAt": "2025-09-20T15:08:25",
     "barcodes": [
@@ -965,7 +967,7 @@
     "price": 600.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:46:13",
     "updatedAt": "2025-09-20T16:46:13",
     "barcodes": [
@@ -978,7 +980,7 @@
     "price": 750.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:11:13",
     "updatedAt": "2025-09-20T08:11:13",
     "barcodes": [
@@ -991,7 +993,7 @@
     "price": 1050.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:52:48",
     "updatedAt": "2025-09-19T23:52:48",
     "barcodes": [
@@ -1004,7 +1006,7 @@
     "price": 3950.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:09:13",
     "updatedAt": "2025-09-20T12:09:13",
     "barcodes": [
@@ -1017,7 +1019,7 @@
     "price": 300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:57:22",
     "updatedAt": "2025-09-20T16:57:22",
     "barcodes": [
@@ -1030,7 +1032,7 @@
     "price": 350.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:29:29",
     "updatedAt": "2025-09-20T16:29:29",
     "barcodes": [
@@ -1043,7 +1045,7 @@
     "price": 4320.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:00:33",
     "updatedAt": "2025-09-20T01:00:33",
     "barcodes": [
@@ -1056,7 +1058,7 @@
     "price": 2400.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:13:57",
     "updatedAt": "2025-09-20T12:13:57",
     "barcodes": [
@@ -1069,7 +1071,7 @@
     "price": 1200.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:45:36",
     "updatedAt": "2025-09-20T00:45:36",
     "barcodes": [
@@ -1082,7 +1084,7 @@
     "price": 2100.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:50:35",
     "updatedAt": "2025-09-19T23:50:35",
     "barcodes": [
@@ -1095,7 +1097,7 @@
     "price": 3600.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:48:39",
     "updatedAt": "2025-09-20T08:48:39",
     "barcodes": [
@@ -1108,7 +1110,7 @@
     "price": 5500.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:03:52",
     "updatedAt": "2025-09-20T01:03:52",
     "barcodes": [
@@ -1121,7 +1123,7 @@
     "price": 500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:49:05",
     "updatedAt": "2025-09-20T16:49:05",
     "barcodes": [
@@ -1134,7 +1136,7 @@
     "price": 3600.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:45:26",
     "updatedAt": "2025-09-20T08:45:26",
     "barcodes": [
@@ -1147,7 +1149,7 @@
     "price": 1000.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:46:56",
     "updatedAt": "2025-09-20T16:46:56",
     "barcodes": [
@@ -1160,7 +1162,7 @@
     "price": 350.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:41:03",
     "updatedAt": "2025-09-20T16:41:03",
     "barcodes": [
@@ -1173,7 +1175,7 @@
     "price": 850.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:29:31",
     "updatedAt": "2025-09-20T00:29:31",
     "barcodes": [
@@ -1186,7 +1188,7 @@
     "price": 650.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T14:00:45",
     "updatedAt": "2025-09-20T14:00:45",
     "barcodes": [
@@ -1199,7 +1201,7 @@
     "price": 450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T14:01:41",
     "updatedAt": "2025-09-20T14:01:41",
     "barcodes": [
@@ -1212,7 +1214,7 @@
     "price": 5400.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:52:40",
     "updatedAt": "2025-09-20T08:52:40",
     "barcodes": [
@@ -1225,7 +1227,7 @@
     "price": 4300.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:25:41",
     "updatedAt": "2025-09-20T08:25:41",
     "barcodes": [
@@ -1238,7 +1240,7 @@
     "price": 850.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:01:09",
     "updatedAt": "2025-09-20T08:01:09",
     "barcodes": [
@@ -1251,7 +1253,7 @@
     "price": 1050.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:09:58",
     "updatedAt": "2025-09-20T12:09:58",
     "barcodes": [
@@ -1264,7 +1266,7 @@
     "price": 350.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:28:41",
     "updatedAt": "2025-09-20T16:28:41",
     "barcodes": [
@@ -1277,7 +1279,7 @@
     "price": 150.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:14:12",
     "updatedAt": "2025-09-20T17:14:12",
     "barcodes": [
@@ -1290,7 +1292,7 @@
     "price": 400.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:57:22",
     "updatedAt": "2025-09-20T13:57:22",
     "barcodes": [
@@ -1303,7 +1305,7 @@
     "price": 250.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:39:00",
     "updatedAt": "2025-09-20T16:39:00",
     "barcodes": [
@@ -1316,7 +1318,7 @@
     "price": 2175.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:55:12",
     "updatedAt": "2025-09-20T10:55:12",
     "barcodes": [
@@ -1329,7 +1331,7 @@
     "price": 1000.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:50:53",
     "updatedAt": "2025-09-20T00:50:53",
     "barcodes": [
@@ -1342,7 +1344,7 @@
     "price": 2200.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:28:48",
     "updatedAt": "2025-09-20T17:28:48",
     "barcodes": [
@@ -1355,7 +1357,7 @@
     "price": 900.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:09:39",
     "updatedAt": "2025-09-19T23:09:39",
     "barcodes": [
@@ -1368,7 +1370,7 @@
     "price": 1050.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:35:28",
     "updatedAt": "2025-09-20T10:35:28",
     "barcodes": [
@@ -1381,7 +1383,7 @@
     "price": 5550.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:01:17",
     "updatedAt": "2025-09-20T09:01:17",
     "barcodes": [
@@ -1394,7 +1396,7 @@
     "price": 1800.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:04:06",
     "updatedAt": "2025-09-20T00:04:06",
     "barcodes": [
@@ -1407,7 +1409,7 @@
     "price": 100.0,
     "stock": 36,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:18:24",
     "updatedAt": "2025-09-20T15:18:24",
     "barcodes": [
@@ -1420,7 +1422,7 @@
     "price": 2500.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:31:41",
     "updatedAt": "2025-09-20T08:31:41",
     "barcodes": [
@@ -1433,7 +1435,7 @@
     "price": 195.0,
     "stock": 9,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:02:33",
     "updatedAt": "2025-09-20T20:02:33",
     "barcodes": [
@@ -1446,7 +1448,7 @@
     "price": 350.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:24:28",
     "updatedAt": "2025-09-20T16:24:28",
     "barcodes": [
@@ -1459,7 +1461,7 @@
     "price": 950.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:49:21",
     "updatedAt": "2025-09-20T16:49:21",
     "barcodes": [
@@ -1472,7 +1474,7 @@
     "price": 600.0,
     "stock": 30,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:21:04",
     "updatedAt": "2025-09-20T16:21:04",
     "barcodes": [
@@ -1485,7 +1487,7 @@
     "price": 2100.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:50:33",
     "updatedAt": "2025-09-20T12:50:33",
     "barcodes": [
@@ -1498,7 +1500,7 @@
     "price": 320.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:26:32",
     "updatedAt": "2025-09-20T15:26:32",
     "barcodes": [
@@ -1511,7 +1513,7 @@
     "price": 1950.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:33:24",
     "updatedAt": "2025-09-20T00:33:24",
     "barcodes": [
@@ -1524,7 +1526,7 @@
     "price": 3000.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T22:52:31",
     "updatedAt": "2025-09-19T22:52:31",
     "barcodes": [
@@ -1537,7 +1539,7 @@
     "price": 3300.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:31:23",
     "updatedAt": "2025-09-20T08:31:23",
     "barcodes": [
@@ -1550,7 +1552,7 @@
     "price": 300.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:00:25",
     "updatedAt": "2025-09-20T17:00:25",
     "barcodes": [
@@ -1563,7 +1565,7 @@
     "price": 5800.0,
     "stock": 7,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:58:54",
     "updatedAt": "2025-09-20T00:58:54",
     "barcodes": [
@@ -1576,7 +1578,7 @@
     "price": 195.0,
     "stock": 146,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:09:10",
     "updatedAt": "2025-09-20T15:09:10",
     "barcodes": [
@@ -1589,7 +1591,7 @@
     "price": 1290.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:27:58",
     "updatedAt": "2025-09-20T10:27:58",
     "barcodes": [
@@ -1602,7 +1604,7 @@
     "price": 2400.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:28:05",
     "updatedAt": "2025-09-20T08:28:41",
     "barcodes": [
@@ -1615,7 +1617,7 @@
     "price": 100.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:02:31",
     "updatedAt": "2025-09-20T17:02:31",
     "barcodes": [
@@ -1628,7 +1630,7 @@
     "price": 3300.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:24:38",
     "updatedAt": "2025-09-20T08:24:38",
     "barcodes": [
@@ -1641,7 +1643,7 @@
     "price": 2550.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:03:33",
     "updatedAt": "2025-09-20T08:03:33",
     "barcodes": [
@@ -1654,7 +1656,7 @@
     "price": 1650.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:59:15",
     "updatedAt": "2025-09-20T08:59:15",
     "barcodes": [
@@ -1667,7 +1669,7 @@
     "price": 1350.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:26:24",
     "updatedAt": "2025-09-20T11:26:24",
     "barcodes": [
@@ -1680,7 +1682,7 @@
     "price": 1450.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:09:14",
     "updatedAt": "2025-09-20T00:09:14",
     "barcodes": [
@@ -1693,7 +1695,7 @@
     "price": 3200.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:32:47",
     "updatedAt": "2025-09-20T08:32:47",
     "barcodes": [
@@ -1706,7 +1708,7 @@
     "price": 550.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:06:21",
     "updatedAt": "2025-09-20T00:06:21",
     "barcodes": [
@@ -1719,7 +1721,7 @@
     "price": 2000.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:29:56",
     "updatedAt": "2025-09-20T08:29:56",
     "barcodes": [
@@ -1732,7 +1734,7 @@
     "price": 1650.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:06:40",
     "updatedAt": "2025-09-20T20:06:40",
     "barcodes": [
@@ -1745,7 +1747,7 @@
     "price": 1700.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:30:54",
     "updatedAt": "2025-09-20T08:30:54",
     "barcodes": [
@@ -1758,7 +1760,7 @@
     "price": 4500.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:59:48",
     "updatedAt": "2025-09-20T00:59:48",
     "barcodes": [
@@ -1771,7 +1773,7 @@
     "price": 400.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:24:20",
     "updatedAt": "2025-09-20T13:24:20",
     "barcodes": [
@@ -1784,7 +1786,7 @@
     "price": 350.0,
     "stock": 11,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:36:48",
     "updatedAt": "2025-09-20T17:36:48",
     "barcodes": [
@@ -1797,7 +1799,7 @@
     "price": 400.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:37:54",
     "updatedAt": "2025-09-20T13:37:54",
     "barcodes": [
@@ -1810,7 +1812,7 @@
     "price": 1200.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:23:49",
     "updatedAt": "2025-09-20T00:23:49",
     "barcodes": [
@@ -1823,7 +1825,7 @@
     "price": 750.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:19:32",
     "updatedAt": "2025-09-19T23:19:32",
     "barcodes": [
@@ -1836,7 +1838,7 @@
     "price": 350.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:29:54",
     "updatedAt": "2025-09-20T16:29:54",
     "barcodes": [
@@ -1849,7 +1851,7 @@
     "price": 350.0,
     "stock": 15,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:13:59",
     "updatedAt": "2025-09-20T13:13:59",
     "barcodes": [
@@ -1862,7 +1864,7 @@
     "price": 1350.0,
     "stock": 1680,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:36:36",
     "updatedAt": "2025-09-20T00:36:36",
     "barcodes": [
@@ -1875,7 +1877,7 @@
     "price": 9500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:03:22",
     "updatedAt": "2025-09-20T09:03:22",
     "barcodes": [
@@ -1888,7 +1890,7 @@
     "price": 300.0,
     "stock": 10,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:20:22",
     "updatedAt": "2025-09-20T13:28:23",
     "barcodes": [
@@ -1901,7 +1903,7 @@
     "price": 500.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:42:45",
     "updatedAt": "2025-09-20T16:42:45",
     "barcodes": [
@@ -1914,7 +1916,7 @@
     "price": 300.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:30:31",
     "updatedAt": "2025-09-20T13:30:31",
     "barcodes": [
@@ -1927,7 +1929,7 @@
     "price": 450.0,
     "stock": 19,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:35:56",
     "updatedAt": "2025-09-20T17:35:56",
     "barcodes": [
@@ -1940,7 +1942,7 @@
     "price": 4000.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:17:07",
     "updatedAt": "2025-09-19T23:17:07",
     "barcodes": [
@@ -1953,7 +1955,7 @@
     "price": 1350.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:10:01",
     "updatedAt": "2025-09-20T00:10:01",
     "barcodes": [
@@ -1966,7 +1968,7 @@
     "price": 2400.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:42:01",
     "updatedAt": "2025-09-20T08:42:01",
     "barcodes": [
@@ -1979,7 +1981,7 @@
     "price": 150.0,
     "stock": 19,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:11:00",
     "updatedAt": "2025-09-20T17:11:00",
     "barcodes": [
@@ -1992,7 +1994,7 @@
     "price": 5700.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:44:56",
     "updatedAt": "2025-09-20T08:44:56",
     "barcodes": [
@@ -2005,7 +2007,7 @@
     "price": 350.0,
     "stock": 8,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:25:29",
     "updatedAt": "2025-09-20T16:25:29",
     "barcodes": [
@@ -2018,7 +2020,7 @@
     "price": 2800.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:54:40",
     "updatedAt": "2025-09-20T11:54:40",
     "barcodes": [
@@ -2031,7 +2033,7 @@
     "price": 1450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:27:40",
     "updatedAt": "2025-09-20T10:27:40",
     "barcodes": [
@@ -2044,7 +2046,7 @@
     "price": 2700.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:23:57",
     "updatedAt": "2025-09-20T11:23:57",
     "barcodes": [
@@ -2057,7 +2059,7 @@
     "price": 1050.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:30:51",
     "updatedAt": "2025-09-20T17:30:51",
     "barcodes": [
@@ -2070,7 +2072,7 @@
     "price": 1550.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:35:54",
     "updatedAt": "2025-09-20T10:35:54",
     "barcodes": [
@@ -2083,7 +2085,7 @@
     "price": 1500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:17:48",
     "updatedAt": "2025-09-20T11:17:48",
     "barcodes": [
@@ -2096,7 +2098,7 @@
     "price": 1450.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:10:02",
     "updatedAt": "2025-09-20T20:10:02",
     "barcodes": [
@@ -2109,7 +2111,7 @@
     "price": 3000.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:37:53",
     "updatedAt": "2025-09-20T17:37:53",
     "barcodes": [
@@ -2122,7 +2124,7 @@
     "price": 1300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:17:23",
     "updatedAt": "2025-09-20T11:17:23",
     "barcodes": [
@@ -2135,7 +2137,7 @@
     "price": 2650.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:19:20",
     "updatedAt": "2025-09-20T11:19:20",
     "barcodes": [
@@ -2148,7 +2150,7 @@
     "price": 42002.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:24:56",
     "updatedAt": "2025-09-20T08:24:56",
     "barcodes": [
@@ -2161,7 +2163,7 @@
     "price": 5100.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:27:47",
     "updatedAt": "2025-09-20T08:27:47",
     "barcodes": [
@@ -2174,7 +2176,7 @@
     "price": 1550.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:21:03",
     "updatedAt": "2025-09-19T23:21:03",
     "barcodes": [
@@ -2187,7 +2189,7 @@
     "price": 3300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:55:42",
     "updatedAt": "2025-09-20T10:55:42",
     "barcodes": [
@@ -2200,7 +2202,7 @@
     "price": 3300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:51:39",
     "updatedAt": "2025-09-20T11:51:39",
     "barcodes": [
@@ -2213,7 +2215,7 @@
     "price": 150.0,
     "stock": 10,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:01:49",
     "updatedAt": "2025-09-20T17:01:49",
     "barcodes": [
@@ -2226,7 +2228,7 @@
     "price": 350.0,
     "stock": 21,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:58:54",
     "updatedAt": "2025-09-20T12:58:54",
     "barcodes": [
@@ -2239,7 +2241,7 @@
     "price": 450.0,
     "stock": 7,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:36:50",
     "updatedAt": "2025-09-20T13:36:50",
     "barcodes": [
@@ -2252,7 +2254,7 @@
     "price": 400.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T14:06:16",
     "updatedAt": "2025-09-20T14:06:16",
     "barcodes": [
@@ -2265,7 +2267,7 @@
     "price": 1250.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:27:21",
     "updatedAt": "2025-09-20T10:27:21",
     "barcodes": [
@@ -2278,7 +2280,7 @@
     "price": 900.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:25:17",
     "updatedAt": "2025-09-20T00:25:17",
     "barcodes": [
@@ -2291,7 +2293,7 @@
     "price": 7500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T22:22:07",
     "updatedAt": "2025-09-19T22:22:07",
     "barcodes": [
@@ -2304,7 +2306,7 @@
     "price": 1000.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:00:32",
     "updatedAt": "2025-09-20T12:00:32",
     "barcodes": [
@@ -2317,7 +2319,7 @@
     "price": 450.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:36:00",
     "updatedAt": "2025-09-20T16:36:00",
     "barcodes": [
@@ -2330,7 +2332,7 @@
     "price": 300.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:22:26",
     "updatedAt": "2025-09-20T13:22:26",
     "barcodes": [
@@ -2343,7 +2345,7 @@
     "price": 650.0,
     "stock": 11,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:29:54",
     "updatedAt": "2025-09-20T17:29:54",
     "barcodes": [
@@ -2356,7 +2358,7 @@
     "price": 1100.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:28:36",
     "updatedAt": "2025-09-20T00:28:36",
     "barcodes": [
@@ -2369,7 +2371,7 @@
     "price": 1300.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:32:57",
     "updatedAt": "2025-09-20T17:32:57",
     "barcodes": [
@@ -2382,7 +2384,7 @@
     "price": 5700.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:51:58",
     "updatedAt": "2025-09-20T08:51:58",
     "barcodes": [
@@ -2395,7 +2397,7 @@
     "price": 2700.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:10:09",
     "updatedAt": "2025-09-20T08:10:09",
     "barcodes": [
@@ -2408,7 +2410,7 @@
     "price": 2150.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:47:37",
     "updatedAt": "2025-09-19T23:47:37",
     "barcodes": [
@@ -2421,7 +2423,7 @@
     "price": 4500.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:38:32",
     "updatedAt": "2025-09-20T17:38:32",
     "barcodes": [
@@ -2434,7 +2436,7 @@
     "price": 2300.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:27:26",
     "updatedAt": "2025-09-20T08:27:26",
     "barcodes": [
@@ -2447,7 +2449,7 @@
     "price": 650.0,
     "stock": 11,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:26:03",
     "updatedAt": "2025-09-19T23:26:03",
     "barcodes": [
@@ -2460,7 +2462,7 @@
     "price": 3400.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:44:40",
     "updatedAt": "2025-09-20T08:44:40",
     "barcodes": [
@@ -2473,7 +2475,7 @@
     "price": 1200.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:48:02",
     "updatedAt": "2025-09-20T16:48:02",
     "barcodes": [
@@ -2486,7 +2488,7 @@
     "price": 3900.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:51:28",
     "updatedAt": "2025-09-20T08:51:28",
     "barcodes": [
@@ -2499,7 +2501,7 @@
     "price": 1050.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:40:06",
     "updatedAt": "2025-09-20T00:40:06",
     "barcodes": [
@@ -2512,7 +2514,7 @@
     "price": 100.0,
     "stock": 24,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:17:39",
     "updatedAt": "2025-09-20T15:17:39",
     "barcodes": [
@@ -2525,7 +2527,7 @@
     "price": 250.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:04:58",
     "updatedAt": "2025-09-20T17:04:58",
     "barcodes": [
@@ -2538,7 +2540,7 @@
     "price": 300.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:14:23",
     "updatedAt": "2025-09-20T15:14:23",
     "barcodes": [
@@ -2551,7 +2553,7 @@
     "price": 1750.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:18:58",
     "updatedAt": "2025-09-20T11:18:58",
     "barcodes": [
@@ -2564,7 +2566,7 @@
     "price": 2550.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:28:55",
     "updatedAt": "2025-09-20T11:28:55",
     "barcodes": [
@@ -2577,7 +2579,7 @@
     "price": 1600.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:18:52",
     "updatedAt": "2025-09-20T12:18:52",
     "barcodes": [
@@ -2590,7 +2592,7 @@
     "price": 400.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:57:07",
     "updatedAt": "2025-09-20T16:57:07",
     "barcodes": [
@@ -2603,7 +2605,7 @@
     "price": 1350.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:04:16",
     "updatedAt": "2025-09-20T09:04:16",
     "barcodes": [
@@ -2616,7 +2618,7 @@
     "price": 1050.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:26:23",
     "updatedAt": "2025-09-20T00:26:23",
     "barcodes": [
@@ -2629,7 +2631,7 @@
     "price": 690.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:24:41",
     "updatedAt": "2025-09-20T10:24:41",
     "barcodes": [
@@ -2642,7 +2644,7 @@
     "price": 2200.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:48:22",
     "updatedAt": "2025-09-20T08:48:22",
     "barcodes": [
@@ -2655,7 +2657,7 @@
     "price": 1500.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:32:07",
     "updatedAt": "2025-09-20T08:32:07",
     "barcodes": [
@@ -2668,7 +2670,7 @@
     "price": 3120.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:55:34",
     "updatedAt": "2025-09-20T00:55:34",
     "barcodes": [
@@ -2681,7 +2683,7 @@
     "price": 1250.0,
     "stock": 9,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T22:27:31",
     "updatedAt": "2025-09-19T22:32:52",
     "barcodes": [
@@ -2694,7 +2696,7 @@
     "price": 2600.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:47:33",
     "updatedAt": "2025-09-20T17:47:33",
     "barcodes": [
@@ -2707,7 +2709,7 @@
     "price": 1800.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:07:30",
     "updatedAt": "2025-09-20T00:07:30",
     "barcodes": [
@@ -2720,7 +2722,7 @@
     "price": 2200.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:48:08",
     "updatedAt": "2025-09-20T08:48:08",
     "barcodes": [
@@ -2733,7 +2735,7 @@
     "price": 1650.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T07:59:23",
     "updatedAt": "2025-09-20T07:59:23",
     "barcodes": [
@@ -2746,7 +2748,7 @@
     "price": 800.0,
     "stock": 18,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:53:37",
     "updatedAt": "2025-09-20T08:53:37",
     "barcodes": [
@@ -2759,7 +2761,7 @@
     "price": 350.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:46:31",
     "updatedAt": "2025-09-20T16:46:31",
     "barcodes": [
@@ -2772,7 +2774,7 @@
     "price": 4650.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:10:29",
     "updatedAt": "2025-09-20T01:10:29",
     "barcodes": [
@@ -2785,7 +2787,7 @@
     "price": 420.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:49:41",
     "updatedAt": "2025-09-20T16:49:41",
     "barcodes": [
@@ -2798,7 +2800,7 @@
     "price": 1450.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:03:48",
     "updatedAt": "2025-09-20T08:03:48",
     "barcodes": [
@@ -2811,7 +2813,7 @@
     "price": 2650.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:12:39",
     "updatedAt": "2025-09-19T23:12:39",
     "barcodes": [
@@ -2824,7 +2826,7 @@
     "price": 250.0,
     "stock": 47,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:09:51",
     "updatedAt": "2025-09-20T15:09:51",
     "barcodes": [
@@ -2837,7 +2839,7 @@
     "price": 4500.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:24:38",
     "updatedAt": "2025-09-19T23:24:38",
     "barcodes": [
@@ -2850,7 +2852,7 @@
     "price": 400.0,
     "stock": 13,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:12:11",
     "updatedAt": "2025-09-20T13:12:11",
     "barcodes": [
@@ -2863,7 +2865,7 @@
     "price": 3300.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T22:39:51",
     "updatedAt": "2025-09-19T22:40:35",
     "barcodes": [
@@ -2876,7 +2878,7 @@
     "price": 3300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:44:21",
     "updatedAt": "2025-09-20T08:44:21",
     "barcodes": [
@@ -2889,7 +2891,7 @@
     "price": 2350.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:45:28",
     "updatedAt": "2025-09-20T17:45:28",
     "barcodes": [
@@ -2902,7 +2904,7 @@
     "price": 1100.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:07:16",
     "updatedAt": "2025-09-19T23:07:16",
     "barcodes": [
@@ -2915,7 +2917,7 @@
     "price": 600.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:00:53",
     "updatedAt": "2025-09-20T17:00:53",
     "barcodes": [
@@ -2928,7 +2930,7 @@
     "price": 350.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:26:00",
     "updatedAt": "2025-09-20T16:26:00",
     "barcodes": [
@@ -2941,7 +2943,7 @@
     "price": 2250.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:49:02",
     "updatedAt": "2025-09-20T08:49:02",
     "barcodes": [
@@ -2954,7 +2956,7 @@
     "price": 3500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:50:25",
     "updatedAt": "2025-09-20T08:50:25",
     "barcodes": [
@@ -2967,7 +2969,7 @@
     "price": 700.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:10:58",
     "updatedAt": "2025-09-20T08:10:58",
     "barcodes": [
@@ -2980,7 +2982,7 @@
     "price": 4700.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:52:34",
     "updatedAt": "2025-09-20T11:52:34",
     "barcodes": [
@@ -2993,7 +2995,7 @@
     "price": 2100.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:23:31",
     "updatedAt": "2025-09-20T10:23:31",
     "barcodes": [
@@ -3006,7 +3008,7 @@
     "price": 3100.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:54:57",
     "updatedAt": "2025-09-20T12:54:57",
     "barcodes": [
@@ -3019,7 +3021,7 @@
     "price": 675.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:32:44",
     "updatedAt": "2025-09-20T00:32:44",
     "barcodes": [
@@ -3032,7 +3034,7 @@
     "price": 1350.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:57:10",
     "updatedAt": "2025-09-19T23:57:10",
     "barcodes": [
@@ -3045,7 +3047,7 @@
     "price": 1380.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:16:49",
     "updatedAt": "2025-09-20T08:16:49",
     "barcodes": [
@@ -3058,7 +3060,7 @@
     "price": 1500.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:21:36",
     "updatedAt": "2025-09-20T00:21:36",
     "barcodes": [
@@ -3071,7 +3073,7 @@
     "price": 1800.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:54:22",
     "updatedAt": "2025-09-20T08:54:22",
     "barcodes": [
@@ -3084,7 +3086,7 @@
     "price": 1850.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:41:47",
     "updatedAt": "2025-09-20T00:41:47",
     "barcodes": [
@@ -3097,7 +3099,7 @@
     "price": 550.0,
     "stock": 17,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T18:16:24",
     "updatedAt": "2025-09-20T18:16:24",
     "barcodes": [
@@ -3110,7 +3112,7 @@
     "price": 2450.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:30:26",
     "updatedAt": "2025-09-20T08:30:26",
     "barcodes": [
@@ -3123,7 +3125,7 @@
     "price": 1000.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:21:52",
     "updatedAt": "2025-09-19T23:21:52",
     "barcodes": [
@@ -3136,7 +3138,7 @@
     "price": 300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:43:57",
     "updatedAt": "2025-09-20T16:43:57",
     "barcodes": [
@@ -3149,7 +3151,7 @@
     "price": 350.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:33:40",
     "updatedAt": "2025-09-20T16:33:40",
     "barcodes": [
@@ -3162,7 +3164,7 @@
     "price": 5200.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:24:19",
     "updatedAt": "2025-09-20T08:24:19",
     "barcodes": [
@@ -3175,7 +3177,7 @@
     "price": 2700.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:51:43",
     "updatedAt": "2025-09-20T08:51:43",
     "barcodes": [
@@ -3188,7 +3190,7 @@
     "price": 550.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T14:03:35",
     "updatedAt": "2025-09-20T14:03:35",
     "barcodes": [
@@ -3201,7 +3203,7 @@
     "price": 1900.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:26:06",
     "updatedAt": "2025-09-20T11:26:06",
     "barcodes": [
@@ -3214,7 +3216,7 @@
     "price": 1550.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:02:55",
     "updatedAt": "2025-09-20T08:02:55",
     "barcodes": [
@@ -3227,7 +3229,7 @@
     "price": 2450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:56:49",
     "updatedAt": "2025-09-20T10:56:49",
     "barcodes": [
@@ -3240,7 +3242,7 @@
     "price": 4500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:06:33",
     "updatedAt": "2025-09-20T12:06:33",
     "barcodes": [
@@ -3253,7 +3255,7 @@
     "price": 350.0,
     "stock": 8,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:24:58",
     "updatedAt": "2025-09-20T16:24:58",
     "barcodes": [
@@ -3266,7 +3268,7 @@
     "price": 1050.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:32:01",
     "updatedAt": "2025-09-19T23:32:01",
     "barcodes": [
@@ -3279,7 +3281,7 @@
     "price": 2100.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:09:20",
     "updatedAt": "2025-09-20T08:09:20",
     "barcodes": [
@@ -3292,7 +3294,7 @@
     "price": 350.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:07:20",
     "updatedAt": "2025-09-20T17:07:20",
     "barcodes": [
@@ -3305,7 +3307,7 @@
     "price": 1750.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:12:47",
     "updatedAt": "2025-09-20T08:12:47",
     "barcodes": [
@@ -3318,7 +3320,7 @@
     "price": 800.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:44:53",
     "updatedAt": "2025-09-20T16:45:46",
     "barcodes": [
@@ -3331,7 +3333,7 @@
     "price": 400.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:10:05",
     "updatedAt": "2025-09-20T17:10:05",
     "barcodes": [
@@ -3344,7 +3346,7 @@
     "price": 1300.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:20:44",
     "updatedAt": "2025-09-20T00:20:44",
     "barcodes": [
@@ -3357,7 +3359,7 @@
     "price": 150.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:19:17",
     "updatedAt": "2025-09-20T13:19:17",
     "barcodes": [
@@ -3370,7 +3372,7 @@
     "price": 1500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:24:59",
     "updatedAt": "2025-09-20T11:24:59",
     "barcodes": [
@@ -3383,7 +3385,7 @@
     "price": 1450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:07:22",
     "updatedAt": "2025-09-20T20:07:22",
     "barcodes": [
@@ -3396,7 +3398,7 @@
     "price": 1800.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:16:15",
     "updatedAt": "2025-09-20T08:16:15",
     "barcodes": [
@@ -3409,7 +3411,7 @@
     "price": 2750.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T22:55:44",
     "updatedAt": "2025-09-19T22:55:44",
     "barcodes": [
@@ -3422,7 +3424,7 @@
     "price": 1750.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:13:37",
     "updatedAt": "2025-09-20T01:13:37",
     "barcodes": [
@@ -3435,7 +3437,7 @@
     "price": 400.0,
     "stock": 8,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:37:30",
     "updatedAt": "2025-09-20T17:37:30",
     "barcodes": [
@@ -3448,7 +3450,7 @@
     "price": 1450.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:40:49",
     "updatedAt": "2025-09-20T00:40:49",
     "barcodes": [
@@ -3461,7 +3463,7 @@
     "price": 1800.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:57:07",
     "updatedAt": "2025-09-20T10:57:07",
     "barcodes": [
@@ -3474,7 +3476,7 @@
     "price": 100.0,
     "stock": 42,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:02:56",
     "updatedAt": "2025-09-20T17:02:56",
     "barcodes": [
@@ -3487,7 +3489,7 @@
     "price": 650.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:50:06",
     "updatedAt": "2025-09-20T00:50:06",
     "barcodes": [
@@ -3500,7 +3502,7 @@
     "price": 3300.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:53:08",
     "updatedAt": "2025-09-20T00:53:08",
     "barcodes": [
@@ -3513,7 +3515,7 @@
     "price": 300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:43:38",
     "updatedAt": "2025-09-20T16:43:38",
     "barcodes": [
@@ -3526,7 +3528,7 @@
     "price": 700.0,
     "stock": 10,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:23:52",
     "updatedAt": "2025-09-20T13:23:52",
     "barcodes": [
@@ -3539,7 +3541,7 @@
     "price": 2200.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:49:33",
     "updatedAt": "2025-09-20T08:49:33",
     "barcodes": [
@@ -3552,7 +3554,7 @@
     "price": 1550.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:59:09",
     "updatedAt": "2025-09-19T23:59:09",
     "barcodes": [
@@ -3565,7 +3567,7 @@
     "price": 300.0,
     "stock": 24,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:08:03",
     "updatedAt": "2025-09-20T13:08:03",
     "barcodes": [
@@ -3578,7 +3580,7 @@
     "price": 1450.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:22:24",
     "updatedAt": "2025-09-20T00:22:24",
     "barcodes": [
@@ -3591,7 +3593,7 @@
     "price": 1450.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:54:38",
     "updatedAt": "2025-09-20T08:54:38",
     "barcodes": [
@@ -3604,7 +3606,7 @@
     "price": 1650.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:37:32",
     "updatedAt": "2025-09-20T00:37:32",
     "barcodes": [
@@ -3617,7 +3619,7 @@
     "price": 590.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:03:32",
     "updatedAt": "2025-09-20T20:03:32",
     "barcodes": [
@@ -3630,7 +3632,7 @@
     "price": 2100.0,
     "stock": 14,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:28:17",
     "updatedAt": "2025-09-20T17:28:17",
     "barcodes": [
@@ -3643,7 +3645,7 @@
     "price": 300.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:17:42",
     "updatedAt": "2025-09-20T13:17:42",
     "barcodes": [
@@ -3656,7 +3658,7 @@
     "price": 6500.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:25:53",
     "updatedAt": "2025-09-20T08:25:53",
     "barcodes": [
@@ -3669,7 +3671,7 @@
     "price": 150.0,
     "stock": 7,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:13:53",
     "updatedAt": "2025-09-20T17:13:53",
     "barcodes": [
@@ -3682,7 +3684,7 @@
     "price": 250.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:01:14",
     "updatedAt": "2025-09-20T17:01:14",
     "barcodes": [
@@ -3695,7 +3697,7 @@
     "price": 1450.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:14:29",
     "updatedAt": "2025-09-20T00:14:29",
     "barcodes": [
@@ -3708,7 +3710,7 @@
     "price": 2400.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:40:47",
     "updatedAt": "2025-09-20T17:40:47",
     "barcodes": [
@@ -3721,7 +3723,7 @@
     "price": 4080.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:58:09",
     "updatedAt": "2025-09-20T00:58:09",
     "barcodes": [
@@ -3734,7 +3736,7 @@
     "price": 1250.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T22:37:32",
     "updatedAt": "2025-09-19T22:37:32",
     "barcodes": [
@@ -3747,7 +3749,7 @@
     "price": 350.0,
     "stock": 20,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:03:10",
     "updatedAt": "2025-09-20T20:03:10",
     "barcodes": [
@@ -3760,7 +3762,7 @@
     "price": 1000.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:54:08",
     "updatedAt": "2025-09-19T23:54:08",
     "barcodes": [
@@ -3773,7 +3775,7 @@
     "price": 1500.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:11:29",
     "updatedAt": "2025-09-20T00:11:29",
     "barcodes": [
@@ -3786,7 +3788,7 @@
     "price": 2150.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:49:28",
     "updatedAt": "2025-09-19T23:49:28",
     "barcodes": [
@@ -3799,7 +3801,7 @@
     "price": 150.0,
     "stock": 8,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:11:24",
     "updatedAt": "2025-09-20T17:11:24",
     "barcodes": [
@@ -3812,7 +3814,7 @@
     "price": 1050.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:17:25",
     "updatedAt": "2025-09-20T08:17:25",
     "barcodes": [
@@ -3825,7 +3827,7 @@
     "price": 4500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:06:15",
     "updatedAt": "2025-09-20T12:06:15",
     "barcodes": [
@@ -3838,7 +3840,7 @@
     "price": 450.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:27:52",
     "updatedAt": "2025-09-20T16:27:52",
     "barcodes": [
@@ -3851,7 +3853,7 @@
     "price": 2900.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:41:34",
     "updatedAt": "2025-09-20T17:41:34",
     "barcodes": [
@@ -3864,7 +3866,7 @@
     "price": 450.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:35:40",
     "updatedAt": "2025-09-20T16:35:40",
     "barcodes": [
@@ -3877,7 +3879,7 @@
     "price": 6200.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:01:55",
     "updatedAt": "2025-09-20T09:01:55",
     "barcodes": [
@@ -3890,7 +3892,7 @@
     "price": 250.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:25:31",
     "updatedAt": "2025-09-20T13:25:31",
     "barcodes": [
@@ -3903,7 +3905,7 @@
     "price": 4750.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:14:33",
     "updatedAt": "2025-09-20T12:18:05",
     "barcodes": [
@@ -3916,7 +3918,7 @@
     "price": 600.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:07:43",
     "updatedAt": "2025-09-20T17:07:43",
     "barcodes": [
@@ -3929,7 +3931,7 @@
     "price": 1680.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:20:10",
     "updatedAt": "2025-09-20T00:20:10",
     "barcodes": [
@@ -3942,7 +3944,7 @@
     "price": 1725.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:53:58",
     "updatedAt": "2025-09-20T11:53:58",
     "barcodes": [
@@ -3955,7 +3957,7 @@
     "price": 1000.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:22:39",
     "updatedAt": "2025-09-20T08:22:39",
     "barcodes": [
@@ -3968,7 +3970,7 @@
     "price": 1750.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:28:07",
     "updatedAt": "2025-09-20T11:28:07",
     "barcodes": [
@@ -3981,7 +3983,7 @@
     "price": 950.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:58:14",
     "updatedAt": "2025-09-19T23:58:14",
     "barcodes": [
@@ -3994,7 +3996,7 @@
     "price": 1560.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:52:14",
     "updatedAt": "2025-09-20T08:52:14",
     "barcodes": [
@@ -4007,7 +4009,7 @@
     "price": 3600.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:28:22",
     "updatedAt": "2025-09-20T08:28:51",
     "barcodes": [
@@ -4020,7 +4022,7 @@
     "price": 350.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:47:13",
     "updatedAt": "2025-09-20T16:47:13",
     "barcodes": [
@@ -4033,7 +4035,7 @@
     "price": 650.0,
     "stock": 9,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:36:21",
     "updatedAt": "2025-09-20T17:36:21",
     "barcodes": [
@@ -4046,7 +4048,7 @@
     "price": 1300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:25:38",
     "updatedAt": "2025-09-20T11:25:38",
     "barcodes": [
@@ -4059,7 +4061,7 @@
     "price": 320.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:20:27",
     "updatedAt": "2025-09-20T16:20:27",
     "barcodes": [
@@ -4072,7 +4074,7 @@
     "price": 2650.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:26:21",
     "updatedAt": "2025-09-20T08:26:21",
     "barcodes": [
@@ -4085,7 +4087,7 @@
     "price": 4100.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:04:47",
     "updatedAt": "2025-09-20T09:04:47",
     "barcodes": [
@@ -4098,7 +4100,7 @@
     "price": 4600.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:38:09",
     "updatedAt": "2025-09-20T00:38:09",
     "barcodes": [
@@ -4111,7 +4113,7 @@
     "price": 2000.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:54:01",
     "updatedAt": "2025-09-20T08:54:01",
     "barcodes": [
@@ -4124,7 +4126,7 @@
     "price": 2550.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:48:56",
     "updatedAt": "2025-09-20T11:48:56",
     "barcodes": [
@@ -4137,7 +4139,7 @@
     "price": 6500.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:10:58",
     "updatedAt": "2025-09-19T23:10:58",
     "barcodes": [
@@ -4150,7 +4152,7 @@
     "price": 2400.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:01:53",
     "updatedAt": "2025-09-20T11:01:53",
     "barcodes": [
@@ -4163,7 +4165,7 @@
     "price": 1900.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:05:17",
     "updatedAt": "2025-09-20T09:05:17",
     "barcodes": [
@@ -4176,7 +4178,7 @@
     "price": 2150.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:12:22",
     "updatedAt": "2025-09-20T08:12:22",
     "barcodes": [
@@ -4189,7 +4191,7 @@
     "price": 750.0,
     "stock": 8,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:18:54",
     "updatedAt": "2025-09-19T23:18:54",
     "barcodes": [
@@ -4202,7 +4204,7 @@
     "price": 4290.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:51:54",
     "updatedAt": "2025-09-20T11:51:54",
     "barcodes": [
@@ -4215,7 +4217,7 @@
     "price": 4650.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:45:51",
     "updatedAt": "2025-09-20T11:45:51",
     "barcodes": [
@@ -4228,7 +4230,7 @@
     "price": 3700.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:12:57",
     "updatedAt": "2025-09-20T01:12:57",
     "barcodes": [
@@ -4241,7 +4243,7 @@
     "price": 3950.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:27:09",
     "updatedAt": "2025-09-19T23:27:09",
     "barcodes": [
@@ -4254,7 +4256,7 @@
     "price": 2700.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:17:29",
     "updatedAt": "2025-09-20T00:17:29",
     "barcodes": [
@@ -4267,7 +4269,7 @@
     "price": 800.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:11:09",
     "updatedAt": "2025-09-20T01:11:09",
     "barcodes": [
@@ -4280,7 +4282,7 @@
     "price": 1080.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:29:18",
     "updatedAt": "2025-09-20T11:29:18",
     "barcodes": [
@@ -4293,7 +4295,7 @@
     "price": 3450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:52:20",
     "updatedAt": "2025-09-20T10:52:20",
     "barcodes": [
@@ -4306,7 +4308,7 @@
     "price": 1450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:24:41",
     "updatedAt": "2025-09-20T11:24:41",
     "barcodes": [
@@ -4319,7 +4321,7 @@
     "price": 1500.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:08:39",
     "updatedAt": "2025-09-20T12:08:39",
     "barcodes": [
@@ -4332,7 +4334,7 @@
     "price": 3450.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:25:13",
     "updatedAt": "2025-09-20T08:25:13",
     "barcodes": [
@@ -4345,7 +4347,7 @@
     "price": 5580.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:48:10",
     "updatedAt": "2025-09-20T11:48:10",
     "barcodes": [
@@ -4358,7 +4360,7 @@
     "price": 1950.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:35:10",
     "updatedAt": "2025-09-20T10:35:10",
     "barcodes": [
@@ -4371,7 +4373,7 @@
     "price": 50.0,
     "stock": 12,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:18:53",
     "updatedAt": "2025-09-20T15:18:53",
     "barcodes": [
@@ -4384,7 +4386,7 @@
     "price": 250.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:38:37",
     "updatedAt": "2025-09-20T16:38:37",
     "barcodes": [
@@ -4397,7 +4399,7 @@
     "price": 250.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:09:38",
     "updatedAt": "2025-09-20T17:09:38",
     "barcodes": [
@@ -4410,7 +4412,7 @@
     "price": 300.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:25:47",
     "updatedAt": "2025-09-20T15:25:47",
     "barcodes": [
@@ -4423,7 +4425,7 @@
     "price": 1050.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:26:31",
     "updatedAt": "2025-09-20T00:26:31",
     "barcodes": [
@@ -4436,7 +4438,7 @@
     "price": 1800.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:02:30",
     "updatedAt": "2025-09-20T00:02:30",
     "barcodes": [
@@ -4449,7 +4451,7 @@
     "price": 500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:13:21",
     "updatedAt": "2025-09-20T17:13:21",
     "barcodes": [
@@ -4462,7 +4464,7 @@
     "price": 850.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:28:28",
     "updatedAt": "2025-09-20T11:28:28",
     "barcodes": [
@@ -4475,7 +4477,7 @@
     "price": 450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:28:15",
     "updatedAt": "2025-09-20T16:28:15",
     "barcodes": [
@@ -4488,7 +4490,7 @@
     "price": 3300.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:02:04",
     "updatedAt": "2025-09-20T01:02:04",
     "barcodes": [
@@ -4501,7 +4503,7 @@
     "price": 250.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:29:03",
     "updatedAt": "2025-09-20T15:29:03",
     "barcodes": [
@@ -4514,7 +4516,7 @@
     "price": 3180.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:21:41",
     "updatedAt": "2025-09-20T11:21:41",
     "barcodes": [
@@ -4527,7 +4529,7 @@
     "price": 750.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:08:40",
     "updatedAt": "2025-09-19T23:08:40",
     "barcodes": [
@@ -4540,7 +4542,7 @@
     "price": 1400.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:16:50",
     "updatedAt": "2025-09-20T00:16:50",
     "barcodes": [
@@ -4553,7 +4555,7 @@
     "price": 2900.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:42:24",
     "updatedAt": "2025-09-20T00:42:24",
     "barcodes": [
@@ -4566,7 +4568,7 @@
     "price": 3500.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:03:28",
     "updatedAt": "2025-09-19T23:03:28",
     "barcodes": [
@@ -4579,7 +4581,7 @@
     "price": 180.0,
     "stock": 17,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:27:53",
     "updatedAt": "2025-09-20T15:27:53",
     "barcodes": [
@@ -4592,7 +4594,7 @@
     "price": 350.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:32:24",
     "updatedAt": "2025-09-20T16:32:24",
     "barcodes": [
@@ -4605,7 +4607,7 @@
     "price": 3000.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:58:59",
     "updatedAt": "2025-09-20T08:58:59",
     "barcodes": [
@@ -4618,7 +4620,7 @@
     "price": 2650.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:41:10",
     "updatedAt": "2025-09-20T17:41:10",
     "barcodes": [
@@ -4631,7 +4633,7 @@
     "price": 1995.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:46:27",
     "updatedAt": "2025-09-20T17:46:27",
     "barcodes": [
@@ -4644,7 +4646,7 @@
     "price": 400.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:43:22",
     "updatedAt": "2025-09-20T16:43:22",
     "barcodes": [
@@ -4657,7 +4659,7 @@
     "price": 300.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:18:06",
     "updatedAt": "2025-09-20T13:18:06",
     "barcodes": [
@@ -4670,7 +4672,7 @@
     "price": 2175.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:15:14",
     "updatedAt": "2025-09-20T12:15:14",
     "barcodes": [
@@ -4683,7 +4685,7 @@
     "price": 900.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:30:27",
     "updatedAt": "2025-09-19T23:30:27",
     "barcodes": [
@@ -4696,7 +4698,7 @@
     "price": 3180.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:06:55",
     "updatedAt": "2025-09-20T12:06:55",
     "barcodes": [
@@ -4709,7 +4711,7 @@
     "price": 1900.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:53:15",
     "updatedAt": "2025-09-20T08:53:15",
     "barcodes": [
@@ -4722,7 +4724,7 @@
     "price": 1900.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:42:26",
     "updatedAt": "2025-09-20T08:42:26",
     "barcodes": [
@@ -4735,7 +4737,7 @@
     "price": 2500.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:25:25",
     "updatedAt": "2025-09-20T08:25:25",
     "barcodes": [
@@ -4748,7 +4750,7 @@
     "price": 1250.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:53:03",
     "updatedAt": "2025-09-20T13:53:03",
     "barcodes": [
@@ -4761,7 +4763,7 @@
     "price": 400.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:14:49",
     "updatedAt": "2025-09-20T08:14:49",
     "barcodes": [
@@ -4774,7 +4776,7 @@
     "price": 2300.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:27:50",
     "updatedAt": "2025-09-20T17:27:50",
     "barcodes": [
@@ -4787,7 +4789,7 @@
     "price": 3800.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T22:21:31",
     "updatedAt": "2025-09-19T22:21:31",
     "barcodes": [
@@ -4800,7 +4802,7 @@
     "price": 1250.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:15:52",
     "updatedAt": "2025-09-20T11:15:52",
     "barcodes": [
@@ -4813,7 +4815,7 @@
     "price": 850.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T17:01:49",
     "updatedAt": "2025-09-20T10:17:03",
     "barcodes": [
@@ -4826,7 +4828,7 @@
     "price": 1350.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:34:12",
     "updatedAt": "2025-09-20T00:34:12",
     "barcodes": [
@@ -4839,7 +4841,7 @@
     "price": 450.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:13:51",
     "updatedAt": "2025-09-20T08:13:51",
     "barcodes": [
@@ -4852,7 +4854,7 @@
     "price": 3800.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:50:13",
     "updatedAt": "2025-09-20T08:50:13",
     "barcodes": [
@@ -4865,7 +4867,7 @@
     "price": 4000.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:46:46",
     "updatedAt": "2025-09-20T08:46:46",
     "barcodes": [
@@ -4878,7 +4880,7 @@
     "price": 595.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:05:00",
     "updatedAt": "2025-09-20T20:05:00",
     "barcodes": [
@@ -4891,7 +4893,7 @@
     "price": 4200.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:20:13",
     "updatedAt": "2025-09-19T23:20:13",
     "barcodes": [
@@ -4904,7 +4906,7 @@
     "price": 50.0,
     "stock": 180,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:20:43",
     "updatedAt": "2025-09-20T15:22:49",
     "barcodes": [
@@ -4917,7 +4919,7 @@
     "price": 4450.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:01:14",
     "updatedAt": "2025-09-20T01:01:14",
     "barcodes": [
@@ -4930,7 +4932,7 @@
     "price": 4080.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:08:59",
     "updatedAt": "2025-09-20T01:08:59",
     "barcodes": [
@@ -4943,7 +4945,7 @@
     "price": 1050.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T22:32:13",
     "updatedAt": "2025-09-19T22:32:13",
     "barcodes": [
@@ -4956,7 +4958,7 @@
     "price": 2925.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:55:11",
     "updatedAt": "2025-09-20T08:55:11",
     "barcodes": [
@@ -4969,7 +4971,7 @@
     "price": 4200.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:15:18",
     "updatedAt": "2025-09-19T23:15:18",
     "barcodes": [
@@ -4982,7 +4984,7 @@
     "price": 3300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:48:31",
     "updatedAt": "2025-09-20T11:48:31",
     "barcodes": [
@@ -4995,7 +4997,7 @@
     "price": 1850.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:24:14",
     "updatedAt": "2025-09-20T11:24:14",
     "barcodes": [
@@ -5008,7 +5010,7 @@
     "price": 5200.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:05:34",
     "updatedAt": "2025-09-20T01:05:34",
     "barcodes": [
@@ -5021,7 +5023,7 @@
     "price": 850.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:32:28",
     "updatedAt": "2025-09-20T17:32:28",
     "barcodes": [
@@ -5034,7 +5036,7 @@
     "price": 500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:50:02",
     "updatedAt": "2025-09-20T16:50:02",
     "barcodes": [
@@ -5047,7 +5049,7 @@
     "price": 1500.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:59:54",
     "updatedAt": "2025-09-19T23:59:54",
     "barcodes": [
@@ -5060,7 +5062,7 @@
     "price": 300.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:10:56",
     "updatedAt": "2025-09-20T15:10:56",
     "barcodes": [
@@ -5073,7 +5075,7 @@
     "price": 3100.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:29:39",
     "updatedAt": "2025-09-20T08:29:39",
     "barcodes": [
@@ -5086,7 +5088,7 @@
     "price": 1250.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:34:03",
     "updatedAt": "2025-09-20T10:34:03",
     "barcodes": [
@@ -5099,7 +5101,7 @@
     "price": 2200.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:03:15",
     "updatedAt": "2025-09-20T00:03:15",
     "barcodes": [
@@ -5112,7 +5114,7 @@
     "price": 1450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:48:05",
     "updatedAt": "2025-09-20T17:48:05",
     "barcodes": [
@@ -5125,7 +5127,7 @@
     "price": 50.0,
     "stock": 48,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:03:18",
     "updatedAt": "2025-09-20T17:03:18",
     "barcodes": [
@@ -5138,7 +5140,7 @@
     "price": 3600.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:26:35",
     "updatedAt": "2025-09-20T08:26:35",
     "barcodes": [
@@ -5151,7 +5153,7 @@
     "price": 2400.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:50:47",
     "updatedAt": "2025-09-20T10:50:47",
     "barcodes": [
@@ -5164,7 +5166,7 @@
     "price": 250.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:38:15",
     "updatedAt": "2025-09-20T16:38:15",
     "barcodes": [
@@ -5177,7 +5179,7 @@
     "price": 300.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:25:00",
     "updatedAt": "2025-09-20T13:25:00",
     "barcodes": [
@@ -5190,7 +5192,7 @@
     "price": 2800.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:14:23",
     "updatedAt": "2025-09-20T12:14:23",
     "barcodes": [
@@ -5203,7 +5205,7 @@
     "price": 3180.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:09:51",
     "updatedAt": "2025-09-20T08:09:51",
     "barcodes": [
@@ -5216,7 +5218,7 @@
     "price": 3000.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:31:06",
     "updatedAt": "2025-09-20T08:31:06",
     "barcodes": [
@@ -5229,7 +5231,7 @@
     "price": 3000.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:10:36",
     "updatedAt": "2025-09-20T12:10:36",
     "barcodes": [
@@ -5242,7 +5244,7 @@
     "price": 350.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:40:36",
     "updatedAt": "2025-09-20T16:40:36",
     "barcodes": [
@@ -5255,7 +5257,7 @@
     "price": 350.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:58:34",
     "updatedAt": "2025-09-20T16:58:34",
     "barcodes": [
@@ -5268,7 +5270,7 @@
     "price": 1980.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:49:23",
     "updatedAt": "2025-09-20T00:49:23",
     "barcodes": [
@@ -5281,7 +5283,7 @@
     "price": 300.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:05:21",
     "updatedAt": "2025-09-20T17:05:21",
     "barcodes": [
@@ -5294,7 +5296,7 @@
     "price": 3150.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:08:19",
     "updatedAt": "2025-09-20T12:08:19",
     "barcodes": [
@@ -5307,7 +5309,7 @@
     "price": 350.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:39:53",
     "updatedAt": "2025-09-20T16:39:53",
     "barcodes": [
@@ -5320,7 +5322,7 @@
     "price": 3000.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:47:55",
     "updatedAt": "2025-09-20T00:47:55",
     "barcodes": [
@@ -5333,7 +5335,7 @@
     "price": 1650.0,
     "stock": 7,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:35:51",
     "updatedAt": "2025-09-20T00:35:51",
     "barcodes": [
@@ -5346,7 +5348,7 @@
     "price": 800.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:44:18",
     "updatedAt": "2025-09-20T16:44:18",
     "barcodes": [
@@ -5359,7 +5361,7 @@
     "price": 900.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:30:30",
     "updatedAt": "2025-09-20T17:30:30",
     "barcodes": [
@@ -5372,7 +5374,7 @@
     "price": 3300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:54:58",
     "updatedAt": "2025-09-20T10:54:58",
     "barcodes": [
@@ -5385,7 +5387,7 @@
     "price": 5700.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:56:18",
     "updatedAt": "2025-09-20T00:56:18",
     "barcodes": [
@@ -5398,7 +5400,7 @@
     "price": 2650.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:05:01",
     "updatedAt": "2025-09-20T09:05:01",
     "barcodes": [
@@ -5411,7 +5413,7 @@
     "price": 150.0,
     "stock": 40,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:12:54",
     "updatedAt": "2025-09-20T17:12:54",
     "barcodes": [
@@ -5424,7 +5426,7 @@
     "price": 1350.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:04:58",
     "updatedAt": "2025-09-19T23:04:58",
     "barcodes": [
@@ -5437,7 +5439,7 @@
     "price": 2250.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:49:18",
     "updatedAt": "2025-09-20T08:49:18",
     "barcodes": [
@@ -5450,7 +5452,7 @@
     "price": 2400.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:54:06",
     "updatedAt": "2025-09-20T12:54:06",
     "barcodes": [
@@ -5463,7 +5465,7 @@
     "price": 4800.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:02:14",
     "updatedAt": "2025-09-20T09:02:14",
     "barcodes": [
@@ -5476,7 +5478,7 @@
     "price": 1575.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:53:32",
     "updatedAt": "2025-09-19T23:53:32",
     "barcodes": [
@@ -5489,7 +5491,7 @@
     "price": 400.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:43:41",
     "updatedAt": "2025-09-20T17:43:41",
     "barcodes": [
@@ -5502,7 +5504,7 @@
     "price": 450.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:21:45",
     "updatedAt": "2025-09-20T16:21:45",
     "barcodes": [
@@ -5515,7 +5517,7 @@
     "price": 500.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:42:26",
     "updatedAt": "2025-09-20T16:42:26",
     "barcodes": [
@@ -5528,7 +5530,7 @@
     "price": 780.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:46:58",
     "updatedAt": "2025-09-20T00:46:58",
     "barcodes": [
@@ -5541,7 +5543,7 @@
     "price": 2400.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:40:02",
     "updatedAt": "2025-09-20T17:40:02",
     "barcodes": [
@@ -5554,7 +5556,7 @@
     "price": 450.0,
     "stock": 13,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:01:41",
     "updatedAt": "2025-09-20T13:01:41",
     "barcodes": [
@@ -5567,7 +5569,7 @@
     "price": 1350.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:26:39",
     "updatedAt": "2025-09-20T11:26:39",
     "barcodes": [
@@ -5580,7 +5582,7 @@
     "price": 1680.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:24:19",
     "updatedAt": "2025-09-20T10:24:19",
     "barcodes": [
@@ -5593,7 +5595,7 @@
     "price": 500.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:41:46",
     "updatedAt": "2025-09-20T16:41:46",
     "barcodes": [
@@ -5606,7 +5608,7 @@
     "price": 1450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:27:44",
     "updatedAt": "2025-09-20T11:27:44",
     "barcodes": [
@@ -5619,7 +5621,7 @@
     "price": 3400.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:16:02",
     "updatedAt": "2025-09-19T23:16:25",
     "barcodes": [
@@ -5632,7 +5634,7 @@
     "price": 2400.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:39:40",
     "updatedAt": "2025-09-20T17:39:40",
     "barcodes": [
@@ -5645,7 +5647,7 @@
     "price": 300.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T20:20:44",
     "updatedAt": "2025-09-20T10:18:45",
     "barcodes": [
@@ -5658,7 +5660,7 @@
     "price": 2200.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T01:12:05",
     "updatedAt": "2025-09-20T01:12:05",
     "barcodes": [
@@ -5671,7 +5673,7 @@
     "price": 3800.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:08:30",
     "updatedAt": "2025-09-20T08:08:30",
     "barcodes": [
@@ -5684,7 +5686,7 @@
     "price": 2150.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:12:23",
     "updatedAt": "2025-09-20T12:12:23",
     "barcodes": [
@@ -5697,7 +5699,7 @@
     "price": 495.0,
     "stock": 14,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:43:23",
     "updatedAt": "2025-09-20T17:43:23",
     "barcodes": [
@@ -5710,7 +5712,7 @@
     "price": 1200.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:47:37",
     "updatedAt": "2025-09-20T16:48:18",
     "barcodes": [
@@ -5723,7 +5725,7 @@
     "price": 900.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:14:09",
     "updatedAt": "2025-09-20T08:14:09",
     "barcodes": [
@@ -5736,7 +5738,7 @@
     "price": 3200.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:52:17",
     "updatedAt": "2025-09-20T00:52:17",
     "barcodes": [
@@ -5749,7 +5751,7 @@
     "price": 2175.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:53:39",
     "updatedAt": "2025-09-20T11:53:39",
     "barcodes": [
@@ -5762,7 +5764,7 @@
     "price": 450.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:37:38",
     "updatedAt": "2025-09-20T16:37:38",
     "barcodes": [
@@ -5775,7 +5777,7 @@
     "price": 3400.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:54:45",
     "updatedAt": "2025-09-20T00:54:45",
     "barcodes": [
@@ -5788,7 +5790,7 @@
     "price": 1500.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:00:59",
     "updatedAt": "2025-09-20T00:00:59",
     "barcodes": [
@@ -5801,7 +5803,7 @@
     "price": 3500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:15:26",
     "updatedAt": "2025-09-20T11:15:26",
     "barcodes": [
@@ -5814,7 +5816,7 @@
     "price": 600.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:30:38",
     "updatedAt": "2025-09-20T10:30:38",
     "barcodes": [
@@ -5827,7 +5829,7 @@
     "price": 1800.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:13:27",
     "updatedAt": "2025-09-20T08:13:27",
     "barcodes": [
@@ -5840,7 +5842,7 @@
     "price": 300.0,
     "stock": 7,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:13:20",
     "updatedAt": "2025-09-20T13:13:20",
     "barcodes": [
@@ -5853,7 +5855,7 @@
     "price": 1250.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:34:21",
     "updatedAt": "2025-09-20T10:34:21",
     "barcodes": [
@@ -5866,7 +5868,7 @@
     "price": 3375.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:10:30",
     "updatedAt": "2025-09-20T11:10:30",
     "barcodes": [
@@ -5879,7 +5881,7 @@
     "price": 250.0,
     "stock": 15,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:12:47",
     "updatedAt": "2025-09-20T13:12:47",
     "barcodes": [
@@ -5892,7 +5894,7 @@
     "price": 2550.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:06:42",
     "updatedAt": "2025-09-20T09:06:42",
     "barcodes": [
@@ -5905,7 +5907,7 @@
     "price": 250.0,
     "stock": 8,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:04:00",
     "updatedAt": "2025-09-20T20:04:00",
     "barcodes": [
@@ -5918,7 +5920,7 @@
     "price": 50.0,
     "stock": 12,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:02:08",
     "updatedAt": "2025-09-20T17:02:08",
     "barcodes": [
@@ -5931,7 +5933,7 @@
     "price": 350.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T14:04:13",
     "updatedAt": "2025-09-20T14:04:13",
     "barcodes": [
@@ -5944,7 +5946,7 @@
     "price": 500.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:24:17",
     "updatedAt": "2025-09-20T15:24:17",
     "barcodes": [
@@ -5957,7 +5959,7 @@
     "price": 7350.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:02:34",
     "updatedAt": "2025-09-20T09:02:34",
     "barcodes": [
@@ -5970,7 +5972,7 @@
     "price": 1350.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:08:01",
     "updatedAt": "2025-09-19T23:08:01",
     "barcodes": [
@@ -5983,7 +5985,7 @@
     "price": 1700.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:13:35",
     "updatedAt": "2025-09-20T00:13:35",
     "barcodes": [
@@ -5996,7 +5998,7 @@
     "price": 2600.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:32:26",
     "updatedAt": "2025-09-20T08:32:26",
     "barcodes": [
@@ -6009,7 +6011,7 @@
     "price": 650.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:05:21",
     "updatedAt": "2025-09-20T20:05:21",
     "barcodes": [
@@ -6022,7 +6024,7 @@
     "price": 2295.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:46:21",
     "updatedAt": "2025-09-20T00:46:21",
     "barcodes": [
@@ -6035,7 +6037,7 @@
     "price": 250.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T14:17:35",
     "updatedAt": "2025-09-20T14:17:35",
     "barcodes": [
@@ -6048,7 +6050,7 @@
     "price": 650.0,
     "stock": 11,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:26:04",
     "updatedAt": "2025-09-19T23:26:04",
     "barcodes": [
@@ -6061,7 +6063,7 @@
     "price": 1450.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:52:56",
     "updatedAt": "2025-09-20T08:52:56",
     "barcodes": [
@@ -6074,7 +6076,7 @@
     "price": 50.0,
     "stock": 12,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:19:27",
     "updatedAt": "2025-09-20T15:19:27",
     "barcodes": [
@@ -6087,7 +6089,7 @@
     "price": 3400.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:50:00",
     "updatedAt": "2025-09-20T08:50:00",
     "barcodes": [
@@ -6100,7 +6102,7 @@
     "price": 750.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:10:28",
     "updatedAt": "2025-09-20T17:10:28",
     "barcodes": [
@@ -6113,7 +6115,7 @@
     "price": 450.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:27:27",
     "updatedAt": "2025-09-20T16:27:27",
     "barcodes": [
@@ -6126,7 +6128,7 @@
     "price": 900.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T14:11:36",
     "updatedAt": "2025-09-20T14:11:36",
     "barcodes": [
@@ -6139,7 +6141,7 @@
     "price": 1500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:16:36",
     "updatedAt": "2025-09-20T11:16:36",
     "barcodes": [
@@ -6152,7 +6154,7 @@
     "price": 4500.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:14:32",
     "updatedAt": "2025-09-19T23:14:32",
     "barcodes": [
@@ -6165,7 +6167,7 @@
     "price": 3200.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:26:48",
     "updatedAt": "2025-09-20T08:26:48",
     "barcodes": [
@@ -6178,7 +6180,7 @@
     "price": 3750.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T22:21:00",
     "updatedAt": "2025-09-19T22:21:00",
     "barcodes": [
@@ -6191,7 +6193,7 @@
     "price": 4150.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:11:07",
     "updatedAt": "2025-09-20T12:11:07",
     "barcodes": [
@@ -6204,7 +6206,7 @@
     "price": 1050.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:31:52",
     "updatedAt": "2025-09-20T00:31:52",
     "barcodes": [
@@ -6217,7 +6219,7 @@
     "price": 2100.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:04:31",
     "updatedAt": "2025-09-20T09:04:31",
     "barcodes": [
@@ -6230,7 +6232,7 @@
     "price": 700.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:44:37",
     "updatedAt": "2025-09-20T16:44:37",
     "barcodes": [
@@ -6243,7 +6245,7 @@
     "price": 100.0,
     "stock": 18,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:20:14",
     "updatedAt": "2025-09-20T15:20:14",
     "barcodes": [
@@ -6256,7 +6258,7 @@
     "price": 380.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:21:57",
     "updatedAt": "2025-09-20T13:21:57",
     "barcodes": [
@@ -6269,7 +6271,7 @@
     "price": 550.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:31:58",
     "updatedAt": "2025-09-20T17:31:58",
     "barcodes": [
@@ -6282,7 +6284,7 @@
     "price": 1650.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:31:08",
     "updatedAt": "2025-09-20T10:31:08",
     "barcodes": [
@@ -6295,7 +6297,7 @@
     "price": 1350.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:04:59",
     "updatedAt": "2025-09-20T08:04:59",
     "barcodes": [
@@ -6308,7 +6310,7 @@
     "price": 1850.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:40:23",
     "updatedAt": "2025-09-20T17:40:23",
     "barcodes": [
@@ -6321,7 +6323,7 @@
     "price": 1000.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:00:27",
     "updatedAt": "2025-09-20T08:00:27",
     "barcodes": [
@@ -6334,7 +6336,7 @@
     "price": 350.0,
     "stock": 42,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:08:06",
     "updatedAt": "2025-09-20T20:08:06",
     "barcodes": [
@@ -6347,7 +6349,7 @@
     "price": 3650.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:06:12",
     "updatedAt": "2025-09-20T09:06:12",
     "barcodes": [
@@ -6360,7 +6362,7 @@
     "price": 9000.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:01:33",
     "updatedAt": "2025-09-20T09:01:33",
     "barcodes": [
@@ -6373,7 +6375,7 @@
     "price": 250.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:19:55",
     "updatedAt": "2025-09-20T13:19:55",
     "barcodes": [
@@ -6386,7 +6388,7 @@
     "price": 250.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:13:45",
     "updatedAt": "2025-09-20T15:13:45",
     "barcodes": [
@@ -6399,7 +6401,7 @@
     "price": 2800.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:50:28",
     "updatedAt": "2025-09-20T10:50:28",
     "barcodes": [
@@ -6412,7 +6414,7 @@
     "price": 1500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T14:15:38",
     "updatedAt": "2025-09-20T14:15:38",
     "barcodes": [
@@ -6425,7 +6427,7 @@
     "price": 4600.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:33:16",
     "updatedAt": "2025-09-20T08:33:16",
     "barcodes": [
@@ -6438,7 +6440,7 @@
     "price": 2850.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:14:31",
     "updatedAt": "2025-09-20T08:14:31",
     "barcodes": [
@@ -6451,7 +6453,7 @@
     "price": 2400.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:02:35",
     "updatedAt": "2025-09-20T08:02:35",
     "barcodes": [
@@ -6464,7 +6466,7 @@
     "price": 1050.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:17:11",
     "updatedAt": "2025-09-20T08:17:11",
     "barcodes": [
@@ -6477,7 +6479,7 @@
     "price": 1300.0,
     "stock": 11,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:29:19",
     "updatedAt": "2025-09-20T17:29:19",
     "barcodes": [
@@ -6490,7 +6492,7 @@
     "price": 1850.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:33:03",
     "updatedAt": "2025-09-20T08:33:03",
     "barcodes": [
@@ -6503,7 +6505,7 @@
     "price": 825.0,
     "stock": 9,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:35:19",
     "updatedAt": "2025-09-20T17:35:19",
     "barcodes": [
@@ -6516,7 +6518,7 @@
     "price": 3600.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:50:38",
     "updatedAt": "2025-09-20T08:50:38",
     "barcodes": [
@@ -6529,7 +6531,7 @@
     "price": 2250.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:53:24",
     "updatedAt": "2025-09-20T12:53:24",
     "barcodes": [
@@ -6542,7 +6544,7 @@
     "price": 1250.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:31:24",
     "updatedAt": "2025-09-20T12:31:24",
     "barcodes": [
@@ -6555,7 +6557,7 @@
     "price": 2100.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:06:25",
     "updatedAt": "2025-09-19T23:06:25",
     "barcodes": [
@@ -6568,7 +6570,7 @@
     "price": 700.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:10:17",
     "updatedAt": "2025-09-19T23:10:17",
     "barcodes": [
@@ -6581,7 +6583,7 @@
     "price": 350.0,
     "stock": 56,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:48:45",
     "updatedAt": "2025-09-20T17:48:45",
     "barcodes": [
@@ -6594,7 +6596,7 @@
     "price": 250.0,
     "stock": 14,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:09:23",
     "updatedAt": "2025-09-20T13:09:23",
     "barcodes": [
@@ -6607,7 +6609,7 @@
     "price": 4950.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:06:27",
     "updatedAt": "2025-09-20T09:06:27",
     "barcodes": [
@@ -6620,7 +6622,7 @@
     "price": 1300.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:35:07",
     "updatedAt": "2025-09-20T00:35:07",
     "barcodes": [
@@ -6633,7 +6635,7 @@
     "price": 2070.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:04:17",
     "updatedAt": "2025-09-20T08:04:17",
     "barcodes": [
@@ -6646,7 +6648,7 @@
     "price": 400.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:15:21",
     "updatedAt": "2025-09-20T08:15:21",
     "barcodes": [
@@ -6659,7 +6661,7 @@
     "price": 3000.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:31:10",
     "updatedAt": "2025-09-19T23:31:10",
     "barcodes": [
@@ -6672,7 +6674,7 @@
     "price": 350.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:34:57",
     "updatedAt": "2025-09-20T16:34:57",
     "barcodes": [
@@ -6685,7 +6687,7 @@
     "price": 2550.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:51:56",
     "updatedAt": "2025-09-20T10:51:56",
     "barcodes": [
@@ -6698,7 +6700,7 @@
     "price": 4275.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:12:07",
     "updatedAt": "2025-09-20T08:12:07",
     "barcodes": [
@@ -6711,7 +6713,7 @@
     "price": 3400.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:23:38",
     "updatedAt": "2025-09-19T23:23:38",
     "barcodes": [
@@ -6724,7 +6726,7 @@
     "price": 2600.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:25:26",
     "updatedAt": "2025-09-19T23:25:26",
     "barcodes": [
@@ -6737,7 +6739,7 @@
     "price": 250.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:39:27",
     "updatedAt": "2025-09-20T16:39:27",
     "barcodes": [
@@ -6750,7 +6752,7 @@
     "price": 3300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:55:26",
     "updatedAt": "2025-09-20T10:55:26",
     "barcodes": [
@@ -6763,7 +6765,7 @@
     "price": 3000.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:50:14",
     "updatedAt": "2025-09-20T10:50:14",
     "barcodes": [
@@ -6776,7 +6778,7 @@
     "price": 1575.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:48:42",
     "updatedAt": "2025-09-20T00:48:42",
     "barcodes": [
@@ -6789,7 +6791,7 @@
     "price": 3950.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:02:54",
     "updatedAt": "2025-09-20T09:02:54",
     "barcodes": [
@@ -6802,7 +6804,7 @@
     "price": 3300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:53:07",
     "updatedAt": "2025-09-20T10:53:07",
     "barcodes": [
@@ -6815,7 +6817,7 @@
     "price": 4450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:05:51",
     "updatedAt": "2025-09-20T09:05:51",
     "barcodes": [
@@ -6828,7 +6830,7 @@
     "price": 300.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T14:18:57",
     "updatedAt": "2025-09-20T14:18:57",
     "barcodes": [
@@ -6841,7 +6843,7 @@
     "price": 1700.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:29:11",
     "updatedAt": "2025-09-20T08:29:11",
     "barcodes": [
@@ -6854,7 +6856,7 @@
     "price": 1300.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:12:35",
     "updatedAt": "2025-09-20T00:12:35",
     "barcodes": [
@@ -6867,7 +6869,7 @@
     "price": 1800.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T14:02:52",
     "updatedAt": "2025-09-20T14:02:52",
     "barcodes": [
@@ -6880,7 +6882,7 @@
     "price": 300.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:25:12",
     "updatedAt": "2025-09-20T15:25:12",
     "barcodes": [
@@ -6893,7 +6895,7 @@
     "price": 350.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:40:12",
     "updatedAt": "2025-09-20T16:40:12",
     "barcodes": [
@@ -6906,7 +6908,7 @@
     "price": 450.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:36:51",
     "updatedAt": "2025-09-20T16:37:09",
     "barcodes": [
@@ -6919,7 +6921,7 @@
     "price": 2700.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:29:24",
     "updatedAt": "2025-09-20T08:29:24",
     "barcodes": [
@@ -6932,7 +6934,7 @@
     "price": 450.0,
     "stock": 8,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:23:27",
     "updatedAt": "2025-09-20T16:23:27",
     "barcodes": [
@@ -6945,7 +6947,7 @@
     "price": 2000.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:43:56",
     "updatedAt": "2025-09-20T00:43:56",
     "barcodes": [
@@ -6958,7 +6960,7 @@
     "price": 2900.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:18:36",
     "updatedAt": "2025-09-20T11:18:36",
     "barcodes": [
@@ -6971,7 +6973,7 @@
     "price": 50.0,
     "stock": 10,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:04:24",
     "updatedAt": "2025-09-20T17:04:24",
     "barcodes": [
@@ -6984,7 +6986,7 @@
     "price": 4800.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:57:01",
     "updatedAt": "2025-09-20T00:57:01",
     "barcodes": [
@@ -6997,7 +6999,7 @@
     "price": 2950.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:14:10",
     "updatedAt": "2025-09-20T11:14:10",
     "barcodes": [
@@ -7010,7 +7012,7 @@
     "price": 300.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:23:14",
     "updatedAt": "2025-09-20T13:23:14",
     "barcodes": [
@@ -7023,7 +7025,7 @@
     "price": 350.0,
     "stock": 9,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:15:16",
     "updatedAt": "2025-09-20T13:15:16",
     "barcodes": [
@@ -7036,7 +7038,7 @@
     "price": 1500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:05:35",
     "updatedAt": "2025-09-20T09:05:35",
     "barcodes": [
@@ -7049,7 +7051,7 @@
     "price": 200.0,
     "stock": 14,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:17:10",
     "updatedAt": "2025-09-20T13:17:10",
     "barcodes": [
@@ -7062,7 +7064,7 @@
     "price": 3600.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:30:20",
     "updatedAt": "2025-09-20T11:30:20",
     "barcodes": [
@@ -7075,7 +7077,7 @@
     "price": 1950.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:56:34",
     "updatedAt": "2025-09-20T10:56:34",
     "barcodes": [
@@ -7088,7 +7090,7 @@
     "price": 2450.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:03:42",
     "updatedAt": "2025-09-20T09:03:42",
     "barcodes": [
@@ -7101,7 +7103,7 @@
     "price": 450.0,
     "stock": 8,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:22:26",
     "updatedAt": "2025-09-20T16:22:26",
     "barcodes": [
@@ -7114,7 +7116,7 @@
     "price": 1250.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:26:08",
     "updatedAt": "2025-09-20T08:26:08",
     "barcodes": [
@@ -7127,7 +7129,7 @@
     "price": 500.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:57:36",
     "updatedAt": "2025-09-20T16:57:36",
     "barcodes": [
@@ -7140,7 +7142,7 @@
     "price": 350.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:06:58",
     "updatedAt": "2025-09-20T17:06:58",
     "barcodes": [
@@ -7153,7 +7155,7 @@
     "price": 200.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:08:52",
     "updatedAt": "2025-09-20T17:08:52",
     "barcodes": [
@@ -7166,7 +7168,7 @@
     "price": 450.0,
     "stock": 10,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:05:45",
     "updatedAt": "2025-09-20T17:05:45",
     "barcodes": [
@@ -7179,7 +7181,7 @@
     "price": 450.0,
     "stock": 34,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:43:01",
     "updatedAt": "2025-09-20T17:43:01",
     "barcodes": [
@@ -7192,7 +7194,7 @@
     "price": 1300.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:03:15",
     "updatedAt": "2025-09-20T08:03:15",
     "barcodes": [
@@ -7205,7 +7207,7 @@
     "price": 180.0,
     "stock": 11,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T15:28:29",
     "updatedAt": "2025-09-20T15:28:29",
     "barcodes": [
@@ -7218,7 +7220,7 @@
     "price": 700.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:02:10",
     "updatedAt": "2025-09-20T08:02:10",
     "barcodes": [
@@ -7231,7 +7233,7 @@
     "price": 350.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T16:30:47",
     "updatedAt": "2025-09-20T16:31:45",
     "barcodes": [
@@ -7244,7 +7246,7 @@
     "price": 1300.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:58:40",
     "updatedAt": "2025-09-20T08:58:40",
     "barcodes": [
@@ -7257,7 +7259,7 @@
     "price": 350.0,
     "stock": 6,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T20:04:24",
     "updatedAt": "2025-09-20T20:04:24",
     "barcodes": [
@@ -7270,7 +7272,7 @@
     "price": 1950.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:31:24",
     "updatedAt": "2025-09-20T10:31:24",
     "barcodes": [
@@ -7283,7 +7285,7 @@
     "price": 4650.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T12:19:14",
     "updatedAt": "2025-09-20T12:19:14",
     "barcodes": [
@@ -7296,7 +7298,7 @@
     "price": 3000.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:49:19",
     "updatedAt": "2025-09-20T10:49:19",
     "barcodes": [
@@ -7309,7 +7311,7 @@
     "price": 150.0,
     "stock": 24,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:12:02",
     "updatedAt": "2025-09-20T17:12:02",
     "barcodes": [
@@ -7322,7 +7324,7 @@
     "price": 1350.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-19T23:51:59",
     "updatedAt": "2025-09-19T23:51:59",
     "barcodes": [
@@ -7335,7 +7337,7 @@
     "price": 400.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T17:08:12",
     "updatedAt": "2025-09-20T17:08:12",
     "barcodes": [
@@ -7348,7 +7350,7 @@
     "price": 3840.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:36:42",
     "updatedAt": "2025-09-20T10:36:42",
     "barcodes": [
@@ -7361,7 +7363,7 @@
     "price": 800.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:40:16",
     "updatedAt": "2025-09-20T13:40:16",
     "barcodes": [
@@ -7374,7 +7376,7 @@
     "price": 2750.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:38:37",
     "updatedAt": "2025-09-20T11:38:37",
     "barcodes": [
@@ -7387,7 +7389,7 @@
     "price": 1250.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:27:43",
     "updatedAt": "2025-09-20T00:27:43",
     "barcodes": [
@@ -7400,7 +7402,7 @@
     "price": 1200.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T11:13:23",
     "updatedAt": "2025-09-20T11:13:23",
     "barcodes": [
@@ -7413,7 +7415,7 @@
     "price": 1000.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:18:54",
     "updatedAt": "2025-09-20T00:18:54",
     "barcodes": [
@@ -7426,7 +7428,7 @@
     "price": 2700.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:01:50",
     "updatedAt": "2025-09-20T00:01:50",
     "barcodes": [
@@ -7439,7 +7441,7 @@
     "price": 500.0,
     "stock": 5,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:10:49",
     "updatedAt": "2025-09-20T13:10:49",
     "barcodes": [
@@ -7452,7 +7454,7 @@
     "price": 1150.0,
     "stock": 4,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:01:47",
     "updatedAt": "2025-09-20T08:01:47",
     "barcodes": [
@@ -7465,7 +7467,7 @@
     "price": 1000.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:08:22",
     "updatedAt": "2025-09-20T00:08:22",
     "barcodes": [
@@ -7478,7 +7480,7 @@
     "price": 600.0,
     "stock": 7,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T13:11:22",
     "updatedAt": "2025-09-20T13:11:22",
     "barcodes": [
@@ -7491,7 +7493,7 @@
     "price": 2050.0,
     "stock": 3,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T08:15:06",
     "updatedAt": "2025-09-20T08:15:06",
     "barcodes": [
@@ -7504,7 +7506,7 @@
     "price": 2100.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:18:05",
     "updatedAt": "2025-09-20T00:18:05",
     "barcodes": [
@@ -7517,7 +7519,7 @@
     "price": 2800.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T09:04:02",
     "updatedAt": "2025-09-20T09:04:02",
     "barcodes": [
@@ -7530,7 +7532,7 @@
     "price": 3900.0,
     "stock": 1,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T10:53:50",
     "updatedAt": "2025-09-20T10:53:50",
     "barcodes": [
@@ -7543,24 +7545,11 @@
     "price": 2050.0,
     "stock": 2,
     "assignedStoreId": null,
-    "tax": null,
+    "selling_price": null,
     "createdAt": "2025-09-20T00:19:30",
     "updatedAt": "2025-09-20T00:19:30",
     "barcodes": [
       "1758307769032423"
     ]
-  },
-  {
-    "name": "this is a testung ",
-    "price": 500,
-    "stock": 50,
-    "tax": null,
-    "barcodes": [
-      "1760875367846938"
-    ],
-    "batchId": "694077bb-c723-4e96-87d4-97d7ac2c2912",
-    "id": "d8b9a244-755e-4a16-bfb5-4e1e71bc924b",
-    "createdAt": "2025-10-19T17:32:51.365197",
-    "updatedAt": "2025-10-19T17:32:51.365197"
   }
 ]
