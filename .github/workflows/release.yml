@@ -66,11 +66,16 @@ jobs:
           jq ".version = \"${{ steps.calculate.outputs.version }}\"" src-tauri/tauri.conf.json > tmp.$$.json && mv tmp.$$.json src-tauri/tauri.conf.json
 
 
+      - name: Update version in package.json
+        run: |
+          jq ".version = \"${{ steps.calculate.outputs.version }}\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
+
+
       - name: Commit updated version to main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src-tauri/tauri.conf.json
+          git add src-tauri/tauri.conf.json package.json
           git commit -m "chore: bump version to v${{ steps.calculate.outputs.version }}" || echo "No version changes to commit"
           git push origin HEAD:main
 

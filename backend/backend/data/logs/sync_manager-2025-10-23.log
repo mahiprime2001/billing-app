@@ -1,0 +1,70 @@
+2025-10-23 21:54:46,839 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-23 21:54:46,839 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-23 21:54:46,839 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-23 21:54:46,839 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-23 21:54:48,958 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-23 21:54:48,960 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-23 21:54:48,962 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-23 21:54:48,962 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-23 21:54:48,962 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-23 21:54:48,964 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-23 21:54:48,982 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-23 21:54:48,983 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-23 21:54:49,103 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-23 21:54:49,136 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-23 21:54:49,319 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-23 21:54:49,340 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-23 21:54:49,341 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-23 21:54:51,042 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-23 21:54:51,042 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-23 21:54:51,042 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-23 21:54:51,042 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\data\json
+2025-10-23 21:54:52,988 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-23 21:54:52,988 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-23 21:54:52,988 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-23 21:54:52,988 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-23 21:54:52,988 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-23 21:54:52,988 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-23 21:54:52,988 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-23 21:54:52,998 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-23 21:54:53,119 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-23 21:54:53,157 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-23 21:54:53,343 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-23 21:54:53,363 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-23 21:54:53,363 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-23 22:09:49,366 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-23 22:09:49,366 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-23 22:09:49,370 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-23 22:09:49,757 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-23 22:09:49,787 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-23 22:09:49,979 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-23 22:09:50,005 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-23 22:09:50,005 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-23 22:09:50,007 - scripts.sync_manager - INFO - No failed logs to retry.
+2025-10-23 22:09:53,370 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-23 22:09:53,372 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-23 22:09:53,372 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-23 22:09:53,745 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-23 22:09:53,776 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-23 22:09:53,965 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-23 22:09:54,003 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-23 22:09:54,003 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-23 22:09:54,007 - scripts.sync_manager - INFO - No failed logs to retry.
+2025-10-23 22:24:50,015 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-23 22:24:50,015 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-23 22:24:50,015 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-23 22:24:50,417 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-23 22:24:50,455 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-23 22:24:50,629 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-23 22:24:50,686 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-23 22:24:50,686 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-23 22:24:50,686 - scripts.sync_manager - INFO - No failed logs to retry.
+2025-10-23 22:24:54,017 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-23 22:24:54,017 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-23 22:24:54,017 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-23 22:24:54,419 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-23 22:24:54,454 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-23 22:24:54,625 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-23 22:24:54,651 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-23 22:24:54,651 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.
+2025-10-23 22:24:54,654 - scripts.sync_manager - INFO - No failed logs to retry.

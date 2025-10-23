@@ -139,3 +139,14 @@
     page-break-before: always;
   }
 }
+
+.app-version-watermark {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  font-size: 0.75rem; /* text-xs */
+  color: #a1a1aa; /* text-zinc-400 */
+  opacity: 0.6;
+  z-index: 1000;
+  pointer-events: none; /* Allows clicks to pass through */
+}

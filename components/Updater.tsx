@@ -1,13 +1,12 @@
-'use client'; // Ensure client-side for Tauri APIs
+'use client';
 
 import { useEffect, useRef } from 'react';
-import { check, type Update, DownloadEvent } from '@tauri-apps/plugin-updater'; // Import DownloadEvent for optional callback
-import { listen, UnlistenFn } from '@tauri-apps/api/event'; // For updater events
-import { ask, message } from '@tauri-apps/plugin-dialog'; // For prompts; ensure plugin installed
+import { check, type Update, DownloadEvent } from '@tauri-apps/plugin-updater';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { ask, message } from '@tauri-apps/plugin-dialog';
 
-// Simple type for updater event payloads (based on docs)
 interface UpdaterStatus {
-  event: string; // e.g., 'Updaterexists', 'DownloadProgress', 'Updated', 'Error', 'DownloadCancel'
+  event: string;
   progress?: {
     percent: number;
     transferredBytes: number;
@@ -17,18 +16,18 @@ interface UpdaterStatus {
 }
 
 export default function Updater() {
-  const currentUpdate = useRef<Update | null>(null); // Ref to store update object
-  const updateAvailable = useRef(false); // Ref for availability flag
+  const currentUpdate = useRef<Update | null>(null);
+  const updateAvailable = useRef(false);
   const downloadInProgress = useRef(false);
   let unlisten: UnlistenFn | null = null;
 
   useEffect(() => {
     // Listen for updater events via core event system
-    listen<UpdaterStatus>('updater-status', (event) => {
-      const payload = event.payload;
+    listen('updater-status', (event) => {
+      const payload = event.payload as UpdaterStatus;
       switch (payload.event) {
         case 'DownloadProgress':
-          // Optional: Update a progress bar in your UI (e.g., via state)
+          // Optional: Update a progress bar in your UI here
           console.log(`Download progress: ${payload.progress?.percent}%`);
           break;
         case 'Updated':
@@ -38,7 +37,7 @@ export default function Updater() {
         case 'Error':
           console.error('Updater error:', payload.error);
           message('Update failed. Please try again later.', {
-            kind: 'error', // Use 'kind' not 'type'
+            kind: 'error'
           });
           downloadInProgress.current = false;
           break;
@@ -65,7 +64,7 @@ export default function Updater() {
         unlisten();
       }
     };
-  }, []); // Empty deps: run once on mount
+  }, []);
 
   async function checkForUpdates() {
     try {
@@ -74,7 +73,7 @@ export default function Updater() {
         console.log('No updates available.');
         return;
       }
-      currentUpdate.current = update; // Store in ref
+      currentUpdate.current = update;
       updateAvailable.current = true;
       // Note: 'Updaterexists' event may fire separately, but we can prompt here too
       handleUpdateAvailable();
@@ -85,26 +84,23 @@ export default function Updater() {
 
   async function handleUpdateAvailable() {
     if (!updateAvailable.current || !currentUpdate.current) return;
-
-    // Prompt user (customize with your app's modal for better UX)
     try {
       const shouldUpdate = await ask(
         'A new version is available. Install now? (App will restart after update.)',
-        { // Options as second arg only
+        {
           title: 'Update available!',
           kind: 'info'
         }
       );
-
       if (shouldUpdate && !downloadInProgress.current) {
         try {
           downloadInProgress.current = true;
-          // Optional progress callback: downloadAndInstall((progress: DownloadEvent) => console.log(progress.percent))
-          await currentUpdate.current.downloadAndInstall(); // No args; overwrite handled automatically
+          // Optional: Add a callback to show download progress
+          await currentUpdate.current.downloadAndInstall();
         } catch (error) {
           console.error('Update installation failed:', error);
           message('Update download failed. Please retry.', {
-            kind: 'error', // Use 'kind' not 'type'
+            kind: 'error'
           });
           downloadInProgress.current = false;
         }
@@ -114,5 +110,6 @@ export default function Updater() {
     }
   }
 
-  return null; // Invisible component; add UI (e.g., progress bar) if needed
+  // No visible UI; attach to app root if headless, or add your own progress UI here
+  return null;
 }

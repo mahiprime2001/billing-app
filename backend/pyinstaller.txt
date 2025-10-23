@@ -1,1 +1,1 @@
-pyinstaller --clean --name "Siriadmin-backend-x86_64-pc-windows-msvc" --runtime-tmpdir . --onefile --add-data "../.env:." --add-data "scripts:scripts" --add-data "utils:utils" app.py
+pyinstaller --clean --name "Siriadmin-backend-x86_64-pc-windows-msvc" --runtime-tmpdir . --onefile --add-data "scripts:scripts" --add-data "utils:utils" app.py

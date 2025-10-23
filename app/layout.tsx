@@ -5,6 +5,7 @@ import "./globals.css";
 import OfflineBanner from "@/components/OfflineBanner";
 import ServerErrorHandler from "@/components/server-error-handler";
 import Updater from "@/components/Updater"; // New import for updater component
+import packageJson from "../package.json"; // Import package.json
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,6 +28,7 @@ export default function RootLayout({
         <OfflineBanner />
         <IdleTimeoutHandler />
         <ServerErrorHandler>{children}</ServerErrorHandler>
+        <div className="app-version-watermark">v{packageJson.version}</div>
       </body>
     </html>
   );

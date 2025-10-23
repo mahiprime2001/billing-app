@@ -9,10 +9,69 @@ use warp::Filter;
 use serde::{Deserialize, Serialize};
 use log::{info, error};
 use tauri_plugin_log::{Target, TargetKind};
-use tauri_plugin_updater; // Import for updater Builder
+use tauri_plugin_updater::UpdaterExt;
 
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::HWND;
+
+#[tauri::command]
+async fn check_for_updates(app_handle: tauri::AppHandle) -> Result<String, String> {
+    info!("Checking for updates...");
+    match app_handle.updater().map_err(|e| format!("Failed to get updater: {}", e))?.check().await {
+        Ok(Some(update)) => {
+            info!("Update available: {:?}", update.version);
+            Ok(format!("Update available: {}", update.version))
+        }
+        Ok(None) => {
+            info!("No update available.");
+            Ok("No update available.".to_string())
+        }
+        Err(e) => {
+            error!("Failed to check for updates: {}", e);
+            Err(format!("Failed to check for updates: {}", e))
+        }
+    }
+}
+
+#[tauri::command]
+async fn install_update(app_handle: tauri::AppHandle) -> Result<String, String> {
+    info!("Installing update...");
+    
+    match app_handle.updater().map_err(|e| format!("Failed to get updater: {}", e))?.check().await {
+        Ok(Some(update)) => {
+            info!("Update found, downloading and installing...");
+            let mut downloaded = 0;
+            
+            match update.download_and_install(
+                |chunk_length, content_length| {
+                    downloaded += chunk_length;
+                    info!("Downloaded {} from {:?}", downloaded, content_length);
+                },
+                || {
+                    info!("Download finished");
+                },
+            ).await {
+                Ok(_) => {
+                    info!("Update installed successfully. Restart required.");
+                    Ok("Update installed. Please restart the app.".to_string())
+                }
+                Err(e) => {
+                    error!("Failed to download/install update: {}", e);
+                    Err(format!("Failed to download/install update: {}", e))
+                }
+            }
+        }
+        Ok(None) => {
+            info!("No update available to install.");
+            Ok("No update available to install.".to_string())
+        }
+        Err(e) => {
+            error!("Failed to check for updates: {}", e);
+            Err(format!("Failed to check for updates: {}", e))
+        }
+    }
+}
+
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::Shell::ShellExecuteW;
 #[cfg(target_os = "windows")]
@@ -380,7 +439,9 @@ fn main() {
             get_available_printers,
             send_tspl_to_printer,
             print_to_thermal_printer,
-            print_html
+            print_html,
+            check_for_updates,
+            install_update
         ])
         .setup({
             let child_handle = Arc::clone(&child_handle);
@@ -391,10 +452,19 @@ fn main() {
                     error!("Failed to initialize updater plugin: {}", e);
                 }
 
+                // Check for updates on app startup
+                let app_handle_clone_for_spawn = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    match check_for_updates(app_handle_clone_for_spawn).await {
+                        Ok(msg) => info!("{}", msg),
+                        Err(e) => error!("{}", e),
+                    }
+                });
+
                 // Spawn sidecar and keep its CommandChild
                 let handle = app.app_handle();
                 let cmd = handle.shell().sidecar("Siriadmin-backend")?;
-                let (mut rx, mut command_child) = cmd.spawn()?;
+                let (mut rx, command_child) = cmd.spawn()?;
 
                 let pid = command_child.pid();
                 info!("Spawned sidecar with PID {}", pid);

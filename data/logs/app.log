@@ -5998,3 +5998,346 @@ Table 'batch' checked/created successfully.
 2025-10-22 23:19:38,050 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
 127.0.0.1 - - [22/Oct/2025 23:19:38] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
 127.0.0.1 - - [22/Oct/2025 23:19:38] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 21:54:46,839] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app
+[2025-10-23 21:54:46,839] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app
+2025-10-23 21:54:46,839 - app - INFO - app.py:144 - APP_BASE_DIR: E:\Siri-apps\billing-app
+[2025-10-23 21:54:46,849] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\data\json
+[2025-10-23 21:54:46,849] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\data\json
+2025-10-23 21:54:46,849 - app - INFO - app.py:145 - JSON_DIR: E:\Siri-apps\billing-app\data\json
+[2025-10-23 21:54:46,849] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\data\logs
+[2025-10-23 21:54:46,849] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\data\logs
+2025-10-23 21:54:46,849 - app - INFO - app.py:146 - LOGS_DIR: E:\Siri-apps\billing-app\data\logs
+MySQL connection pool created successfully with hardcoded values.
+Table 'batch' checked/created successfully.
+Removed 'product_id' column from 'batch' table.
+[2025-10-23 21:54:48,962] INFO in app: Enhanced background sync process started successfully
+[2025-10-23 21:54:48,962] INFO in app: Enhanced background sync process started successfully
+2025-10-23 21:54:48,962 - app - INFO - app.py:1481 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+
+ * Restarting with stat
+ * Restarting with stat
+[2025-10-23 21:54:51,043] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app
+[2025-10-23 21:54:51,043] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app
+2025-10-23 21:54:51,043 - app - INFO - app.py:144 - APP_BASE_DIR: E:\Siri-apps\billing-app
+[2025-10-23 21:54:51,043] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\data\json
+[2025-10-23 21:54:51,043] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\data\json
+2025-10-23 21:54:51,043 - app - INFO - app.py:145 - JSON_DIR: E:\Siri-apps\billing-app\data\json
+[2025-10-23 21:54:51,043] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\data\logs
+[2025-10-23 21:54:51,043] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\data\logs
+2025-10-23 21:54:51,043 - app - INFO - app.py:146 - LOGS_DIR: E:\Siri-apps\billing-app\data\logs
+MySQL connection pool created successfully with hardcoded values.
+Table 'batch' checked/created successfully.
+[2025-10-23 21:54:52,988] INFO in app: Enhanced background sync process started successfully
+[2025-10-23 21:54:52,988] INFO in app: Enhanced background sync process started successfully
+2025-10-23 21:54:52,988 - app - INFO - app.py:1481 - Enhanced background sync process started successfully
+ * Debugger is active!
+ * Debugger is active!
+ * Debugger PIN: 818-351-335
+ * Debugger PIN: 818-351-335
+[2025-10-23 21:58:55,795] INFO in app: Incoming Request: Method=OPTIONS, Path=/api/auth/login, Origin=http://localhost:3000
+[2025-10-23 21:58:55,795] INFO in app: Incoming Request: Method=OPTIONS, Path=/api/auth/login, Origin=http://localhost:3000
+2025-10-23 21:58:55,795 - app - INFO - app.py:69 - Incoming Request: Method=OPTIONS, Path=/api/auth/login, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 21:58:55] "OPTIONS /api/auth/login HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:55] "OPTIONS /api/auth/login HTTP/1.1" 200 -
+[2025-10-23 21:58:55,802] INFO in app: Incoming Request: Method=POST, Path=/api/auth/login, Origin=http://localhost:3000
+[2025-10-23 21:58:55,802] INFO in app: Incoming Request: Method=POST, Path=/api/auth/login, Origin=http://localhost:3000
+2025-10-23 21:58:55,802 - app - INFO - app.py:69 - Incoming Request: Method=POST, Path=/api/auth/login, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 21:58:55] "POST /api/auth/login HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:55] "POST /api/auth/login HTTP/1.1" 200 -
+[2025-10-23 21:58:59,142] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 21:58:59,142] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 21:58:59,142 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 21:58:59,144] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+[2025-10-23 21:58:59,144] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-23 21:58:59,144 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+[2025-10-23 21:58:59,145] INFO in app: Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+[2025-10-23 21:58:59,145] INFO in app: Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-23 21:58:59,145 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+[2025-10-23 21:58:59,147] INFO in app: Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+[2025-10-23 21:58:59,147] INFO in app: Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/bills HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/bills HTTP/1.1" 200 -
+2025-10-23 21:58:59,147 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+[2025-10-23 21:58:59,148] INFO in app: Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+[2025-10-23 21:58:59,148] INFO in app: Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-10-23 21:58:59,148 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+[2025-10-23 21:58:59,151] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 21:58:59,151] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 21:58:59,151 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 21:58:59,153] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+[2025-10-23 21:58:59,153] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+2025-10-23 21:58:59,153 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/users HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/users HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/bills HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/bills HTTP/1.1" 200 -
+[2025-10-23 21:58:59,162] INFO in app: Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+[2025-10-23 21:58:59,162] INFO in app: Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-10-23 21:58:59,162 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/products HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/products HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/users HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/users HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/stores HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/stores HTTP/1.1" 200 -
+[2025-10-23 21:58:59,179] INFO in app: Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+[2025-10-23 21:58:59,179] INFO in app: Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-23 21:58:59,179 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+[2025-10-23 21:58:59,183] INFO in app: Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+[2025-10-23 21:58:59,183] INFO in app: Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-23 21:58:59,183 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/products HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/products HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/stores HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:58:59] "GET /api/stores HTTP/1.1" 200 -
+[2025-10-23 21:59:29,154] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 21:59:29,154] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 21:59:29,154 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 21:59:29] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:59:29] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 21:59:59,170] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 21:59:59,170] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 21:59:59,170 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 21:59:59] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 21:59:59] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:00:29,177] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:00:29,177] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:00:29,177 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:00:29] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:00:29] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:00:59,177] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:00:59,177] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:00:59,177 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:00:59] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:00:59] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:01:29,182] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:01:29,182] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:01:29,182 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:01:29] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:01:29] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:01:57,442] INFO in app: Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+[2025-10-23 22:01:57,442] INFO in app: Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-10-23 22:01:57,442 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+[2025-10-23 22:01:57,443] INFO in app: Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+[2025-10-23 22:01:57,443] INFO in app: Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-10-23 22:01:57,443 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+[2025-10-23 22:01:57,447] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:01:57,447] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:01:57] "GET /api/products HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:01:57] "GET /api/products HTTP/1.1" 200 -
+2025-10-23 22:01:57,447 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:01:57] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:01:57] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:01:57] "GET /api/batches HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:01:57] "GET /api/batches HTTP/1.1" 200 -
+[2025-10-23 22:01:57,459] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:01:57,459] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:01:57,459 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:01:57] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:01:57] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:02:09,449] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:02:09,449] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:02:09,449 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:02:09] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:09] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:02:09,454] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:02:09,454] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:02:09,454 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:02:09] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:09] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:02:09,470] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=None
+[2025-10-23 22:02:09,470] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=None
+2025-10-23 22:02:09,470 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/bills, Origin=None
+127.0.0.1 - - [23/Oct/2025 22:02:09] "GET /api/bills HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:09] "GET /api/bills HTTP/1.1" 200 -
+[2025-10-23 22:02:09,483] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=None
+[2025-10-23 22:02:09,483] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=None
+2025-10-23 22:02:09,483 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/bills, Origin=None
+127.0.0.1 - - [23/Oct/2025 22:02:09] "GET /api/bills HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:09] "GET /api/bills HTTP/1.1" 200 -
+[2025-10-23 22:02:12,979] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:02:12,979] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:02:12,979 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:02:12,981] INFO in app: Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+[2025-10-23 22:02:12,981] INFO in app: Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:02:12] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:12] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+2025-10-23 22:02:12,981 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+[2025-10-23 22:02:12,983] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+[2025-10-23 22:02:12,983] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-23 22:02:12,983 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:02:12] "GET /api/stores HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:12] "GET /api/stores HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:12] "GET /api/bills HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:12] "GET /api/bills HTTP/1.1" 200 -
+[2025-10-23 22:02:12,989] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:02:12,989] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:02:12,989 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:02:12,990] INFO in app: Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+[2025-10-23 22:02:12,990] INFO in app: Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-10-23 22:02:12,990 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:02:12] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:12] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:12] "GET /api/stores HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:12] "GET /api/stores HTTP/1.1" 200 -
+[2025-10-23 22:02:12,996] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+[2025-10-23 22:02:12,996] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-10-23 22:02:12,996 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:02:12] "GET /api/bills HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:12] "GET /api/bills HTTP/1.1" 200 -
+[2025-10-23 22:02:43,185] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:02:43,185] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:02:43,185 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:02:43] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:02:43] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:03:13,168] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:03:13,168] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:03:13,168 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:03:13] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:03:13] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:03:43,187] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:03:43,187] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:03:43,187 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:03:43] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:03:43] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:04:13,188] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:04:13,188] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:04:13,188 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:04:13] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:04:13] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:04:43,182] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:04:43,182] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:04:43,182 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:04:43] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:04:43] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:05:13,174] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:05:13,174] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:05:13,174 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:05:13] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:05:13] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:05:43,167] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:05:43,167] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:05:43,167 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:05:43] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:05:43] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:06:19,314] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:06:19,314] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:06:19,314 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:06:19] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:06:19] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:06:43,175] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:06:43,175] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:06:43,175 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:06:43] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:06:43] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:07:13,173] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:07:13,173] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:07:13,173 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:07:13] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:07:13] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:08:03,170] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:08:03,170] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:08:03,170 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:08:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:08:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:09:03,178] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:09:03,178] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:09:03,178 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:09:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:09:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:09:51,191] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:09:51,191] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:09:51,191 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:09:51] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:09:51] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:11:03,178] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:11:03,178] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:11:03,178 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:11:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:11:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:12:03,191] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:12:03,191] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:12:03,191 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:12:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:12:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:13:03,176] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:13:03,176] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:13:03,176 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:13:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:13:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:14:03,183] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:14:03,183] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:14:03,183 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:14:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:14:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:15:03,177] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:15:03,177] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:15:03,177 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:15:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:15:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:16:03,182] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:16:03,182] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:16:03,182 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:16:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:16:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:17:03,190] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:17:03,190] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:17:03,190 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:17:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:17:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:18:03,189] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:18:03,189] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:18:03,189 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:18:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:18:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:19:03,174] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:19:03,174] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:19:03,174 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:19:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:19:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:20:03,178] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:20:03,178] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:20:03,178 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:20:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:20:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:21:03,176] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:21:03,176] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:21:03,176 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:21:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:21:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:22:03,173] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:22:03,173] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:22:03,173 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:22:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:22:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:23:03,178] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:23:03,178] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:23:03,178 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:23:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:23:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:24:03,181] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:24:03,181] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:24:03,181 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:24:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:24:03] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:24:52,173] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:24:52,173] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:24:52,173 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:24:52] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:24:52] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+[2025-10-23 22:25:54,522] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+[2025-10-23 22:25:54,522] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-10-23 22:25:54,522 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+127.0.0.1 - - [23/Oct/2025 22:25:54] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
+127.0.0.1 - - [23/Oct/2025 22:25:54] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
