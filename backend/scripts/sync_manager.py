@@ -451,7 +451,7 @@ class EnhancedSyncManager:
                 })
 
                 processed += 1
-                logger.info(f"Successfully processed log ID {log_id}.")
+                logger.info(f"Successfully processed log ID {log_id}. Status updated to 'completed'.")
 
             else:
                 for entry in sync_table:
@@ -460,20 +460,22 @@ class EnhancedSyncManager:
                         entry['retry_count'] = entry.get('retry_count', 0) + 1
                         entry['last_retry'] = datetime.now().isoformat()
                         entry['error_message'] = "Database operation failed"
-                        logger.debug(f"Log ID {log_id} marked as 'failed'. Retry count: {entry['retry_count']}")
+                        logger.debug(f"Log ID {log_id} marked as 'failed'. Retry count: {entry['retry_count']}. Error: {log_entry.get('error_message')}")
                         break
 
                 self.log_sync_event(f"{table_name}_{change_type.lower()}_failed", "failed", {
                     "log_id": log_id,
                     "table_name": table_name,
-                    "record_id": record_id
+                    "record_id": record_id,
+                    "error_message": log_entry.get('error_message') # Include error message in sync event
                 })
 
                 failed += 1
-                logger.warning(f"Failed to process log ID {log_id}. Will retry later if attempts remain.")
+                logger.warning(f"Failed to process log ID {log_id}. Status updated to 'failed'. Will retry later if attempts remain.")
 
+        logger.debug(f"Saving local sync table after processing. Current table size: {len(sync_table)}")
         self.save_local_sync_table(sync_table)
-        logger.info(f"Finished processing pending logs. Processed: {processed}, Failed: {failed}.")
+        logger.info(f"Finished processing pending logs. Processed: {processed}, Failed: {failed}. Local sync table saved.")
 
         return {
             "status": "success",
