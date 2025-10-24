@@ -4,7 +4,7 @@ export interface Product {
   price: number;
   barcodes: string[];
   stock: number;
-  tax: number;
+  sellingPrice?: number;
   batchId?: string; // NEW
   createdAt: string;
   updatedAt: string;

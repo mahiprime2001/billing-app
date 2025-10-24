@@ -801,6 +801,16 @@ def login():
         "message": "Login successful"
     })
 
+@app.route('/api/admin-users', methods=['GET'])
+def get_admin_users():
+    users = get_users_data()
+    admin_users = [
+        {"name": u.get('name'), "email": u.get('email')}
+        for u in users
+        if u.get('role') in ["super_admin", "billing_user"]
+    ]
+    return jsonify({"adminUsers": admin_users})
+
 @app.route('/api/auth/forgot-password-proxy', methods=['POST'])
 def forgot_password_proxy():
     data = request.json or {}
@@ -838,6 +848,72 @@ def forgot_password_proxy():
     except requests.exceptions.RequestException as e:
         app.logger.error('Error calling PHP forgot password endpoint: %s', e)
         return jsonify({"success": False, "message": "Unable to process your request at this time. Please try again later."}), 500
+
+# ---------------------------
+# Flush Data Endpoint - NEW
+# ---------------------------
+
+@app.route('/api/flush-data', methods=['POST'])
+def flush_data():
+    data = request.json or {}
+    category = data.get('category')
+    admin_users_to_keep = data.get('adminUsersToKeep', [])
+
+    if not category:
+        return jsonify({"status": "error", "message": "Category to flush is required"}), 400
+
+    try:
+        with DatabaseConnection.get_connection() as conn:
+            cursor = conn.cursor()
+            if category == "products":
+                # Clear products.json
+                save_products_data([])
+                # Truncate MySQL Products table
+                cursor.execute("TRUNCATE TABLE Products")
+                conn.commit()
+                app.logger.info("All products data flushed from JSON and MySQL.")
+                log_crud_operation('products', 'FLUSH', 'all', {})
+            elif category == "stores":
+                # Clear stores.json
+                save_stores_data([])
+                # Truncate MySQL Stores table
+                cursor.execute("TRUNCATE TABLE Stores")
+                conn.commit()
+                app.logger.info("All stores data flushed from JSON and MySQL.")
+                log_crud_operation('stores', 'FLUSH', 'all', {})
+            elif category == "users":
+                users = get_users_data()
+                users_to_keep = []
+                deleted_user_ids = []
+
+                for user in users:
+                    # Keep admin users specified by the frontend, and the currently logged-in admin (if applicable)
+                    if user.get('email') in admin_users_to_keep:
+                        users_to_keep.append(user)
+                    else:
+                        deleted_user_ids.append(user['id'])
+                
+                save_users_data(users_to_keep)
+
+                # Delete from MySQL
+                if deleted_user_ids:
+                    placeholders = ','.join(['%s'] * len(deleted_user_ids))
+                    cursor.execute(f"DELETE FROM Users WHERE id IN ({placeholders})", tuple(deleted_user_ids))
+                    conn.commit()
+                    app.logger.info(f"Deleted {len(deleted_user_ids)} users from JSON and MySQL.")
+                    for user_id in deleted_user_ids:
+                        log_crud_operation('users', 'DELETE', user_id, {"reason": "flushed"})
+                else:
+                    app.logger.info("No non-admin users to delete or all admin users were kept.")
+                
+            else:
+                return jsonify({"status": "error", "message": "Invalid category specified"}), 400
+
+        return jsonify({"status": "success", "message": f"Successfully flushed {category} data."}), 200
+
+    except Exception as e:
+        app.logger.error(f"Error flushing {category} data: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": f"Failed to flush {category} data: {e}"}), 500
 
 # ---------------------------
 # Bills - ENHANCED WITH SYNC LOGGING
@@ -1342,92 +1418,526 @@ def cleanup_old_logs():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ---------------------------
-# Analytics Endpoints
+# ENHANCED ANALYTICS ENDPOINTS
 # ---------------------------
 
-@app.route('/api/analytics/users/online', methods=['GET'])
-def analytics_users_online():
-    # windowMinutes=5 by default
+@app.route('/api/analytics/dashboard', methods=['GET'])
+def get_analytics_dashboard():
+    """Comprehensive dashboard with all key metrics"""
     try:
-        window_minutes = int(request.args.get('windowMinutes', 5))
-    except Exception:
-        window_minutes = 5
-    cutoff = datetime.now() - timedelta(minutes=window_minutes)
+        products = get_products_data()
+        bills = get_bills_data()
+        stores = get_stores_data()
+        
+        # Date range parameters
+        days = int(request.args.get('days', 30))
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        # Filter bills by date range
+        recent_bills = [
+            b for b in bills 
+            if datetime.fromisoformat(b.get('createdAt', '')) >= cutoff_date
+        ]
+        
+        # Calculate revenue metrics
+        total_revenue = sum(float(b.get('total', 0)) for b in recent_bills)
+        
+        # Previous period comparison
+        previous_cutoff = cutoff_date - timedelta(days=days)
+        previous_bills = [
+            b for b in bills 
+            if previous_cutoff <= datetime.fromisoformat(b.get('createdAt', '')) < cutoff_date
+        ]
+        previous_revenue = sum(float(b.get('total', 0)) for b in previous_bills)
+        revenue_growth = ((total_revenue - previous_revenue) / previous_revenue * 100) if previous_revenue > 0 else 0
+        
+        # Calculate other metrics
+        total_bills = len(recent_bills)
+        avg_bill_value = total_revenue / total_bills if total_bills > 0 else 0
+        
+        # Calculate total items sold
+        total_items = sum(
+            sum(int(item.get('quantity', 0)) for item in b.get('items', []))
+            for b in recent_bills
+        )
+        
+        # Product metrics
+        total_products = len(products)
+        total_inventory_value = sum(
+            float(p.get('price', 0)) * int(p.get('stock', 0))
+            for p in products
+        )
+        low_stock_count = sum(1 for p in products if int(p.get('stock', 0)) < 10)
+        
+        # Customer metrics (unique phone numbers from bills)
+        unique_customers = len(set(b.get('customerPhone', '') for b in recent_bills if b.get('customerPhone')))
+        
+        return jsonify({
+            'period': f'Last {days} days',
+            'revenue': {
+                'current': round(total_revenue, 2),
+                'previous': round(previous_revenue, 2),
+                'growth': round(revenue_growth, 2)
+            },
+            'bills': {
+                'total': total_bills,
+                'averageValue': round(avg_bill_value, 2)
+            },
+            'items': {
+                'totalSold': total_items,
+                'perTransaction': round(total_items / total_bills, 2) if total_bills > 0 else 0
+            },
+            'inventory': {
+                'totalProducts': total_products,
+                'totalValue': round(total_inventory_value, 2),
+                'lowStockCount': low_stock_count
+            },
+            'customers': {
+                'unique': unique_customers,
+                'repeatRate': 0  # Will implement with customer tracking
+            },
+            'stores': {
+                'total': len(stores),
+                'active': len([s for s in stores if s.get('status') == 'active'])
+            }
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Error getting dashboard analytics: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-    rows = _get_user_sessions()
-    last_by_user = {}
-    for r in rows:
-        try:
-            ts = datetime.fromisoformat(r.get('timestamp', ''))
-        except Exception:
-            continue
-        uid = r.get('userId')
-        if not uid:
-            continue
-        if uid not in last_by_user or ts > last_by_user[uid]['ts']:
-            last_by_user[uid] = {'ts': ts, 'type': (r.get('type') or '').upper(), 'details': r.get('details')}
-    online = []
-    for uid, info in last_by_user.items():
-        if info['ts'] >= cutoff and info['type'] == 'LOGIN':
-            online.append({'userId': uid, 'lastEvent': info['type'], 'lastSeen': info['ts'].isoformat(), 'details': info['details']})
 
-    return jsonify({
-        'windowMinutes': window_minutes,
-        'onlineCount': len(online),
-        'online': online
-    }), 200
+@app.route('/api/analytics/revenue/trends', methods=['GET'])
+def get_revenue_trends():
+    """Get revenue trends by day, week, or month"""
+    try:
+        period = request.args.get('period', 'daily')  # daily, weekly, monthly
+        days = int(request.args.get('days', 30))
+        
+        bills = get_bills_data()
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        # Group bills by period
+        revenue_by_period = defaultdict(float)
+        bills_by_period = defaultdict(int)
+        
+        for bill in bills:
+            try:
+                bill_date = datetime.fromisoformat(bill.get('createdAt', ''))
+                if bill_date < cutoff_date:
+                    continue
+                
+                # Group by period
+                if period == 'daily':
+                    key = bill_date.strftime('%Y-%m-%d')
+                elif period == 'weekly':
+                    key = bill_date.strftime('%Y-W%U')
+                else:  # monthly
+                    key = bill_date.strftime('%Y-%m')
+                
+                revenue_by_period[key] += float(bill.get('total', 0))
+                bills_by_period[key] += 1
+            except Exception as e:
+                app.logger.error(f"Error processing bill: {e}")
+                continue
+        
+        # Format response
+        trend_data = [
+            {
+                'period': period_key,
+                'revenue': round(revenue, 2),
+                'bills': bills_by_period[period_key],
+                'averageBill': round(revenue / bills_by_period[period_key], 2) if bills_by_period[period_key] > 0 else 0
+            }
+            for period_key, revenue in sorted(revenue_by_period.items())
+        ]
+        
+        return jsonify({
+            'period': period,
+            'days': days,
+            'data': trend_data
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Error getting revenue trends: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/api/analytics/users/sessions', methods=['GET'])
-def analytics_users_sessions():
-    # Query: ?from=YYYY-MM-DD&to=YYYY-MM-DD
-    q_from = request.args.get('from')
-    q_to = request.args.get('to')
-    start = datetime.fromisoformat(q_from) if q_from else datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    end = datetime.fromisoformat(q_to) + timedelta(days=1) if q_to else datetime.now()
 
-    rows = _get_user_sessions()
-    # Group by user sorted by timestamp
-    by_user = {}
-    for r in rows:
-        try:
-            ts = datetime.fromisoformat(r.get('timestamp', ''))
-        except Exception:
-            continue
-        if ts < start or ts > end:
-            continue
-        uid = r.get('userId')
-        if not uid:
-            continue
-        by_user.setdefault(uid, []).append({'ts': ts, 'type': (r.get('type') or '').upper()})
+@app.route('/api/analytics/products/top', methods=['GET'])
+def get_top_products():
+    """Get top selling products by revenue and quantity"""
+    try:
+        limit = int(request.args.get('limit', 10))
+        days = int(request.args.get('days', 30))
+        sort_by = request.args.get('sortBy', 'revenue')  # revenue or quantity
+        
+        bills = get_bills_data()
+        products = get_products_data()
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        # Create product lookup
+        product_lookup = {p['id']: p for p in products}
+        
+        # Aggregate product sales
+        product_stats = defaultdict(lambda: {'revenue': 0, 'quantity': 0, 'bills': 0})
+        
+        for bill in bills:
+            try:
+                bill_date = datetime.fromisoformat(bill.get('createdAt', ''))
+                if bill_date < cutoff_date:
+                    continue
+                
+                for item in bill.get('items', []):
+                    product_id = item.get('productId')
+                    if product_id:
+                        quantity = int(item.get('quantity', 0))
+                        price = float(item.get('price', 0))
+                        
+                        product_stats[product_id]['revenue'] += price * quantity
+                        product_stats[product_id]['quantity'] += quantity
+                        product_stats[product_id]['bills'] += 1
+            except Exception as e:
+                app.logger.error(f"Error processing bill for products: {e}")
+                continue
+        
+        # Format and sort results
+        results = []
+        for product_id, stats in product_stats.items():
+            product = product_lookup.get(product_id, {})
+            results.append({
+                'productId': product_id,
+                'productName': product.get('name', 'Unknown Product'),
+                'barcode': get_primary_barcode(product),
+                'category': product.get('category', 'Uncategorized'),
+                'revenue': round(stats['revenue'], 2),
+                'quantitySold': stats['quantity'],
+                'billsCount': stats['bills'],
+                'currentStock': int(product.get('stock', 0)),
+                'averagePrice': round(stats['revenue'] / stats['quantity'], 2) if stats['quantity'] > 0 else 0
+            })
+        
+        # Sort by selected metric
+        results.sort(key=lambda x: x[sort_by] if sort_by in x else x['revenue'], reverse=True)
+        
+        return jsonify({
+            'period': f'Last {days} days',
+            'sortBy': sort_by,
+            'data': results[:limit]
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Error getting top products: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-    # Pair LOGINS with next LOGOUT/CLOSE_NO_LOGOUT
-    sessions = []
-    for uid, events in by_user.items():
-        events.sort(key=lambda x: x['ts'])
-        open_login = None
-        for ev in events:
-            if ev['type'] == 'LOGIN':
-                open_login = ev['ts']
-            elif ev['type'] in {'LOGOUT', 'CLOSE_NO_LOGOUT'} and open_login:
-                dur = (ev['ts'] - open_login).total_seconds()
-                sessions.append({'userId': uid, 'loginAt': open_login.isoformat(), 'logoutAt': ev['ts'].isoformat(), 'durationSec': int(max(0, dur))})
-                open_login = None
-        # If session still open within window, count up to end bound
-        if open_login:
-            dur = (min(end, datetime.now()) - open_login).total_seconds()
-            sessions.append({'userId': uid, 'loginAt': open_login.isoformat(), 'logoutAt': None, 'durationSec': int(max(0, dur))})
 
-    total = len(sessions)
-    avg_sec = int(sum(s['durationSec'] for s in sessions) / total) if total > 0 else 0
-    return jsonify({
-        'from': start.isoformat(),
-        'to': end.isoformat(),
-        'totalSessions': total,
-        'avgSessionSec': avg_sec,
-        'sessions': sessions
-    }), 200
+@app.route('/api/analytics/inventory/health', methods=['GET'])
+def get_inventory_health():
+    """Get inventory health metrics including turnover and slow-moving items"""
+    try:
+        products = get_products_data()
+        bills = get_bills_data()
+        days = int(request.args.get('days', 30))
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        # Calculate sold quantities per product
+        sold_quantities = defaultdict(int)
+        for bill in bills:
+            try:
+                bill_date = datetime.fromisoformat(bill.get('createdAt', ''))
+                if bill_date < cutoff_date:
+                    continue
+                
+                for item in bill.get('items', []):
+                    product_id = item.get('productId')
+                    if product_id:
+                        sold_quantities[product_id] += int(item.get('quantity', 0))
+            except Exception:
+                continue
+        
+        # Calculate metrics for each product
+        inventory_data = []
+        slow_moving = []
+        out_of_stock = []
+        
+        for product in products:
+            product_id = product['id']
+            current_stock = int(product.get('stock', 0))
+            price = float(product.get('price', 0))
+            sold = sold_quantities.get(product_id, 0)
+            
+            # Calculate turnover ratio (sold / current stock)
+            turnover_ratio = (sold / current_stock) if current_stock > 0 else 0
+            
+            product_data = {
+                'productId': product_id,
+                'productName': product.get('name', 'Unknown'),
+                'barcode': get_primary_barcode(product),
+                'currentStock': current_stock,
+                'stockValue': round(current_stock * price, 2),
+                'soldQuantity': sold,
+                'turnoverRatio': round(turnover_ratio, 2),
+                'daysOfStock': round(days / turnover_ratio, 1) if turnover_ratio > 0 else 999
+            }
+            
+            inventory_data.append(product_data)
+            
+            # Identify slow-moving items (turnover < 0.2)
+            if turnover_ratio < 0.2 and current_stock > 0:
+                slow_moving.append(product_data)
+            
+            # Track out of stock
+            if current_stock == 0:
+                out_of_stock.append(product_data)
+        
+        # Calculate overall metrics
+        total_inventory_value = sum(p['stockValue'] for p in inventory_data)
+        avg_turnover = sum(p['turnoverRatio'] for p in inventory_data) / len(inventory_data) if inventory_data else 0
+        
+        return jsonify({
+            'period': f'Last {days} days',
+            'summary': {
+                'totalProducts': len(products),
+                'totalInventoryValue': round(total_inventory_value, 2),
+                'averageTurnover': round(avg_turnover, 2),
+                'slowMovingCount': len(slow_moving),
+                'outOfStockCount': len(out_of_stock)
+            },
+            'slowMoving': sorted(slow_moving, key=lambda x: x['stockValue'], reverse=True)[:20],
+            'outOfStock': sorted(out_of_stock, key=lambda x: x['soldQuantity'], reverse=True)[:20],
+            'allProducts': sorted(inventory_data, key=lambda x: x['turnoverRatio'])
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Error getting inventory health: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-# Legacy sync endpoints (keep for compatibility)
+
+@app.route('/api/analytics/stores/performance', methods=['GET'])
+def get_store_performance():
+    """Get detailed performance metrics for all stores"""
+    try:
+        days = int(request.args.get('days', 30))
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        stores = get_stores_data()
+        bills = get_bills_data()
+        products = get_products_data()
+        
+        store_metrics = {}
+        
+        for store in stores:
+            store_id = store['id']
+            store_metrics[store_id] = {
+                'storeId': store_id,
+                'storeName': store.get('name', 'Unknown Store'),
+                'revenue': 0,
+                'bills': 0,
+                'items': 0,
+                'assignedProducts': 0,
+                'inventoryValue': 0
+            }
+        
+        # Aggregate bill data by store
+        for bill in bills:
+            try:
+                bill_date = datetime.fromisoformat(bill.get('createdAt', ''))
+                if bill_date < cutoff_date:
+                    continue
+                
+                store_id = bill.get('storeId')
+                if store_id and store_id in store_metrics:
+                    store_metrics[store_id]['revenue'] += float(bill.get('total', 0))
+                    store_metrics[store_id]['bills'] += 1
+                    store_metrics[store_id]['items'] += sum(int(item.get('quantity', 0)) for item in bill.get('items', []))
+            except Exception:
+                continue
+        
+        # Calculate inventory value per store
+        for product in products:
+            store_id = product.get('assignedStoreId')
+            if store_id and store_id in store_metrics:
+                store_metrics[store_id]['assignedProducts'] += 1
+                store_metrics[store_id]['inventoryValue'] += float(product.get('price', 0)) * int(product.get('stock', 0))
+        
+        # Calculate derived metrics
+        results = []
+        for store_id, metrics in store_metrics.items():
+            metrics['averageBillValue'] = round(metrics['revenue'] / metrics['bills'], 2) if metrics['bills'] > 0 else 0
+            metrics['itemsPerBill'] = round(metrics['items'] / metrics['bills'], 2) if metrics['bills'] > 0 else 0
+            metrics['revenue'] = round(metrics['revenue'], 2)
+            metrics['inventoryValue'] = round(metrics['inventoryValue'], 2)
+            results.append(metrics)
+        
+        # Sort by revenue
+        results.sort(key=lambda x: x['revenue'], reverse=True)
+        
+        return jsonify({
+            'period': f'Last {days} days',
+            'data': results
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Error getting store performance: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/analytics/category/breakdown', methods=['GET'])
+def get_category_breakdown():
+    """Get sales breakdown by product category"""
+    try:
+        days = int(request.args.get('days', 30))
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        products = get_products_data()
+        bills = get_bills_data()
+        
+        # Create product lookup
+        product_lookup = {p['id']: p for p in products}
+        
+        # Aggregate by category
+        category_stats = defaultdict(lambda: {'revenue': 0, 'quantity': 0, 'bills': set()})
+        
+        for bill in bills:
+            try:
+                bill_date = datetime.fromisoformat(bill.get('createdAt', ''))
+                if bill_date < cutoff_date:
+                    continue
+                
+                for item in bill.get('items', []):
+                    product_id = item.get('productId')
+                    product = product_lookup.get(product_id, {})
+                    category = product.get('category', 'Uncategorized')
+                    
+                    quantity = int(item.get('quantity', 0))
+                    price = float(item.get('price', 0))
+                    
+                    category_stats[category]['revenue'] += price * quantity
+                    category_stats[category]['quantity'] += quantity
+                    category_stats[category]['bills'].add(bill['id'])
+            except Exception:
+                continue
+        
+        # Format results
+        results = [
+            {
+                'category': category,
+                'revenue': round(stats['revenue'], 2),
+                'quantity': stats['quantity'],
+                'billsCount': len(stats['bills']),
+                'averagePrice': round(stats['revenue'] / stats['quantity'], 2) if stats['quantity'] > 0 else 0
+            }
+            for category, stats in category_stats.items()
+        ]
+        
+        # Sort by revenue
+        results.sort(key=lambda x: x['revenue'], reverse=True)
+        
+        # Calculate percentages
+        total_revenue = sum(r['revenue'] for r in results)
+        for result in results:
+            result['revenuePercentage'] = round((result['revenue'] / total_revenue * 100), 2) if total_revenue > 0 else 0
+        
+        return jsonify({
+            'period': f'Last {days} days',
+            'data': results
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Error getting category breakdown: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/analytics/alerts', methods=['GET'])
+def get_business_alerts():
+    """Get business alerts and notifications"""
+    try:
+        products = get_products_data()
+        bills = get_bills_data()
+        
+        alerts = []
+        
+        # Low stock alerts
+        low_stock_products = [p for p in products if int(p.get('stock', 0)) < 10]
+        if low_stock_products:
+            alerts.append({
+                'type': 'warning',
+                'category': 'inventory',
+                'title': 'Low Stock Alert',
+                'message': f'{len(low_stock_products)} products have low stock (< 10 units)',
+                'priority': 'high',
+                'actionUrl': '/inventory'
+            })
+        
+        # Out of stock alerts
+        out_of_stock = [p for p in products if int(p.get('stock', 0)) == 0]
+        if out_of_stock:
+            alerts.append({
+                'type': 'error',
+                'category': 'inventory',
+                'title': 'Out of Stock',
+                'message': f'{len(out_of_stock)} products are out of stock',
+                'priority': 'critical',
+                'actionUrl': '/inventory'
+            })
+        
+        # Revenue drop detection (comparing last 7 days to previous 7 days)
+        now = datetime.now()
+        recent_revenue = sum(
+            float(b.get('total', 0)) for b in bills
+            if now - timedelta(days=7) <= datetime.fromisoformat(b.get('createdAt', '')) <= now
+        )
+        previous_revenue = sum(
+            float(b.get('total', 0)) for b in bills
+            if now - timedelta(days=14) <= datetime.fromisoformat(b.get('createdAt', '')) < now - timedelta(days=7)
+        )
+        
+        if previous_revenue > 0:
+            revenue_change = ((recent_revenue - previous_revenue) / previous_revenue) * 100
+            if revenue_change < -10:
+                alerts.append({
+                    'type': 'warning',
+                    'category': 'revenue',
+                    'title': 'Revenue Drop Detected',
+                    'message': f'Revenue decreased by {abs(revenue_change):.1f}% compared to previous week',
+                    'priority': 'high',
+                    'actionUrl': '/analytics'
+                })
+        
+        # High inventory value sitting (products with high value but low turnover)
+        high_value_slow = []
+        for product in products:
+            stock = int(product.get('stock', 0))
+            price = float(product.get('price', 0))
+            value = stock * price
+            
+            if value > 50000:  # High value threshold
+                # Check recent sales
+                product_sales = sum(
+                    int(item.get('quantity', 0))
+                    for bill in bills[-30:]  # Last 30 bills
+                    for item in bill.get('items', [])
+                    if item.get('productId') == product['id']
+                )
+                
+                if product_sales < stock * 0.1:  # Less than 10% sold
+                    high_value_slow.append(product)
+        
+        if high_value_slow:
+            alerts.append({
+                'type': 'info',
+                'category': 'inventory',
+                'title': 'High Value Slow-Moving Inventory',
+                'message': f'{len(high_value_slow)} high-value products have low turnover',
+                'priority': 'medium',
+                'actionUrl': '/inventory'
+            })
+        
+        return jsonify({
+            'alerts': alerts,
+            'count': len(alerts)
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Error getting business alerts: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+#-------------------------------------------------
+# Legacy sync endpoints (keep for compatibility) 
+#-------------------------------------------------
 @app.route('/api/push-sync', methods=['POST'])
 def push_sync():
     """Legacy endpoint - redirects to new enhanced sync"""

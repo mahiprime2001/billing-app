@@ -82,7 +82,7 @@ export default function ProductsPage() {
   // NEW: Advanced filters state
   const [priceRange, setPriceRange] = useState({ min: "", max: "" });
   const [batchFilter, setBatchFilter] = useState("all");
-  const [taxRange, setTaxRange] = useState({ min: "", max: "" });
+  const [sellingPriceRange, setSellingPriceRange] = useState({ min: "", max: "" });
   const [dateAddedFilter, setDateAddedFilter] = useState({ from: "", to: "" });
   const [isFiltersDialogOpen, setIsFiltersDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -136,7 +136,7 @@ export default function ProductsPage() {
     name: "",
     price: "",
     stock: "",
-    tax: "",
+    sellingPrice: "",
     barcodes: [""],
     batchId: "",
   });
@@ -166,7 +166,7 @@ export default function ProductsPage() {
       name: "",
       price: "",
       stock: "",
-      tax: "",
+      sellingPrice: "",
       barcodes: [""],
       batchId: "",
     })
@@ -237,7 +237,7 @@ export default function ProductsPage() {
       name: formData.name,
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
-      tax: Number.parseFloat(formData.tax),
+      sellingPrice: Number.parseFloat(formData.sellingPrice),
       barcodes: validBarcodes,
       batchId: formData.batchId,
     };
@@ -288,7 +288,7 @@ export default function ProductsPage() {
       name: formData.name,
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
-      tax: Number.parseFloat(formData.tax),
+      sellingPrice: Number.parseFloat(formData.sellingPrice),
       barcodes: validBarcodes,
       batchId: formData.batchId === "" ? undefined : formData.batchId, // Send undefined if batchId is empty
     };
@@ -337,7 +337,7 @@ export default function ProductsPage() {
       name: product.name,
       price: product.price.toString(),
       stock: product.stock.toString(),
-      tax: product.tax != null ? product.tax.toString() : "",
+      sellingPrice: (product as any).sellingPrice != null ? (product as any).sellingPrice.toString() : "",
       barcodes: product.barcodes.length > 0 ? product.barcodes : [""],
       batchId: product.batchId || "",
     })
@@ -399,7 +399,7 @@ export default function ProductsPage() {
   const resetAdvancedFilters = () => {
     setPriceRange({ min: "", max: "" });
     setBatchFilter("all");
-    setTaxRange({ min: "", max: "" });
+    setSellingPriceRange({ min: "", max: "" });
     setDateAddedFilter({ from: "", to: "" });
   };
 
@@ -435,11 +435,11 @@ export default function ProductsPage() {
     // NEW: Batch filter
     const matchesBatch = batchFilter === "all" || product.batchId === batchFilter;
 
-    // NEW: Tax range filter
-    const taxMin = taxRange.min ? parseFloat(taxRange.min) : 0;
-    const taxMax = taxRange.max ? parseFloat(taxRange.max) : Infinity;
-    const productTax = product.tax || 0;
-    const matchesTax = productTax >= taxMin && productTax <= taxMax;
+    // NEW: Selling Price range filter
+    const sellingPriceMin = sellingPriceRange.min ? parseFloat(sellingPriceRange.min) : 0;
+    const sellingPriceMax = sellingPriceRange.max ? parseFloat(sellingPriceRange.max) : Infinity;
+    const productSellingPrice = (product as any).sellingPrice || 0;
+    const matchesSellingPrice = productSellingPrice >= sellingPriceMin && productSellingPrice <= sellingPriceMax;
 
     // NEW: Date added filter (using createdAt if available)
     let matchesDate = true;
@@ -455,9 +455,9 @@ export default function ProductsPage() {
       }
     }
 
-    return matchesSearch && matchesStock && matchesCategory && matchesPrice && matchesBatch && matchesTax && matchesDate;
+    return matchesSearch && matchesStock && matchesCategory && matchesPrice && matchesBatch && matchesSellingPrice && matchesDate;
   });
-}, [products, searchTerm, stockFilter, categoryFilter, priceRange, batchFilter, taxRange, dateAddedFilter]);
+}, [products, searchTerm, stockFilter, categoryFilter, priceRange, batchFilter, sellingPriceRange, dateAddedFilter]);
 
   const getStockStatus = (stock: number) => {
     if (stock === 0) return { label: "Out of Stock", variant: "destructive" as const, icon: XCircle }
@@ -752,7 +752,19 @@ export default function ProductsPage() {
             </Button>
 
             {/* Add Product */}
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Dialog
+              open={isAddDialogOpen}
+              onOpenChange={(open) => {
+                setIsAddDialogOpen(open);
+                if (!open) {
+                  resetForm();
+                  setSelectedBatchId(null); // Reset selected batch when dialog closes
+                } else {
+                  resetForm(); // Reset form when dialog opens
+                  setSelectedBatchId(null); // Reset selected batch when dialog opens
+                }
+              }}
+            >
               <DialogTrigger asChild>
                 <Button className="bg-blue-600 hover:bg-blue-700">
                   <Plus className="h-4 w-4 mr-2" />
@@ -817,14 +829,14 @@ export default function ProductsPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="tax">Tax (%)</Label>
+                      <Label htmlFor="sellingPrice">Selling Price (₹)</Label>
                       <Input
-                        id="tax"
+                        id="sellingPrice"
                         type="number"
                         min="0"
                         step="0.01"
-                        value={formData.tax}
-                        onChange={(e) => setFormData({ ...formData, tax: e.target.value })}
+                        value={formData.sellingPrice}
+                        onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
                         placeholder="0.00"
                       />
                     </div>
@@ -833,9 +845,8 @@ export default function ProductsPage() {
                   <div className="space-y-2">
                     <Label htmlFor="batch">Batch (Optional)</Label>
                     <Select
-                      value={selectedBatchId || ""}
+                      value={formData.batchId || ""}
                       onValueChange={(value) => {
-                        setSelectedBatchId(value);
                         setFormData({ ...formData, batchId: value });
                       }}
                     >
@@ -843,7 +854,7 @@ export default function ProductsPage() {
                         <SelectValue placeholder="Select a batch" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">No Batch</SelectItem> {/* Option for no batch */}
+                        <SelectItem value="no-batch">No Batch</SelectItem> {/* Option for no batch */}
                         {batches.map((batch) => (
                           <SelectItem key={batch.id} value={batch.id}>
                             <div className="flex flex-col">
@@ -1059,7 +1070,7 @@ export default function ProductsPage() {
                     <th className="text-left p-4 font-medium">Product</th>
                     <th className="text-left p-4 font-medium">Batch</th>
                     <th className="text-left p-4 font-medium">Price</th>
-                    <th className="text-left p-4 font-medium">Tax</th>
+                    <th className="text-left p-4 font-medium">Selling Price</th>
                     <th className="text-left p-4 font-medium">Stock</th>
                     <th className="text-left p-4 font-medium">Barcodes</th>
                     <th className="text-left p-4 font-medium">Status</th>
@@ -1096,7 +1107,7 @@ export default function ProductsPage() {
                           <span className="font-medium">₹{product.price.toFixed(2)}</span>
                         </td>
                         <td className="p-4">
-                          <span className="font-medium">{(product.tax || 0).toFixed(2)}%</span>
+                          <span className="font-medium">₹{(product as any).sellingPrice?.toFixed(2) || "0.00"}</span>
                         </td>
                         <td className="p-4">
                           <span className="font-medium">{product.stock}</span>
@@ -1170,7 +1181,7 @@ export default function ProductsPage() {
                     {searchTerm || categoryFilter !== "all" || stockFilter !== "all" ||
                     (priceRange.min !== "" || priceRange.max !== "") ||
                     batchFilter !== "all" ||
-                    (taxRange.min !== "" || taxRange.max !== "") ||
+                    (sellingPriceRange.min !== "" || sellingPriceRange.max !== "") ||
                     (dateAddedFilter.from !== "" || dateAddedFilter.to !== "")
                       ? "Try adjusting your search or filters"
                       : "Get started by adding your first product"}
@@ -1238,23 +1249,23 @@ export default function ProductsPage() {
                 </Select>
               </div>
 
-              {/* Tax Range */}
+              {/* Selling Price Range */}
               <div className="space-y-2">
-                <Label>Tax Range (%)</Label>
+                <Label>Selling Price Range (₹)</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     type="number"
                     step="0.01"
                     placeholder="Min"
-                    value={taxRange.min}
-                    onChange={(e) => setTaxRange({ ...taxRange, min: e.target.value })}
+                    value={sellingPriceRange.min}
+                    onChange={(e) => setSellingPriceRange({ ...sellingPriceRange, min: e.target.value })}
                   />
                   <Input
                     type="number"
                     step="0.01"
                     placeholder="Max"
-                    value={taxRange.max}
-                    onChange={(e) => setTaxRange({ ...taxRange, max: e.target.value })}
+                    value={sellingPriceRange.max}
+                    onChange={(e) => setSellingPriceRange({ ...sellingPriceRange, max: e.target.value })}
                   />
                 </div>
               </div>
@@ -1502,7 +1513,17 @@ export default function ProductsPage() {
         />
 
         {/* Edit Product Dialog (unchanged, but with formData updates if needed) */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <Dialog
+          open={isEditDialogOpen}
+          onOpenChange={(open) => {
+            setIsEditDialogOpen(open);
+            if (!open) {
+              resetForm();
+              setEditingProduct(null);
+              setSelectedBatchId(null); // Reset selected batch when edit dialog closes
+            }
+          }}
+        >
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Product</DialogTitle>
@@ -1560,14 +1581,14 @@ export default function ProductsPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-tax">Tax (%)</Label>
+                <Label htmlFor="edit-sellingPrice">Selling Price (₹)</Label>
                 <Input
-                  id="edit-tax"
+                  id="edit-sellingPrice"
                   type="number"
                   min="0"
                   step="0.01"
-                  value={formData.tax}
-                  onChange={(e) => setFormData({ ...formData, tax: e.target.value })}
+                  value={formData.sellingPrice}
+                  onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
                   placeholder="0.00"
                 />
               </div>
@@ -1584,7 +1605,7 @@ export default function ProductsPage() {
                     <SelectValue placeholder="Select a batch" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Batch</SelectItem> {/* Option for no batch */}
+                    <SelectItem value="no-batch">No Batch</SelectItem> {/* Option for no batch */}
                     {batches.map((batch) => (
                       <SelectItem key={batch.id} value={batch.id}>
                         <div className="flex flex-col">

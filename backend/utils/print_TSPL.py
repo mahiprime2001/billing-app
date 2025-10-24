@@ -28,7 +28,7 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
         # Product name: x=120, y=24 (3 mm)
         tspl.append(f'TEXT 225,24,"1",0,1,1,"{product["name"]}"')
         # Price: x=120, y=44 (5.5 mm)
-        tspl.append(f'TEXT 225,44,"1",0,1,1,"Rs.{product.get("price", 0):.2f}"')
+        tspl.append(f'TEXT 225,44,"1",0,1,1,"Rs.{product.get("sellingPrice", 0):.2f}"')
 
         tspl.append(f"PRINT 1,{copies}")  # Print specified copies
         tspl.append("FEED 0")  # Ensure label advances

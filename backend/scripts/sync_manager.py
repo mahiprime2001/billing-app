@@ -24,7 +24,7 @@ logger.setLevel(logging.DEBUG)
 
 if not logger.handlers:
     # Ensure logs directory exists
-    log_dir = os.path.join(PROJECT_ROOT, 'backend', 'data', 'logs')
+    log_dir = os.path.join(PROJECT_ROOT, 'data', 'logs')
     # Safely ensure log directory exists
     if not os.path.exists(log_dir):
         try:
@@ -80,7 +80,7 @@ class EnhancedSyncManager:
         self._ensure_directory_exists(os.path.dirname(self.settings_file))
         self.user_sessions_file = os.path.join(base_dir, 'data', 'json', 'user_sessions.json')
         self._ensure_directory_exists(os.path.dirname(self.user_sessions_file))
-        self.log_dir = os.path.join(PROJECT_ROOT, 'backend', 'data', 'logs') # Store log directory
+        self.log_dir = os.path.join(PROJECT_ROOT, 'data', 'logs') # Store log directory
 
     def _cleanup_log_files(self, days_to_keep: int = 15) -> None:
         """
@@ -288,12 +288,17 @@ class EnhancedSyncManager:
                         table_columns = [row['Field'] for row in cursor.fetchall()]
                         logger.debug(f"Table `{table_name}` columns: {table_columns}")
 
-                        # Apply specific mappings for 'batch' table to match DB schema
+                        # Apply specific mappings for 'batch' and 'Products' tables to match DB schema
                         processed_change_data = dict(change_data) # Create a mutable copy
                         if table_name == 'batch':
                             if 'batchNumber' in processed_change_data and 'batch_number' in table_columns:
                                 processed_change_data['batch_number'] = processed_change_data.pop('batchNumber')
                             # 'place' is already correctly named as 'place' in both frontend and DB, no change needed.
+                        elif table_name == 'Products':
+                            if 'sellingPrice' in processed_change_data and 'selling_price' in table_columns:
+                                processed_change_data['selling_price'] = processed_change_data.pop('sellingPrice')
+                            if 'batchId' in processed_change_data and (processed_change_data['batchId'] == '' or processed_change_data['batchId'] == 'no-batch'):
+                                processed_change_data['batchId'] = None
 
                         # Filter data by valid columns
                         filtered_data = {k: v for k, v in processed_change_data.items() if k in table_columns}
@@ -744,7 +749,7 @@ class EnhancedSyncManager:
         schedule.every(15).minutes.do(self.scheduled_sync)
         schedule.every(15).minutes.do(self.retry_failed_logs)
         schedule.every().day.at("02:00").do(self.cleanup_old_logs)
-        schedule.every().day.at("02:00").do(self._cleanup_log_files, days_to_keep=15) # Schedule log file cleanup
+        schedule.every().day.at("02:00").do(self._cleanup_log_files, days_to_keep=30) # Schedule log file cleanup
         logger.debug("Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).")
 
         def run_scheduler():

@@ -29,6 +29,7 @@ import {
   Line,
   Area,
   AreaChart,
+  PieLabelRenderProps,
 } from "recharts"
 import {
   TrendingUp,
@@ -41,6 +42,8 @@ import {
   Download,
   Filter,
   RefreshCw,
+  AlertTriangle,
+  Users,
 } from "lucide-react"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns"
@@ -51,14 +54,14 @@ interface User {
   name: string;
   email: string;
   role: string;
-  lastLogged: string; // ISO string date
-  lastLogout: string; // ISO string date
+  lastLogged: string;
+  lastLogout: string;
 }
 
 interface UserSessionAnalytics {
   date: string;
   totalSessions: number;
-  averageSessionDuration: number; // in minutes
+  averageSessionDuration: number;
 }
 
 interface Bill {
@@ -66,6 +69,7 @@ interface Bill {
   storeId: string
   storeName: string
   customerName?: string
+  customerPhone?: string
   items: Array<{
     productId: string
     productName: string
@@ -78,6 +82,7 @@ interface Bill {
   discountAmount: number
   total: number
   timestamp: string
+  createdAt: string
   createdBy: string
 }
 
@@ -93,6 +98,8 @@ interface Product {
   name: string
   price: number
   stock: number
+  category: string
+  assignedStoreId?: string
 }
 
 interface StoreAnalytics {
@@ -145,6 +152,108 @@ interface ProductAdditionAnalytics {
   totalValueAdded: number;
 }
 
+// Enhanced Analytics Interfaces from Backend
+interface DashboardMetrics {
+  period: string
+  revenue: {
+    current: number
+    previous: number
+    growth: number
+  }
+  bills: {
+    total: number
+    averageValue: number
+  }
+  items: {
+    totalSold: number
+    perTransaction: number
+  }
+  inventory: {
+    totalProducts: number
+    totalValue: number
+    lowStockCount: number
+  }
+  customers: {
+    unique: number
+    repeatRate: number
+  }
+  stores: {
+    total: number
+    active: number
+  }
+}
+
+interface RevenueTrend {
+  period: string
+  revenue: number
+  bills: number
+  averageBill: number
+}
+
+interface TopProduct {
+  productId: string
+  productName: string
+  barcode: string
+  category: string
+  revenue: number
+  quantitySold: number
+  billsCount: number
+  currentStock: number
+  averagePrice: number
+}
+
+interface InventoryHealth {
+  period: string
+  summary: {
+    totalProducts: number
+    totalInventoryValue: number
+    averageTurnover: number
+    slowMovingCount: number
+    outOfStockCount: number
+  }
+  slowMoving: Array<{
+    productId: string
+    productName: string
+    barcode: string
+    currentStock: number
+    stockValue: number
+    soldQuantity: number
+    turnoverRatio: number
+    daysOfStock: number
+  }>
+  outOfStock: Array<any>
+}
+
+interface StorePerformance {
+  storeId: string
+  storeName: string
+  revenue: number
+  bills: number
+  items: number
+  assignedProducts: number
+  inventoryValue: number
+  averageBillValue: number
+  itemsPerBill: number
+}
+
+interface CategoryBreakdown {
+  category: string
+  revenue: number
+  quantity: number
+  billsCount: number
+  averagePrice: number
+  revenuePercentage: number
+}
+
+interface BusinessAlert {
+  type: 'error' | 'warning' | 'info'
+  category: string
+  title: string
+  message: string
+  priority: 'critical' | 'high' | 'medium' | 'low'
+  actionUrl?: string
+}
+
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D", "#FFC658", "#FF7C7C"]
 
 export default function AnalyticsPage() {
@@ -152,24 +261,37 @@ export default function AnalyticsPage() {
   const [bills, setBills] = useState<Bill[]>([])
   const [stores, setStores] = useState<Store[]>([])
   const [products, setProducts] = useState<Product[]>([])
-  const [users, setUsers] = useState<User[]>([]) // New state for users
+  const [users, setUsers] = useState<User[]>([])
   const [storeAnalytics, setStoreAnalytics] = useState<StoreAnalytics[]>([])
   const [productAnalytics, setProductAnalytics] = useState<ProductAnalytics[]>([])
-  const [userSessionAnalytics, setUserSessionAnalytics] = useState<UserSessionAnalytics[]>([]) // New state for user session analytics
-  const [productAdditionAnalytics, setProductAdditionAnalytics] = useState<ProductAdditionAnalytics[]>([]) // New state for product addition analytics
+  const [userSessionAnalytics, setUserSessionAnalytics] = useState<UserSessionAnalytics[]>([])
+  const [productAdditionAnalytics, setProductAdditionAnalytics] = useState<ProductAdditionAnalytics[]>([])
   const [online, setOnline] = useState<OnlineResp | null>(null)
   const [sessions, setSessions] = useState<SessionsResp | null>(null)
+  
+  // Enhanced Analytics State
+  const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null)
+  const [revenueTrends, setRevenueTrends] = useState<RevenueTrend[]>([])
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([])
+  const [inventoryHealth, setInventoryHealth] = useState<InventoryHealth | null>(null)
+  const [storePerformance, setStorePerformance] = useState<StorePerformance[]>([])
+  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([])
+  const [businessAlerts, setBusinessAlerts] = useState<BusinessAlert[]>([])
+  
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [selectedStore, setSelectedStore] = useState<string>("all")
   const [selectedProduct, setSelectedProduct] = useState<string>("all")
+  const [selectedDays, setSelectedDays] = useState<string>("30")
+  const [trendPeriod, setTrendPeriod] = useState<string>("daily")
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   })
 
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:8080'
+
   const refresh = async () => {
-    // optional: force a pull on page load for freshness
     await fetch('/api/sync/pull', { method: 'POST' })
     const o = await fetch('/api/analytics/users/online?windowMinutes=5').then(r => r.json())
     const today = new Date().toISOString().slice(0,10)
@@ -177,7 +299,6 @@ export default function AnalyticsPage() {
     setOnline(o)
     setSessions(s)
 
-    // Existing loadData logic
     setLoading(true)
     try {
       console.log('Fetching data from API endpoints...')
@@ -185,39 +306,90 @@ export default function AnalyticsPage() {
         fetch('/api/bills'),
         fetch('/api/stores'),
         fetch('/api/products'),
-        fetch('/api/users') // Fetch user data
+        fetch('/api/users')
       ])
 
       if (!billsResponse.ok) throw new Error('Failed to fetch bills')
       if (!storesResponse.ok) throw new Error('Failed to fetch stores')
       if (!productsResponse.ok) throw new Error('Failed to fetch products')
-      if (!usersResponse.ok) throw new Error('Failed to fetch users') // Check user response
+      if (!usersResponse.ok) throw new Error('Failed to fetch users')
 
       const [billsData, storesData, productsData, usersData] = await Promise.all([
         billsResponse.json(),
         storesResponse.json(),
         productsResponse.json(),
-        usersResponse.json() // Parse user data
+        usersResponse.json()
       ])
 
       console.log('Fetched data:', {
         bills: billsData.length,
         stores: storesData.length,
         products: productsData.length,
-        users: usersData.length // Log user data length
+        users: usersData.length
       })
-      console.log('Sample store IDs:', storesData.map((s: any) => s.id))
-      console.log('Sample bill store IDs:', [...new Set(billsData.map((b: any) => b.storeId))])
 
       setBills(billsData)
       setStores(storesData)
       setProducts(productsData)
-      setUsers(usersData) // Set user data
+      setUsers(usersData)
+
+      // Load enhanced analytics
+      await loadEnhancedAnalytics(selectedDays, trendPeriod)
     } catch (error) {
       console.error('Error loading data:', error)
       alert('Failed to load analytics data. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadEnhancedAnalytics = async (days: string, period: string) => {
+    try {
+      const [
+        dashboardRes,
+        trendsRes,
+        topProductsRes,
+        inventoryRes,
+        storePerformanceRes,
+        categoryRes,
+        alertsRes
+      ] = await Promise.all([
+        fetch(`${backendUrl}/api/analytics/dashboard?days=${days}`),
+        fetch(`${backendUrl}/api/analytics/revenue/trends?period=${period}&days=${days}`),
+        fetch(`${backendUrl}/api/analytics/products/top?limit=10&days=${days}&sortBy=revenue`),
+        fetch(`${backendUrl}/api/analytics/inventory/health?days=${days}`),
+        fetch(`${backendUrl}/api/analytics/stores/performance?days=${days}`),
+        fetch(`${backendUrl}/api/analytics/category/breakdown?days=${days}`),
+        fetch(`${backendUrl}/api/analytics/alerts`)
+      ])
+
+      const [
+        dashboardData,
+        trendsData,
+        topProductsData,
+        inventoryData,
+        storePerformanceData,
+        categoryData,
+        alertsData
+      ] = await Promise.all([
+        dashboardRes.json(),
+        trendsRes.json(),
+        topProductsRes.json(),
+        inventoryRes.json(),
+        storePerformanceRes.json(),
+        categoryRes.json(),
+        alertsRes.json()
+      ])
+
+      setDashboardMetrics(dashboardData)
+      setRevenueTrends(trendsData.data || [])
+      setTopProducts(topProductsData.data || [])
+      setInventoryHealth(inventoryData)
+      setStorePerformance(storePerformanceData.data || [])
+      setCategoryBreakdown(categoryData.data || [])
+      setBusinessAlerts(alertsData.alerts || [])
+    } catch (error) {
+      console.error('Error loading enhanced analytics:', error)
     }
   }
 
@@ -237,7 +409,7 @@ export default function AnalyticsPage() {
     }
 
     refresh()
-    const t = setInterval(refresh, 60_000) // refresh every minute
+    const t = setInterval(refresh, 60_000)
     return () => clearInterval(t)
   }, [router])
 
@@ -251,11 +423,17 @@ export default function AnalyticsPage() {
     }
   }, [bills, users, dateRange])
 
+  useEffect(() => {
+    if (!loading) {
+      loadEnhancedAnalytics(selectedDays, trendPeriod)
+    }
+  }, [selectedDays, trendPeriod])
+
   const filterBillsByDateRange = (bills: Bill[]) => {
     if (!dateRange?.from || !dateRange?.to) return bills
 
     return bills.filter((bill) => {
-      const billDate = new Date(bill.timestamp)
+      const billDate = new Date(bill.timestamp || bill.createdAt)
       return billDate >= dateRange.from! && billDate <= dateRange.to!
     })
   }
@@ -282,7 +460,6 @@ export default function AnalyticsPage() {
       const lastLoggedDate = new Date(user.lastLogged);
       const lastLogoutDate = new Date(user.lastLogout);
 
-      // Ensure valid dates and logout is after login
       if (isNaN(lastLoggedDate.getTime()) || isNaN(lastLogoutDate.getTime()) || lastLogoutDate < lastLoggedDate) {
         return;
       }
@@ -314,9 +491,8 @@ export default function AnalyticsPage() {
   const calculateProductAdditionAnalytics = () => {
     const productFirstSaleDate: Map<string, Date> = new Map();
 
-    // Determine the absolute first sale date for each product across all bills
     bills.forEach(bill => {
-      const billDate = new Date(bill.timestamp);
+      const billDate = new Date(bill.timestamp || bill.createdAt);
       bill.items.forEach(item => {
         if (!productFirstSaleDate.has(item.productId) || billDate < (productFirstSaleDate.get(item.productId) as Date)) {
           productFirstSaleDate.set(item.productId, billDate);
@@ -326,7 +502,6 @@ export default function AnalyticsPage() {
 
     const dailyProductAdditions: { [key: string]: { productsAdded: Set<string>; totalValueAdded: number } } = {};
 
-    // Aggregate products first sold within the selected date range
     productFirstSaleDate.forEach((firstSaleDate, productId) => {
       if (dateRange?.from && dateRange?.to && firstSaleDate >= dateRange.from && firstSaleDate <= dateRange.to) {
         const dateKey = format(firstSaleDate, "yyyy-MM-dd");
@@ -336,9 +511,8 @@ export default function AnalyticsPage() {
         }
         dailyProductAdditions[dateKey].productsAdded.add(productId);
 
-        // Find the revenue for this product on its first sale day
         const relevantBills = bills.filter(bill => 
-          format(new Date(bill.timestamp), "yyyy-MM-dd") === dateKey && 
+          format(new Date(bill.timestamp || bill.createdAt), "yyyy-MM-dd") === dateKey && 
           bill.items.some(item => item.productId === productId)
         );
 
@@ -403,7 +577,7 @@ export default function AnalyticsPage() {
 
       const monthlyStats: { [key: string]: { revenue: number; bills: number } } = {}
       storeBills.forEach((bill) => {
-        const month = format(new Date(bill.timestamp), "MMM yyyy")
+        const month = format(new Date(bill.timestamp || bill.createdAt), "MMM yyyy")
         if (!monthlyStats[month]) {
           monthlyStats[month] = { revenue: 0, bills: 0 }
         }
@@ -422,7 +596,7 @@ export default function AnalyticsPage() {
       previousPeriodEnd.setMonth(previousPeriodEnd.getMonth() - 1)
 
       const previousPeriodBills = bills.filter((bill) => {
-        const billDate = new Date(bill.timestamp)
+        const billDate = new Date(bill.timestamp || bill.createdAt)
         return bill.storeId === store.id && billDate >= previousPeriodStart && billDate <= previousPeriodEnd
       })
 
@@ -493,7 +667,7 @@ export default function AnalyticsPage() {
 
       const monthlyStats: { [key: string]: { quantity: number; revenue: number } } = {}
       productBills.forEach((bill) => {
-        const month = format(new Date(bill.timestamp), "MMM yyyy")
+        const month = format(new Date(bill.timestamp || bill.createdAt), "MMM yyyy")
         const productItems = bill.items.filter((item) => item.productId === product.id)
 
         if (!monthlyStats[month]) {
@@ -519,7 +693,7 @@ export default function AnalyticsPage() {
       previousPeriodEnd.setMonth(previousPeriodEnd.getMonth() - 1)
 
       const previousPeriodBills = bills.filter((bill) => {
-        const billDate = new Date(bill.timestamp)
+        const billDate = new Date(bill.timestamp || bill.createdAt)
         return (
           billDate >= previousPeriodStart &&
           billDate <= previousPeriodEnd &&
@@ -561,22 +735,18 @@ export default function AnalyticsPage() {
   const exportAnalytics = async (options: { sheets?: string[] } = {}) => {
     setExporting(true)
     try {
-      // Dynamically import SheetJS
       const XLSXMod = await import("xlsx")
       const XLSX = (XLSXMod as any).default ?? XLSXMod
 
-      // Validate data before export
       if (!storeAnalytics.length && !productAnalytics.length) {
         throw new Error("No analytics data available to export")
       }
 
-      // Calculate totals with rounding
       const totalRevenue = Number(storeAnalytics.reduce((sum, store) => sum + store.totalRevenue, 0).toFixed(2))
       const totalBills = storeAnalytics.reduce((sum, store) => sum + store.totalBills, 0)
       const totalItems = storeAnalytics.reduce((sum, store) => sum + store.totalItems, 0)
       const averageBillValue = totalBills > 0 ? Number((totalRevenue / totalBills).toFixed(2)) : 0
 
-      // Define available sheets
       const availableSheets = {
         summary: true,
         storeAnalytics: true,
@@ -586,21 +756,19 @@ export default function AnalyticsPage() {
         billDetails: true,
       }
 
-      // Filter sheets based on options
       const sheetsToExport = options.sheets
         ? Object.fromEntries(
             Object.entries(availableSheets).filter(([key]) => options.sheets!.includes(key))
           )
         : availableSheets
 
-      // Helper function to apply header styling
       const styleHeaders = (ws: any, range: any) => {
         for (let C = range.s.c; C <= range.e.c; ++C) {
           const cellAddress = XLSX.utils.encode_cell({ r: range.s.r, c: C })
           if (ws[cellAddress]) {
             ws[cellAddress].s = {
               font: { bold: true, color: { rgb: "FFFFFF" } },
-              fill: { fgColor: { rgb: "4B0082" } }, // Indigo background
+              fill: { fgColor: { rgb: "4B0082" } },
               alignment: { horizontal: "center", vertical: "center" },
               border: {
                 top: { style: "thin", color: { rgb: "000000" } },
@@ -613,7 +781,6 @@ export default function AnalyticsPage() {
         }
       }
 
-      // Helper function to auto-size columns
       const autoSizeColumns = (ws: any, data: any[]) => {
         const colWidths = data.reduce((acc, row) => {
           Object.keys(row).forEach((key, i) => {
@@ -625,7 +792,6 @@ export default function AnalyticsPage() {
         ws["!cols"] = colWidths.map((w: number) => ({ wch: Math.min(w, 40) }))
       }
 
-      // Helper function to apply number formatting
       const applyFormats = (ws: any, range: any, currencyCols: number[], percentCols: number[]) => {
         for (let R = range.s.r + 1; R <= range.e.r; ++R) {
           for (const col of currencyCols) {
@@ -643,32 +809,8 @@ export default function AnalyticsPage() {
         }
       }
 
-      // Helper function for conditional formatting
-      const applyConditionalFormatting = (ws: any, range: any, columns: number[]) => {
-        const cf: any[] = []
-        columns.forEach(col => {
-          cf.push({
-            type: "color_scale",
-            criteria: "color_scale",
-            min_type: "num",
-            mid_type: "num",
-            max_type: "num",
-            min_value: -100,
-            mid_value: 0,
-            max_value: 100,
-            min_color: { rgb: "FF6347" }, // Tomato red for negative
-            mid_color: { rgb: "FFFFFF" }, // White for zero
-            max_color: { rgb: "32CD32" }, // Lime green for positive
-            range: `${XLSX.utils.encode_col(col - 1)}${range.s.r + 2}:${XLSX.utils.encode_col(col - 1)}${range.e.r + 1}`
-          })
-        })
-        ws["!conditionalFormatting"] = cf
-      }
-
-      // Create workbook
       const wb = XLSX.utils.book_new()
 
-      // Summary sheet
       if (sheetsToExport.summary) {
         const summaryData = [
           { Key: "Analytics Report", Value: "Store and Product Performance" },
@@ -690,7 +832,7 @@ export default function AnalyticsPage() {
         ]
 
         const summaryWs = XLSX.utils.json_to_sheet(summaryData)
-        summaryWs["!rows"] = [{ hpt: 30 }, ...Array(summaryData.length - 1).fill({ hpt: 20 })] // Title row taller
+        summaryWs["!rows"] = [{ hpt: 30 }, ...Array(summaryData.length - 1).fill({ hpt: 20 })]
         autoSizeColumns(summaryWs, summaryData)
         styleHeaders(summaryWs, XLSX.utils.decode_range(summaryWs["!ref"] || "A1:B1"))
         applyFormats(summaryWs, XLSX.utils.decode_range(summaryWs["!ref"] || "A1:B1"), [5, 8], [])
@@ -698,7 +840,6 @@ export default function AnalyticsPage() {
         XLSX.utils.book_append_sheet(wb, summaryWs, "Summary")
       }
 
-      // Store analytics sheet
       if (sheetsToExport.storeAnalytics) {
         const storeData = storeAnalytics.map((store) => ({
           "Store Name": store.storeName,
@@ -715,12 +856,10 @@ export default function AnalyticsPage() {
         autoSizeColumns(storeWs, storeData)
         styleHeaders(storeWs, XLSX.utils.decode_range(storeWs["!ref"] || "A1:H1"))
         applyFormats(storeWs, XLSX.utils.decode_range(storeWs["!ref"] || "A1:H1"), [2, 5], [6, 7])
-        applyConditionalFormatting(storeWs, XLSX.utils.decode_range(storeWs["!ref"] || "A1:H1"), [6, 7])
         storeWs["!freeze"] = { xSplit: 0, ySplit: 1 }
         XLSX.utils.book_append_sheet(wb, storeWs, "Store Analytics")
       }
 
-      // Product analytics sheet
       if (sheetsToExport.productAnalytics) {
         const productData = productAnalytics.map((product) => ({
           "Product Name": product.productName,
@@ -737,12 +876,10 @@ export default function AnalyticsPage() {
         autoSizeColumns(productWs, productData)
         styleHeaders(productWs, XLSX.utils.decode_range(productWs["!ref"] || "A1:H1"))
         applyFormats(productWs, XLSX.utils.decode_range(productWs["!ref"] || "A1:H1"), [3, 4], [6, 7])
-        applyConditionalFormatting(productWs, XLSX.utils.decode_range(productWs["!ref"] || "A1:H1"), [6, 7])
         productWs["!freeze"] = { xSplit: 0, ySplit: 1 }
         XLSX.utils.book_append_sheet(wb, productWs, "Product Analytics")
       }
 
-      // Top products by store
       if (sheetsToExport.topProducts) {
         const topProductsData: any[] = []
         storeAnalytics.forEach((store) => {
@@ -765,7 +902,6 @@ export default function AnalyticsPage() {
         XLSX.utils.book_append_sheet(wb, topProductsWs, "Top Products by Store")
       }
 
-      // Monthly trends sheet
       if (sheetsToExport.monthlyTrends) {
         const monthlyTrendData: any[] = []
         storeAnalytics.forEach((store) => {
@@ -787,13 +923,12 @@ export default function AnalyticsPage() {
         XLSX.utils.book_append_sheet(wb, monthlyTrendWs, "Monthly Trends")
       }
 
-      // Bill details sheet
       if (sheetsToExport.billDetails) {
         const billDetailsData = filterBillsByDateRange(bills).map((bill) => ({
           "Bill ID": bill.id,
           "Store Name": bill.storeName,
           "Customer Name": bill.customerName || "N/A",
-          "Date": format(new Date(bill.timestamp), "yyyy-MM-dd HH:mm:ss"),
+          "Date": format(new Date(bill.timestamp || bill.createdAt), "yyyy-MM-dd HH:mm:ss"),
           "Items": bill.items.map(item => `${item.productName} (Qty: ${item.quantity})`).join(", "),
           "Subtotal": Number((bill.subtotal || 0).toFixed(2)),
           "Tax": Number((bill.taxAmount || 0).toFixed(2)),
@@ -810,7 +945,6 @@ export default function AnalyticsPage() {
         XLSX.utils.book_append_sheet(wb, billDetailsWs, "Bill Details")
       }
 
-      // Generate file
       const dateStr =
         dateRange?.from && dateRange?.to
           ? `${format(dateRange.from, "yyyy-MM-dd")}_to_${format(dateRange.to, "yyyy-MM-dd")}`
@@ -933,6 +1067,46 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
+        {/* Business Alerts */}
+        {businessAlerts.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                Business Alerts
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {businessAlerts.map((alert, index) => (
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg border ${
+                      alert.type === 'error' ? 'bg-red-50 border-red-200' :
+                      alert.type === 'warning' ? 'bg-orange-50 border-orange-200' :
+                      'bg-blue-50 border-blue-200'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{alert.title}</h3>
+                        <p className="text-sm text-gray-600">{alert.message}</p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        alert.priority === 'critical' ? 'bg-red-100 text-red-800' :
+                        alert.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {alert.priority}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -941,7 +1115,7 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="space-y-2">
                 <Label>Date Range</Label>
                 <DatePickerWithRange date={dateRange} setDate={setDateRange} />
@@ -960,6 +1134,20 @@ export default function AnalyticsPage() {
                     <SelectItem value="thisMonth">This Month</SelectItem>
                     <SelectItem value="lastMonth">Last Month</SelectItem>
                     <SelectItem value="thisYear">This Year</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Analysis Period</Label>
+                <Select value={selectedDays} onValueChange={setSelectedDays}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">Last 7 Days</SelectItem>
+                    <SelectItem value="30">Last 30 Days</SelectItem>
+                    <SelectItem value="60">Last 60 Days</SelectItem>
+                    <SelectItem value="90">Last 90 Days</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1006,8 +1194,20 @@ export default function AnalyticsPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{totalRevenue.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">Across {storeAnalytics.length} stores</p>
+              <div className="text-2xl font-bold">₹{dashboardMetrics?.revenue.current.toFixed(2) || totalRevenue.toFixed(2)}</div>
+              <div className="flex items-center mt-2">
+                {(dashboardMetrics?.revenue.growth || 0) >= 0 ? (
+                  <TrendingUp className="w-4 h-4 text-green-600 mr-1" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-red-600 mr-1" />
+                )}
+                <span className={`text-sm font-medium ${
+                  (dashboardMetrics?.revenue.growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {Math.abs(dashboardMetrics?.revenue.growth || 0).toFixed(1)}%
+                </span>
+                <span className="text-xs text-gray-500 ml-1">vs previous</span>
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -1016,8 +1216,10 @@ export default function AnalyticsPage() {
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalBills}</div>
-              <p className="text-xs text-muted-foreground">Bills generated</p>
+              <div className="text-2xl font-bold">{dashboardMetrics?.bills.total || totalBills}</div>
+              <p className="text-xs text-muted-foreground">
+                Avg: ₹{(dashboardMetrics?.bills.averageValue || averageBillValue).toFixed(2)}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -1026,52 +1228,166 @@ export default function AnalyticsPage() {
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalItems}</div>
-              <p className="text-xs text-muted-foreground">Total items sold</p>
+              <div className="text-2xl font-bold">{dashboardMetrics?.items.totalSold || totalItems}</div>
+              <p className="text-xs text-muted-foreground">
+                {(dashboardMetrics?.items.perTransaction || (totalItems / totalBills)).toFixed(1)} per transaction
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Bill Value</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Unique Customers</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{averageBillValue.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">Per transaction</p>
+              <div className="text-2xl font-bold">{dashboardMetrics?.customers.unique || 0}</div>
+              <p className="text-xs text-muted-foreground">Active users: {online?.onlineCount ?? 0}</p>
             </CardContent>
           </Card>
-          <div className="card">
-            <div className="label">Active users (5m)</div>
-            <div className="value">{online?.onlineCount ?? 0}</div>
-          </div>
-          <div className="card">
-            <div className="label">Sessions today</div>
-            <div className="value">{sessions?.totalSessions ?? 0}</div>
-          </div>
-          <div className="card">
-            <div className="label">Avg session</div>
-            <div className="value">
-              {sessions ? Math.round((sessions.avgSessionSec || 0) / 60) : 0} min
-            </div>
-          </div>
         </div>
 
-        {/* Optionally list online users */}
-        <div className="mt-4">
-          <h3>Online now</h3>
-          <ul>
-            {online?.online.map(u => (
-              <li key={u.userId}>{u.userId} • last seen {new Date(u.lastSeen).toLocaleTimeString()}</li>
-            )) ?? <li>None</li>}
-          </ul>
-        </div>
+        {/* Enhanced Analytics - Revenue Trends */}
+        {revenueTrends.length > 0 && (
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Revenue Trends</CardTitle>
+                <Select value={trendPeriod} onValueChange={setTrendPeriod}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={revenueTrends}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`₹${Number(value).toFixed(2)}`, "Revenue"]} />
+                  <Line type="monotone" dataKey="revenue" stroke="#8884d8" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Top Products from Enhanced Analytics */}
+        {topProducts.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Selling Products (Last {selectedDays} Days)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Revenue</TableHead>
+                    <TableHead className="text-right">Qty Sold</TableHead>
+                    <TableHead className="text-right">Stock</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topProducts.map((product) => (
+                    <TableRow key={product.productId}>
+                      <TableCell className="font-medium">{product.productName}</TableCell>
+                      <TableCell>{product.category}</TableCell>
+                      <TableCell className="text-right font-semibold">₹{product.revenue.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{product.quantitySold}</TableCell>
+                      <TableCell className="text-right">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          product.currentStock < 10 ? 'bg-red-100 text-red-800' :
+                          product.currentStock < 50 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {product.currentStock}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Inventory Health */}
+        {inventoryHealth && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Total Inventory Value</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">₹{inventoryHealth.summary.totalInventoryValue.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">{inventoryHealth.summary.totalProducts} products</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Slow Moving Items</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">{inventoryHealth.summary.slowMovingCount}</div>
+                <p className="text-xs text-muted-foreground">Low turnover ratio</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{inventoryHealth.summary.outOfStockCount}</div>
+                <p className="text-xs text-muted-foreground">Needs restocking</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Category Breakdown */}
+        {categoryBreakdown.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales by Category</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={categoryBreakdown as any[]}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ payload }: PieLabelRenderProps) => `${(payload as CategoryBreakdown).category} ${(payload as CategoryBreakdown).revenuePercentage.toFixed(1)}%`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="revenue"
+                  >
+                    {categoryBreakdown.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`₹${Number(value).toFixed(2)}`, "Revenue"]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs defaultValue="stores" className="space-y-4">
           <TabsList>
             <TabsTrigger value="stores">Store Analytics</TabsTrigger>
             <TabsTrigger value="products">Product Analytics</TabsTrigger>
             <TabsTrigger value="trends">Trends & Insights</TabsTrigger>
-            <TabsTrigger value="userSessions">User Sessions</TabsTrigger> {/* New tab trigger */}
+            <TabsTrigger value="userSessions">User Sessions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="stores" className="space-y-6">
@@ -1412,7 +1728,6 @@ export default function AnalyticsPage() {
             </div>
           </TabsContent>
 
-          {/* New TabsContent for User Sessions */}
           <TabsContent value="userSessions" className="space-y-6">
             <Card>
               <CardHeader>
@@ -1463,6 +1778,57 @@ export default function AnalyticsPage() {
                     <Bar dataKey="totalSessions" fill="#82ca9d" />
                   </BarChart>
                 </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Active Users (5 min)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{online?.onlineCount ?? 0}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Sessions Today</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{sessions?.totalSessions ?? 0}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Avg Session Today</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {sessions ? Math.round((sessions.avgSessionSec || 0) / 60) : 0} min
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Online Users Now</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {online?.online && online.online.length > 0 ? (
+                    online.online.map(u => (
+                      <div key={u.userId} className="flex justify-between items-center py-2 border-b last:border-0">
+                        <span className="font-medium">{u.userId}</span>
+                        <span className="text-sm text-gray-500">
+                          Last seen: {new Date(u.lastSeen).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500">No users currently online</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

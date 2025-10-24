@@ -1382,5 +1382,402 @@
     "error_message": null,
     "created_at": "2025-10-22T09:43:57.240908",
     "completed_at": "2025-10-22T09:43:58.054516"
+  },
+  {
+    "id": 40,
+    "sync_time": "2025-10-24T22:24:56.279016",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "94c152b2-8afc-4b27-92fb-2a7ae3ce8203",
+    "change_data": {
+      "name": "testing",
+      "price": 345,
+      "stock": 56,
+      "sellingPrice": 4532,
+      "barcodes": [
+        "1761324861431883"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "94c152b2-8afc-4b27-92fb-2a7ae3ce8203",
+      "createdAt": "2025-10-24T22:24:56.249367",
+      "updatedAt": "2025-10-24T22:24:56.249367"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-24T22:24:56.279016",
+    "completed_at": "2025-10-24T22:24:57.094828"
+  },
+  {
+    "id": 41,
+    "sync_time": "2025-10-24T22:33:39.767365",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "94c152b2-8afc-4b27-92fb-2a7ae3ce8203",
+    "change_data": {
+      "name": "testing",
+      "price": 345,
+      "stock": 56,
+      "sellingPrice": 4532,
+      "barcodes": [
+        "1761324861431883"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "94c152b2-8afc-4b27-92fb-2a7ae3ce8203",
+      "createdAt": "2025-10-24T22:24:56.249367",
+      "updatedAt": "2025-10-24T22:24:56.249367"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-24T22:33:39.767365",
+    "completed_at": "2025-10-24T22:33:40.498253"
+  },
+  {
+    "id": 42,
+    "sync_time": "2025-10-24T22:34:19.263211",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "13ace2d2-0bf4-4f8d-90ac-f30ce09f34eb",
+    "change_data": {
+      "name": "testing",
+      "price": 324,
+      "stock": 14,
+      "sellingPrice": 3456,
+      "barcodes": [
+        "1761325455913366"
+      ],
+      "batchId": "",
+      "id": "13ace2d2-0bf4-4f8d-90ac-f30ce09f34eb",
+      "createdAt": "2025-10-24T22:34:19.241389",
+      "updatedAt": "2025-10-24T22:34:19.241389"
+    },
+    "status": "skipped",
+    "retry_count": 3,
+    "last_retry": "2025-10-24T22:49:23.071076",
+    "error_message": "Exceeded max retry attempts (3)",
+    "created_at": "2025-10-24T22:34:19.263211"
+  },
+  {
+    "id": 43,
+    "sync_time": "2025-10-24T22:38:25.043797",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "13ace2d2-0bf4-4f8d-90ac-f30ce09f34eb",
+    "change_data": {
+      "name": "testing",
+      "price": 324,
+      "stock": 14,
+      "sellingPrice": 3456,
+      "barcodes": [
+        "1761325455913366"
+      ],
+      "batchId": "",
+      "id": "13ace2d2-0bf4-4f8d-90ac-f30ce09f34eb",
+      "createdAt": "2025-10-24T22:34:19.241389",
+      "updatedAt": "2025-10-24T22:34:19.241389"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-24T22:38:25.043797",
+    "completed_at": "2025-10-24T22:38:25.818512"
+  },
+  {
+    "id": 44,
+    "sync_time": "2025-10-24T22:39:20.511963",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "5c55b25e-e2f2-4ef0-ae67-ac83210ca537",
+    "change_data": {
+      "name": "testing",
+      "price": 123,
+      "stock": 43,
+      "sellingPrice": 2345,
+      "barcodes": [
+        "1761325758034467"
+      ],
+      "batchId": "",
+      "id": "5c55b25e-e2f2-4ef0-ae67-ac83210ca537",
+      "createdAt": "2025-10-24T22:39:20.488523",
+      "updatedAt": "2025-10-24T22:39:20.488523"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-24T22:39:20.511963",
+    "completed_at": "2025-10-24T22:39:21.301445"
+  },
+  {
+    "id": 45,
+    "sync_time": "2025-10-24T22:39:56.177329",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "5c55b25e-e2f2-4ef0-ae67-ac83210ca537",
+    "change_data": {
+      "name": "testing",
+      "price": 123,
+      "stock": 43,
+      "sellingPrice": 2345,
+      "barcodes": [
+        "1761325758034467"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "5c55b25e-e2f2-4ef0-ae67-ac83210ca537",
+      "createdAt": "2025-10-24T22:39:20.488523",
+      "updatedAt": "2025-10-24T22:39:56.156419"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-24T22:39:56.177329",
+    "completed_at": "2025-10-24T22:39:56.945147"
+  },
+  {
+    "id": 46,
+    "sync_time": "2025-10-24T22:44:21.785930",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "5c55b25e-e2f2-4ef0-ae67-ac83210ca537",
+    "change_data": {
+      "name": "testing",
+      "price": 123,
+      "stock": 43,
+      "sellingPrice": 2345,
+      "barcodes": [
+        "1761325758034467"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "5c55b25e-e2f2-4ef0-ae67-ac83210ca537",
+      "createdAt": "2025-10-24T22:39:20.488523",
+      "updatedAt": "2025-10-24T22:39:56.156419"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-24T22:44:21.785930",
+    "completed_at": "2025-10-24T22:44:22.512564"
+  },
+  {
+    "id": 47,
+    "sync_time": "2025-10-24T22:44:54.747311",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "51371a17-f281-4c04-bf30-c64c769685ea",
+    "change_data": {
+      "name": "testing",
+      "price": 123,
+      "stock": 43,
+      "sellingPrice": 765,
+      "barcodes": [
+        "1761326093228541"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "51371a17-f281-4c04-bf30-c64c769685ea",
+      "createdAt": "2025-10-24T22:44:54.715205",
+      "updatedAt": "2025-10-24T22:44:54.715205"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-24T22:44:54.747311",
+    "completed_at": "2025-10-24T22:44:55.561267"
+  },
+  {
+    "id": 48,
+    "sync_time": "2025-10-24T22:45:34.433537",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "51371a17-f281-4c04-bf30-c64c769685ea",
+    "change_data": {
+      "name": "testing",
+      "price": 123,
+      "stock": 43,
+      "sellingPrice": 765,
+      "barcodes": [
+        "1761326093228541"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "51371a17-f281-4c04-bf30-c64c769685ea",
+      "createdAt": "2025-10-24T22:44:54.715205",
+      "updatedAt": "2025-10-24T22:44:54.715205"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-24T22:45:34.433537",
+    "completed_at": "2025-10-24T22:45:35.163679"
+  },
+  {
+    "id": 49,
+    "sync_time": "2025-10-24T23:14:42.974090",
+    "table_name": "SystemSettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "systemSettings": {
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyEmail": "info@siriart.ifleon.com",
+        "companyName": "SIRI ART JEWELLERY",
+        "companyPhone": "+91 889771771",
+        "gstin": "27AAFCV2449G1Z7",
+        "id": 1,
+        "taxPercentage": 9.9
+      },
+      "billFormats": {
+        "A4": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "A5": {
+          "height": 210,
+          "margins": {
+            "bottom": 15,
+            "left": 15,
+            "right": 15,
+            "top": 15
+          },
+          "unit": "mm",
+          "width": 148
+        },
+        "Custom": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "Thermal_58mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 3,
+            "left": 3,
+            "right": 3,
+            "top": 3
+          },
+          "unit": "mm",
+          "width": 58
+        },
+        "Thermal_80mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 5,
+            "left": 5,
+            "right": 5,
+            "top": 5
+          },
+          "unit": "mm",
+          "width": 80
+        }
+      },
+      "storeFormats": {}
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-24T23:14:42.974090",
+    "completed_at": "2025-10-24T23:14:43.827628"
+  },
+  {
+    "id": 50,
+    "sync_time": "2025-10-24T23:19:46.795978",
+    "table_name": "SystemSettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "systemSettings": {
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyEmail": "info@siri.ifleon.com",
+        "companyName": "SIRI ART JEWELLERY",
+        "companyPhone": "+91 889771771",
+        "gstin": "27AAFCV2449G1Z7",
+        "id": 1,
+        "taxPercentage": 9.9
+      },
+      "billFormats": {
+        "A4": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "A5": {
+          "height": 210,
+          "margins": {
+            "bottom": 15,
+            "left": 15,
+            "right": 15,
+            "top": 15
+          },
+          "unit": "mm",
+          "width": 148
+        },
+        "Custom": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "Thermal_58mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 3,
+            "left": 3,
+            "right": 3,
+            "top": 3
+          },
+          "unit": "mm",
+          "width": 58
+        },
+        "Thermal_80mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 5,
+            "left": 5,
+            "right": 5,
+            "top": 5
+          },
+          "unit": "mm",
+          "width": 80
+        }
+      },
+      "storeFormats": {}
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-24T23:19:46.795978",
+    "completed_at": "2025-10-24T23:19:47.545471"
   }
 ]

@@ -3082,5 +3082,952 @@
       },
       "sync_time": "2025-10-23T22:24:54.625859"
     }
+  },
+  {
+    "id": 193,
+    "timestamp": "2025-10-24T21:21:01.405216",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T21:21:01.383773"
+    }
+  },
+  {
+    "id": 194,
+    "timestamp": "2025-10-24T21:21:04.890692",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T21:21:04.879139"
+    }
+  },
+  {
+    "id": 195,
+    "timestamp": "2025-10-24T21:22:36.391615",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T21:22:36.380224"
+    }
+  },
+  {
+    "id": 196,
+    "timestamp": "2025-10-24T21:31:59.138908",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T21:31:59.126724"
+    }
+  },
+  {
+    "id": 197,
+    "timestamp": "2025-10-24T21:36:02.048645",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T21:36:02.040051"
+    }
+  },
+  {
+    "id": 198,
+    "timestamp": "2025-10-24T21:47:01.041063",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T21:47:01.005241"
+    }
+  },
+  {
+    "id": 199,
+    "timestamp": "2025-10-24T21:52:01.592501",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T21:52:01.585858"
+    }
+  },
+  {
+    "id": 200,
+    "timestamp": "2025-10-24T22:03:00.639730",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T22:03:00.602843"
+    }
+  },
+  {
+    "id": 201,
+    "timestamp": "2025-10-24T22:07:02.334474",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T22:07:02.291278"
+    }
+  },
+  {
+    "id": 202,
+    "timestamp": "2025-10-24T22:19:20.314394",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T22:19:20.271906"
+    }
+  },
+  {
+    "id": 203,
+    "timestamp": "2025-10-24T22:19:25.179922",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T22:19:25.156711"
+    }
+  },
+  {
+    "id": 204,
+    "timestamp": "2025-10-24T22:24:56.290929",
+    "eventType": "Products_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "94c152b2-8afc-4b27-92fb-2a7ae3ce8203",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 205,
+    "timestamp": "2025-10-24T22:24:57.110350",
+    "eventType": "Products_create_success",
+    "status": "completed",
+    "details": {
+      "log_id": 40,
+      "table_name": "Products",
+      "record_id": "94c152b2-8afc-4b27-92fb-2a7ae3ce8203"
+    }
+  },
+  {
+    "id": 206,
+    "timestamp": "2025-10-24T22:32:28.939483",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T22:32:28.924521"
+    }
+  },
+  {
+    "id": 207,
+    "timestamp": "2025-10-24T22:33:39.782943",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "94c152b2-8afc-4b27-92fb-2a7ae3ce8203",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 208,
+    "timestamp": "2025-10-24T22:33:40.524166",
+    "eventType": "Products_delete_success",
+    "status": "completed",
+    "details": {
+      "log_id": 41,
+      "table_name": "Products",
+      "record_id": "94c152b2-8afc-4b27-92fb-2a7ae3ce8203"
+    }
+  },
+  {
+    "id": 209,
+    "timestamp": "2025-10-24T22:34:19.279310",
+    "eventType": "Products_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "13ace2d2-0bf4-4f8d-90ac-f30ce09f34eb",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 210,
+    "timestamp": "2025-10-24T22:34:20.007810",
+    "eventType": "Products_create_failed",
+    "status": "failed",
+    "details": {
+      "log_id": 42,
+      "table_name": "Products",
+      "record_id": "13ace2d2-0bf4-4f8d-90ac-f30ce09f34eb",
+      "error_message": "Database operation failed"
+    }
+  },
+  {
+    "id": 211,
+    "timestamp": "2025-10-24T22:34:20.948474",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T22:34:20.939427"
+    }
+  },
+  {
+    "id": 212,
+    "timestamp": "2025-10-24T22:34:21.680493",
+    "eventType": "Products_create_failed",
+    "status": "failed",
+    "details": {
+      "log_id": 42,
+      "table_name": "Products",
+      "record_id": "13ace2d2-0bf4-4f8d-90ac-f30ce09f34eb",
+      "error_message": "Database operation failed"
+    }
+  },
+  {
+    "id": 213,
+    "timestamp": "2025-10-24T22:37:02.201867",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T22:37:02.183285"
+    }
+  },
+  {
+    "id": 214,
+    "timestamp": "2025-10-24T22:38:25.104755",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "13ace2d2-0bf4-4f8d-90ac-f30ce09f34eb",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 215,
+    "timestamp": "2025-10-24T22:38:25.859504",
+    "eventType": "Products_delete_success",
+    "status": "completed",
+    "details": {
+      "log_id": 43,
+      "table_name": "Products",
+      "record_id": "13ace2d2-0bf4-4f8d-90ac-f30ce09f34eb"
+    }
+  },
+  {
+    "id": 216,
+    "timestamp": "2025-10-24T22:39:20.528555",
+    "eventType": "Products_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "5c55b25e-e2f2-4ef0-ae67-ac83210ca537",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 217,
+    "timestamp": "2025-10-24T22:39:21.301445",
+    "eventType": "Products_create_success",
+    "status": "completed",
+    "details": {
+      "log_id": 44,
+      "table_name": "Products",
+      "record_id": "5c55b25e-e2f2-4ef0-ae67-ac83210ca537"
+    }
+  },
+  {
+    "id": 218,
+    "timestamp": "2025-10-24T22:39:56.191786",
+    "eventType": "Products_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "5c55b25e-e2f2-4ef0-ae67-ac83210ca537",
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 219,
+    "timestamp": "2025-10-24T22:39:56.968499",
+    "eventType": "Products_update_success",
+    "status": "completed",
+    "details": {
+      "log_id": 45,
+      "table_name": "Products",
+      "record_id": "5c55b25e-e2f2-4ef0-ae67-ac83210ca537"
+    }
+  },
+  {
+    "id": 220,
+    "timestamp": "2025-10-24T22:44:21.804734",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "5c55b25e-e2f2-4ef0-ae67-ac83210ca537",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 221,
+    "timestamp": "2025-10-24T22:44:22.564427",
+    "eventType": "Products_delete_success",
+    "status": "completed",
+    "details": {
+      "log_id": 46,
+      "table_name": "Products",
+      "record_id": "5c55b25e-e2f2-4ef0-ae67-ac83210ca537"
+    }
+  },
+  {
+    "id": 222,
+    "timestamp": "2025-10-24T22:44:54.762086",
+    "eventType": "Products_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "51371a17-f281-4c04-bf30-c64c769685ea",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 223,
+    "timestamp": "2025-10-24T22:44:55.572693",
+    "eventType": "Products_create_success",
+    "status": "completed",
+    "details": {
+      "log_id": 47,
+      "table_name": "Products",
+      "record_id": "51371a17-f281-4c04-bf30-c64c769685ea"
+    }
+  },
+  {
+    "id": 224,
+    "timestamp": "2025-10-24T22:45:34.447980",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "51371a17-f281-4c04-bf30-c64c769685ea",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 225,
+    "timestamp": "2025-10-24T22:45:35.180890",
+    "eventType": "Products_delete_success",
+    "status": "completed",
+    "details": {
+      "log_id": 48,
+      "table_name": "Products",
+      "record_id": "51371a17-f281-4c04-bf30-c64c769685ea"
+    }
+  },
+  {
+    "id": 226,
+    "timestamp": "2025-10-24T22:49:22.346185",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T22:49:22.318185"
+    }
+  },
+  {
+    "id": 227,
+    "timestamp": "2025-10-24T22:49:23.084610",
+    "eventType": "Products_create_failed",
+    "status": "failed",
+    "details": {
+      "log_id": 42,
+      "table_name": "Products",
+      "record_id": "13ace2d2-0bf4-4f8d-90ac-f30ce09f34eb",
+      "error_message": "Database operation failed"
+    }
+  },
+  {
+    "id": 228,
+    "timestamp": "2025-10-24T22:52:02.928940",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T22:52:02.894829"
+    }
+  },
+  {
+    "id": 229,
+    "timestamp": "2025-10-24T23:04:23.791401",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:04:23.777989"
+    }
+  },
+  {
+    "id": 230,
+    "timestamp": "2025-10-24T23:07:03.603602",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:07:03.586681"
+    }
+  },
+  {
+    "id": 231,
+    "timestamp": "2025-10-24T23:10:28.251618",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:10:28.235506"
+    }
+  },
+  {
+    "id": 232,
+    "timestamp": "2025-10-24T23:12:22.621954",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:12:22.604184"
+    }
+  },
+  {
+    "id": 233,
+    "timestamp": "2025-10-24T23:14:43.051080",
+    "eventType": "SystemSettings_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "SystemSettings",
+      "record_id": 1,
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 234,
+    "timestamp": "2025-10-24T23:14:43.859985",
+    "eventType": "SystemSettings_update_success",
+    "status": "completed",
+    "details": {
+      "log_id": 49,
+      "table_name": "SystemSettings",
+      "record_id": 1
+    }
+  },
+  {
+    "id": 235,
+    "timestamp": "2025-10-24T23:19:24.504416",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:19:24.471575"
+    }
+  },
+  {
+    "id": 236,
+    "timestamp": "2025-10-24T23:19:46.832869",
+    "eventType": "SystemSettings_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "SystemSettings",
+      "record_id": 1,
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 237,
+    "timestamp": "2025-10-24T23:19:47.597114",
+    "eventType": "SystemSettings_update_success",
+    "status": "completed",
+    "details": {
+      "log_id": 50,
+      "table_name": "SystemSettings",
+      "record_id": 1
+    }
+  },
+  {
+    "id": 238,
+    "timestamp": "2025-10-24T23:27:23.319125",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:27:23.295241"
+    }
+  },
+  {
+    "id": 239,
+    "timestamp": "2025-10-24T23:29:29.134318",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:29:29.119084"
+    }
+  },
+  {
+    "id": 240,
+    "timestamp": "2025-10-24T23:30:37.486983",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:30:37.471267"
+    }
+  },
+  {
+    "id": 241,
+    "timestamp": "2025-10-24T23:30:58.507157",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:30:58.490250"
+    }
+  },
+  {
+    "id": 242,
+    "timestamp": "2025-10-24T23:31:26.474308",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:31:26.442012"
+    }
+  },
+  {
+    "id": 243,
+    "timestamp": "2025-10-24T23:31:48.965253",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:31:48.948339"
+    }
+  },
+  {
+    "id": 244,
+    "timestamp": "2025-10-24T23:32:17.933822",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:32:17.916169"
+    }
+  },
+  {
+    "id": 245,
+    "timestamp": "2025-10-24T23:33:19.942687",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:33:19.925380"
+    }
+  },
+  {
+    "id": 246,
+    "timestamp": "2025-10-24T23:34:18.841251",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:34:18.825111"
+    }
+  },
+  {
+    "id": 247,
+    "timestamp": "2025-10-24T23:34:27.020472",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:34:26.997499"
+    }
+  },
+  {
+    "id": 248,
+    "timestamp": "2025-10-24T23:37:26.736953",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:37:26.722133"
+    }
+  },
+  {
+    "id": 249,
+    "timestamp": "2025-10-24T23:41:18.303697",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:41:18.270670"
+    }
+  },
+  {
+    "id": 250,
+    "timestamp": "2025-10-24T23:49:27.783920",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-24T23:49:27.762473"
+    }
   }
 ]

@@ -21,8 +21,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Package } from "lucide-react" // NEW: Import Package icon
+import { Package, Trash2 } from "lucide-react" // NEW: Import Package and Trash2 icons
 import { BatchManagementTab } from "@/components/BatchManagementTab" // NEW: Import BatchManagementTab component
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog" // NEW: Import AlertDialog components
 
 interface SystemSettings {
   gstin: string
@@ -76,6 +87,11 @@ export default function SettingsPage() {
   const [selectedFormat, setSelectedFormat] = useState("A4")
   const [showPreview, setShowPreview] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedFlushCategory, setSelectedFlushCategory] = useState<"products" | "stores" | "users" | "">("") // NEW: State for selected flush category
+  const [isFirstConfirmOpen, setIsFirstConfirmOpen] = useState(false) // NEW: State for first confirmation dialog
+  const [isSecondConfirmOpen, setIsSecondConfirmOpen] = useState(false) // NEW: State for second confirmation dialog
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]) // NEW: State to store admin users
+  const [adminUsersToKeep, setAdminUsersToKeep] = useState<string[]>([]) // NEW: State for selected admin users to keep
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem("adminLoggedIn")
@@ -95,7 +111,32 @@ export default function SettingsPage() {
     }
 
     loadSettings()
+    fetchAdminUsers() // NEW: Fetch admin users when component mounts
   }, [router])
+
+  const fetchAdminUsers = async () => {
+    try {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/admin-users")
+      if (response.ok) {
+        const data = await response.json()
+        setAdminUsers(data.adminUsers)
+      } else {
+        console.error("Failed to fetch admin users:", response.statusText)
+        toast({
+          title: "Error",
+          description: "Failed to load admin users for flush option.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Failed to fetch admin users:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load admin users for flush option.",
+        variant: "destructive",
+      })
+    }
+  }
 
   const loadSettings = async () => {
     try {
@@ -177,6 +218,43 @@ export default function SettingsPage() {
       ...prev,
       [storeId]: formatName,
     }))
+  }
+
+  const handleFlushData = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/flush-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: selectedFlushCategory,
+          adminUsersToKeep: selectedFlushCategory === "users" ? adminUsersToKeep : [],
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to flush data")
+      }
+
+      toast({
+        title: "Data Flushed",
+        description: `${selectedFlushCategory} data has been successfully erased.`,
+      })
+      setSelectedFlushCategory("") // Reset selection
+      setAdminUsersToKeep([]) // Reset admin users to keep
+      // Optionally reload settings or other data if needed
+    } catch (error) {
+      console.error("Error flushing data:", error)
+      toast({
+        title: "Error",
+        description: "Failed to flush data. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+      setIsFirstConfirmOpen(false) // Close first dialog
+      setIsSecondConfirmOpen(false) // Close second dialog
+    }
   }
 
   const generatePreview = (formatName: string) => {
@@ -429,13 +507,17 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="formats" className="w-full">
-              <TabsList className="grid w-full grid-cols-4"> {/* MODIFIED: grid-cols-4 for new tab */}
+              <TabsList className="grid w-full grid-cols-5"> {/* MODIFIED: grid-cols-5 for new tab */}
                 <TabsTrigger value="formats">Bill Formats</TabsTrigger>
                 <TabsTrigger value="stores">Store Assignment</TabsTrigger>
                 <TabsTrigger value="preview">Preview</TabsTrigger>
                 <TabsTrigger value="batches">
-                  <Package className="h-4 w-4 mr-2" /> {/* NEW: Icon for Batch Management */}
+                  <Package className="h-4 w-4 mr-2" />
                   Batch Management
+                </TabsTrigger>
+                <TabsTrigger value="flush">
+                  <Trash2 className="h-4 w-4 mr-2" /> {/* NEW: Icon for Flush Data */}
+                  Flush Data
                 </TabsTrigger>
               </TabsList>
 
@@ -585,6 +667,147 @@ export default function SettingsPage() {
               {/* NEW: Batch Management Tab Content */}
               <TabsContent value="batches" className="space-y-6">
                 <BatchManagementTab />
+              </TabsContent>
+
+              {/* NEW: Flush Data Tab Content */}
+              <TabsContent value="flush" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Trash2 className="h-5 w-5 mr-2" />
+                      Flush Data
+                    </CardTitle>
+                    <CardDescription>Permanently delete data from selected categories.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="flush-category">Select Data Category to Flush</Label>
+                      <Select
+                        value={selectedFlushCategory}
+                        onValueChange={(value: "products" | "stores" | "users" | "") =>
+                          setSelectedFlushCategory(value)
+                        }
+                      >
+                        <SelectTrigger id="flush-category">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="products">Products</SelectItem>
+                          <SelectItem value="stores">Stores</SelectItem>
+                          <SelectItem value="users">Users</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                      {selectedFlushCategory === "users" && (
+                        <div className="space-y-2">
+                          <Label>Select Admin Users to Keep</Label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {adminUsers.map((admin) => (
+                              <div key={admin.email} className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  id={`admin-${admin.email}`}
+                                  checked={adminUsersToKeep.includes(admin.email)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setAdminUsersToKeep((prev) => [...prev, admin.email])
+                                    } else {
+                                      setAdminUsersToKeep((prev) =>
+                                        prev.filter((email) => email !== admin.email)
+                                      )
+                                    }
+                                  }}
+                                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <Label htmlFor={`admin-${admin.email}`} className="font-normal">
+                                  {admin.name} ({admin.email})
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            Selected admin users will NOT be deleted. All other users will be erased.
+                          </p>
+                        </div>
+                      )}
+
+                    <AlertDialog open={isFirstConfirmOpen} onOpenChange={setIsFirstConfirmOpen}>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          disabled={!selectedFlushCategory || isLoading}
+                          className="w-full"
+                        >
+                          Flush Selected Data
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete all{" "}
+                            <span className="font-bold text-red-600">{selectedFlushCategory}</span> data.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => {
+                              // Trigger second confirmation
+                              setIsSecondConfirmOpen(true)
+                            }}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Continue
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    <AlertDialog open={isSecondConfirmOpen} onOpenChange={setIsSecondConfirmOpen}>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Final Confirmation: Erase Data?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            You are about to permanently erase ALL{" "}
+                            <span className="font-bold text-red-600">{selectedFlushCategory}</span> data. This
+                            includes all associated records in the database. This action is irreversible.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => {
+                              // Call backend API to flush data
+                              // handleFlushData()
+                              toast({
+                                title: "Flush Initiated",
+                                description: `Attempting to flush ${selectedFlushCategory} data.`,
+                              })
+                              setIsLoading(true) // Set loading state
+                              console.log("Flushing data for:", selectedFlushCategory)
+                              console.log("Admin users to keep:", adminUsersToKeep)
+                              // Placeholder for actual flush logic
+                              setTimeout(() => {
+                                setIsLoading(false)
+                                toast({
+                                  title: "Flush Complete (Simulated)",
+                                  description: `${selectedFlushCategory} data flushed successfully.`,
+                                })
+                                setSelectedFlushCategory("") // Reset selection
+                                setAdminUsersToKeep([]) // Reset admin users to keep
+                              }, 2000)
+                            }}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            I Understand, Erase Data
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </CardContent>
+                </Card>
               </TabsContent>
             </Tabs>
           </CardContent>
