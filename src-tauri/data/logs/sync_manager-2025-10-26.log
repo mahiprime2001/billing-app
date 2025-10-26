@@ -1,0 +1,21 @@
+2025-10-26 17:56:07,236 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-26 17:56:07,238 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-26 17:56:07,238 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-26 17:56:07,238 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-26 17:56:21,650 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-26 17:56:21,650 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-26 17:56:21,652 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-26 17:56:21,652 - scripts.sync_manager - DEBUG - Directory already exists: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-26 17:56:23,537 - scripts.sync_manager - INFO - Starting background sync scheduler setup.
+2025-10-26 17:56:23,538 - scripts.sync_manager - DEBUG - Scheduled tasks: scheduled_sync (15min), retry_failed_logs (15min), cleanup_old_logs (daily 02:00), _cleanup_log_files (daily 02:00).
+2025-10-26 17:56:23,540 - scripts.sync_manager - INFO - Background sync scheduler thread started.
+2025-10-26 17:56:23,540 - scripts.sync_manager - INFO - Background sync process started.
+2025-10-26 17:56:23,541 - scripts.sync_manager - INFO - Performing initial scheduled sync run.
+2025-10-26 17:56:23,541 - scripts.sync_manager - INFO - Initiating scheduled sync operation.
+2025-10-26 17:56:23,541 - scripts.sync_manager - INFO - No pending sync logs to process.
+2025-10-26 17:56:23,541 - scripts.sync_manager - INFO - Push sync result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-26 17:56:23,646 - scripts.sync_manager - INFO - Starting pull from MySQL sync_table. Last sync timestamp: None (fetching last 1 day)
+2025-10-26 17:56:23,689 - scripts.sync_manager - INFO - No new entries found in MySQL sync_table.
+2025-10-26 17:56:23,864 - scripts.sync_manager - INFO - Pull sync result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-26 17:56:23,885 - scripts.sync_manager - INFO - Logged sync event: scheduled_sync - completed
+2025-10-26 17:56:23,885 - scripts.sync_manager - INFO - Scheduled sync operation completed successfully.

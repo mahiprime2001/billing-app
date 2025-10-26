@@ -1044,3 +1044,34 @@ WARNING: This is a development server. Do not use it in a production deployment.
  * Running on http://127.0.0.1:8080
 Press CTRL+C to quitPress CTRL+C to quit
 
+[2025-10-26 17:56:07,238] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-26 17:56:07,238] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-26 17:56:07,238 - app - INFO - app.py:144 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-26 17:56:07,294] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-26 17:56:07,294] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-26 17:56:07,294 - app - INFO - app.py:145 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-26 17:56:07,294] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-26 17:56:07,294] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-26 17:56:07,294 - app - INFO - app.py:146 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-26 17:56:21,652] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-26 17:56:21,652] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+2025-10-26 17:56:21,652 - app - INFO - app.py:144 - APP_BASE_DIR: E:\Siri-apps\billing-app\src-tauri
+[2025-10-26 17:56:21,654] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-26 17:56:21,654] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+2025-10-26 17:56:21,654 - app - INFO - app.py:145 - JSON_DIR: E:\Siri-apps\billing-app\src-tauri\data\json
+[2025-10-26 17:56:21,654] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+[2025-10-26 17:56:21,654] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+2025-10-26 17:56:21,654 - app - INFO - app.py:146 - LOGS_DIR: E:\Siri-apps\billing-app\src-tauri\data\logs
+MySQL connection pool created successfully with hardcoded values.
+Table 'batch' checked/created successfully.
+[2025-10-26 17:56:23,541] INFO in app: Enhanced background sync process started successfully
+[2025-10-26 17:56:23,541] INFO in app: Enhanced background sync process started successfully
+2025-10-26 17:56:23,541 - app - INFO - app.py:1991 - Enhanced background sync process started successfully
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://127.0.0.1:8080
+Press CTRL+C to quitPress CTRL+C to quit
+

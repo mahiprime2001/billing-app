@@ -938,5 +938,25 @@
       },
       "sync_time": "2025-10-23T23:37:58.484222"
     }
+  },
+  {
+    "id": 48,
+    "timestamp": "2025-10-26T17:56:23.881260",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push_result": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull_result": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "sync_time": "2025-10-26T17:56:23.864962"
+    }
   }
 ]

@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Settings, Building, Receipt, Save, User, Shield, FileText, Eye } from "lucide-react"
+import { Settings, Building, Receipt, Save, User, Shield, FileText, Eye, Check } from "lucide-react"
+import { invoke } from "@tauri-apps/api/core"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -92,6 +93,7 @@ export default function SettingsPage() {
   const [isSecondConfirmOpen, setIsSecondConfirmOpen] = useState(false) // NEW: State for second confirmation dialog
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]) // NEW: State to store admin users
   const [adminUsersToKeep, setAdminUsersToKeep] = useState<string[]>([]) // NEW: State for selected admin users to keep
+  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false) // NEW: State for update check loading
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem("adminLoggedIn")
@@ -183,6 +185,36 @@ export default function SettingsPage() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const checkUpdate = async () => {
+    setIsCheckingForUpdates(true)
+    try {
+      const { shouldUpdate, manifest } = await invoke("tauri_check_update") as { shouldUpdate: boolean, manifest: any };
+
+      if (shouldUpdate) {
+        toast({
+          title: "Update Available",
+          description: `Version ${manifest.version} is available.`,
+        })
+        // Optionally, you can prompt the user to install the update here
+        // await invoke("tauri_install_update");
+      } else {
+        toast({
+          title: "No Updates",
+          description: "Your application is up to date.",
+        })
+      }
+    } catch (error) {
+      console.error("Error checking for updates:", error)
+      toast({
+        title: "Error",
+        description: "Failed to check for updates. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCheckingForUpdates(false)
     }
   }
 
@@ -379,6 +411,22 @@ export default function SettingsPage() {
                 <Badge className="mt-1 bg-red-100 text-red-800">Super Administrator</Badge>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Application Updates */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Check className="h-5 w-5 mr-2" />
+              Application Updates
+            </CardTitle>
+            <CardDescription>Check for new versions of the application.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={checkUpdate} disabled={isCheckingForUpdates} className="w-full">
+              {isCheckingForUpdates ? "Checking..." : "Check for Updates"}
+            </Button>
           </CardContent>
         </Card>
 
