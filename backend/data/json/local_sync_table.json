@@ -18,10 +18,10 @@
       "createdAt": "2025-10-19T16:15:44.085288",
       "updatedAt": "2025-10-19T16:15:44.085288"
     },
-    "status": "failed",
+    "status": "skipped",
     "retry_count": 3,
     "last_retry": "2025-10-19T16:32:20.016489",
-    "error_message": "Database operation failed",
+    "error_message": "Exceeded max retry attempts (3)",
     "created_at": "2025-10-19T16:15:44.098205"
   },
   {
@@ -69,10 +69,10 @@
       "createdAt": "2025-10-19T17:32:51.365197",
       "updatedAt": "2025-10-19T17:32:51.365197"
     },
-    "status": "failed",
+    "status": "skipped",
     "retry_count": 3,
     "last_retry": "2025-10-19T17:43:11.972726",
-    "error_message": "Database operation failed",
+    "error_message": "Exceeded max retry attempts (3)",
     "created_at": "2025-10-19T17:32:51.378575"
   },
   {

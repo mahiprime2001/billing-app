@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Settings, Building, Receipt, Save, User, Shield, FileText, Eye, Check } from "lucide-react"
+import { Settings, Building, Receipt, Save, User, Shield, FileText, Eye, Check, RefreshCw } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
@@ -22,8 +22,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Package, Trash2 } from "lucide-react" // NEW: Import Package and Trash2 icons
-import { BatchManagementTab } from "@/components/BatchManagementTab" // NEW: Import BatchManagementTab component
+import { Package, Trash2 } from "lucide-react"
+import { BatchManagementTab } from "@/components/BatchManagementTab"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,7 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog" // NEW: Import AlertDialog components
+} from "@/components/ui/alert-dialog"
 
 interface SystemSettings {
   gstin: string
@@ -72,6 +72,12 @@ interface SystemStore {
   status: string
 }
 
+interface UpdateStatus {
+  available: boolean
+  version?: string
+  message: string
+}
+
 export default function SettingsPage() {
   const router = useRouter()
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null)
@@ -88,12 +94,16 @@ export default function SettingsPage() {
   const [selectedFormat, setSelectedFormat] = useState("A4")
   const [showPreview, setShowPreview] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [selectedFlushCategory, setSelectedFlushCategory] = useState<"products" | "stores" | "users" | "">("") // NEW: State for selected flush category
-  const [isFirstConfirmOpen, setIsFirstConfirmOpen] = useState(false) // NEW: State for first confirmation dialog
-  const [isSecondConfirmOpen, setIsSecondConfirmOpen] = useState(false) // NEW: State for second confirmation dialog
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]) // NEW: State to store admin users
-  const [adminUsersToKeep, setAdminUsersToKeep] = useState<string[]>([]) // NEW: State for selected admin users to keep
-  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false) // NEW: State for update check loading
+  const [selectedFlushCategory, setSelectedFlushCategory] = useState<"products" | "stores" | "users" | "">("")
+  const [isFirstConfirmOpen, setIsFirstConfirmOpen] = useState(false)
+  const [isSecondConfirmOpen, setIsSecondConfirmOpen] = useState(false)
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
+  const [adminUsersToKeep, setAdminUsersToKeep] = useState<string[]>([])
+  
+  // Update checking states
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null)
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false)
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem("adminLoggedIn")
@@ -113,7 +123,7 @@ export default function SettingsPage() {
     }
 
     loadSettings()
-    fetchAdminUsers() // NEW: Fetch admin users when component mounts
+    fetchAdminUsers()
   }, [router])
 
   const fetchAdminUsers = async () => {
@@ -171,7 +181,7 @@ export default function SettingsPage() {
         throw new Error("Failed to save settings")
       }
 
-      loadSettings(); // Reload settings after successful save
+      loadSettings()
       toast({
         title: "Settings Saved",
         description: "System settings have been updated successfully.",
@@ -188,33 +198,81 @@ export default function SettingsPage() {
     }
   }
 
-  const checkUpdate = async () => {
-    setIsCheckingForUpdates(true)
-    try {
-      const { shouldUpdate, manifest } = await invoke("tauri_check_update") as { shouldUpdate: boolean, manifest: any };
+  // Handle check for updates button click - FIXED VERSION
+  const handleCheckForUpdates = async () => {
+    console.log('Button clicked, isCheckingUpdate:', isCheckingUpdate);
+    
+    // Prevent multiple clicks while checking
+    if (isCheckingUpdate) {
+      console.log('Already checking, returning early');
+      return;
+    }
 
-      if (shouldUpdate) {
+    console.log('Starting update check...');
+    setIsCheckingUpdate(true);
+    setUpdateStatus(null);
+
+    try {
+      console.log('Calling invoke...');
+      const result = await invoke<string>('check_for_updates');
+      console.log('Invoke result:', result);
+      
+      if (result.includes('Update available')) {
+        const version = result.replace('Update available: ', '');
+        setUpdateStatus({
+          available: true,
+          version: version,
+          message: `Version ${version} is available!`,
+        });
+        setIsUpdateDialogOpen(true);
+      } else if (result === 'No update available.') {
+        setUpdateStatus({
+          available: false,
+          message: 'You are on the latest version!',
+        });
+        
         toast({
-          title: "Update Available",
-          description: `Version ${manifest.version} is available.`,
-        })
-        // Optionally, you can prompt the user to install the update here
-        // await invoke("tauri_install_update");
-      } else {
-        toast({
-          title: "No Updates",
-          description: "Your application is up to date.",
-        })
+          title: "No Updates Available",
+          description: "You are already running the latest version.",
+        });
       }
     } catch (error) {
-      console.error("Error checking for updates:", error)
+      console.error('Failed to check for updates:', error);
       toast({
         title: "Error",
-        description: "Failed to check for updates. Please try again.",
+        description: `Failed to check for updates: ${error}`,
+        variant: "destructive",
+      });
+    } finally {
+      console.log('Resetting isCheckingUpdate to false');
+      setIsCheckingUpdate(false);
+    }
+  };
+
+  // Handle install update
+  const handleInstallUpdate = async () => {
+    try {
+      toast({
+        title: "Installing Update",
+        description: "The update is being downloaded and installed. The application will restart.",
+      })
+      
+      const result = await invoke<string>('install_update')
+      
+      toast({
+        title: "Update Complete",
+        description: result,
+      })
+      
+      setUpdateStatus(null)
+      setIsUpdateDialogOpen(false)
+    } catch (error) {
+      console.error('Failed to install update:', error)
+      toast({
+        title: "Error",
+        description: `Failed to install update: ${error}`,
         variant: "destructive",
       })
-    } finally {
-      setIsCheckingForUpdates(false)
     }
   }
 
@@ -272,9 +330,8 @@ export default function SettingsPage() {
         title: "Data Flushed",
         description: `${selectedFlushCategory} data has been successfully erased.`,
       })
-      setSelectedFlushCategory("") // Reset selection
-      setAdminUsersToKeep([]) // Reset admin users to keep
-      // Optionally reload settings or other data if needed
+      setSelectedFlushCategory("")
+      setAdminUsersToKeep([])
     } catch (error) {
       console.error("Error flushing data:", error)
       toast({
@@ -284,8 +341,8 @@ export default function SettingsPage() {
       })
     } finally {
       setIsLoading(false)
-      setIsFirstConfirmOpen(false) // Close first dialog
-      setIsSecondConfirmOpen(false) // Close second dialog
+      setIsFirstConfirmOpen(false)
+      setIsSecondConfirmOpen(false)
     }
   }
 
@@ -312,7 +369,6 @@ export default function SettingsPage() {
             padding: `${format.margins.top * scale}px ${format.margins.right * scale}px ${format.margins.bottom * scale}px ${format.margins.left * scale}px`,
           }}
         >
-          {/* Header */}
           <div className="text-center mb-2">
             <div className="font-bold text-xs">{settings.companyName}</div>
             <div className="text-xs">Sample Store</div>
@@ -320,19 +376,16 @@ export default function SettingsPage() {
             <div className="text-xs">GSTIN: {settings.gstin}</div>
           </div>
 
-          {/* Bill Details */}
           <div className="flex justify-between text-xs mb-2">
             <span>Bill: #SAMPLE</span>
             <span>Date: {new Date().toLocaleDateString()}</span>
           </div>
 
-          {/* Customer */}
           <div className="text-xs mb-2">
             <div>Phone: +91 98765 43210</div>
             <div>Customer: Sample Customer</div>
           </div>
 
-          {/* Items */}
           <div className="border-t border-b py-1 mb-2">
             <div className="flex justify-between text-xs font-semibold">
               <span>Item</span>
@@ -348,7 +401,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Totals */}
           <div className="text-xs space-y-1">
             <div className="flex justify-between">
               <span>Subtotal:</span>
@@ -364,7 +416,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Footer */}
           <div className="text-center text-xs mt-2">
             <div>Thank you for your business!</div>
           </div>
@@ -418,15 +469,111 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Check className="h-5 w-5 mr-2" />
+              <RefreshCw className="h-5 w-5 mr-2" />
               Application Updates
             </CardTitle>
-            <CardDescription>Check for new versions of the application.</CardDescription>
+            <CardDescription>Keep your application up-to-date with the latest features and improvements</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={checkUpdate} disabled={isCheckingForUpdates} className="w-full">
-              {isCheckingForUpdates ? "Checking..." : "Check for Updates"}
-            </Button>
+          <CardContent className="space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-sm text-gray-600 mb-3">
+                  Check for the latest version of the application and install updates automatically.
+                </p>
+
+                {/* Update Status Message - No Updates */}
+                {updateStatus && !updateStatus.available && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md animate-[fadeIn_0.3s_ease-in]">
+                    <div className="flex items-center">
+                      <svg
+                        className="w-5 h-5 text-green-600 mr-2"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <p className="text-green-800 text-sm font-medium">
+                        {updateStatus.message}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Button 
+                onClick={handleCheckForUpdates} 
+                disabled={isCheckingUpdate}
+                className="ml-4"
+                type="button"
+              >
+                {isCheckingUpdate ? (
+                  <>
+                    <svg 
+                      className="animate-spin -ml-1 mr-2 h-4 w-4" 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      fill="none" 
+                      viewBox="0 0 24 24"
+                    >
+                      <circle 
+                        className="opacity-25" 
+                        cx="12" 
+                        cy="12" 
+                        r="10" 
+                        stroke="currentColor" 
+                        strokeWidth="4"
+                      />
+                      <path 
+                        className="opacity-75" 
+                        fill="currentColor" 
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Check for Updates
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Update Available Dialog */}
+            <AlertDialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center">
+                    🎉 Update Available!
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {updateStatus && updateStatus.available && (
+                      <div className="space-y-3">
+                        <p className="text-base">
+                          A new version <span className="font-semibold text-blue-600">{updateStatus.version}</span> is available!
+                        </p>
+                        <p className="text-sm">
+                          Would you like to download and install it now? The application will restart after installation.
+                        </p>
+                      </div>
+                    )}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Update Later</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleInstallUpdate}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Update Now
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
 
@@ -555,7 +702,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="formats" className="w-full">
-              <TabsList className="grid w-full grid-cols-5"> {/* MODIFIED: grid-cols-5 for new tab */}
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="formats">Bill Formats</TabsTrigger>
                 <TabsTrigger value="stores">Store Assignment</TabsTrigger>
                 <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -564,7 +711,7 @@ export default function SettingsPage() {
                   Batch Management
                 </TabsTrigger>
                 <TabsTrigger value="flush">
-                  <Trash2 className="h-4 w-4 mr-2" /> {/* NEW: Icon for Flush Data */}
+                  <Trash2 className="h-4 w-4 mr-2" />
                   Flush Data
                 </TabsTrigger>
               </TabsList>
@@ -712,12 +859,10 @@ export default function SettingsPage() {
                 </div>
               </TabsContent>
 
-              {/* NEW: Batch Management Tab Content */}
               <TabsContent value="batches" className="space-y-6">
                 <BatchManagementTab />
               </TabsContent>
 
-              {/* NEW: Flush Data Tab Content */}
               <TabsContent value="flush" className="space-y-6">
                 <Card>
                   <CardHeader>
@@ -747,38 +892,38 @@ export default function SettingsPage() {
                       </Select>
                     </div>
 
-                      {selectedFlushCategory === "users" && (
-                        <div className="space-y-2">
-                          <Label>Select Admin Users to Keep</Label>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {adminUsers.map((admin) => (
-                              <div key={admin.email} className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  id={`admin-${admin.email}`}
-                                  checked={adminUsersToKeep.includes(admin.email)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setAdminUsersToKeep((prev) => [...prev, admin.email])
-                                    } else {
-                                      setAdminUsersToKeep((prev) =>
-                                        prev.filter((email) => email !== admin.email)
-                                      )
-                                    }
-                                  }}
-                                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                />
-                                <Label htmlFor={`admin-${admin.email}`} className="font-normal">
-                                  {admin.name} ({admin.email})
-                                </Label>
-                              </div>
-                            ))}
-                          </div>
-                          <p className="text-sm text-gray-500">
-                            Selected admin users will NOT be deleted. All other users will be erased.
-                          </p>
+                    {selectedFlushCategory === "users" && (
+                      <div className="space-y-2">
+                        <Label>Select Admin Users to Keep</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {adminUsers.map((admin) => (
+                            <div key={admin.email} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`admin-${admin.email}`}
+                                checked={adminUsersToKeep.includes(admin.email)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setAdminUsersToKeep((prev) => [...prev, admin.email])
+                                  } else {
+                                    setAdminUsersToKeep((prev) =>
+                                      prev.filter((email) => email !== admin.email)
+                                    )
+                                  }
+                                }}
+                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                              <Label htmlFor={`admin-${admin.email}`} className="font-normal">
+                                {admin.name} ({admin.email})
+                              </Label>
+                            </div>
+                          ))}
                         </div>
-                      )}
+                        <p className="text-sm text-gray-500">
+                          Selected admin users will NOT be deleted. All other users will be erased.
+                        </p>
+                      </div>
+                    )}
 
                     <AlertDialog open={isFirstConfirmOpen} onOpenChange={setIsFirstConfirmOpen}>
                       <AlertDialogTrigger asChild>
@@ -802,7 +947,6 @@ export default function SettingsPage() {
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => {
-                              // Trigger second confirmation
                               setIsSecondConfirmOpen(true)
                             }}
                             className="bg-red-600 hover:bg-red-700"
@@ -826,27 +970,7 @@ export default function SettingsPage() {
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => {
-                              // Call backend API to flush data
-                              // handleFlushData()
-                              toast({
-                                title: "Flush Initiated",
-                                description: `Attempting to flush ${selectedFlushCategory} data.`,
-                              })
-                              setIsLoading(true) // Set loading state
-                              console.log("Flushing data for:", selectedFlushCategory)
-                              console.log("Admin users to keep:", adminUsersToKeep)
-                              // Placeholder for actual flush logic
-                              setTimeout(() => {
-                                setIsLoading(false)
-                                toast({
-                                  title: "Flush Complete (Simulated)",
-                                  description: `${selectedFlushCategory} data flushed successfully.`,
-                                })
-                                setSelectedFlushCategory("") // Reset selection
-                                setAdminUsersToKeep([]) // Reset admin users to keep
-                              }, 2000)
-                            }}
+                            onClick={handleFlushData}
                             className="bg-red-600 hover:bg-red-700"
                           >
                             I Understand, Erase Data
@@ -914,6 +1038,19 @@ export default function SettingsPage() {
           </Button>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </DashboardLayout>
   )
 }

@@ -14,21 +14,34 @@ use tauri_plugin_updater::UpdaterExt;
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::HWND;
 
+// ============================================================================
+// UPDATER COMMANDS
+// ============================================================================
+
 #[tauri::command]
 async fn check_for_updates(app_handle: tauri::AppHandle) -> Result<String, String> {
     info!("Checking for updates...");
-    match app_handle.updater().map_err(|e| format!("Failed to get updater: {}", e))?.check().await {
-        Ok(Some(update)) => {
-            info!("Update available: {:?}", update.version);
-            Ok(format!("Update available: {}", update.version))
-        }
-        Ok(None) => {
-            info!("No update available.");
-            Ok("No update available.".to_string())
+    
+    match app_handle.updater() {
+        Ok(updater) => {
+            match updater.check().await {
+                Ok(Some(update)) => {
+                    info!("Update available: {:?}", update.version);
+                    Ok(format!("Update available: {}", update.version))
+                }
+                Ok(None) => {
+                    info!("No update available.");
+                    Ok("No update available.".to_string())
+                }
+                Err(e) => {
+                    error!("Failed to check for updates: {}", e);
+                    Err(format!("Failed to check for updates: {}", e))
+                }
+            }
         }
         Err(e) => {
-            error!("Failed to check for updates: {}", e);
-            Err(format!("Failed to check for updates: {}", e))
+            error!("Failed to get updater: {}", e);
+            Err(format!("Failed to get updater: {}", e))
         }
     }
 }
@@ -36,40 +49,53 @@ async fn check_for_updates(app_handle: tauri::AppHandle) -> Result<String, Strin
 #[tauri::command]
 async fn install_update(app_handle: tauri::AppHandle) -> Result<String, String> {
     info!("Installing update...");
-    match app_handle.updater().map_err(|e| format!("Failed to get updater: {}", e))?.check().await {
-        Ok(Some(update)) => {
-            info!("Update found, downloading and installing...");
-            let mut downloaded = 0;
-            
-            match update.download_and_install(
-                |chunk_length, content_length| {
-                    downloaded += chunk_length;
-                    info!("Downloaded {} from {:?}", downloaded, content_length);
-                },
-                || {
-                    info!("Download finished");
-                },
-            ).await {
-                Ok(_) => {
-                    info!("Update installed successfully. Restart required.");
-                    Ok("Update installed. Please restart the app.".to_string())
+    
+    match app_handle.updater() {
+        Ok(updater) => {
+            match updater.check().await {
+                Ok(Some(update)) => {
+                    info!("Update found, downloading and installing...");
+                    let mut downloaded = 0;
+                    
+                    match update.download_and_install(
+                        |chunk_length, content_length| {
+                            downloaded += chunk_length;
+                            info!("Downloaded {} from {:?}", downloaded, content_length);
+                        },
+                        || {
+                            info!("Download finished");
+                        },
+                    ).await {
+                        Ok(_) => {
+                            info!("Update installed successfully. Restart required.");
+                            Ok("Update installed. Please restart the app.".to_string())
+                        }
+                        Err(e) => {
+                            error!("Failed to download/install update: {}", e);
+                            Err(format!("Failed to download/install update: {}", e))
+                        }
+                    }
+                }
+                Ok(None) => {
+                    info!("No update available to install.");
+                    Ok("No update available to install.".to_string())
                 }
                 Err(e) => {
-                    error!("Failed to download/install update: {}", e);
-                    Err(format!("Failed to download/install update: {}", e))
+                    error!("Failed to check for updates: {}", e);
+                    Err(format!("Failed to check for updates: {}", e))
                 }
             }
         }
-        Ok(None) => {
-            info!("No update available to install.");
-            Ok("No update available to install.".to_string())
-        }
         Err(e) => {
-            error!("Failed to check for updates: {}", e);
-            Err(format!("Failed to check for updates: {}", e))
+            error!("Failed to get updater: {}", e);
+            Err(format!("Failed to get updater: {}", e))
         }
     }
 }
+
+// ============================================================================
+// PRINTER COMMANDS
+// ============================================================================
 
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::Shell::ShellExecuteW;
@@ -85,7 +111,7 @@ use std::os::windows::ffi::OsStrExt;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PrintRequest {
     #[serde(rename = "productIds")]
-    product_ids: Vec<i32>,
+    product_ids: Vec<String>,
     copies: i32,
     #[serde(rename = "printerName")]
     printer_name: String,
@@ -127,6 +153,7 @@ async fn print_to_thermal_printer(
     for copy_num in 1..=copies {
         info!("Printing copy {}/{}", copy_num, copies);
         let result = send_tspl_to_printer(printer_name.clone(), tspl_commands.clone()).await;
+        
         if let Err(err) = result {
             error!("Failed at copy {}", copy_num);
             final_response = err;
@@ -174,7 +201,7 @@ async fn send_tspl_to_printer(
     tspl_commands: String,
 ) -> Result<PrintResponse, PrintResponse> {
     info!("Sending TSPL commands to printer: {}", printer_name);
-    
+
     #[cfg(target_os = "windows")]
     {
         use std::{ffi::CString, ptr};
@@ -265,6 +292,10 @@ async fn send_tspl_to_printer(
     }
 }
 
+// ============================================================================
+// HTTP SERVER
+// ============================================================================
+
 fn with_cors() -> warp::cors::Builder {
     warp::cors()
         .allow_any_origin()
@@ -302,7 +333,7 @@ async fn start_http_server(printer_list: PrinterList) {
         .and(warp::body::json())
         .and_then(move |req: PrintRequest| async move {
             info!("API POST /api/print: {:?}", req);
-            
+
             if req.printer_name.is_empty() {
                 return Ok::<_, Infallible>(warp::reply::json(&PrintResponse {
                     status: "error".into(),
@@ -349,6 +380,10 @@ async fn start_http_server(printer_list: PrinterList) {
 
     warp::serve(routes).run(([127, 0, 0, 1], 5050)).await;
 }
+
+// ============================================================================
+// HTML PRINT COMMAND
+// ============================================================================
 
 #[tauri::command]
 async fn print_html(app: tauri::AppHandle, html: String) -> Result<(), String> {
@@ -417,6 +452,10 @@ async fn print_html(app: tauri::AppHandle, html: String) -> Result<(), String> {
     Ok(())
 }
 
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
 fn kill_process_tree(pid: u32) {
     #[cfg(target_os = "windows")]
     {
@@ -435,6 +474,10 @@ fn kill_process_tree(pid: u32) {
     }
 }
 
+// ============================================================================
+// MAIN FUNCTION
+// ============================================================================
+
 fn main() {
     let child_handle: Arc<Mutex<Option<CommandChild>>> = Arc::new(Mutex::new(None));
 
@@ -452,6 +495,7 @@ fn main() {
                 .build(),
         )
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             get_available_printers,
             send_tspl_to_printer,
@@ -478,6 +522,7 @@ fn main() {
                 let (mut rx, command_child) = cmd.spawn()?;
                 let pid = command_child.pid();
                 info!("Spawned sidecar with PID {}", pid);
+
                 *child_handle.lock().unwrap() = Some(command_child);
 
                 // Log sidecar output
