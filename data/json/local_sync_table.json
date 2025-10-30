@@ -1779,5 +1779,774 @@
     "error_message": null,
     "created_at": "2025-10-24T23:19:46.795978",
     "completed_at": "2025-10-24T23:19:47.545471"
+  },
+  {
+    "id": 51,
+    "sync_time": "2025-10-27T15:29:31.125997",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "11b12da2-87ab-4a29-958b-560910cf0e9c",
+    "change_data": {
+      "name": "testing",
+      "price": 452,
+      "stock": 8456,
+      "sellingPrice": 784554,
+      "barcodes": [
+        "1761559168633179"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "11b12da2-87ab-4a29-958b-560910cf0e9c",
+      "createdAt": "2025-10-27T15:29:31.106384",
+      "updatedAt": "2025-10-27T15:29:31.106384"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T15:29:31.125997",
+    "completed_at": "2025-10-27T15:40:37.454835"
+  },
+  {
+    "id": 52,
+    "sync_time": "2025-10-27T15:41:43.132791",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "11b12da2-87ab-4a29-958b-560910cf0e9c",
+    "change_data": {
+      "name": "testing",
+      "price": 452,
+      "stock": 8456,
+      "sellingPrice": 784554,
+      "barcodes": [
+        "1761559168633179"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "11b12da2-87ab-4a29-958b-560910cf0e9c",
+      "createdAt": "2025-10-27T15:29:31.106384",
+      "updatedAt": "2025-10-27T15:29:31.106384"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T15:41:43.132791",
+    "completed_at": "2025-10-27T15:41:54.193102"
+  },
+  {
+    "id": 53,
+    "sync_time": "2025-10-27T16:10:45.937694",
+    "table_name": "Products",
+    "change_type": "FLUSH",
+    "record_id": "all",
+    "change_data": {
+      "deleted_products": 581,
+      "deleted_barcodes": 580,
+      "preserved_bill_items": 0
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T16:10:45.937694",
+    "completed_at": "2025-10-27T16:11:56.152069"
+  },
+  {
+    "id": 54,
+    "sync_time": "2025-10-27T16:11:41.334819",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "5e54a91e-51fb-47ce-8d7e-b411a50e0013",
+    "change_data": {
+      "name": "testtingfs",
+      "price": 546,
+      "stock": 76,
+      "sellingPrice": 5678,
+      "barcodes": [
+        "1761561699498472"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "5e54a91e-51fb-47ce-8d7e-b411a50e0013",
+      "createdAt": "2025-10-27T16:11:40.656407",
+      "updatedAt": "2025-10-27T16:11:40.656407"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T16:11:41.334819",
+    "completed_at": "2025-10-27T16:11:56.847288"
+  },
+  {
+    "id": 55,
+    "sync_time": "2025-10-27T16:16:07.489036",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "5e54a91e-51fb-47ce-8d7e-b411a50e0013",
+    "change_data": {
+      "name": "testtingfs",
+      "price": 546,
+      "stock": 76,
+      "sellingPrice": 5678,
+      "barcodes": [
+        "1761561699498472"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "5e54a91e-51fb-47ce-8d7e-b411a50e0013",
+      "createdAt": "2025-10-27T16:11:40.656407",
+      "updatedAt": "2025-10-27T16:11:40.656407"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T16:16:07.489036",
+    "completed_at": "2025-10-27T16:17:47.441485"
+  },
+  {
+    "id": 56,
+    "sync_time": "2025-10-27T16:16:55.100939",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "6af43709-5efe-480f-b695-4864215371dc",
+    "change_data": {
+      "name": "testing",
+      "price": 234,
+      "stock": 12,
+      "sellingPrice": 324,
+      "barcodes": [
+        "1761562013681237"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "6af43709-5efe-480f-b695-4864215371dc",
+      "createdAt": "2025-10-27T16:16:54.425149",
+      "updatedAt": "2025-10-27T16:16:54.425149"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T16:16:55.100939",
+    "completed_at": "2025-10-27T16:17:47.875634"
+  },
+  {
+    "id": 57,
+    "sync_time": "2025-10-27T16:19:24.711459",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "30dc61d8-93fb-474c-a5ce-384ed8907e68",
+    "change_data": {
+      "name": "phgsd",
+      "price": 2345,
+      "stock": 23,
+      "sellingPrice": 45566,
+      "barcodes": [
+        "1761562163001324"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "30dc61d8-93fb-474c-a5ce-384ed8907e68",
+      "createdAt": "2025-10-27T16:19:23.816854",
+      "updatedAt": "2025-10-27T16:19:23.816854"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T16:19:24.711459",
+    "completed_at": "2025-10-27T16:26:58.237675"
+  },
+  {
+    "id": 58,
+    "sync_time": "2025-10-27T16:29:16.298493",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "30dc61d8-93fb-474c-a5ce-384ed8907e68",
+    "change_data": {
+      "name": "phgsd",
+      "price": 2345,
+      "stock": 23,
+      "sellingPrice": 45566,
+      "barcodes": [
+        "1761562163001324"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "30dc61d8-93fb-474c-a5ce-384ed8907e68",
+      "createdAt": "2025-10-27T16:19:23.816854",
+      "updatedAt": "2025-10-27T16:19:23.816854"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T16:29:16.298493",
+    "completed_at": "2025-10-27T16:32:49.022832"
+  },
+  {
+    "id": 59,
+    "sync_time": "2025-10-27T17:28:23.191607",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "6af43709-5efe-480f-b695-4864215371dc",
+    "change_data": {
+      "name": "testing",
+      "price": 234,
+      "stock": 12,
+      "sellingPrice": 324,
+      "barcodes": [
+        "1761562013681237"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "6af43709-5efe-480f-b695-4864215371dc",
+      "createdAt": "2025-10-27T16:16:54.425149",
+      "updatedAt": "2025-10-27T16:16:54.425149"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T17:28:23.191607",
+    "completed_at": "2025-10-27T17:31:46.186631"
+  },
+  {
+    "id": 60,
+    "sync_time": "2025-10-27T17:32:18.465290",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "1f9a68b6-2cd5-4cb4-a8b5-88836cdef73c",
+    "change_data": {
+      "name": "trert",
+      "price": 2345,
+      "stock": 34,
+      "sellingPrice": 54654,
+      "barcodes": [
+        "1761566536983463"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "1f9a68b6-2cd5-4cb4-a8b5-88836cdef73c",
+      "createdAt": "2025-10-27T17:32:17.653135",
+      "updatedAt": "2025-10-27T17:32:17.653135"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T17:32:18.465290",
+    "completed_at": "2025-10-27T18:09:48.183618"
+  },
+  {
+    "id": 61,
+    "sync_time": "2025-10-27T18:12:52.257240",
+    "table_name": "Users",
+    "change_type": "CREATE",
+    "record_id": "8a743bb0-c443-46be-ae95-d83be20f7faf",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "email": "mailbox2249@gmail.com",
+      "password": "o;zaaS9s",
+      "role": "billing_user",
+      "assignedStores": [
+        "store3"
+      ],
+      "status": "active",
+      "id": "8a743bb0-c443-46be-ae95-d83be20f7faf",
+      "createdAt": "2025-10-27T18:12:51.533195",
+      "updatedAt": "2025-10-27T18:12:51.533195"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T18:12:52.257240",
+    "completed_at": "2025-10-27T18:24:49.271519"
+  },
+  {
+    "id": 62,
+    "sync_time": "2025-10-27T18:14:25.633091",
+    "table_name": "Stores",
+    "change_type": "CREATE",
+    "record_id": "STR-1761569064837",
+    "change_data": {
+      "name": "dress cricle ",
+      "address": "something",
+      "phone": "",
+      "email": "",
+      "manager": "",
+      "status": "active",
+      "id": "STR-1761569064837",
+      "createdAt": "2025-10-27T18:14:24.837753"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T18:14:25.633091",
+    "completed_at": "2025-10-27T18:24:49.977537"
+  },
+  {
+    "id": 63,
+    "sync_time": "2025-10-27T22:34:10.228076",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "1f9a68b6-2cd5-4cb4-a8b5-88836cdef73c",
+    "change_data": {
+      "id": "1f9a68b6-2cd5-4cb4-a8b5-88836cdef73c"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T22:34:10.228076",
+    "completed_at": "2025-10-27T22:36:11.177316"
+  },
+  {
+    "id": 64,
+    "sync_time": "2025-10-27T22:34:33.596026",
+    "table_name": "Products",
+    "change_type": "INSERT",
+    "record_id": "2f41c124-efb4-4aa4-9c85-b207b5e0bd2f",
+    "change_data": {
+      "name": "tesrting",
+      "price": 3345,
+      "stock": 67,
+      "sellingPrice": 6543,
+      "barcodes": [
+        "1761584672347663"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "2f41c124-efb4-4aa4-9c85-b207b5e0bd2f",
+      "createdAt": "2025-10-27T17:04:33.593785+00:00",
+      "updatedAt": "2025-10-27T17:04:33.593785+00:00"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T22:34:33.596026",
+    "completed_at": "2025-10-27T22:36:11.530384"
+  },
+  {
+    "id": 65,
+    "sync_time": "2025-10-27T22:34:33.638184",
+    "table_name": "ProductBarcodes",
+    "change_type": "INSERT",
+    "record_id": null,
+    "change_data": {
+      "productId": "2f41c124-efb4-4aa4-9c85-b207b5e0bd2f",
+      "barcode": "1761584672347663"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T22:34:33.638184",
+    "completed_at": "2025-10-27T22:36:11.890430"
+  },
+  {
+    "id": 66,
+    "sync_time": "2025-10-27T22:36:49.580409",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "2f41c124-efb4-4aa4-9c85-b207b5e0bd2f",
+    "change_data": {
+      "id": "2f41c124-efb4-4aa4-9c85-b207b5e0bd2f"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T22:36:49.580409",
+    "completed_at": "2025-10-27T22:45:39.915158"
+  },
+  {
+    "id": 67,
+    "sync_time": "2025-10-27T22:37:09.339087",
+    "table_name": "Products",
+    "change_type": "INSERT",
+    "record_id": "461267ad-b6b0-4eca-be31-d2fce3096f17",
+    "change_data": {
+      "name": "testingf",
+      "price": 453,
+      "stock": 32,
+      "sellingPrice": 654,
+      "barcodes": [
+        "1761584828634245"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "461267ad-b6b0-4eca-be31-d2fce3096f17",
+      "createdAt": "2025-10-27T17:07:09.338088+00:00",
+      "updatedAt": "2025-10-27T17:07:09.338088+00:00"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T22:37:09.339087",
+    "completed_at": "2025-10-27T22:45:40.292754"
+  },
+  {
+    "id": 68,
+    "sync_time": "2025-10-27T22:37:09.383302",
+    "table_name": "ProductBarcodes",
+    "change_type": "INSERT",
+    "record_id": null,
+    "change_data": {
+      "productId": "461267ad-b6b0-4eca-be31-d2fce3096f17",
+      "barcode": "1761584828634245"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T22:37:09.383302",
+    "completed_at": "2025-10-27T22:45:40.648209"
+  },
+  {
+    "id": 69,
+    "sync_time": "2025-10-27T22:57:53.656533",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "461267ad-b6b0-4eca-be31-d2fce3096f17",
+    "change_data": {
+      "name": "testingf",
+      "price": 453,
+      "stock": 32,
+      "sellingPrice": 654,
+      "barcodes": [
+        "1761584828634245"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "461267ad-b6b0-4eca-be31-d2fce3096f17",
+      "createdAt": "2025-10-27T17:07:09.338088+00:00",
+      "updatedAt": "2025-10-27T17:07:09.338088+00:00"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T22:57:53.656533",
+    "completed_at": "2025-10-27T22:59:35.895154"
+  },
+  {
+    "id": 70,
+    "sync_time": "2025-10-27T22:58:16.024879",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "c119a802-d484-4242-823f-2cabac974a46",
+    "change_data": {
+      "name": "testing",
+      "price": 234,
+      "stock": 2345,
+      "sellingPrice": 654,
+      "barcodes": [
+        "1761586094406468"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "c119a802-d484-4242-823f-2cabac974a46",
+      "createdAt": "2025-10-27T17:28:15.212992+00:00",
+      "updatedAt": "2025-10-27T17:28:15.212992+00:00"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T22:58:16.025390",
+    "completed_at": "2025-10-27T22:59:36.313827"
+  },
+  {
+    "id": 72,
+    "sync_time": "2025-10-27T23:07:47.170578",
+    "table_name": "Users",
+    "change_type": "CREATE",
+    "record_id": "551b67b7-cc13-4e0e-92ab-a76dcb7a3dc3",
+    "change_data": {
+      "name": "V.NECKLECE",
+      "email": "19jn1a0596@gmail.com",
+      "password": "eA93rU2N",
+      "role": "billing_user",
+      "assignedStores": [
+        "STR-1758042415183"
+      ],
+      "status": "active",
+      "id": "551b67b7-cc13-4e0e-92ab-a76dcb7a3dc3",
+      "createdAt": "2025-10-27T23:07:46.450776",
+      "updatedAt": "2025-10-27T23:07:46.450776"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T23:07:47.170578",
+    "completed_at": "2025-10-27T23:20:06.295397"
+  },
+  {
+    "id": 73,
+    "sync_time": "2025-10-27T23:08:48.374043",
+    "table_name": "Stores",
+    "change_type": "CREATE",
+    "record_id": "STR-1761586727634",
+    "change_data": {
+      "name": "lndfbjbwsbjbws",
+      "address": "kjishyhiwhefnnknk ujrogjioevnsnvsosjrkrmksolkjspkv;",
+      "phone": "",
+      "email": "",
+      "manager": "",
+      "status": "active",
+      "id": "STR-1761586727634",
+      "createdAt": "2025-10-27T23:08:47.634299"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T23:08:48.374043",
+    "completed_at": "2025-10-27T23:20:07.026416"
+  },
+  {
+    "id": 74,
+    "sync_time": "2025-10-27T23:11:56.869818",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "5f409f0b-1035-463b-bd4c-14f67f0916a8",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "price": 321,
+      "stock": 12,
+      "sellingPrice": 750,
+      "barcodes": [
+        "1761586538188978"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "5f409f0b-1035-463b-bd4c-14f67f0916a8",
+      "createdAt": "2025-10-27T17:35:39.179557+00:00",
+      "updatedAt": "2025-10-27T17:41:56.114431+00:00"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T23:11:56.869818",
+    "completed_at": "2025-10-27T23:20:07.720495"
+  },
+  {
+    "id": 77,
+    "sync_time": "2025-10-27T23:28:09.742808",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "5f409f0b-1035-463b-bd4c-14f67f0916a8",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "price": 321,
+      "stock": 12,
+      "sellingPrice": 750,
+      "barcodes": [
+        "1761586538188978"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "5f409f0b-1035-463b-bd4c-14f67f0916a8",
+      "createdAt": "2025-10-27T17:35:39.179557+00:00",
+      "updatedAt": "2025-10-27T23:28:08.957707"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T23:28:09.742808",
+    "completed_at": "2025-10-27T23:35:09.058627"
+  },
+  {
+    "id": 78,
+    "sync_time": "2025-10-27T23:28:11.217669",
+    "table_name": "Bills",
+    "change_type": "DELETE",
+    "record_id": "1761587806335",
+    "change_data": {
+      "id": "1761587806335",
+      "customerName": "prime",
+      "customerEmail": "",
+      "customerPhone": "",
+      "items": [
+        {
+          "productId": "5f409f0b-1035-463b-bd4c-14f67f0916a8",
+          "productName": "A.NECKLACE",
+          "price": 321,
+          "quantity": 1,
+          "total": 321
+        }
+      ],
+      "subtotal": 321,
+      "tax": 32.1,
+      "discountPercentage": 0,
+      "discountAmount": 0,
+      "total": 353.1,
+      "date": "2025-10-27T17:56:46.335Z",
+      "status": "Paid"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T23:28:11.217669",
+    "completed_at": "2025-10-27T23:35:09.740931"
+  },
+  {
+    "id": 79,
+    "sync_time": "2025-10-27T23:45:54.353834",
+    "table_name": "SystemSettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "systemSettings": {
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyEmail": "info@siri.ifleon.com",
+        "companyName": "SIRI ART JEWELLERY",
+        "companyPhone": "+91 889771771",
+        "gstin": "27AAFCV2449G1Z7",
+        "id": 1,
+        "last_sync_id": 1035,
+        "last_sync_time": "2025-10-27T18:27:01.714813",
+        "taxPercentage": 10.4
+      },
+      "billFormats": {
+        "A4": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "A5": {
+          "height": 210,
+          "margins": {
+            "bottom": 15,
+            "left": 15,
+            "right": 15,
+            "top": 15
+          },
+          "unit": "mm",
+          "width": 148
+        },
+        "Custom": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "Thermal_58mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 3,
+            "left": 3,
+            "right": 3,
+            "top": 3
+          },
+          "unit": "mm",
+          "width": 58
+        },
+        "Thermal_80mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 5,
+            "left": 5,
+            "right": 5,
+            "top": 5
+          },
+          "unit": "mm",
+          "width": 80
+        }
+      },
+      "storeFormats": {}
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-27T23:45:54.353834",
+    "completed_at": "2025-10-29T23:41:32.585525"
+  },
+  {
+    "id": 80,
+    "sync_time": "2025-10-29T23:45:33.719443",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "c119a802-d484-4242-823f-2cabac974a46",
+    "change_data": {
+      "name": "testing",
+      "price": 234,
+      "stock": 2345,
+      "sellingPrice": 650,
+      "barcodes": [
+        "1761586094406468"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "c119a802-d484-4242-823f-2cabac974a46",
+      "createdAt": "2025-10-27T17:28:15.212992+00:00",
+      "updatedAt": "2025-10-29T18:15:32.920759+00:00"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-29T23:45:33.719443",
+    "completed_at": "2025-10-30T14:10:40.076572"
+  },
+  {
+    "id": 81,
+    "sync_time": "2025-10-30T14:19:02.726460",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "c119a802-d484-4242-823f-2cabac974a46",
+    "change_data": {
+      "name": "testing",
+      "price": 234,
+      "stock": 2345,
+      "sellingPrice": 650.13,
+      "barcodes": [
+        "1761586094406468"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "c119a802-d484-4242-823f-2cabac974a46",
+      "createdAt": "2025-10-27T17:28:15.212992+00:00",
+      "updatedAt": "2025-10-30T08:49:02.097847+00:00"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-30T14:19:02.726460",
+    "completed_at": "2025-10-30T14:25:41.626509"
+  },
+  {
+    "id": 82,
+    "sync_time": "2025-10-30T14:36:12.944021",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "c119a802-d484-4242-823f-2cabac974a46",
+    "change_data": {
+      "name": "testing",
+      "price": 234,
+      "stock": 2345,
+      "sellingPrice": 650.13,
+      "barcodes": [
+        "1761586094406468"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "c119a802-d484-4242-823f-2cabac974a46",
+      "createdAt": "2025-10-27T17:28:15.212992+00:00",
+      "updatedAt": "2025-10-30T09:06:12.061948+00:00",
+      "selling_price": 650.1
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-30T14:36:12.944021"
   }
 ]

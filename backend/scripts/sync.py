@@ -23,7 +23,10 @@ from utils.db import DatabaseConnection  # noqa: E402
 # Local logger (fallback if caller doesn't pass logger_instance)
 logger = logging.getLogger(__name__)
 if not logger.handlers:
-    handler = logging.StreamHandler(sys.stdout)
+    import io
+    # Wrap sys.stdout.buffer with TextIOWrapper to force UTF-8 encoding
+    utf8_stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    handler = logging.StreamHandler(utf8_stdout)
     handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
@@ -35,7 +38,7 @@ def _get_table_columns(cursor, table_name: str, logger_instance: logging.Logger)
     """
     logger_instance.debug(f"Fetching columns for table: {table_name}")
     cursor.execute(f"DESCRIBE `{table_name}`")
-    columns = [row[0] for row in cursor.fetchall()]
+    columns = [row['Field'] for row in cursor.fetchall()]
     logger_instance.debug(f"Columns for {table_name}: {columns}")
     return columns
 
@@ -200,7 +203,7 @@ def apply_change_to_db(
 
                 logger_instance.info(f"Connected to DB: {conn.database}")
                 conn.commit()
-                logger_instance.info(f"✅ Commit done. Total affected: {cursor.rowcount}")
+                logger_instance.info(f"Commit done. Total affected: {cursor.rowcount}")
                 return True
 
             except Exception as op_err:

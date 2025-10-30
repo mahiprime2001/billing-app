@@ -25,5 +25,25 @@
     "status": "active",
     "createdAt": "2025-09-16T22:36:55",
     "updatedAt": null
+  },
+  {
+    "name": "dress cricle ",
+    "address": "something",
+    "phone": "",
+    "email": "",
+    "manager": "",
+    "status": "active",
+    "id": "STR-1761569064837",
+    "createdAt": "2025-10-27T18:14:24.837753"
+  },
+  {
+    "name": "lndfbjbwsbjbws",
+    "address": "kjishyhiwhefnnknk ujrogjioevnsnvsosjrkrmksolkjspkv;",
+    "phone": "",
+    "email": "",
+    "manager": "",
+    "status": "active",
+    "id": "STR-1761586727634",
+    "createdAt": "2025-10-27T23:08:47.634299"
   }
 ]

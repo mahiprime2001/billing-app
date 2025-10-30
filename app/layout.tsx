@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import IdleTimeoutHandler from "@/components/idle-timeout-handler";
 import "./globals.css";
-import OfflineBanner from "@/components/OfflineBanner";
-import ServerErrorHandler from "@/components/server-error-handler";
-import Updater from "@/components/Updater";
-import packageJson from "../package.json";
+import AppProviders from "@/components/AppProviders";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,20 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {/* Updater component - checks for updates on app load */}
-        <Updater />
-        
-        {/* Other global components */}
-        <OfflineBanner />
-        <IdleTimeoutHandler />
-        
-        {/* Main content */}
-        <ServerErrorHandler>{children}</ServerErrorHandler>
-        
-        {/* Version display in footer (optional) */}
-        <div className="fixed bottom-2 left-2 text-xs text-gray-400 pointer-events-none z-50">
-          v{packageJson.version}
-        </div>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

@@ -47,5 +47,31 @@
     "assignedStores": [
       "STR-1758042415183"
     ]
+  },
+  {
+    "name": "A.NECKLACE",
+    "email": "mailbox2249@gmail.com",
+    "password": "o;zaaS9s",
+    "role": "billing_user",
+    "assignedStores": [
+      "store3"
+    ],
+    "status": "active",
+    "id": "8a743bb0-c443-46be-ae95-d83be20f7faf",
+    "createdAt": "2025-10-27T18:12:51.533195",
+    "updatedAt": "2025-10-27T18:12:51.533195"
+  },
+  {
+    "name": "V.NECKLECE",
+    "email": "19jn1a0596@gmail.com",
+    "password": "eA93rU2N",
+    "role": "billing_user",
+    "assignedStores": [
+      "STR-1758042415183"
+    ],
+    "status": "active",
+    "id": "551b67b7-cc13-4e0e-92ab-a76dcb7a3dc3",
+    "createdAt": "2025-10-27T23:07:46.450776",
+    "updatedAt": "2025-10-27T23:07:46.450776"
   }
 ]

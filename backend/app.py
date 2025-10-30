@@ -23,6 +23,18 @@ from scripts.export_data import export_formatted_data # NEW: Import export funct
 from utils.print_TSPL import generate_tspl, send_raw_to_printer
 from collections import defaultdict
 
+# NEW: Add field name conversion utility
+def convert_camel_to_snake(data):
+    """Convert camelCase keys to snake_case for database compatibility"""
+    converted = {}
+    for key, value in data.items():
+        # Convert sellingPrice -> selling_price
+        if key == 'sellingPrice':
+            converted['selling_price'] = value
+        else:
+            converted[key] = value
+    return converted
+
 # NEW: Import enhanced sync manager
 try:
     from scripts.sync_manager import get_sync_manager, log_json_crud_operation
@@ -30,6 +42,14 @@ try:
 except ImportError:
     ENHANCED_SYNC_AVAILABLE = False
     print("Enhanced sync manager not available, falling back to legacy sync")
+
+# At the top of app.py, add these imports
+# The SyncController and json_serial are now part of the EnhancedSyncManager or not directly used here.
+
+# Initialize connection pool on startup (handled by DatabaseConnection.get_connection_pool() on first use)
+
+# Create sync controller instance (will be replaced by sync_manager if enhanced sync is available)
+sync_controller = None # Placeholder, will be set below
 
 # Optional Windows printing support
 try:
@@ -61,8 +81,11 @@ os.environ['APP_BASE_DIR'] = os.getcwd()
 # NEW: Initialize enhanced sync manager if available
 if ENHANCED_SYNC_AVAILABLE:
     sync_manager = get_sync_manager(os.environ['APP_BASE_DIR'])
+    sync_controller = sync_manager # Align sync_controller with the enhanced sync manager
 else:
     sync_manager = None
+    # If enhanced sync is not available, sync_controller remains None or can be set to a legacy fallback if needed.
+    # For now, we'll assume the legacy sync_utils functions are called directly where sync_controller is not available.
 
 @app.before_request
 def log_request_info():
@@ -111,6 +134,7 @@ SETTINGS_FILE = os.path.join(JSON_DIR, 'settings.json')
 STORES_FILE = os.path.join(JSON_DIR, 'stores.json')
 SESSIONS_FILE = os.path.join(JSON_DIR, 'user_sessions.json')
 BATCHES_FILE = os.path.join(JSON_DIR, 'batches.json') # NEW
+SETTINGS_FILE = os.path.join(JSON_DIR, 'settings.json') # NEW
 
 # Configure logging for the Flask app
 LOG_DIR = LOGS_DIR # Use the new LOGS_DIR
@@ -174,17 +198,60 @@ def _safe_json_dump(path, data):
     except Exception as e:
         app.logger.error(f"Failed to write JSON to {path}: {e}")
 
+# ============================================
+# OFFLINE-FIRST JSON DATA HELPERS
+# ============================================
+
 def get_products_data():
+    """Get products from local JSON (PRIMARY source)"""
     return _safe_json_load(PRODUCTS_FILE, [])
 
 def save_products_data(products):
+    """Save products to local JSON (PRIMARY storage)"""
     _safe_json_dump(PRODUCTS_FILE, products)
 
 def get_users_data():
+    """Get users from local JSON (PRIMARY source)"""
     return _safe_json_load(USERS_FILE, [])
 
 def save_users_data(users):
+    """Save users to local JSON (PRIMARY storage)"""
     _safe_json_dump(USERS_FILE, users)
+
+def get_stores_data():
+    """Get stores from local JSON (PRIMARY source)"""
+    return _safe_json_load(STORES_FILE, [])
+
+def save_stores_data(stores):
+    """Save stores to local JSON (PRIMARY storage)"""
+    _safe_json_dump(STORES_FILE, stores)
+
+def get_batches_data():
+    """Get batches from local JSON (PRIMARY source)"""
+    return _safe_json_load(BATCHES_FILE, [])
+
+def save_batches_data(batches):
+    """Save batches to local JSON (PRIMARY storage)"""
+    _safe_json_dump(BATCHES_FILE, batches)
+
+def get_notifications_data():
+    """Get notifications from local JSON (PRIMARY source)"""
+    return _safe_json_load(NOTIFICATIONS_FILE, [])
+
+def save_notifications_data(notifications):
+    """Save notifications to local JSON (PRIMARY storage)"""
+    _safe_json_dump(NOTIFICATIONS_FILE, notifications)
+
+# NEW: Customers file path
+CUSTOMERS_FILE = os.path.join(JSON_DIR, 'customers.json')
+
+def get_customers_data():
+    """Get customers from local JSON (PRIMARY source)"""
+    return _safe_json_load(CUSTOMERS_FILE, [])
+
+def save_customers_data(customers):
+    """Save customers to local JSON (PRIMARY storage)"""
+    _safe_json_dump(CUSTOMERS_FILE, customers)
 
 def get_bills_data():
     return _safe_json_load(BILLS_FILE, [])
@@ -192,29 +259,13 @@ def get_bills_data():
 def save_bills_data(bills):
     _safe_json_dump(BILLS_FILE, bills)
 
-def get_notifications_data():
-    return _safe_json_load(NOTIFICATIONS_FILE, [])
-
-def save_notifications_data(notifications):
-    _safe_json_dump(NOTIFICATIONS_FILE, notifications)
-
 def get_settings_data():
+    """Get settings from local JSON (PRIMARY source)"""
     return _safe_json_load(SETTINGS_FILE, {})
 
 def save_settings_data(settings):
+    """Save settings to local JSON (PRIMARY storage)"""
     _safe_json_dump(SETTINGS_FILE, settings)
-
-def get_stores_data():
-    return _safe_json_load(STORES_FILE, [])
-
-def save_stores_data(stores):
-    _safe_json_dump(STORES_FILE, stores)
-
-def get_batches_data():
-    return _safe_json_load(BATCHES_FILE, [])
-
-def save_batches_data(batches):
-    _safe_json_dump(BATCHES_FILE, batches)
 
 def _get_user_sessions():
     return _safe_json_load(SESSIONS_FILE, [])
@@ -230,25 +281,151 @@ def get_primary_barcode(product: dict) -> str:
         return str(barcodes[0])
     return ""
 
-# NEW: Enhanced logging function
+def queue_for_sync(table_name: str, record_data: dict, operation_type: str):
+    """
+    Queue data changes for background sync to MySQL.
+    This is the OFFLINE-FIRST approach - write locally first, sync later.
+    """
+    try:
+        # Use sync_manager to log CRUD operation
+        if ENHANCED_SYNC_AVAILABLE and sync_manager:
+            sync_manager.log_crud_operation(table_name, operation_type, record_data.get('id'), record_data)
+            app.logger.info(f"Queued {operation_type} for {table_name} ID {record_data.get('id')} using EnhancedSyncManager.")
+        else:
+            # Fallback: log to sync_table directly (legacy behavior)
+            log_to_sync_table_only(table_name, record_data, operation_type)
+    except Exception as e:
+        app.logger.error(f"Error queuing for sync: {e}", exc_info=True)
+
+
+def log_to_sync_table_only(table_name: str, record_data: dict, operation_type: str):
+    """
+    Fallback method to log to sync_table when sync_controller is not available.
+    """
+    try:
+        conn = DatabaseConnection.get_connection()
+        if not conn:
+            app.logger.warning("No database connection - change stored locally only")
+            return
+        
+        cursor = conn.cursor()
+        change_data_json = json.dumps(record_data, default=str, ensure_ascii=False)
+        
+        query = """
+            INSERT INTO sync_table 
+            (table_name, record_id, operation_type, change_data, source, status, created_at)
+            VALUES (%s, %s, %s, %s, 'local', 'pending', NOW())
+        """
+        
+        cursor.execute(query, (
+            table_name,
+            str(record_data.get('id', '')),
+            operation_type.upper(),
+            change_data_json
+        ))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+    except Exception as e:
+        app.logger.error(f"Error logging to sync_table: {e}")
+
+# Enhanced sync logging function with DIRECT MySQL table writes
 def log_crud_operation(json_type: str, operation: str, record_id: str, data: dict):
-    """Enhanced CRUD logging that uses either new or legacy sync system"""
+    """
+    Enhanced CRUD logging that:
+    1. Writes directly to the MySQL table (Products, Users, Bills, etc.)
+    2. Logs to MySQL sync_table for tracking
+    3. Logs to local sync system (existing)
+    """
+    # Map JSON types to database table names
+    table_mapping = {
+        'products': 'Products',
+        'users': 'Users',
+        'bills': 'Bills',
+        'customers': 'Customers',
+        'stores': 'Stores',
+        'notifications': 'Notifications',
+        'settings': 'SystemSettings',
+        'batches': 'batch'
+    }
+    
+    table_name = table_mapping.get(json_type, json_type.title())
+    
+    # STEP 1: Write directly to the actual MySQL table
+    try:
+        success = _write_to_mysql_table(table_name, operation, record_id, data)
+        if not success:
+            app.logger.error(f"Failed to write {operation} to MySQL table {table_name}")
+    except Exception as e:
+        app.logger.error(f"Error writing to MySQL table {table_name}: {e}", exc_info=True)
+    
+    # STEP 2: Log to enhanced sync manager (existing)
     if ENHANCED_SYNC_AVAILABLE and sync_manager:
-        # Use enhanced sync system
         log_json_crud_operation(json_type, operation, record_id, data)
     else:
         # Fall back to legacy sync system
-        table_mapping = {
-            'products': 'Products',
-            'users': 'Users',
-            'bills': 'Bills',
-            'customers': 'Customers',
-            'stores': 'Stores',
-            'notifications': 'Notifications',
-            'settings': 'SystemSettings'
-        }
-        table_name = table_mapping.get(json_type, json_type.title())
         sync_utils.add_to_sync_table(table_name, operation, record_id, data)
+    
+    # STEP 3: Log to MySQL sync_table for tracking
+    try:
+        _log_to_mysql_sync_table(table_name, operation, record_id, data)
+    except Exception as e:
+        app.logger.error(f"Failed to log to MySQL sync_table: {e}", exc_info=True)
+
+def _write_to_mysql_table(table_name: str, operation: str, record_id: str, data: dict) -> bool:
+    """
+    Write data directly to the actual MySQL table
+    """
+    try:
+        from scripts.sync import apply_change_to_db
+        
+        # Use the existing apply_change_to_db function from sync.py
+        success = apply_change_to_db(
+            table_name=table_name,
+            change_type=operation.upper(),
+            record_id=record_id,
+            change_data=data,
+            logger_instance=app.logger
+        )
+        
+        if success:
+            app.logger.info(f"Successfully wrote {operation} to MySQL table {table_name} for record {record_id}")
+        else:
+            app.logger.warning(f"Failed to write {operation} to MySQL table {table_name} for record {record_id}")
+        
+        return success
+        
+    except Exception as e:
+        app.logger.error(f"Error in _write_to_mysql_table for {table_name}: {e}", exc_info=True)
+        return False
+
+def _log_to_mysql_sync_table(table_name: str, operation: str, record_id: str, data: dict):
+    """
+    Log changes to MySQL sync_table for tracking (audit trail)
+    """
+    try:
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor()
+            
+            # Serialize change data to JSON
+            change_data_json = json.dumps(data, default=str, ensure_ascii=False)
+            
+            query = """
+                INSERT INTO `sync_table` 
+                (`table_name`, `record_id`, `operation_type`, `change_data`, `source`, `status`, `created_at`)
+                VALUES (%s, %s, %s, %s, 'local', 'synced', NOW())
+            """
+            
+            cursor.execute(query, (table_name, str(record_id), operation.upper(), change_data_json))
+            conn.commit()
+            
+            app.logger.info(f"Logged to MySQL sync_table: {table_name} - {operation} - {record_id}")
+            
+    except Exception as e:
+        app.logger.error(f"Error logging to MySQL sync_table: {e}", exc_info=True)
+        raise
 
 # Helper functions for new inventory endpoints
 def _to_date_only(dt_str):
@@ -281,91 +458,139 @@ def not_found(error):
     app.logger.warning(f"404 Not Found: Path={request.path}, Method={request.method}, Origin={request.headers.get('Origin')}")
     return jsonify({"status": "error", "message": "Resource not found"}), 404
 
-# ---------------------------
-# Products - ENHANCED WITH SYNC LOGGING
-# ---------------------------
+# ============================================
+# PRODUCTS API - OFFLINE FIRST
+# ============================================
 
-@app.route('/api/products', methods=['GET'])
+@app.route("/api/products", methods=["GET"])
 def get_products():
-    products = get_products_data()
-    enriched = []
-    for p in products:
-        q = dict(p)
-        q['barcode'] = get_primary_barcode(p)
-        enriched.append(q)
-    return jsonify(enriched)
+    """Get products from LOCAL JSON (offline-capable)"""
+    try:
+        products = get_products_data()
+        
+        # Transform to use selling_price
+        for product in products:
+            if 'selling_price' in product and product['selling_price']:
+                product['displayPrice'] = product['selling_price']
+            elif 'price' in product:
+                product['displayPrice'] = product['price']
+        
+        return jsonify(products), 200
+    except Exception as e:
+        app.logger.error(f"Error getting products: {e}")
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/api/products', methods=['POST'])
-def add_product():
-    new_product = request.json or {}
-    products = get_products_data()
-    new_product['id'] = str(uuid.uuid4())
-    new_product['createdAt'] = datetime.now().isoformat()
-    new_product['updatedAt'] = datetime.now().isoformat()
-    
-    if 'barcode' in new_product and 'barcodes' not in new_product:
-        if isinstance(new_product['barcode'], str) and new_product['barcode'].strip():
-            new_product['barcodes'] = [new_product['barcode']]
-    
-    products.append(new_product)
-    save_products_data(products)
-    
-    # ENHANCED: Log CRUD operation to sync system
-    log_crud_operation('products', 'CREATE', new_product['id'], new_product)
-    
-    return jsonify(new_product), 201
 
-@app.route('/api/products/<product_id>', methods=['PUT'])
+@app.route("/api/products", methods=["POST"])
+def create_product():
+    """Create product - OFFLINE FIRST approach"""
+    try:
+        product_data = request.json
+        
+        if not product_data:
+            return jsonify({"error": "No product data provided"}), 400
+        
+        # ADD THIS LINE - Convert field names
+        product_data = convert_camel_to_snake(product_data)
+        
+        # Generate ID if not present
+        if 'id' not in product_data:
+            product_data['id'] = str(uuid.uuid4())
+        
+        # Add timestamps
+        now = datetime.now(timezone.utc).isoformat()
+        product_data['createdAt'] = now
+        product_data['updatedAt'] = now
+        
+        # STEP 1: Save to LOCAL JSON FIRST (offline-first)
+        products = get_products_data()
+        products.append(product_data)
+        save_products_data(products)
+        
+        # STEP 2: Write to MySQL IMMEDIATELY (use log_crud_operation instead of queue_for_sync)
+        log_crud_operation('products', 'CREATE', product_data['id'], product_data)
+        # ↑ This function writes to:
+        #   1. MySQL Products table (immediate)
+        #   2. MySQL sync_table (audit trail)
+        #   3. Local sync system (enhanced sync manager)
+        
+        # STEP 3: If barcodes exist, save them too
+        if 'barcodes' in product_data and product_data['barcodes']:
+            barcodes_list = product_data['barcodes'].split(',') if isinstance(product_data['barcodes'], str) else product_data['barcodes']
+            for barcode in barcodes_list:
+                barcode_data = {
+                    'productId': product_data['id'],
+                    'barcode': barcode.strip()
+                }
+                log_crud_operation('productbarcodes', 'CREATE', barcode, barcode_data)
+        
+        app.logger.info(f"Product created: {product_data['id']} (local JSON + MySQL)")
+        return jsonify({"message": "Product created", "id": product_data['id']}), 201
+        
+    except Exception as e:
+        app.logger.error(f"Error creating product: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/products/<product_id>", methods=["PUT"])
 def update_product(product_id):
-    updated_data = request.json or {}
-    products = get_products_data()
-    product_found = False
-    idx = -1
-    
-    for i, product in enumerate(products):
-        if product['id'] == product_id:
-            if 'barcode' in updated_data and 'barcodes' not in updated_data:
-                if isinstance(updated_data['barcode'], str) and updated_data['barcode'].strip():
-                    updated_data['barcodes'] = [updated_data['barcode']]
-            products[i].update(updated_data)
-            products[i]['updatedAt'] = datetime.now().isoformat()
-            product_found = True
-            idx = i
-            break
-    
-    if product_found:
+    """Update product - OFFLINE FIRST approach"""
+    try:
+        update_data = request.json
+        
+        if not update_data:
+            return jsonify({"error": "No update data provided"}), 400
+        
+        # ADD THIS LINE - Convert field names
+        update_data = convert_camel_to_snake(update_data)
+        
+        # STEP 1: Update in LOCAL JSON FIRST
+        products = get_products_data()
+        product_index = next((i for i, p in enumerate(products) if p.get('id') == product_id), -1)
+        
+        if product_index == -1:
+            return jsonify({"error": "Product not found"}), 404
+        
+        # Merge updates
+        products[product_index].update(update_data)
+        products[product_index]['updatedAt'] = datetime.now(timezone.utc).isoformat()
+        
         save_products_data(products)
         
-        # ENHANCED: Log CRUD operation to sync system
-        log_crud_operation('products', 'UPDATE', product_id, products[idx])
+        # STEP 2: Write to MySQL IMMEDIATELY
+        log_crud_operation('products', 'UPDATE', product_id, products[product_index])
         
-        return jsonify(products[idx])
-    
-    return jsonify({"message": "Product not found"}), 404
+        app.logger.info(f"Product updated: {product_id} (local JSON + MySQL)")
+        return jsonify({"message": "Product updated", "id": product_id}), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error updating product: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/api/products/<product_id>', methods=['DELETE'])
+
+@app.route("/api/products/<product_id>", methods=["DELETE"])
 def delete_product(product_id):
-    products = get_products_data()
-    initial_len = len(products)
-    
-    # Find product before deletion to get its data
-    deleted_product = None
-    for product in products:
-        if product['id'] == product_id:
-            deleted_product = product
-            break
-    
-    products = [product for product in products if product['id'] != product_id]
-    
-    if len(products) < initial_len:
+    """Delete product - OFFLINE FIRST approach"""
+    try:
+        # STEP 1: Delete from LOCAL JSON FIRST
+        products = get_products_data()
+        product_index = next((i for i, p in enumerate(products) if p.get('id') == product_id), -1)
+        
+        if product_index == -1:
+            return jsonify({"error": "Product not found"}), 404
+        
+        deleted_product = products.pop(product_index)
         save_products_data(products)
         
-        # ENHANCED: Log CRUD operation to sync system
-        log_crud_operation('products', 'DELETE', product_id, deleted_product or {})
+        # STEP 2: Write to MySQL IMMEDIATELY
+        log_crud_operation('products', 'DELETE', product_id, deleted_product)
         
+        app.logger.info(f"Product deleted: {product_id} (local JSON + MySQL)")
         return jsonify({"message": "Product deleted"}), 200
-    
-    return jsonify({"message": "Product not found"}), 404
+        
+    except Exception as e:
+        app.logger.error(f"Error deleting product: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 # ---------------------------
 # Batches - NEW
@@ -855,65 +1080,230 @@ def forgot_password_proxy():
 
 @app.route('/api/flush-data', methods=['POST'])
 def flush_data():
+    """
+    Flush data by category WITHOUT touching ANY billing tables (Bills, BillItems)
+    
+    Categories:
+    - products: Delete Products & ProductBarcodes, set BillItems.productId to NULL
+    - stores: Delete Stores & UserStores, set Bills.storeId to NULL
+    - users: Delete non-admin Users, set Bills.createdBy to NULL
+    - customers: Delete Customers, set Bills.customerId to NULL
+    - batches: Delete batch records, set Products.batchId to NULL
+    """
     data = request.json or {}
     category = data.get('category')
     admin_users_to_keep = data.get('adminUsersToKeep', [])
-
+    
     if not category:
-        return jsonify({"status": "error", "message": "Category to flush is required"}), 400
-
+        return jsonify(status="error", message="Category to flush is required"), 400
+    
     try:
-        with DatabaseConnection.get_connection() as conn:
+        with DatabaseConnection.get_connection_ctx() as conn:
             cursor = conn.cursor()
-            if category == "products":
-                # Clear products.json
+            
+            # ====== PRODUCTS FLUSH ======
+            if category == 'products':
                 save_products_data([])
-                # Truncate MySQL Products table
-                cursor.execute("TRUNCATE TABLE Products")
+                
+                cursor.execute("""
+                    UPDATE `BillItems` 
+                    SET `productId` = NULL 
+                    WHERE `productId` IS NOT NULL
+                """)
+                affected_bill_items = cursor.rowcount
+                app.logger.info(f"Set productId to NULL for {affected_bill_items} BillItems records")
+                
+                cursor.execute("DELETE FROM `ProductBarcodes`")
+                deleted_barcodes = cursor.rowcount
+                
+                cursor.execute("DELETE FROM `Products`")
+                deleted_products = cursor.rowcount
+                
                 conn.commit()
-                app.logger.info("All products data flushed from JSON and MySQL.")
-                log_crud_operation('products', 'FLUSH', 'all', {})
-            elif category == "stores":
-                # Clear stores.json
+                
+                log_crud_operation('products', 'FLUSH', 'all', {
+                    'deleted_products': deleted_products,
+                    'deleted_barcodes': deleted_barcodes,
+                    'preserved_bill_items': affected_bill_items
+                })
+                
+                return jsonify(
+                    status="success", 
+                    message=f"Flushed {deleted_products} products. Billing history preserved.",
+                    details={
+                        'products_deleted': deleted_products,
+                        'barcodes_deleted': deleted_barcodes,
+                        'bill_items_preserved': affected_bill_items
+                    }
+                ), 200
+            
+            # ====== STORES FLUSH ======
+            elif category == 'stores':
                 save_stores_data([])
-                # Truncate MySQL Stores table
-                cursor.execute("TRUNCATE TABLE Stores")
+                
+                cursor.execute("""
+                    UPDATE `Bills` 
+                    SET `storeId` = NULL 
+                    WHERE `storeId` IS NOT NULL
+                """)
+                affected_bills = cursor.rowcount
+                
+                cursor.execute("""
+                    UPDATE `Products` 
+                    SET `assignedStoreId` = NULL 
+                    WHERE `assignedStoreId` IS NOT NULL
+                """)
+                affected_products = cursor.rowcount
+                
+                cursor.execute("DELETE FROM `UserStores`")
+                deleted_user_stores = cursor.rowcount
+                
+                cursor.execute("DELETE FROM `Stores`")
+                deleted_stores = cursor.rowcount
+                
                 conn.commit()
-                app.logger.info("All stores data flushed from JSON and MySQL.")
-                log_crud_operation('stores', 'FLUSH', 'all', {})
-            elif category == "users":
+                
+                log_crud_operation('stores', 'FLUSH', 'all', {
+                    'deleted_stores': deleted_stores,
+                    'preserved_bills': affected_bills
+                })
+                
+                return jsonify(
+                    status="success", 
+                    message=f"Flushed {deleted_stores} stores. Billing history preserved.",
+                    details={
+                        'stores_deleted': deleted_stores,
+                        'bills_preserved': affected_bills,
+                        'products_updated': affected_products
+                    }
+                ), 200
+            
+            # ====== USERS FLUSH ======
+            elif category == 'users':
                 users = get_users_data()
                 users_to_keep = []
                 deleted_user_ids = []
-
+                
                 for user in users:
-                    # Keep admin users specified by the frontend, and the currently logged-in admin (if applicable)
-                    if user.get('email') in admin_users_to_keep:
-                        users_to_keep.append(user)
+                    if user.get('role') == 'admin':
+                        if not admin_users_to_keep or user.get('id') in admin_users_to_keep:
+                            users_to_keep.append(user)
+                        else:
+                            deleted_user_ids.append(user.get('id'))
                     else:
-                        deleted_user_ids.append(user['id'])
+                        deleted_user_ids.append(user.get('id'))
+                
+                if not deleted_user_ids:
+                    return jsonify(status="success", message="No users to delete."), 200
                 
                 save_users_data(users_to_keep)
-
-                # Delete from MySQL
-                if deleted_user_ids:
-                    placeholders = ','.join(['%s'] * len(deleted_user_ids))
-                    cursor.execute(f"DELETE FROM Users WHERE id IN ({placeholders})", tuple(deleted_user_ids))
-                    conn.commit()
-                    app.logger.info(f"Deleted {len(deleted_user_ids)} users from JSON and MySQL.")
-                    for user_id in deleted_user_ids:
-                        log_crud_operation('users', 'DELETE', user_id, {"reason": "flushed"})
-                else:
-                    app.logger.info("No non-admin users to delete or all admin users were kept.")
                 
+                placeholders = ','.join(['%s'] * len(deleted_user_ids))
+                
+                cursor.execute(
+                    f"UPDATE `Bills` SET `createdBy` = NULL WHERE `createdBy` IN ({placeholders})",
+                    tuple(deleted_user_ids)
+                )
+                affected_bills = cursor.rowcount
+                
+                cursor.execute(
+                    f"DELETE FROM `UserStores` WHERE `userId` IN ({placeholders})",
+                    tuple(deleted_user_ids)
+                )
+                cursor.execute(
+                    f"DELETE FROM `password_change_log` WHERE `user_id` IN ({placeholders})",
+                    tuple(deleted_user_ids)
+                )
+                cursor.execute(
+                    f"DELETE FROM `password_reset_tokens` WHERE `user_id` IN ({placeholders})",
+                    tuple(deleted_user_ids)
+                )
+                cursor.execute(
+                    f"DELETE FROM `Users` WHERE `id` IN ({placeholders})",
+                    tuple(deleted_user_ids)
+                )
+                deleted_count = cursor.rowcount
+                
+                conn.commit()
+                
+                for user_id in deleted_user_ids:
+                    log_crud_operation('users', 'DELETE', user_id, {'reason': 'flushed'})
+                
+                return jsonify(
+                    status="success",
+                    message=f"Deleted {deleted_count} users. Billing history preserved.",
+                    details={
+                        'users_deleted': deleted_count,
+                        'bills_preserved': affected_bills
+                    }
+                ), 200
+            
+            # ====== CUSTOMERS FLUSH ======
+            elif category == 'customers':
+                save_customers_data([])
+                
+                cursor.execute("""
+                    UPDATE `Bills` 
+                    SET `customerId` = NULL 
+                    WHERE `customerId` IS NOT NULL
+                """)
+                affected_bills = cursor.rowcount
+                
+                cursor.execute("DELETE FROM `Customers`")
+                deleted_customers = cursor.rowcount
+                
+                conn.commit()
+                
+                log_crud_operation('customers', 'FLUSH', 'all', {
+                    'deleted_customers': deleted_customers,
+                    'preserved_bills': affected_bills
+                })
+                
+                return jsonify(
+                    status="success",
+                    message=f"Flushed {deleted_customers} customers. Billing history preserved.",
+                    details={
+                        'customers_deleted': deleted_customers,
+                        'bills_preserved': affected_bills
+                    }
+                ), 200
+            
+            # ====== BATCHES FLUSH ======
+            elif category == 'batches':
+                save_batches_data([])
+                
+                cursor.execute("""
+                    UPDATE `Products` 
+                    SET `batchId` = NULL 
+                    WHERE `batchId` IS NOT NULL
+                """)
+                affected_products = cursor.rowcount
+                
+                cursor.execute("DELETE FROM `batch`")
+                deleted_batches = cursor.rowcount
+                
+                conn.commit()
+                
+                log_crud_operation('batches', 'FLUSH', 'all', {
+                    'deleted_batches': deleted_batches,
+                    'preserved_products': affected_products
+                })
+                
+                return jsonify(
+                    status="success",
+                    message=f"Flushed {deleted_batches} batches. Products and billing preserved.",
+                    details={
+                        'batches_deleted': deleted_batches,
+                        'products_preserved': affected_products
+                    }
+                ), 200
+            
             else:
-                return jsonify({"status": "error", "message": "Invalid category specified"}), 400
-
-        return jsonify({"status": "success", "message": f"Successfully flushed {category} data."}), 200
-
+                return jsonify(status="error", message="Invalid category specified"), 400
+            
     except Exception as e:
         app.logger.error(f"Error flushing {category} data: {e}", exc_info=True)
-        return jsonify({"status": "error", "message": f"Failed to flush {category} data: {e}"}), 500
+        return jsonify(status="error", message=f"Failed to flush {category} data: {str(e)}"), 500
 
 # ---------------------------
 # Bills - ENHANCED WITH SYNC LOGGING
@@ -1979,6 +2369,47 @@ def pull_sync():
             "message": f"Failed to pull data from MySQL: {e}"
         }), 500
 
+# ============================================
+# BACKGROUND SYNC SCHEDULER
+# ============================================
+
+def background_sync_task():
+    """
+    Background task that runs every 5 minutes to sync local changes to MySQL.
+    This is the OFFLINE-FIRST approach.
+    """
+    while True:
+        try:
+            time.sleep(300)  # Wait 5 minutes
+            
+            app.logger.info("Starting background sync to MySQL...")
+            
+            # Push pending changes from local JSON to MySQL
+            if ENHANCED_SYNC_AVAILABLE and sync_manager:
+                result = sync_manager.process_pending_logs()
+                app.logger.info(f"Push sync result: {result}")
+            
+            # Pull remote changes from MySQL to local JSON
+            if ENHANCED_SYNC_AVAILABLE and sync_manager:
+                pull_result = sync_manager.pull_from_mysql_sync_table()
+                if pull_result.get('status') == 'success':
+                    # The pull_from_mysql_sync_table already applies changes to local JSON,
+                    # so no explicit merge logic is needed here for Bills/Customers.
+                    app.logger.info(f"Pull result: {pull_result}")
+            
+            # Note: The merge logic for Bills and Customers was previously here,
+            # but EnhancedSyncManager's pull_from_mysql_sync_table handles local JSON updates directly.
+            # If ENHANCED_SYNC_AVAILABLE is False, the legacy background_sync_task would handle this.
+            
+            app.logger.info("Background sync completed")
+            
+        except Exception as e:
+            app.logger.error(f"Error in background sync: {e}", exc_info=True)
+
+
+# Background sync is started via run_sync_process_in_background() in __main__
+# No need to start a separate thread here
+
 # ---------------------------
 # Enhanced Background sync process
 # ---------------------------
@@ -2032,7 +2463,90 @@ if __name__ == '__main__':
         DatabaseConnection.create_batch_table()
     except Exception as e:
         app.logger.error(f"Failed to create/update batch table: {e}")
+
+    # NEW: Ensure ProductBarcodes table is created
+    try:
+        DatabaseConnection.create_product_barcodes_table()
+    except Exception as e:
+        app.logger.error(f"Failed to create ProductBarcodes table: {e}")
     
+    # ============================================
+    # INITIALIZE LOCAL DATA ON STARTUP
+    # ============================================
+
+    def initialize_local_data():
+        """
+        Initialize local JSON files on first startup.
+        Pull data from MySQL if local files are empty.
+        """
+        try:
+            # Check if products file exists and is not empty
+            if not os.path.exists(PRODUCTS_FILE) or os.path.getsize(PRODUCTS_FILE) == 0:
+                app.logger.info("Initializing products from MySQL...")
+                
+                if ENHANCED_SYNC_AVAILABLE and sync_manager:
+                    result = sync_manager.pull_from_mysql_sync_table() # This pulls all changes and applies to local JSON
+                    
+                    if result.get('status') == 'success':
+                        app.logger.info(f"Initialized local data from MySQL using EnhancedSyncManager pull: {result.get('applied', 0)} records applied.")
+                else:
+                    # Fallback to legacy pull if enhanced sync is not available
+                    app.logger.info("Enhanced sync manager not available, skipping initial data pull from MySQL.")
+            
+            # The EnhancedSyncManager.pull_from_mysql_sync_table handles updating local JSON files directly.
+            # No need for separate pull calls for Products, Users, Stores here if using EnhancedSyncManager.
+            # If ENHANCED_SYNC_AVAILABLE is False, this block would need a legacy pull implementation.
+            
+        except Exception as e:
+            app.logger.error(f"Error initializing local data: {e}")
+
+
+    # Call on startup
+    initialize_local_data()
+
+    def merge_pulled_data(pulled_data: dict):
+        """Merge pulled MySQL data into local JSON files with conflict resolution"""
+        try:
+            for table_name, records in pulled_data.items():
+                if not records:
+                    continue
+                
+                if table_name == 'Products':
+                    local_data = get_products_data()
+                    merged = merge_records(local_data, records)
+                    save_products_data(merged)
+                elif table_name == 'Users':
+                    local_data = get_users_data()
+                    merged = merge_records(local_data, records)
+                    save_users_data(merged)
+                elif table_name == 'Stores':
+                    local_data = get_stores_data()
+                    merged = merge_records(local_data, records)
+                    save_stores_data(merged)
+                # Add more tables as needed
+                
+        except Exception as e:
+            app.logger.error(f"Error merging pulled data: {e}", exc_info=True)
+
+
+    def merge_records(local_records: list, remote_records: list) -> list:
+        """Merge remote records into local with timestamp comparison"""
+        local_by_id = {r['id']: r for r in local_records}
+        
+        for remote_record in remote_records:
+            record_id = remote_record['id']
+            if record_id in local_by_id:
+                # Compare timestamps - newer wins
+                local_updated = local_by_id[record_id].get('updatedAt', '')
+                remote_updated = remote_record.get('updatedAt', '')
+                if remote_updated > local_updated:
+                    local_by_id[record_id] = remote_record
+            else:
+                # New record from remote
+                local_by_id[record_id] = remote_record
+        
+        return list(local_by_id.values())
+
     # Start background sync based on environment
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         run_sync_process_in_background()

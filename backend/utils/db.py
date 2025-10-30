@@ -161,6 +161,31 @@ class DatabaseConnection:
                 print(f"Error dropping 'product_id' column: {err}")
                 raise
 
+    @classmethod
+    def create_product_barcodes_table(cls):
+        """
+        Creates the 'ProductBarcodes' table if it doesn't already exist.
+        """
+        create_table_query = """
+        CREATE TABLE IF NOT EXISTS ProductBarcodes (
+            productId VARCHAR(255) NOT NULL,
+            barcode VARCHAR(255) NOT NULL,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (productId, barcode),
+            FOREIGN KEY (productId) REFERENCES Products(id) ON DELETE CASCADE
+        );
+        """
+        try:
+            with cls.get_connection_ctx() as conn:
+                with cls.get_cursor_ctx(conn) as cursor:
+                    cursor.execute(create_table_query)
+                    conn.commit()
+                    print("Table 'ProductBarcodes' checked/created successfully.")
+        except MySQLError as err:
+            print(f"Error creating 'ProductBarcodes' table: {err}")
+            raise
+
     @staticmethod
     @contextmanager
     def get_cursor_ctx(conn: mysql.connector.MySQLConnection, dictionary: bool = False):

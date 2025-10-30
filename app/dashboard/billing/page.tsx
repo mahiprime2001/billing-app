@@ -89,13 +89,20 @@ export default function BillingPage() {
   }, [router])
 
   const loadData = async () => {
-    // Load products
-    const savedProducts = localStorage.getItem("products")
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts))
+    // Load products from API
+    try {
+      const productsResponse = await fetch("/api/products")
+      if (!productsResponse.ok) {
+        throw new Error("Failed to fetch products")
+      }
+      const productsData = await productsResponse.json()
+      setProducts(productsData)
+    } catch (error) {
+      console.error("Failed to load products:", error)
+      setProducts([]) // Set to empty array on error
     }
 
-    // Load bills from JSON
+    // Load bills from API
     try {
       const response = await fetch("/api/bills")
       if (!response.ok) {
