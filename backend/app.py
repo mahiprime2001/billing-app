@@ -2469,6 +2469,12 @@ if __name__ == '__main__':
         DatabaseConnection.create_product_barcodes_table()
     except Exception as e:
         app.logger.error(f"Failed to create ProductBarcodes table: {e}")
+
+    # NEW: Ensure UserStores table is created
+    try:
+        DatabaseConnection.create_user_stores_table()
+    except Exception as e:
+        app.logger.error(f"Failed to create UserStores table: {e}")
     
     # ============================================
     # INITIALIZE LOCAL DATA ON STARTUP

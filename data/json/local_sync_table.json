@@ -2543,10 +2543,86 @@
       "updatedAt": "2025-10-30T09:06:12.061948+00:00",
       "selling_price": 650.1
     },
-    "status": "pending",
+    "status": "completed",
     "retry_count": 0,
     "last_retry": null,
     "error_message": null,
-    "created_at": "2025-10-30T14:36:12.944021"
+    "created_at": "2025-10-30T14:36:12.944021",
+    "completed_at": "2025-10-31T20:44:18.632868"
+  },
+  {
+    "id": 83,
+    "sync_time": "2025-10-31T20:47:15.383356",
+    "table_name": "Users",
+    "change_type": "UPDATE",
+    "record_id": "8a743bb0-c443-46be-ae95-d83be20f7faf",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "email": "mailbox2249@gmail.com",
+      "password": "Could not retrieve password",
+      "role": "billing_user",
+      "assignedStores": [
+        "STR-1758042415183"
+      ],
+      "status": "active",
+      "id": "8a743bb0-c443-46be-ae95-d83be20f7faf",
+      "createdAt": "2025-10-27T18:12:51.533195",
+      "updatedAt": "2025-10-31T20:47:14.577581"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-31T20:47:15.383356",
+    "completed_at": "2025-10-31T20:51:13.741282"
+  },
+  {
+    "id": 84,
+    "sync_time": "2025-10-31T20:53:04.992095",
+    "table_name": "Users",
+    "change_type": "UPDATE",
+    "record_id": "8a743bb0-c443-46be-ae95-d83be20f7faf",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "email": "mailbox2249@gmail.com",
+      "password": "Could not retrieve password",
+      "role": "billing_user",
+      "assignedStores": [
+        "STR-1758042415183"
+      ],
+      "status": "active",
+      "id": "8a743bb0-c443-46be-ae95-d83be20f7faf",
+      "createdAt": "2025-10-27T18:12:51.533195",
+      "updatedAt": "2025-10-31T20:53:04.107202"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-31T20:53:04.992095",
+    "completed_at": "2025-10-31T20:59:19.750924"
+  },
+  {
+    "id": 85,
+    "sync_time": "2025-10-31T20:54:33.121743",
+    "table_name": "Stores",
+    "change_type": "DELETE",
+    "record_id": "STR-1761586727634",
+    "change_data": {
+      "name": "lndfbjbwsbjbws",
+      "address": "kjishyhiwhefnnknk ujrogjioevnsnvsosjrkrmksolkjspkv;",
+      "phone": "",
+      "email": "",
+      "manager": "",
+      "status": "active",
+      "id": "STR-1761586727634",
+      "createdAt": "2025-10-27T23:08:47.634299"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-31T20:54:33.121743",
+    "completed_at": "2025-10-31T20:59:20.430529"
   }
 ]

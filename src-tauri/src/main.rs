@@ -474,6 +474,49 @@ fn kill_process_tree(pid: u32) {
     }
 }
 
+// Helper function to spawn sidecar with cleanup
+fn spawn_sidecar(
+    app_handle: &tauri::AppHandle,
+    child_handle: Arc<Mutex<Option<CommandChild>>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    info!("Attempting to spawn sidecar...");
+    
+    // Kill any existing sidecar first
+    if let Some(child) = child_handle.lock().unwrap().take() {
+        let pid = child.pid();
+        kill_process_tree(pid);
+        info!("Killed existing sidecar (PID {})", pid);
+        // Wait a bit for the process to fully terminate
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+
+    let cmd = app_handle.shell().sidecar("Siriadmin-backend")?;
+    let (mut rx, command_child) = cmd.spawn()?;
+    let pid = command_child.pid();
+    info!("Spawned sidecar with PID {}", pid);
+    
+    *child_handle.lock().unwrap() = Some(command_child);
+
+    // Log sidecar output
+    let child_handle_clone = Arc::clone(&child_handle);
+    tauri::async_runtime::spawn(async move {
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line) => {
+                    info!("Flask stdout: {}", String::from_utf8_lossy(&line))
+                }
+                CommandEvent::Stderr(line) => {
+                    error!("Flask stderr: {}", String::from_utf8_lossy(&line))
+                }
+                _ => {}
+            }
+        }
+        let _ = child_handle_clone.lock().unwrap().take();
+    });
+
+    Ok(())
+}
+
 // ============================================================================
 // MAIN FUNCTION
 // ============================================================================
@@ -516,31 +559,23 @@ fn main() {
                     }
                 });
 
-                // Spawn sidecar and keep its CommandChild
-                let handle = app.app_handle();
-                let cmd = handle.shell().sidecar("Siriadmin-backend")?;
-                let (mut rx, command_child) = cmd.spawn()?;
-                let pid = command_child.pid();
-                info!("Spawned sidecar with PID {}", pid);
-
-                *child_handle.lock().unwrap() = Some(command_child);
-
-                // Log sidecar output
+                // Spawn sidecar with retry logic
+                let handle = app.app_handle().clone();
                 let child_handle_clone = Arc::clone(&child_handle);
-                tauri::async_runtime::spawn(async move {
-                    while let Some(event) = rx.recv().await {
-                        match event {
-                            CommandEvent::Stdout(line) => {
-                                info!("Flask stdout: {}", String::from_utf8_lossy(&line))
-                            }
-                            CommandEvent::Stderr(line) => {
-                                error!("Flask stderr: {}", String::from_utf8_lossy(&line))
-                            }
-                            _ => {}
+                
+                if let Err(e) = spawn_sidecar(&handle, child_handle_clone.clone()) {
+                    error!("Failed to spawn sidecar on first attempt: {}", e);
+                    
+                    // Retry after a delay
+                    let handle_retry = handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                        info!("Retrying sidecar spawn...");
+                        if let Err(e) = spawn_sidecar(&handle_retry, child_handle_clone) {
+                            error!("Failed to spawn sidecar on retry: {}", e);
                         }
-                    }
-                    let _ = child_handle_clone.lock().unwrap().take();
-                });
+                    });
+                }
 
                 // Start HTTP server and initial printer scan
                 let printers = Arc::new(Mutex::new(vec![]));

@@ -1,0 +1,69 @@
+2025-10-31 20:44:17,712 - scripts.sync_manager - INFO - Starting background sync scheduler
+2025-10-31 20:44:17,714 - scripts.sync_manager - INFO - Sync scheduler thread started
+2025-10-31 20:44:17,714 - scripts.sync_manager - INFO - Background sync started successfully
+2025-10-31 20:44:17,716 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
+2025-10-31 20:44:17,716 - scripts.sync_manager - INFO - Cleaning up logs older than 2025-10-01T20:44:17.716143
+2025-10-31 20:44:17,919 - scripts.sync_manager - INFO - MySQL sync_table cleanup: 0 entries removed
+2025-10-31 20:44:18,118 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-10-31 20:44:18,119 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-10-31 20:44:18,134 - scripts.sync_manager - INFO - Processing 1 pending sync logs
+2025-10-31 20:44:18,134 - scripts.sync_manager - INFO - Processing log ID 82: Products - UPDATE - c119a802-d484-4242-823f-2cabac974a46
+2025-10-31 20:44:18,415 - scripts.sync_manager - INFO - UPDATE operation on Products for c119a802-d484-4242-823f-2cabac974a46 successful
+2025-10-31 20:44:18,632 - scripts.sync_manager - INFO - Successfully processed log ID 82
+2025-10-31 20:44:18,643 - scripts.sync_manager - INFO - Finished processing: 1 processed, 0 failed
+2025-10-31 20:44:18,643 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'Processed 1 logs, 0 failed', 'processed': 1, 'failed': 0}
+2025-10-31 20:44:18,643 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-10-31 20:44:18,769 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-10-28T06:00:02
+2025-10-31 20:44:18,806 - scripts.sync_manager - INFO - No new remote changes to pull
+2025-10-31 20:44:18,989 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-31 20:44:19,007 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-10-31 20:44:22,335 - scripts.sync_manager - INFO - Starting background sync scheduler
+2025-10-31 20:44:22,338 - scripts.sync_manager - INFO - Sync scheduler thread started
+2025-10-31 20:44:22,338 - scripts.sync_manager - INFO - Background sync started successfully
+2025-10-31 20:44:22,338 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
+2025-10-31 20:44:22,342 - scripts.sync_manager - INFO - Cleaning up logs older than 2025-10-01T20:44:22.342402
+2025-10-31 20:44:22,559 - scripts.sync_manager - INFO - MySQL sync_table cleanup: 0 entries removed
+2025-10-31 20:44:22,739 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-10-31 20:44:22,739 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-10-31 20:44:22,773 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-10-31 20:44:22,773 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-31 20:44:22,773 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-10-31 20:44:22,892 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-10-28T06:00:02
+2025-10-31 20:44:22,925 - scripts.sync_manager - INFO - No new remote changes to pull
+2025-10-31 20:44:23,112 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-31 20:44:23,136 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-10-31 20:47:15,392 - scripts.sync_manager - INFO - Logged CRUD operation: Users - UPDATE - 8a743bb0-c443-46be-ae95-d83be20f7faf
+2025-10-31 20:51:12,824 - scripts.sync_manager - INFO - Starting background sync scheduler
+2025-10-31 20:51:12,832 - scripts.sync_manager - INFO - Sync scheduler thread started
+2025-10-31 20:51:12,832 - scripts.sync_manager - INFO - Background sync started successfully
+2025-10-31 20:51:12,832 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
+2025-10-31 20:51:12,832 - scripts.sync_manager - INFO - Cleaning up logs older than 2025-10-01T20:51:12.832635
+2025-10-31 20:51:13,034 - scripts.sync_manager - INFO - MySQL sync_table cleanup: 0 entries removed
+2025-10-31 20:51:13,254 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-10-31 20:51:13,256 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-10-31 20:51:13,279 - scripts.sync_manager - INFO - Processing 1 pending sync logs
+2025-10-31 20:51:13,290 - scripts.sync_manager - INFO - Processing log ID 83: Users - UPDATE - 8a743bb0-c443-46be-ae95-d83be20f7faf
+2025-10-31 20:51:13,516 - scripts.sync_manager - INFO - UPDATE operation on Users for 8a743bb0-c443-46be-ae95-d83be20f7faf successful
+2025-10-31 20:51:13,741 - scripts.sync_manager - INFO - Successfully processed log ID 83
+2025-10-31 20:51:13,767 - scripts.sync_manager - INFO - Finished processing: 1 processed, 0 failed
+2025-10-31 20:51:13,769 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'Processed 1 logs, 0 failed', 'processed': 1, 'failed': 0}
+2025-10-31 20:51:13,769 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-10-31 20:51:13,881 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-10-28T06:00:02
+2025-10-31 20:51:13,918 - scripts.sync_manager - INFO - No new remote changes to pull
+2025-10-31 20:51:14,130 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-31 20:51:14,169 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-10-31 20:51:46,348 - scripts.sync_manager - INFO - Starting background sync scheduler
+2025-10-31 20:51:46,351 - scripts.sync_manager - INFO - Sync scheduler thread started
+2025-10-31 20:51:46,351 - scripts.sync_manager - INFO - Background sync started successfully
+2025-10-31 20:51:46,351 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
+2025-10-31 20:51:46,352 - scripts.sync_manager - INFO - Cleaning up logs older than 2025-10-01T20:51:46.352439
+2025-10-31 20:51:46,550 - scripts.sync_manager - INFO - MySQL sync_table cleanup: 0 entries removed
+2025-10-31 20:51:46,741 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-10-31 20:51:46,756 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-10-31 20:51:46,778 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-10-31 20:51:46,786 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-10-31 20:51:46,787 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-10-31 20:51:46,901 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-10-28T06:00:02
+2025-10-31 20:51:46,942 - scripts.sync_manager - INFO - No new remote changes to pull
+2025-10-31 20:51:47,149 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-10-31 20:51:47,196 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===

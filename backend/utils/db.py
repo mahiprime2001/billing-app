@@ -186,6 +186,31 @@ class DatabaseConnection:
             print(f"Error creating 'ProductBarcodes' table: {err}")
             raise
 
+    @classmethod
+    def create_user_stores_table(cls):
+        """
+        Creates the 'UserStores' table if it doesn't already exist.
+        """
+        create_table_query = """
+        CREATE TABLE IF NOT EXISTS UserStores (
+            userId VARCHAR(255) NOT NULL,
+            storeId VARCHAR(255) NOT NULL,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (userId, storeId),
+            FOREIGN KEY (userId) REFERENCES Users(id) ON DELETE CASCADE,
+            FOREIGN KEY (storeId) REFERENCES Stores(id) ON DELETE CASCADE
+        );
+        """
+        try:
+            with cls.get_connection_ctx() as conn:
+                with cls.get_cursor_ctx(conn) as cursor:
+                    cursor.execute(create_table_query)
+                    conn.commit()
+                    print("Table 'UserStores' checked/created successfully.")
+        except MySQLError as err:
+            print(f"Error creating 'UserStores' table: {err}")
+            raise
+
     @staticmethod
     @contextmanager
     def get_cursor_ctx(conn: mysql.connector.MySQLConnection, dictionary: bool = False):

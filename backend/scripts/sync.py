@@ -194,7 +194,37 @@ def apply_change_to_db(
                     cursor.execute(upsert_sql, values)
                     logger_instance.info(f"Primary {change_type} applied to {table_name} for ID: {record_id}. Rows affected: {cursor.rowcount}")
 
+                    # Handle related tables AFTER the primary record is upserted
                     _handle_related_tables(cursor, table_name, record_id, change_data, logger_instance)
+
+                    # NEW: Handle UserStores for CREATE/UPDATE operations
+                    if table_name == "Users":
+                        assigned_stores = change_data.get("assignedStores", [])
+                        if not isinstance(assigned_stores, list):
+                            logger_instance.warning(f"Invalid 'assignedStores' data for user {record_id}, expected list but got {type(assigned_stores)}. Using empty list.")
+                            assigned_stores = []
+
+                        logger_instance.debug(f"Syncing UserStores for user {record_id}. Assigned stores: {assigned_stores}")
+
+                        # 1. Delete existing UserStores for this user
+                        cursor.execute("DELETE FROM `UserStores` WHERE `userId` = %s", (record_id,))
+                        logger_instance.debug(f"Deleted existing UserStores for user {record_id}.")
+
+                        # 2. Insert new UserStores based on assigned_stores
+                        for store_id in assigned_stores:
+                            if store_id: # Ensure store_id is not empty
+                                logger_instance.debug(f"Adding UserStore link for user {record_id} and store {store_id}")
+                                try:
+                                    cursor.execute(
+                                        "INSERT INTO `UserStores` (`userId`, `storeId`) VALUES (%s, %s)",
+                                        (record_id, store_id)
+                                    )
+                                except MySQLError as e:
+                                    if e.errno == 1062: # Duplicate entry for primary key
+                                        logger_instance.warning(f"Duplicate UserStore entry for user {record_id} and store {store_id}. Skipping.")
+                                    else:
+                                        raise # Re-raise other MySQL errors
+                        logger_instance.info(f"Synced UserStores for user {record_id}. Total assigned: {len(assigned_stores)}")
 
                 else:
                     logger_instance.error(f"Unsupported change_type: {change_type}. Rolling back.")
