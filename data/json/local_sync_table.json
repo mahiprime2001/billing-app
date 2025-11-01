@@ -2624,5 +2624,217 @@
     "error_message": null,
     "created_at": "2025-10-31T20:54:33.121743",
     "completed_at": "2025-10-31T20:59:20.430529"
+  },
+  {
+    "id": 86,
+    "sync_time": "2025-10-31T22:54:40.981013",
+    "table_name": "Users",
+    "change_type": "DELETE",
+    "record_id": "551b67b7-cc13-4e0e-92ab-a76dcb7a3dc3",
+    "change_data": {
+      "name": "V.NECKLECE",
+      "email": "19jn1a0596@gmail.com",
+      "password": "eA93rU2N",
+      "role": "billing_user",
+      "assignedStores": [
+        "STR-1758042415183"
+      ],
+      "status": "active",
+      "id": "551b67b7-cc13-4e0e-92ab-a76dcb7a3dc3",
+      "createdAt": "2025-10-27T23:07:46.450776",
+      "updatedAt": "2025-10-27T23:07:46.450776"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-31T22:54:40.981013",
+    "completed_at": "2025-10-31T22:57:16.404007"
+  },
+  {
+    "id": 87,
+    "sync_time": "2025-10-31T22:54:45.025453",
+    "table_name": "Users",
+    "change_type": "DELETE",
+    "record_id": "8a743bb0-c443-46be-ae95-d83be20f7faf",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "email": "mailbox2249@gmail.com",
+      "password": "Could not retrieve password",
+      "role": "billing_user",
+      "assignedStores": [
+        "STR-1758042415183"
+      ],
+      "status": "active",
+      "id": "8a743bb0-c443-46be-ae95-d83be20f7faf",
+      "createdAt": "2025-10-27T18:12:51.533195",
+      "updatedAt": "2025-10-31T20:53:04.107202"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-31T22:54:45.025453",
+    "completed_at": "2025-10-31T22:57:17.344392"
+  },
+  {
+    "id": 88,
+    "sync_time": "2025-10-31T22:54:50.771676",
+    "table_name": "Users",
+    "change_type": "DELETE",
+    "record_id": "e0d02ce4-d0c6-4132-b858-9dcc26434f20",
+    "change_data": {
+      "id": "e0d02ce4-d0c6-4132-b858-9dcc26434f20",
+      "name": "Simha Mahendra Reddy",
+      "email": "MAHENDRAREDDY965@GMAIL.COM",
+      "password": "Simhamahi@01",
+      "role": "billing_user",
+      "status": "active",
+      "sessionDuration": null,
+      "createdAt": "2025-09-16T22:39:31",
+      "updatedAt": "2025-09-16T22:39:31",
+      "lastLogin": null,
+      "lastLogout": null,
+      "totalSessionDuration": 0,
+      "assignedStores": [
+        "STR-1758042415183"
+      ]
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-31T22:54:50.771676",
+    "completed_at": "2025-10-31T22:57:18.986062"
+  },
+  {
+    "id": 89,
+    "sync_time": "2025-10-31T22:55:16.419095",
+    "table_name": "Users",
+    "change_type": "CREATE",
+    "record_id": "c9751c87-3e97-4966-b4a9-e3ab90cb4905",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "email": "MAHENDRAREDDY965@GMAIL.COM",
+      "password": "scrypt:32768:8:1$oVARxjg1vX5zFHxq$c275fb159c7832d56431c5abadcaa53836a55db32955ad0f8ac41e795dd3788f38dc69edb49f1ed394f5783b9299b0f06f2a6f8849b667f03ad3378ab6ec9c86",
+      "role": "billing_user",
+      "assignedStores": [
+        "store3"
+      ],
+      "status": "active",
+      "id": "c9751c87-3e97-4966-b4a9-e3ab90cb4905",
+      "createdAt": "2025-10-31T22:55:15.565509",
+      "updatedAt": "2025-10-31T22:55:15.565509"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-31T22:55:16.419095",
+    "completed_at": "2025-10-31T22:57:19.569436"
+  },
+  {
+    "id": 90,
+    "sync_time": "2025-10-31T23:00:06.639384",
+    "table_name": "Users",
+    "change_type": "UPDATE",
+    "record_id": "c9751c87-3e97-4966-b4a9-e3ab90cb4905",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "email": "MAHENDRAREDDY965@GMAIL.COM",
+      "password": "scrypt:32768:8:1$Sc2abINOamLa7LdI$43f121b44902b28f36716ea997cdbcaba4fe9389615ecabd23813b82e5aa599408037d204d4ae50e0a9266bc8705166600d63a9b63f3df6c50da466c09c92c6a",
+      "role": "billing_user",
+      "assignedStores": [
+        "store3"
+      ],
+      "status": "active",
+      "id": "c9751c87-3e97-4966-b4a9-e3ab90cb4905",
+      "createdAt": "2025-10-31T22:55:15.565509",
+      "updatedAt": "2025-10-31T23:00:05.783372"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-31T23:00:06.639384",
+    "completed_at": "2025-10-31T23:05:14.432493"
+  },
+  {
+    "id": 91,
+    "sync_time": "2025-10-31T23:07:59.082077",
+    "table_name": "Users",
+    "change_type": "DELETE",
+    "record_id": "c9751c87-3e97-4966-b4a9-e3ab90cb4905",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "email": "MAHENDRAREDDY965@GMAIL.COM",
+      "password": "scrypt:32768:8:1$Sc2abINOamLa7LdI$43f121b44902b28f36716ea997cdbcaba4fe9389615ecabd23813b82e5aa599408037d204d4ae50e0a9266bc8705166600d63a9b63f3df6c50da466c09c92c6a",
+      "role": "billing_user",
+      "assignedStores": [
+        "store3"
+      ],
+      "status": "active",
+      "id": "c9751c87-3e97-4966-b4a9-e3ab90cb4905",
+      "createdAt": "2025-10-31T22:55:15.565509",
+      "updatedAt": "2025-10-31T23:00:05.783372"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-31T23:07:59.082077",
+    "completed_at": "2025-10-31T23:09:19.919884"
+  },
+  {
+    "id": 92,
+    "sync_time": "2025-10-31T23:09:44.842715",
+    "table_name": "Users",
+    "change_type": "CREATE",
+    "record_id": "94ac1f3a-bb34-44ee-b68c-d96b3edef79d",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "email": "MAHENDRAREDDY965@GMAIL.COM",
+      "password": "testing",
+      "role": "billing_user",
+      "assignedStores": [
+        "store3"
+      ],
+      "status": "active",
+      "id": "94ac1f3a-bb34-44ee-b68c-d96b3edef79d",
+      "createdAt": "2025-10-31T23:09:44.023138",
+      "updatedAt": "2025-10-31T23:09:44.023138"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-31T23:09:44.842715",
+    "completed_at": "2025-10-31T23:20:16.731763"
+  },
+  {
+    "id": 93,
+    "sync_time": "2025-10-31T23:27:47.508552",
+    "table_name": "Users",
+    "change_type": "CREATE",
+    "record_id": "4fbbce4b-6c41-4964-99f5-1698a9aca500",
+    "change_data": {
+      "name": "A. Tops",
+      "email": "19jn1a0596@gmail.com",
+      "password": "testing",
+      "role": "billing_user",
+      "assignedStores": [
+        "store3"
+      ],
+      "status": "active",
+      "id": "4fbbce4b-6c41-4964-99f5-1698a9aca500",
+      "createdAt": "2025-10-31T23:27:46.683514",
+      "updatedAt": "2025-10-31T23:27:46.683514"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-10-31T23:27:47.508552",
+    "completed_at": "2025-10-31T23:35:18.137610"
   }
 ]

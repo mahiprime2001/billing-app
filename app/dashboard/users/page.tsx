@@ -254,40 +254,23 @@ export default function UsersPage() {
     }
   }
 
-  const openEditDialog = async (user: AdminUser) => {
+  const openEditDialog = (user: AdminUser) => {
     setEditingUser(user)
     setIsEditDialogOpen(true)
+    setShowPassword(true) // Show password in plain text when editing
 
-    // Fetch the decrypted password
-    try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/users/${user.id}/password`)
-      if (response.ok) {
-        const data = await response.json()
-        setFormData({
-          name: user.name,
-          email: user.email,
-          password: data.password,
-          role: user.role,
-          assignedStores: user.assignedStores || [],
-          sessionDuration: user.sessionDuration || 24,
-          status: user.status,
-        })
-      } else {
-        console.error("Failed to fetch decrypted password")
-        // Fallback to a placeholder if fetching fails
-        setFormData({
-          name: user.name,
-          email: user.email,
-          password: "Could not retrieve password",
-          role: user.role,
-          assignedStores: user.assignedStores || [],
-          sessionDuration: user.sessionDuration || 24,
-          status: user.status,
-        })
-      }
-    } catch (error) {
-      console.error("Error fetching decrypted password:", error)
-    }
+    console.log("User object in openEditDialog:", user)
+    console.log("User password in openEditDialog:", user.password)
+
+    setFormData({
+      name: user.name,
+      email: user.email,
+      password: user.password || "", // Ensure password is always a string
+      role: user.role,
+      assignedStores: user.assignedStores || [],
+      sessionDuration: user.sessionDuration || 24,
+      status: user.status,
+    })
   }
 
   const toggleStoreAssignment = (storeId: string) => {

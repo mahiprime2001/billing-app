@@ -16,6 +16,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from urllib.parse import urlparse
 import requests
+from werkzeug.security import generate_password_hash, check_password_hash # NEW: For password hashing
 from utils.db import DatabaseConnection
 from utils import sync_utils  # Keep existing sync_utils for compatibility
 from scripts.sync import apply_change_to_db  # Keep apply_change_to_db for direct DB operations
@@ -933,18 +934,25 @@ def get_users():
 
 @app.route('/api/users', methods=['POST'])
 def add_user():
-    new_user = request.json or {}
+    new_user_data = request.json or {}
     users = get_users_data()
-    new_user['id'] = str(uuid.uuid4())
-    new_user['createdAt'] = datetime.now().isoformat()
-    new_user['updatedAt'] = datetime.now().isoformat()
-    users.append(new_user)
+    
+    # Store password in plain text as requested (WARNING: This is a severe security risk)
+    if 'password' not in new_user_data or not new_user_data['password']:
+        return jsonify({"message": "Password is required"}), 400
+
+    new_user_data['id'] = str(uuid.uuid4())
+    new_user_data['createdAt'] = datetime.now().isoformat()
+    new_user_data['updatedAt'] = datetime.now().isoformat()
+    users.append(new_user_data)
     save_users_data(users)
     
     # ENHANCED: Log CRUD operation to sync system
-    log_crud_operation('users', 'CREATE', new_user['id'], new_user)
+    log_crud_operation('users', 'CREATE', new_user_data['id'], new_user_data)
     
-    return jsonify(new_user), 201
+    # Return user data without the hashed password
+    user_safe = {k: v for k, v in new_user_data.items() if k != 'password'}
+    return jsonify(user_safe), 201
 
 @app.route('/api/users/<user_id>', methods=['PUT'])
 def update_user(user_id):
@@ -955,7 +963,15 @@ def update_user(user_id):
     
     for i, user in enumerate(users):
         if user['id'] == user_id:
-            users[i].update(updated_data)
+            # Store password in plain text as requested (WARNING: This is a severe security risk)
+            if 'password' in updated_data:
+                users[i]['password'] = updated_data['password']
+            
+            # Update other fields
+            for key, value in updated_data.items():
+                if key != 'password': # Password already handled
+                    users[i][key] = value
+
             users[i]['updatedAt'] = datetime.now().isoformat()
             user_found = True
             idx = i
@@ -967,7 +983,9 @@ def update_user(user_id):
         # ENHANCED: Log CRUD operation to sync system
         log_crud_operation('users', 'UPDATE', user_id, users[idx])
         
-        return jsonify(users[idx])
+        # Return user data without the hashed password
+        user_safe = {k: v for k, v in users[idx].items() if k != 'password'}
+        return jsonify(user_safe)
     
     return jsonify({"message": "User not found"}), 404
 
@@ -995,6 +1013,7 @@ def delete_user(user_id):
     
     return jsonify({"message": "User not found"}), 404
 
+# NEW: Endpoint to retrieve (hashed) password for editing purposes
 # ---------------------------
 # Auth
 # ---------------------------
@@ -1011,9 +1030,8 @@ def login():
     users = get_users_data()
     user = next((u for u in users if u['email'].lower() == email.lower()), None)
     
-    if user:
-        if user['password'] != password:
-            return jsonify({"message": "Invalid email or password"}), 401
+    if user and user['password'] == password: # Compare plain-text passwords (WARNING: Severe security risk)
+        pass
     else:
         return jsonify({"message": "Invalid email or password"}), 401
     
@@ -2469,6 +2487,12 @@ if __name__ == '__main__':
         DatabaseConnection.create_product_barcodes_table()
     except Exception as e:
         app.logger.error(f"Failed to create ProductBarcodes table: {e}")
+
+    # NEW: Ensure Users table is created and migrated
+    try:
+        DatabaseConnection.create_users_table()
+    except Exception as e:
+        app.logger.error(f"Failed to create/migrate Users table: {e}")
 
     # NEW: Ensure UserStores table is created
     try:

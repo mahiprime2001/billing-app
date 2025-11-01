@@ -187,6 +187,62 @@ class DatabaseConnection:
             raise
 
     @classmethod
+    def create_users_table(cls):
+        """
+        Creates the 'Users' table if it doesn't already exist and applies schema migrations.
+        Ensures a 'password' column is present.
+        """
+        create_table_query = """
+        CREATE TABLE IF NOT EXISTS Users (
+            id VARCHAR(255) PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            password VARCHAR(255) NOT NULL,
+            role ENUM('super_admin', 'billing_user', 'temporary_user') NOT NULL DEFAULT 'billing_user',
+            sessionDuration INT DEFAULT 24,
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            status ENUM('active', 'inactive') DEFAULT 'active'
+        );
+        """
+        try:
+            with cls.get_connection_ctx() as conn:
+                with cls.get_cursor_ctx(conn) as cursor:
+                    cursor.execute(create_table_query)
+                    conn.commit()
+                    print("Table 'Users' checked/created successfully.")
+                    cls._apply_users_table_migrations(conn, cursor) # Apply migrations after creation
+        except MySQLError as err:
+            print(f"Error creating 'Users' table: {err}")
+            raise
+
+    @classmethod
+    def _apply_users_table_migrations(cls, conn, cursor):
+        """
+        Applies necessary ALTER TABLE statements to update the Users table schema.
+        This method is idempotent.
+        """
+        # Add 'password' column if it doesn't exist
+        try:
+            cursor.execute("SHOW COLUMNS FROM Users LIKE 'password';")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE Users ADD COLUMN password VARCHAR(255) NOT NULL DEFAULT 'default_password';")
+                conn.commit()
+                print("Added 'password' column to 'Users' table.")
+        except MySQLError as err:
+            print(f"Error adding 'password' column to 'Users' table: {err}")
+            raise
+
+        # Ensure 'password' column is NOT NULL and remove default if it was added
+        try:
+            cursor.execute("ALTER TABLE Users MODIFY COLUMN password VARCHAR(255) NOT NULL;")
+            conn.commit()
+            print("Ensured 'password' column in 'Users' table is NOT NULL.")
+        except MySQLError as err:
+            print(f"Error modifying 'password' column to NOT NULL: {err}")
+            raise
+
+    @classmethod
     def create_user_stores_table(cls):
         """
         Creates the 'UserStores' table if it doesn't already exist.

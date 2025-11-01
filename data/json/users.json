@@ -32,46 +32,29 @@
     ]
   },
   {
-    "id": "e0d02ce4-d0c6-4132-b858-9dcc26434f20",
-    "name": "Simha Mahendra Reddy",
-    "email": "MAHENDRAREDDY965@GMAIL.COM",
-    "password": "Simhamahi@01",
-    "role": "billing_user",
-    "status": "active",
-    "sessionDuration": null,
-    "createdAt": "2025-09-16T22:39:31",
-    "updatedAt": "2025-09-16T22:39:31",
-    "lastLogin": null,
-    "lastLogout": null,
-    "totalSessionDuration": 0,
-    "assignedStores": [
-      "STR-1758042415183"
-    ]
-  },
-  {
     "name": "A.NECKLACE",
-    "email": "mailbox2249@gmail.com",
-    "password": "Could not retrieve password",
+    "email": "MAHENDRAREDDY965@GMAIL.COM",
+    "password": "testing",
     "role": "billing_user",
     "assignedStores": [
-      "STR-1758042415183"
+      "store3"
     ],
     "status": "active",
-    "id": "8a743bb0-c443-46be-ae95-d83be20f7faf",
-    "createdAt": "2025-10-27T18:12:51.533195",
-    "updatedAt": "2025-10-31T20:53:04.107202"
+    "id": "94ac1f3a-bb34-44ee-b68c-d96b3edef79d",
+    "createdAt": "2025-10-31T23:09:44.023138",
+    "updatedAt": "2025-10-31T23:09:44.023138"
   },
   {
-    "name": "V.NECKLECE",
+    "name": "A. Tops",
     "email": "19jn1a0596@gmail.com",
-    "password": "eA93rU2N",
+    "password": "testing",
     "role": "billing_user",
     "assignedStores": [
-      "STR-1758042415183"
+      "store3"
     ],
     "status": "active",
-    "id": "551b67b7-cc13-4e0e-92ab-a76dcb7a3dc3",
-    "createdAt": "2025-10-27T23:07:46.450776",
-    "updatedAt": "2025-10-27T23:07:46.450776"
+    "id": "4fbbce4b-6c41-4964-99f5-1698a9aca500",
+    "createdAt": "2025-10-31T23:27:46.683514",
+    "updatedAt": "2025-10-31T23:27:46.683514"
   }
 ]
