@@ -133,20 +133,22 @@ export default function BillingPage() {
     const product = products.find((p) => p.id === selectedProductId)
     if (!product) return
 
+    const price = product.price !== undefined && product.price !== null ? product.price : 0; // Ensure price is a number
+
     const existingItemIndex = billItems.findIndex((item) => item.productId === selectedProductId)
 
     if (existingItemIndex >= 0) {
       const updatedItems = [...billItems]
       updatedItems[existingItemIndex].quantity += quantity
-      updatedItems[existingItemIndex].total = updatedItems[existingItemIndex].quantity * product.price
+      updatedItems[existingItemIndex].total = updatedItems[existingItemIndex].quantity * price
       setBillItems(updatedItems)
     } else {
       const newItem: BillItem = {
         productId: product.id,
         productName: product.name,
-        price: product.price,
+        price: price,
         quantity: quantity,
-        total: product.price * quantity,
+        total: price * quantity,
       }
       setBillItems([...billItems, newItem])
     }
@@ -394,7 +396,7 @@ export default function BillingPage() {
                           <SelectContent>
                             {products.map((product) => (
                               <SelectItem key={product.id} value={product.id}>
-                                {product.name} - ₹{product.price.toFixed(2)}
+                                {product.name} - ₹{product.price ? product.price.toFixed(2) : '0.00'}
                               </SelectItem>
                             ))}
                           </SelectContent>

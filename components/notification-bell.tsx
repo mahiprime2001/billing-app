@@ -26,6 +26,7 @@ export interface Notification {
   isRead: boolean
   createdAt: string
   syncLogId: number
+  _internalKey?: string // Add an internal key for React list reconciliation
 }
 
 interface NotificationResponse {
@@ -65,7 +66,7 @@ const NotificationItem: React.FC<{
       <div className="flex items-start space-x-3">
         <Avatar className="h-8 w-8 rounded-lg flex-shrink-0">
           <AvatarFallback className="rounded-lg bg-blue-100 text-blue-600 text-xs">
-            {notification.userName.split(' ').map(n => n[0]).join('')}
+            {notification.userName ? notification.userName.split(' ').map(n => n[0]).join('') : 'NN'}
           </AvatarFallback>
         </Avatar>
         
@@ -144,10 +145,27 @@ export const NotificationBell: React.FC = () => {
       const data: NotificationResponse = await response.json()
       
       if (data.success) {
-        setNotifications(data.notifications)
-        setUnreadCount(data.unreadCount)
+        const seenIds = new Set<string>();
+        const processedNotifications = data.notifications
+          .filter(notification => {
+            // Ensure id is a valid string and unique
+            if (!notification.id || typeof notification.id !== 'string' || seenIds.has(notification.id)) {
+              if (notification.id) { // Only warn if id exists but is a duplicate
+                console.warn(`Duplicate notification ID found and filtered: ${notification.id}`);
+              }
+              return false;
+            }
+            seenIds.add(notification.id);
+            return true;
+          })
+          .map(notification => ({
+            ...notification,
+            _internalKey: crypto.randomUUID(), // Assign a unique internal key
+          }));
+        setNotifications(processedNotifications);
+        setUnreadCount(data.unreadCount);
       } else {
-        setError('Failed to load notifications')
+        setError('Failed to load notifications');
       }
     } catch (err) {
       console.error('Error fetching notifications:', err)
@@ -317,7 +335,7 @@ export const NotificationBell: React.FC = () => {
           <div className="max-h-80 overflow-y-auto">
             {notifications.map((notification) => (
               <NotificationItem
-                key={notification.id}
+                key={notification._internalKey || notification.id} // Use internal key, fallback to id
                 notification={notification}
                 onMarkAsRead={markAsRead}
                 onDismiss={dismissNotification}

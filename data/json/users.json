@@ -56,5 +56,18 @@
     "id": "4fbbce4b-6c41-4964-99f5-1698a9aca500",
     "createdAt": "2025-10-31T23:27:46.683514",
     "updatedAt": "2025-10-31T23:27:46.683514"
+  },
+  {
+    "name": "A. Haram set",
+    "email": "mailbox2249@gmail.com",
+    "password": "r3i!4sLL",
+    "role": "billing_user",
+    "assignedStores": [
+      "STR-1758042415183"
+    ],
+    "status": "active",
+    "id": "17dc8e96-f909-4479-ab78-453eda736bf1",
+    "createdAt": "2025-11-03T14:35:37.356978",
+    "updatedAt": "2025-11-03T14:35:37.356978"
   }
 ]

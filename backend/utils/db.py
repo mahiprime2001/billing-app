@@ -267,6 +267,89 @@ class DatabaseConnection:
             print(f"Error creating 'UserStores' table: {err}")
             raise
 
+    @classmethod
+    def create_bills_table(cls):
+        """
+        Creates the 'Bills' table if it doesn't already exist and applies schema migrations.
+        """
+        create_table_query = """
+        CREATE TABLE IF NOT EXISTS Bills (
+            id VARCHAR(255) PRIMARY KEY,
+            customerName VARCHAR(255),
+            customerEmail VARCHAR(255),
+            customerPhone VARCHAR(255),
+            subtotal DECIMAL(10, 2) NOT NULL,
+            tax DECIMAL(10, 2) NOT NULL,
+            discountPercentage DECIMAL(5, 2) DEFAULT 0,
+            discountAmount DECIMAL(10, 2) DEFAULT 0,
+            total DECIMAL(10, 2) NOT NULL,
+            date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            status VARCHAR(50) DEFAULT 'Paid',
+            createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        );
+        """
+        try:
+            with cls.get_connection_ctx() as conn:
+                with cls.get_cursor_ctx(conn) as cursor:
+                    cursor.execute(create_table_query)
+                    conn.commit()
+                    print("Table 'Bills' checked/created successfully.")
+                    cls._apply_bills_table_migrations(conn, cursor)
+        except MySQLError as err:
+            print(f"Error creating 'Bills' table: {err}")
+            raise
+
+    @classmethod
+    def _apply_bills_table_migrations(cls, conn, cursor):
+        """
+        Applies necessary ALTER TABLE statements to update the Bills table schema.
+        This method is idempotent.
+        """
+        # Add 'storeId' column if it doesn't exist
+        try:
+            cursor.execute("SHOW COLUMNS FROM Bills LIKE 'storeId';")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE Bills ADD COLUMN storeId VARCHAR(255) NULL;")
+                conn.commit()
+                print("Added 'storeId' column to 'Bills' table.")
+        except MySQLError as err:
+            print(f"Error adding 'storeId' column to 'Bills' table: {err}")
+            raise
+
+        # Add 'createdBy' column if it doesn't exist
+        try:
+            cursor.execute("SHOW COLUMNS FROM Bills LIKE 'createdBy';")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE Bills ADD COLUMN createdBy VARCHAR(255) NULL;")
+                conn.commit()
+                print("Added 'createdBy' column to 'Bills' table.")
+        except MySQLError as err:
+            print(f"Error adding 'createdBy' column to 'Bills' table: {err}")
+            raise
+
+        # Add 'customerId' column if it doesn't exist
+        try:
+            cursor.execute("SHOW COLUMNS FROM Bills LIKE 'customerId';")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE Bills ADD COLUMN customerId VARCHAR(255) NULL;")
+                conn.commit()
+                print("Added 'customerId' column to 'Bills' table.")
+        except MySQLError as err:
+            print(f"Error adding 'customerId' column to 'Bills' table: {err}")
+            raise
+
+        # Add 'items' column if it doesn't exist (as JSON)
+        try:
+            cursor.execute("SHOW COLUMNS FROM Bills LIKE 'items';")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE Bills ADD COLUMN items JSON NULL;")
+                conn.commit()
+                print("Added 'items' column to 'Bills' table.")
+        except MySQLError as err:
+            print(f"Error adding 'items' column to 'Bills' table: {err}")
+            raise
+
     @staticmethod
     @contextmanager
     def get_cursor_ctx(conn: mysql.connector.MySQLConnection, dictionary: bool = False):

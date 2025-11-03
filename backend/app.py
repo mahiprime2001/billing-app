@@ -4,11 +4,12 @@
 import os
 import sys
 import json
+from decimal import Decimal # Added for bill calculations
 import uuid
 import re
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date # Added date for bill serialization
 import logging
 import traceback
 from flask import Flask, jsonify, request, make_response, redirect, url_for, g
@@ -1329,8 +1330,115 @@ def flush_data():
 
 @app.route('/api/bills', methods=['GET'])
 def get_bills():
-    bills = get_bills_data()
-    return jsonify(bills)
+    """
+    Get all bills - pulls from MySQL via sync_table first,
+    then returns combined data from MySQL and local JSON
+    """
+    try:
+        # Step 1: Pull latest bills from MySQL using sync_table
+        if ENHANCED_SYNC_AVAILABLE and sync_manager:
+            app.logger.info("Pulling latest bills from MySQL via sync_table")
+            pull_result = sync_manager.pull_from_mysql_sync_table()
+            
+            if pull_result.get('status') == 'success':
+                app.logger.info(f"Successfully pulled {pull_result.get('applied', 0)} bills from MySQL")
+            else:
+                app.logger.warning(f"Sync pull failed: {pull_result.get('message')}")
+        
+        # Step 2: Get bills from MySQL database directly
+        mysql_bills = []
+        try:
+            with DatabaseConnection.get_connection_ctx() as conn:
+                cursor = conn.cursor(dictionary=True)
+                
+                # Query Bills with BillItems
+                cursor.execute("""
+                    SELECT 
+                        b.*,
+                        c.name as customerName,
+                        c.phone as customerPhone,
+                        c.email as customerEmail,
+                        s.name as storeName,
+                        u.name as createdByName
+                    FROM Bills b
+                    LEFT JOIN Customers c ON b.customerId = c.id
+                    LEFT JOIN Stores s ON b.storeId = s.id
+                    LEFT JOIN Users u ON b.createdBy = u.id
+                    ORDER BY b.timestamp DESC
+                """)
+                
+                bills_raw = cursor.fetchall()
+                
+                # Get bill items for each bill
+                for bill in bills_raw:
+                    bill_id = bill['id']
+                    
+                    cursor.execute("""
+                        SELECT * FROM BillItems 
+                        WHERE billId = %s
+                    """, (bill_id,))
+                    
+                    items = cursor.fetchall()
+                    
+                    # Convert Decimal to float for JSON serialization
+                    bill_dict = {}
+                    for key, value in bill.items():
+                        if isinstance(value, Decimal):
+                            bill_dict[key] = float(value)
+                        elif isinstance(value, (datetime, date)):
+                            bill_dict[key] = value.isoformat()
+                        else:
+                            bill_dict[key] = value
+                    
+                    # Convert items
+                    items_list = []
+                    for item in items:
+                        item_dict = {}
+                        for key, value in item.items():
+                            if isinstance(value, Decimal):
+                                item_dict[key] = float(value)
+                            elif isinstance(value, (datetime, date)):
+                                item_dict[key] = value.isoformat()
+                            else:
+                                item_dict[key] = value
+                        items_list.append(item_dict)
+                    
+                    bill_dict['items'] = items_list
+                    mysql_bills.append(bill_dict)
+                
+                app.logger.info(f"Fetched {len(mysql_bills)} bills from MySQL")
+        
+        except Exception as db_error:
+            app.logger.error(f"Error fetching bills from MySQL: {db_error}")
+            # Fallback to local JSON if MySQL fails
+            mysql_bills = []
+        
+        # Step 3: Get local JSON bills as fallback
+        local_bills = get_bills_data()
+        
+        # Step 4: Merge and deduplicate (MySQL takes precedence)
+        bills_map = {}
+        
+        # Add MySQL bills first (higher priority)
+        for bill in mysql_bills:
+            bills_map[bill['id']] = bill
+        
+        # Add local bills that aren't in MySQL
+        for bill in local_bills:
+            if bill['id'] not in bills_map:
+                bills_map[bill['id']] = bill
+        
+        # Convert to list and sort by timestamp
+        final_bills = list(bills_map.values())
+        final_bills.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        app.logger.info(f"Returning {len(final_bills)} total bills (MySQL: {len(mysql_bills)}, Local: {len(local_bills)})")
+        
+        return jsonify(final_bills), 200
+    
+    except Exception as e:
+        app.logger.error(f"Error getting bills: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
 @app.route('/api/bills', methods=['POST'])
 def add_bill():
@@ -1408,6 +1516,123 @@ def delete_bill(bill_id):
     log_crud_operation('bills', 'DELETE', bill_id, bill_to_delete)
     
     return jsonify({"message": "Bill deleted"}), 200
+
+@app.route('/api/bills/sync', methods=['GET'])
+def get_bills_from_sync_table():
+    """
+    Get bills by checking sync_table for new entries
+    This endpoint specifically uses sync_table to track changes
+    """
+    try:
+        last_sync = request.args.get('lastSync')
+        
+        if not last_sync:
+            # Get last sync timestamp from settings
+            settings = get_settings_data()
+            last_sync = settings.get('systemSettings', {}).get('lastSyncTime')
+        
+        app.logger.info(f"Fetching bills from sync_table since: {last_sync}")
+        
+        bills_from_sync = []
+        
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+            
+            # Query sync_table for Bills and BillItems changes
+            if last_sync:
+                query = """
+                    SELECT * FROM sync_table 
+                    WHERE table_name IN ('Bills', 'BillItems')
+                    AND status = 'synced'
+                    AND created_at > %s
+                    ORDER BY created_at DESC
+                """
+                cursor.execute(query, (last_sync,))
+            else:
+                query = """
+                    SELECT * FROM sync_table 
+                    WHERE table_name IN ('Bills', 'BillItems')
+                    AND status = 'synced'
+                    ORDER BY created_at DESC
+                    LIMIT 100
+                """
+                cursor.execute(query)
+            
+            sync_entries = cursor.fetchall()
+            
+            app.logger.info(f"Found {len(sync_entries)} sync entries for Bills/BillItems")
+            
+            # Extract unique bill IDs from sync entries
+            bill_ids = set()
+            for entry in sync_entries:
+                if entry['table_name'] == 'Bills':
+                    bill_ids.add(entry['record_id'])
+                elif entry['table_name'] == 'BillItems':
+                    # Parse change_data to get billId
+                    try:
+                        change_data = json.loads(entry['change_data'])
+                        if 'billId' in change_data:
+                            bill_ids.add(change_data['billId'])
+                    except:
+                        pass
+            
+            # Fetch full bill details for these IDs
+            if bill_ids:
+                placeholders = ','.join(['%s'] * len(bill_ids))
+                
+                cursor.execute(f"""
+                    SELECT 
+                        b.*,
+                        c.name as customerName,
+                        c.phone as customerPhone,
+                        s.name as storeName
+                    FROM Bills b
+                    LEFT JOIN Customers c ON b.customerId = c.id
+                    LEFT JOIN Stores s ON b.storeId = s.id
+                    WHERE b.id IN ({placeholders})
+                    ORDER BY b.timestamp DESC
+                """, tuple(bill_ids))
+                
+                bills_raw = cursor.fetchall()
+                
+                # Get items for each bill
+                for bill in bills_raw:
+                    cursor.execute("""
+                        SELECT * FROM BillItems WHERE billId = %s
+                    """, (bill['id'],))
+                    
+                    items = cursor.fetchall()
+                    
+                    # Serialize
+                    bill_dict = {k: (float(v) if isinstance(v, Decimal) else 
+                                    v.isoformat() if isinstance(v, (datetime, date)) else v)
+                                for k, v in bill.items()}
+                    
+                    items_list = [{k: (float(v) if isinstance(v, Decimal) else 
+                                      v.isoformat() if isinstance(v, (datetime, date)) else v)
+                                  for k, v in item.items()} for item in items]
+                    
+                    bill_dict['items'] = items_list
+                    bills_from_sync.append(bill_dict)
+        
+        # Update last sync timestamp
+        settings = get_settings_data()
+        if 'systemSettings' not in settings:
+            settings['systemSettings'] = {}
+        settings['systemSettings']['lastSyncTime'] = datetime.now().isoformat()
+        save_settings_data(settings)
+        
+        return jsonify({
+            'status': 'success',
+            'bills': bills_from_sync,
+            'count': len(bills_from_sync),
+            'lastSync': datetime.now().isoformat(),
+            'syncEntriesProcessed': len(sync_entries)
+        }), 200
+    
+    except Exception as e:
+        app.logger.error(f"Error fetching bills from sync_table: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 # ---------------------------
 # Notifications - ENHANCED WITH SYNC LOGGING
@@ -2499,6 +2724,12 @@ if __name__ == '__main__':
         DatabaseConnection.create_user_stores_table()
     except Exception as e:
         app.logger.error(f"Failed to create UserStores table: {e}")
+
+    # NEW: Ensure Bills table is created
+    try:
+        DatabaseConnection.create_bills_table()
+    except Exception as e:
+        app.logger.error(f"Failed to create Bills table: {e}")
     
     # ============================================
     # INITIALIZE LOCAL DATA ON STARTUP
@@ -2513,22 +2744,34 @@ if __name__ == '__main__':
             # Check if products file exists and is not empty
             if not os.path.exists(PRODUCTS_FILE) or os.path.getsize(PRODUCTS_FILE) == 0:
                 app.logger.info("Initializing products from MySQL...")
-                
                 if ENHANCED_SYNC_AVAILABLE and sync_manager:
-                    result = sync_manager.pull_from_mysql_sync_table() # This pulls all changes and applies to local JSON
-                    
+                    # Trigger a full pull for products if local is empty
+                    result = sync_manager.pull_from_mysql_sync_table(table_name='Products', force_full_pull=True)
                     if result.get('status') == 'success':
-                        app.logger.info(f"Initialized local data from MySQL using EnhancedSyncManager pull: {result.get('applied', 0)} records applied.")
+                        app.logger.info(f"Initialized local products from MySQL: {result.get('applied', 0)} records applied.")
                 else:
-                    # Fallback to legacy pull if enhanced sync is not available
-                    app.logger.info("Enhanced sync manager not available, skipping initial data pull from MySQL.")
-            
-            # The EnhancedSyncManager.pull_from_mysql_sync_table handles updating local JSON files directly.
-            # No need for separate pull calls for Products, Users, Stores here if using EnhancedSyncManager.
-            # If ENHANCED_SYNC_AVAILABLE is False, this block would need a legacy pull implementation.
+                    app.logger.info("Enhanced sync manager not available, skipping initial product data pull from MySQL.")
+
+            # Check if bills file exists and is not empty
+            bills_file_exists = os.path.exists(BILLS_FILE)
+            bills_file_size = os.path.getsize(BILLS_FILE) if bills_file_exists else 0
+            app.logger.info(f"BILLS_FILE: {BILLS_FILE}, Exists: {bills_file_exists}, Size: {bills_file_size} bytes")
+
+            if not bills_file_exists or bills_file_size == 0:
+                app.logger.info("Initializing bills from MySQL (local bills.json is empty or missing)...")
+                if ENHANCED_SYNC_AVAILABLE and sync_manager:
+                    # Trigger a full pull for bills if local is empty
+                    result = sync_manager.pull_from_mysql_sync_table(table_name='Bills', force_full_pull=True)
+                    if result.get('status') == 'success':
+                        app.logger.info(f"Initialized local bills from MySQL: {result.get('applied', 0)} records applied.")
+                else:
+                    app.logger.info("Enhanced sync manager not available, skipping initial bill data pull from MySQL.")
+
+            # Add similar checks for other critical JSON files (Users, Stores, etc.) if needed
+            # For now, the generic pull_from_mysql_sync_table will handle subsequent syncs.
             
         except Exception as e:
-            app.logger.error(f"Error initializing local data: {e}")
+            app.logger.error(f"Error initializing local data: {e}", exc_info=True)
 
 
     # Call on startup

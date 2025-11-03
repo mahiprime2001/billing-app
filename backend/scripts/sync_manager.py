@@ -178,45 +178,56 @@ class EnhancedSyncManager:
         sync_logs.append(new_log)
         self.save_sync_logs(sync_logs)
 
-    def pull_from_mysql_sync_table(self) -> Dict:
+    def pull_from_mysql_sync_table(self, table_name: Optional[str] = None, force_full_pull: bool = False) -> Dict:
         """
-        Pull changes from MySQL sync_table and apply to local JSON
+        Pull changes from MySQL sync_table and apply to local JSON.
+        Can be optionally filtered by table_name and forced for a full pull.
         """
         try:
             with DatabaseConnection.get_connection_ctx() as conn:
                 cursor = conn.cursor(dictionary=True)
                 
                 last_sync = self.get_last_sync_timestamp()
-                logger.info(f"Pulling from MySQL sync_table. Last sync: {last_sync or 'Never'}")
+                logger.info(f"Pulling from MySQL sync_table. Last sync: {last_sync or 'Never'}. Table: {table_name or 'All'}, Full Pull: {force_full_pull}")
                 
-                # Query for unsynced changes from remote sources
-                if last_sync:
-                    query = """
-                        SELECT * FROM `sync_table`
-                        WHERE `source` = 'remote' 
-                        AND `status` = 'pending'
-                        AND `created_at` > %s
-                        ORDER BY `created_at` ASC
-                    """
-                    cursor.execute(query, (last_sync,))
-                else:
-                    # First sync - get last 24 hours
-                    query = """
-                        SELECT * FROM `sync_table`
-                        WHERE `source` = 'remote'
-                        AND `status` = 'pending'
-                        AND `created_at` >= DATE_SUB(NOW(), INTERVAL 1 DAY)
-                        ORDER BY `created_at` ASC
-                    """
-                    cursor.execute(query)
+                query_parts = []
+                query_params = []
+
+                # Condition for remote pending changes
+                remote_pending_condition = "(`source` = 'remote' AND `status` = 'pending')"
+                if table_name:
+                    remote_pending_condition += " AND `table_name` = %s"
+                    query_params.append(table_name)
+                query_parts.append(remote_pending_condition)
+
+                # Condition for local synced changes
+                local_synced_condition = "(`source` = 'local' AND `status` = 'synced')"
+                if table_name: # Always filter by table_name if provided
+                    local_synced_condition += " AND `table_name` = %s"
+                    query_params.append(table_name)
+
+                if not force_full_pull and last_sync:
+                    local_synced_condition += " AND `created_at` > %s"
+                    query_params.append(last_sync)
+                elif not force_full_pull and not last_sync:
+                    # If no last_sync and not a forced full pull, get last 1 day of local synced changes
+                    local_synced_condition += " AND `created_at` >= DATE_SUB(NOW(), INTERVAL 1 DAY)"
+                # If force_full_pull is True, no timestamp filter is added to local_synced_condition
+
+                query_parts.append(local_synced_condition)
+
+                base_query = "SELECT * FROM `sync_table` WHERE " + " OR ".join(query_parts)
+                base_query += " ORDER BY `created_at` ASC"
+                
+                cursor.execute(base_query, tuple(query_params))
                 
                 new_entries = cursor.fetchall()
                 
                 if not new_entries:
-                    logger.info("No new remote changes to pull")
+                    logger.info("No new changes to pull")
                     return {"status": "success", "message": "No new entries", "pulled": 0}
                 
-                logger.info(f"Found {len(new_entries)} remote changes to apply")
+                logger.info(f"Found {len(new_entries)} changes to apply")
                 
                 applied = 0
                 failed_ids = []
@@ -224,20 +235,51 @@ class EnhancedSyncManager:
                 for entry in new_entries:
                     try:
                         sync_id = entry['id']
-                        table_name = entry['table_name']
+                        entry_table_name = entry['table_name'] # Use entry_table_name to avoid conflict with param
                         operation = entry['operation_type']
                         record_id = entry['record_id']
                         
-                        # Parse change data
-                        if isinstance(entry['change_data'], (str, bytes)):
-                            change_data = json.loads(entry['change_data'])
+                        # Parse change data with robust error handling
+                        change_data_raw = entry['change_data']
+                        change_data = {}
+                        if isinstance(change_data_raw, (str, bytes)):
+                            try:
+                                change_data = json.loads(change_data_raw)
+                            except json.JSONDecodeError as json_err:
+                                logger.error(f"JSONDecodeError for entry {sync_id} ({entry_table_name} {record_id}): {json_err}. Raw data: {change_data_raw[:200]}...")
+                                # Mark this specific entry as failed and continue
+                                cursor.execute("""
+                                    UPDATE `sync_table`
+                                    SET `status` = 'failed', `error_message` = %s, `sync_attempts` = `sync_attempts` + 1
+                                    WHERE `id` = %s
+                                """, (f"JSONDecodeError: {json_err}", sync_id))
+                                failed_ids.append(sync_id)
+                                continue # Skip to next entry
+                            except Exception as other_err:
+                                logger.error(f"Other error parsing JSON for entry {sync_id} ({entry_table_name} {record_id}): {other_err}. Raw data: {change_data_raw[:200]}...")
+                                cursor.execute("""
+                                    UPDATE `sync_table`
+                                    SET `status` = 'failed', `error_message` = %s, `sync_attempts` = `sync_attempts` + 1
+                                    WHERE `id` = %s
+                                """, (f"Other JSON parse error: {other_err}", sync_id))
+                                failed_ids.append(sync_id)
+                                continue # Skip to next entry
+                        elif isinstance(change_data_raw, dict):
+                            change_data = change_data_raw
                         else:
-                            change_data = entry['change_data']
+                            logger.warning(f"Unexpected change_data type for entry {sync_id} ({entry_table_name} {record_id}): {type(change_data_raw)}. Skipping.")
+                            cursor.execute("""
+                                UPDATE `sync_table`
+                                SET `status` = 'failed', `error_message` = %s, `sync_attempts` = `sync_attempts` + 1
+                                WHERE `id` = %s
+                            """, (f"Unexpected change_data type: {type(change_data_raw)}", sync_id))
+                            failed_ids.append(sync_id)
+                            continue # Skip to next entry
                         
-                        logger.debug(f"Applying: {table_name} - {operation} - {record_id}")
+                        logger.debug(f"Applying: {entry_table_name} - {operation} - {record_id}")
                         
                         # Apply to local JSON files
-                        self._apply_to_local_json(table_name, operation, change_data)
+                        self._apply_to_local_json(entry_table_name, operation, change_data)
                         
                         # Mark as synced in MySQL
                         cursor.execute("""
@@ -252,16 +294,17 @@ class EnhancedSyncManager:
                         logger.error(f"Failed to apply entry {entry.get('id')}: {e}", exc_info=True)
                         failed_ids.append(entry.get('id'))
                         
-                        # Update sync_attempts
+                        # Update sync_attempts and status to failed if max retries reached
                         cursor.execute("""
                             UPDATE `sync_table`
                             SET `sync_attempts` = `sync_attempts` + 1,
                                 `status` = CASE 
-                                    WHEN `sync_attempts` >= 3 THEN 'failed'
+                                    WHEN `sync_attempts` >= %s THEN 'failed'
                                     ELSE 'pending'
-                                END
+                                END,
+                                `error_message` = %s
                             WHERE `id` = %s
-                        """, (entry.get('id'),))
+                        """, (self.MAX_RETRY_ATTEMPTS, str(e), entry.get('id'),))
                 
                 conn.commit()
                 
@@ -284,6 +327,83 @@ class EnhancedSyncManager:
         except Exception as e:
             logger.error(f"Error pulling from MySQL sync_table: {e}", exc_info=True)
             return {"status": "error", "message": str(e)}
+
+    def pull_bills_from_sync_table(self) -> Dict:
+        """
+        Specifically pull Bills and BillItems from MySQL sync_table
+        """
+        try:
+            with DatabaseConnection.get_connection_ctx() as conn:
+                cursor = conn.cursor(dictionary=True)
+                
+                last_sync = self.get_last_sync_timestamp()
+                logger.info(f"Pulling Bills from MySQL sync_table. Last sync: {last_sync or 'Never'}")
+                
+                # Query sync_table for Bills and BillItems
+                if last_sync:
+                    query = """
+                        SELECT * FROM sync_table 
+                        WHERE table_name IN ('Bills', 'BillItems', 'Customers')
+                        AND status = 'synced'
+                        AND created_at > %s
+                        ORDER BY created_at ASC
+                    """
+                    cursor.execute(query, (last_sync,))
+                else:
+                    query = """
+                        SELECT * FROM sync_table 
+                        WHERE table_name IN ('Bills', 'BillItems', 'Customers')
+                        AND status = 'synced'
+                        ORDER BY created_at ASC
+                        LIMIT 500
+                    """
+                    cursor.execute(query)
+                
+                entries = cursor.fetchall()
+                
+                if not entries:
+                    logger.info("No new bills to pull")
+                    return {'status': 'success', 'message': 'No new bills', 'pulled': 0}
+                
+                logger.info(f"Found {len(entries)} sync entries for Bills/BillItems/Customers")
+                
+                # Apply each entry to local JSON
+                applied = 0
+                for entry in entries:
+                    try:
+                        table_name = entry['table_name']
+                        operation = entry['operation_type']
+                        
+                        if isinstance(entry['change_data'], (str, bytes)):
+                            change_data = json.loads(entry['change_data'])
+                        else:
+                            change_data = entry['change_data']
+                        
+                        # Apply to local JSON
+                        self._apply_to_local_json(table_name, operation, change_data)
+                        applied += 1
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to apply sync entry {entry.get('id')}: {e}", exc_info=True)
+                
+                # Update last sync timestamp
+                if entries:
+                    latest = max(e['created_at'] for e in entries if e.get('created_at'))
+                    if latest:
+                        self.set_last_sync_timestamp(latest.isoformat())
+                
+                logger.info(f"Bills pull complete: {applied}/{len(entries)} applied")
+                
+                return {
+                    'status': 'success',
+                    'message': f'Applied {applied}/{len(entries)} bill changes',
+                    'pulled': len(entries),
+                    'applied': applied
+                }
+        
+        except Exception as e:
+            logger.error(f"Error pulling bills from sync_table: {e}", exc_info=True)
+            return {'status': 'error', 'message': str(e)}
 
     def _apply_to_local_json(self, table_name: str, operation: str, change_data: Dict) -> None:
         """Apply pulled changes to local JSON files"""

@@ -2836,5 +2836,96 @@
     "error_message": null,
     "created_at": "2025-10-31T23:27:47.508552",
     "completed_at": "2025-10-31T23:35:18.137610"
+  },
+  {
+    "id": 94,
+    "sync_time": "2025-11-03T14:31:56.664188",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "2e5788c4-5cab-4357-96fe-219ef7a7833d",
+    "change_data": {
+      "name": "A. Haram set",
+      "price": 123,
+      "stock": 34,
+      "selling_price": 657,
+      "barcodes": [
+        "1762160513558784"
+      ],
+      "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+      "id": "2e5788c4-5cab-4357-96fe-219ef7a7833d",
+      "createdAt": "2025-11-03T09:01:55.788535+00:00",
+      "updatedAt": "2025-11-03T09:01:55.788535+00:00"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-11-03T14:31:56.664188",
+    "completed_at": "2025-11-03T14:44:24.992711"
+  },
+  {
+    "id": 95,
+    "sync_time": "2025-11-03T14:35:38.196148",
+    "table_name": "Users",
+    "change_type": "CREATE",
+    "record_id": "17dc8e96-f909-4479-ab78-453eda736bf1",
+    "change_data": {
+      "name": "A. Haram set",
+      "email": "mailbox2249@gmail.com",
+      "password": "r3i!4sLL",
+      "role": "billing_user",
+      "assignedStores": [
+        "STR-1758042415183"
+      ],
+      "status": "active",
+      "id": "17dc8e96-f909-4479-ab78-453eda736bf1",
+      "createdAt": "2025-11-03T14:35:37.356978",
+      "updatedAt": "2025-11-03T14:35:37.356978"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-11-03T14:35:38.196148",
+    "completed_at": "2025-11-03T14:44:25.414403"
+  },
+  {
+    "id": 96,
+    "sync_time": "2025-11-03T14:38:06.548940",
+    "table_name": "Stores",
+    "change_type": "CREATE",
+    "record_id": "STR-1762160885710",
+    "change_data": {
+      "name": "testingstore",
+      "address": "mypadu reddy,",
+      "phone": "675435678",
+      "email": "",
+      "manager": "",
+      "status": "active",
+      "id": "STR-1762160885710",
+      "createdAt": "2025-11-03T14:38:05.710827"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-11-03T14:38:06.548940",
+    "completed_at": "2025-11-03T14:44:25.862367"
+  },
+  {
+    "id": 97,
+    "sync_time": "2025-11-03T15:14:25.862341",
+    "table_name": "Notifications",
+    "change_type": "UPDATE",
+    "record_id": "all",
+    "change_data": {
+      "action": "markAllRead"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-11-03T15:14:25.862341",
+    "completed_at": "2025-11-03T15:15:18.884682"
   }
 ]

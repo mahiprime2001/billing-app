@@ -35,5 +35,15 @@
     "status": "active",
     "id": "STR-1761569064837",
     "createdAt": "2025-10-27T18:14:24.837753"
+  },
+  {
+    "name": "testingstore",
+    "address": "mypadu reddy,",
+    "phone": "675435678",
+    "email": "",
+    "manager": "",
+    "status": "active",
+    "id": "STR-1762160885710",
+    "createdAt": "2025-11-03T14:38:05.710827"
   }
 ]
