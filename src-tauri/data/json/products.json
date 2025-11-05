@@ -7549,5 +7549,27 @@
     "barcodes": [
       "1758307769032423"
     ]
+  },
+  {
+    "id": "2e5788c4-5cab-4357-96fe-219ef7a7833d",
+    "name": "A. Haram set",
+    "stock": 26,
+    "assignedStoreId": null,
+    "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+    "selling_price": 657.0,
+    "createdAt": "2025-11-03T09:01:55",
+    "updatedAt": "2025-11-05T08:19:11.079183",
+    "barcodes": "1762160513558784"
+  },
+  {
+    "id": "5f409f0b-1035-463b-bd4c-14f67f0916a8",
+    "name": "A.NECKLACE",
+    "stock": 12,
+    "assignedStoreId": null,
+    "batchId": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
+    "selling_price": null,
+    "createdAt": "2025-10-27T17:35:39",
+    "updatedAt": "2025-10-27T23:28:08",
+    "barcodes": "1761586538188978"
   }
 ]

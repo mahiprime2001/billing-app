@@ -7,9 +7,10 @@ use tauri_plugin_shell::ShellExt;
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 use warp::Filter;
 use serde::{Deserialize, Serialize};
-use log::{info, error};
+use log::{info, error, warn};
 use tauri_plugin_log::{Target, TargetKind};
 use tauri_plugin_updater::UpdaterExt;
+use std::path::PathBuf;
 
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::HWND;
@@ -474,46 +475,100 @@ fn kill_process_tree(pid: u32) {
     }
 }
 
-// Helper function to spawn sidecar with cleanup
+// Helper function to get custom log directory (in app installation folder)
+fn get_app_log_dir(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
+    // Get the directory where the app executable is located
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let log_dir = exe_dir.join("logs");
+            
+            // Create the logs directory if it doesn't exist
+            if let Err(e) = std::fs::create_dir_all(&log_dir) {
+                eprintln!("Failed to create log directory: {}", e);
+                return None;
+            }
+            
+            return Some(log_dir);
+        }
+    }
+    None
+}
+
+// Helper function to spawn sidecar with cleanup and detailed logging
 fn spawn_sidecar(
     app_handle: &tauri::AppHandle,
     child_handle: Arc<Mutex<Option<CommandChild>>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    info!("Attempting to spawn sidecar...");
+    info!("=== ATTEMPTING TO SPAWN SIDECAR ===");
     
     // Kill any existing sidecar first
     if let Some(child) = child_handle.lock().unwrap().take() {
         let pid = child.pid();
+        warn!("Found existing sidecar process (PID {}), killing it...", pid);
         kill_process_tree(pid);
-        info!("Killed existing sidecar (PID {})", pid);
-        // Wait a bit for the process to fully terminate
+        info!("Killed existing sidecar, waiting 500ms for cleanup...");
         std::thread::sleep(std::time::Duration::from_millis(500));
     }
 
-    let cmd = app_handle.shell().sidecar("Siriadmin-backend")?;
-    let (mut rx, command_child) = cmd.spawn()?;
+    info!("Creating sidecar command for 'Siriadmin-backend'...");
+    let cmd = match app_handle.shell().sidecar("Siriadmin-backend") {
+        Ok(cmd) => {
+            info!("✓ Sidecar command created successfully");
+            cmd
+        }
+        Err(e) => {
+            error!("✗ Failed to create sidecar command: {}", e);
+            error!("  Make sure 'Siriadmin-backend' is configured in tauri.conf.json under bundle > externalBin");
+            return Err(Box::new(e));
+        }
+    };
+
+    info!("Spawning sidecar process...");
+    let (mut rx, command_child) = match cmd.spawn() {
+        Ok(result) => {
+            info!("✓ Sidecar spawn initiated");
+            result
+        }
+        Err(e) => {
+            error!("✗ Failed to spawn sidecar: {}", e);
+            error!("  Check if the binary exists and has execute permissions");
+            return Err(Box::new(e));
+        }
+    };
+    
     let pid = command_child.pid();
-    info!("Spawned sidecar with PID {}", pid);
+    info!("✓✓✓ SIDECAR SPAWNED SUCCESSFULLY WITH PID {} ✓✓✓", pid);
     
     *child_handle.lock().unwrap() = Some(command_child);
 
-    // Log sidecar output
+    // Log sidecar output with detailed information
     let child_handle_clone = Arc::clone(&child_handle);
     tauri::async_runtime::spawn(async move {
+        info!("Sidecar output monitor started for PID {}", pid);
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line) => {
-                    info!("Flask stdout: {}", String::from_utf8_lossy(&line))
+                    let output = String::from_utf8_lossy(&line);
+                    info!("Sidecar [PID {}] stdout: {}", pid, output);
                 }
                 CommandEvent::Stderr(line) => {
-                    error!("Flask stderr: {}", String::from_utf8_lossy(&line))
+                    let output = String::from_utf8_lossy(&line);
+                    error!("Sidecar [PID {}] stderr: {}", pid, output);
+                }
+                CommandEvent::Error(err) => {
+                    error!("Sidecar [PID {}] error: {}", pid, err);
+                }
+                CommandEvent::Terminated(payload) => {
+                    warn!("Sidecar [PID {}] terminated with code: {:?}", pid, payload.code);
                 }
                 _ => {}
             }
         }
+        warn!("Sidecar [PID {}] output stream ended", pid);
         let _ = child_handle_clone.lock().unwrap().take();
     });
 
+    info!("=== SIDECAR INITIALIZATION COMPLETE ===");
     Ok(())
 }
 
@@ -525,20 +580,114 @@ fn main() {
     let child_handle: Arc<Mutex<Option<CommandChild>>> = Arc::new(Mutex::new(None));
 
     let app = tauri::Builder::default()
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .targets([
-                    Target::new(TargetKind::Stdout),
-                    Target::new(TargetKind::LogDir {
-                        file_name: Some("tauri-printer-app".into()),
-                    }),
-                    Target::new(TargetKind::Webview),
-                ])
-                .level(log::LevelFilter::Info)
-                .build(),
-        )
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .setup({
+            let child_handle = Arc::clone(&child_handle);
+            move |app| {
+                // Setup custom log directory in app installation folder
+                let log_path = if let Some(log_dir) = get_app_log_dir(app.handle()) {
+                    println!("Log directory: {}", log_dir.display());
+                    log_dir.join("app.log")
+                } else {
+                    println!("Failed to get app log directory, using default");
+                    PathBuf::from("app.log")
+                };
+
+                // Initialize logging plugin with custom path
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::new()
+                        .targets([
+                            Target::new(TargetKind::Stdout),
+                            Target::new(TargetKind::Folder {
+                                path: log_path.parent().unwrap().to_path_buf(),
+                                file_name: Some("app".to_string()),
+                            }),
+                            Target::new(TargetKind::Webview),
+                        ])
+                        .level(log::LevelFilter::Info)
+                        .build(),
+                ).expect("Failed to initialize logging plugin");
+
+                info!("========================================");
+                info!("APPLICATION SETUP STARTED");
+                info!("Log file location: {}", log_path.display());
+                info!("========================================");
+
+                // Check for updates on app startup
+                let app_handle_clone_for_spawn = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    match check_for_updates(app_handle_clone_for_spawn).await {
+                        Ok(msg) => info!("Update check: {}", msg),
+                        Err(e) => error!("Update check error: {}", e),
+                    }
+                });
+
+                // Spawn sidecar with retry logic
+                info!("Initiating sidecar spawn...");
+                let handle = app.app_handle().clone();
+                let child_handle_clone = Arc::clone(&child_handle);
+                
+                match spawn_sidecar(&handle, child_handle_clone.clone()) {
+                    Ok(_) => {
+                        info!("Sidecar spawned successfully on first attempt");
+                    }
+                    Err(e) => {
+                        error!("CRITICAL: Failed to spawn sidecar on first attempt: {}", e);
+                        warn!("Will retry in 2 seconds...");
+                        
+                        // Retry after a delay
+                        let handle_retry = handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                            info!("Retrying sidecar spawn...");
+                            match spawn_sidecar(&handle_retry, child_handle_clone) {
+                                Ok(_) => info!("Sidecar spawned successfully on retry"),
+                                Err(e) => error!("CRITICAL: Failed to spawn sidecar on retry: {}", e),
+                            }
+                        });
+                    }
+                }
+
+                // Start HTTP server and initial printer scan
+                info!("Starting HTTP server on port 5050...");
+                let printers = Arc::new(Mutex::new(vec![]));
+                let printers_clone = printers.clone();
+                tauri::async_runtime::spawn(async move {
+                    info!("HTTP server task started");
+                    start_http_server(printers_clone).await
+                });
+
+                info!("Scanning for available printers...");
+                let printers_clone = printers.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Ok(list) = get_available_printers().await {
+                        info!("Initial printer scan found {} printers", list.len());
+                        *printers_clone.lock().unwrap() = list;
+                    }
+                });
+
+                // Kill sidecar on window close
+                if let Some(main_win) = app.get_webview_window("main") {
+                    info!("Registering window close event handler");
+                    let child_handle_for_close = Arc::clone(&child_handle);
+                    main_win.on_window_event(move |event| {
+                        if let tauri::WindowEvent::CloseRequested { .. } = event {
+                            if let Some(child) = child_handle_for_close.lock().unwrap().take() {
+                                let pid = child.pid();
+                                info!("Window close requested, killing sidecar tree (PID {})", pid);
+                                kill_process_tree(pid);
+                            }
+                        }
+                    });
+                }
+
+                info!("========================================");
+                info!("APPLICATION SETUP COMPLETE");
+                info!("========================================");
+                Ok(())
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             get_available_printers,
             send_tspl_to_printer,
@@ -547,79 +696,20 @@ fn main() {
             check_for_updates,
             install_update
         ])
-        .setup({
-            let child_handle = Arc::clone(&child_handle);
-            move |app| {
-                // Check for updates on app startup
-                let app_handle_clone_for_spawn = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    match check_for_updates(app_handle_clone_for_spawn).await {
-                        Ok(msg) => info!("{}", msg),
-                        Err(e) => error!("{}", e),
-                    }
-                });
-
-                // Spawn sidecar with retry logic
-                let handle = app.app_handle().clone();
-                let child_handle_clone = Arc::clone(&child_handle);
-                
-                if let Err(e) = spawn_sidecar(&handle, child_handle_clone.clone()) {
-                    error!("Failed to spawn sidecar on first attempt: {}", e);
-                    
-                    // Retry after a delay
-                    let handle_retry = handle.clone();
-                    tauri::async_runtime::spawn(async move {
-                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                        info!("Retrying sidecar spawn...");
-                        if let Err(e) = spawn_sidecar(&handle_retry, child_handle_clone) {
-                            error!("Failed to spawn sidecar on retry: {}", e);
-                        }
-                    });
-                }
-
-                // Start HTTP server and initial printer scan
-                let printers = Arc::new(Mutex::new(vec![]));
-                let printers_clone = printers.clone();
-                tauri::async_runtime::spawn(async move {
-                    start_http_server(printers_clone).await
-                });
-
-                let printers_clone = printers.clone();
-                tauri::async_runtime::spawn(async move {
-                    if let Ok(list) = get_available_printers().await {
-                        *printers_clone.lock().unwrap() = list;
-                    }
-                });
-
-                // Kill sidecar on window close
-                if let Some(main_win) = app.get_webview_window("main") {
-                    let child_handle_for_close = Arc::clone(&child_handle);
-                    main_win.on_window_event(move |event| {
-                        if let tauri::WindowEvent::CloseRequested { .. } = event {
-                            if let Some(child) = child_handle_for_close.lock().unwrap().take() {
-                                let pid = child.pid();
-                                kill_process_tree(pid);
-                                info!("Killed sidecar tree on window close (PID {})", pid);
-                            }
-                        }
-                    });
-                }
-
-                Ok(())
-            }
-        })
         .build(tauri::generate_context!())
         .expect("error building app");
 
     // Kill sidecar on app exit
+    info!("Application starting run loop...");
     app.run({
         let child_handle = Arc::clone(&child_handle);
         move |_app_handle, event| {
             if let RunEvent::Exit = event {
+                info!("Application exit event received");
                 if let Some(child) = child_handle.lock().unwrap().take() {
                     let pid = child.pid();
+                    info!("Killing sidecar tree on app exit (PID {})", pid);
                     kill_process_tree(pid);
-                    info!("Killed sidecar tree on app exit (PID {})", pid);
                 }
             }
         }

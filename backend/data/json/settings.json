@@ -6,7 +6,8 @@
     "companyPhone": "+91 98765 43210",
     "gstin": "27AAFCV2449G1Z7",
     "id": 1,
-    "taxPercentage": 8.9
+    "taxPercentage": 8.9,
+    "last_sync_time": "2025-11-05T16:39:02"
   },
   "billFormats": {
     "A4": {
