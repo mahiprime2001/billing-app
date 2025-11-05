@@ -1,17 +1,325 @@
-[2025-10-26 19:37:33,599] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\backend
-[2025-10-26 19:37:33,599] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\backend
-2025-10-26 19:37:33,599 - app - INFO - app.py:144 - APP_BASE_DIR: E:\Siri-apps\billing-app\backend
-[2025-10-26 19:37:33,599] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
-[2025-10-26 19:37:33,599] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
-2025-10-26 19:37:33,599 - app - INFO - app.py:145 - JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
-[2025-10-26 19:37:33,599] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
-[2025-10-26 19:37:33,599] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
-2025-10-26 19:37:33,599 - app - INFO - app.py:146 - LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
+[2025-11-05 22:55:12,136] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\backend
+[2025-11-05 22:55:12,136] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\backend
+2025-11-05 22:55:12,136 - app - INFO - app.py:170 - APP_BASE_DIR: E:\Siri-apps\billing-app\backend
+[2025-11-05 22:55:12,155] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
+[2025-11-05 22:55:12,155] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
+2025-11-05 22:55:12,155 - app - INFO - app.py:171 - JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
+[2025-11-05 22:55:12,174] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
+[2025-11-05 22:55:12,174] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
+2025-11-05 22:55:12,174 - app - INFO - app.py:172 - LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
+[2025-11-05 22:55:12,314] INFO in app: JSON data files not found or empty. Attempting to export from database.
+[2025-11-05 22:55:12,314] INFO in app: JSON data files not found or empty. Attempting to export from database.
+2025-11-05 22:55:12,314 - app - INFO - app.py:2789 - JSON data files not found or empty. Attempting to export from database.
 MySQL connection pool created successfully with hardcoded values.
+Successfully exported formatted data to bills.json
+Successfully exported data to products.json
+Successfully exported data to stores.json
+Successfully exported data to users.json
+Successfully exported data to settings.json
+[2025-11-05 22:55:14,861] INFO in app: Database data successfully exported to JSON files.
+[2025-11-05 22:55:14,861] INFO in app: Database data successfully exported to JSON files.
+2025-11-05 22:55:14,861 - app - INFO - app.py:2792 - Database data successfully exported to JSON files.
 Table 'batch' checked/created successfully.
-[2025-10-26 19:37:35,730] INFO in app: Enhanced background sync process started successfully
-[2025-10-26 19:37:35,730] INFO in app: Enhanced background sync process started successfully
-2025-10-26 19:37:35,730 - app - INFO - app.py:1991 - Enhanced background sync process started successfully
+Table 'ProductBarcodes' checked/created successfully.
+Table 'Users' checked/created successfully.
+Ensured 'password' column in 'Users' table is NOT NULL.
+Table 'UserStores' checked/created successfully.
+Table 'Bills' checked/created successfully.
+[2025-11-05 22:55:17,225] INFO in app: Data file missing/empty: E:\Siri-apps\billing-app\backend\data\json\customers.json. Will perform full pull.
+[2025-11-05 22:55:17,225] INFO in app: Data file missing/empty: E:\Siri-apps\billing-app\backend\data\json\customers.json. Will perform full pull.
+2025-11-05 22:55:17,225 - app - INFO - app.py:290 - Data file missing/empty: E:\Siri-apps\billing-app\backend\data\json\customers.json. Will perform full pull.
+[2025-11-05 22:55:17,227] INFO in app: First run detected. Pulling all data from MySQL...
+[2025-11-05 22:55:17,227] INFO in app: First run detected. Pulling all data from MySQL...
+2025-11-05 22:55:17,227 - app - INFO - app.py:2832 - First run detected. Pulling all data from MySQL...
+[2025-11-05 22:55:17,227] INFO in app: Starting initial full data pull from MySQL...
+[2025-11-05 22:55:17,227] INFO in app: Starting initial full data pull from MySQL...
+2025-11-05 22:55:17,227 - app - INFO - app.py:208 - Starting initial full data pull from MySQL...
+[2025-11-05 22:55:17,338] DEBUG in app: Pulling all records from Products...
+[2025-11-05 22:55:17,338] DEBUG in app: Pulling all records from Products...
+2025-11-05 22:55:17,338 - app - DEBUG - app.py:228 - Pulling all records from Products...
+[2025-11-05 22:55:17,377] INFO in app: Pulled 3 records from Products → E:\Siri-apps\billing-app\backend\data\json\products.json
+[2025-11-05 22:55:17,377] INFO in app: Pulled 3 records from Products → E:\Siri-apps\billing-app\backend\data\json\products.json
+--- Logging error ---
+--- Logging error ---
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 83: character maps to <undefined>
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 83: character maps to <undefined>
+Call stack:
+Call stack:
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+Message: 'Pulled 3 records from Products → E:\\Siri-apps\\billing-app\\backend\\data\\json\\products.json'
+Arguments: ()
+Message: 'Pulled 3 records from Products → E:\\Siri-apps\\billing-app\\backend\\data\\json\\products.json'
+Arguments: ()
+[2025-11-05 22:55:17,388] DEBUG in app: Pulling all records from Users...
+[2025-11-05 22:55:17,388] DEBUG in app: Pulling all records from Users...
+2025-11-05 22:55:17,388 - app - DEBUG - app.py:228 - Pulling all records from Users...
+[2025-11-05 22:55:17,429] INFO in app: Pulled 5 records from Users → E:\Siri-apps\billing-app\backend\data\json\users.json
+[2025-11-05 22:55:17,429] INFO in app: Pulled 5 records from Users → E:\Siri-apps\billing-app\backend\data\json\users.json
+--- Logging error ---
+--- Logging error ---
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 80: character maps to <undefined>
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 80: character maps to <undefined>
+Call stack:
+Call stack:
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+Message: 'Pulled 5 records from Users → E:\\Siri-apps\\billing-app\\backend\\data\\json\\users.json'
+Arguments: ()
+Message: 'Pulled 5 records from Users → E:\\Siri-apps\\billing-app\\backend\\data\\json\\users.json'
+Arguments: ()
+[2025-11-05 22:55:17,432] DEBUG in app: Pulling all records from Bills...
+[2025-11-05 22:55:17,432] DEBUG in app: Pulling all records from Bills...
+2025-11-05 22:55:17,432 - app - DEBUG - app.py:228 - Pulling all records from Bills...
+[2025-11-05 22:55:17,473] INFO in app: Pulled 7 records from Bills → E:\Siri-apps\billing-app\backend\data\json\bills.json
+[2025-11-05 22:55:17,473] INFO in app: Pulled 7 records from Bills → E:\Siri-apps\billing-app\backend\data\json\bills.json
+--- Logging error ---
+--- Logging error ---
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 80: character maps to <undefined>
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 80: character maps to <undefined>
+Call stack:
+Call stack:
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+Message: 'Pulled 7 records from Bills → E:\\Siri-apps\\billing-app\\backend\\data\\json\\bills.json'
+Arguments: ()
+Message: 'Pulled 7 records from Bills → E:\\Siri-apps\\billing-app\\backend\\data\\json\\bills.json'
+Arguments: ()
+[2025-11-05 22:55:17,477] DEBUG in app: Pulling all records from Customers...
+[2025-11-05 22:55:17,477] DEBUG in app: Pulling all records from Customers...
+2025-11-05 22:55:17,477 - app - DEBUG - app.py:228 - Pulling all records from Customers...
+[2025-11-05 22:55:17,516] INFO in app: Pulled 1 records from Customers → E:\Siri-apps\billing-app\backend\data\json\customers.json
+[2025-11-05 22:55:17,516] INFO in app: Pulled 1 records from Customers → E:\Siri-apps\billing-app\backend\data\json\customers.json
+--- Logging error ---
+--- Logging error ---
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 84: character maps to <undefined>
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 84: character maps to <undefined>
+Call stack:
+Call stack:
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+Message: 'Pulled 1 records from Customers → E:\\Siri-apps\\billing-app\\backend\\data\\json\\customers.json'
+Arguments: ()
+Message: 'Pulled 1 records from Customers → E:\\Siri-apps\\billing-app\\backend\\data\\json\\customers.json'
+Arguments: ()
+[2025-11-05 22:55:17,519] DEBUG in app: Pulling all records from Stores...
+[2025-11-05 22:55:17,519] DEBUG in app: Pulling all records from Stores...
+2025-11-05 22:55:17,519 - app - DEBUG - app.py:228 - Pulling all records from Stores...
+[2025-11-05 22:55:17,557] INFO in app: Pulled 5 records from Stores → E:\Siri-apps\billing-app\backend\data\json\stores.json
+[2025-11-05 22:55:17,557] INFO in app: Pulled 5 records from Stores → E:\Siri-apps\billing-app\backend\data\json\stores.json
+--- Logging error ---
+--- Logging error ---
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 81: character maps to <undefined>
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 81: character maps to <undefined>
+Call stack:
+Call stack:
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+Message: 'Pulled 5 records from Stores → E:\\Siri-apps\\billing-app\\backend\\data\\json\\stores.json'
+Arguments: ()
+Message: 'Pulled 5 records from Stores → E:\\Siri-apps\\billing-app\\backend\\data\\json\\stores.json'
+Arguments: ()
+[2025-11-05 22:55:17,560] DEBUG in app: Pulling all records from batch...
+[2025-11-05 22:55:17,560] DEBUG in app: Pulling all records from batch...
+2025-11-05 22:55:17,560 - app - DEBUG - app.py:228 - Pulling all records from batch...
+[2025-11-05 22:55:17,600] INFO in app: Pulled 1 records from batch → E:\Siri-apps\billing-app\backend\data\json\batches.json
+[2025-11-05 22:55:17,600] INFO in app: Pulled 1 records from batch → E:\Siri-apps\billing-app\backend\data\json\batches.json
+--- Logging error ---
+--- Logging error ---
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 80: character maps to <undefined>
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 80: character maps to <undefined>
+Call stack:
+Call stack:
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+Message: 'Pulled 1 records from batch → E:\\Siri-apps\\billing-app\\backend\\data\\json\\batches.json'
+Arguments: ()
+Message: 'Pulled 1 records from batch → E:\\Siri-apps\\billing-app\\backend\\data\\json\\batches.json'
+Arguments: ()
+[2025-11-05 22:55:17,604] DEBUG in app: Pulling all records from Notifications...
+[2025-11-05 22:55:17,604] DEBUG in app: Pulling all records from Notifications...
+2025-11-05 22:55:17,604 - app - DEBUG - app.py:228 - Pulling all records from Notifications...
+[2025-11-05 22:55:17,645] INFO in app: Pulled 11 records from Notifications → E:\Siri-apps\billing-app\backend\data\json\notifications.json
+[2025-11-05 22:55:17,645] INFO in app: Pulled 11 records from Notifications → E:\Siri-apps\billing-app\backend\data\json\notifications.json
+--- Logging error ---
+--- Logging error ---
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 89: character maps to <undefined>
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 89: character maps to <undefined>
+Call stack:
+Call stack:
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+Message: 'Pulled 11 records from Notifications → E:\\Siri-apps\\billing-app\\backend\\data\\json\\notifications.json'
+Arguments: ()
+Message: 'Pulled 11 records from Notifications → E:\\Siri-apps\\billing-app\\backend\\data\\json\\notifications.json'
+Arguments: ()
+[2025-11-05 22:55:17,656] DEBUG in app: Pulling all records from SystemSettings...
+[2025-11-05 22:55:17,656] DEBUG in app: Pulling all records from SystemSettings...
+2025-11-05 22:55:17,656 - app - DEBUG - app.py:228 - Pulling all records from SystemSettings...
+[2025-11-05 22:55:17,695] INFO in app: Pulled 1 records from SystemSettings → E:\Siri-apps\billing-app\backend\data\json\settings.json
+[2025-11-05 22:55:17,695] INFO in app: Pulled 1 records from SystemSettings → E:\Siri-apps\billing-app\backend\data\json\settings.json
+--- Logging error ---
+--- Logging error ---
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 89: character maps to <undefined>
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 89: character maps to <undefined>
+Call stack:
+Call stack:
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 2833, in <module>
+    initialize_full_data_pull()
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+  File "E:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+Message: 'Pulled 1 records from SystemSettings → E:\\Siri-apps\\billing-app\\backend\\data\\json\\settings.json'
+Arguments: ()
+Message: 'Pulled 1 records from SystemSettings → E:\\Siri-apps\\billing-app\\backend\\data\\json\\settings.json'
+Arguments: ()
+[2025-11-05 22:55:17,755] INFO in app: Full data pull completed successfully
+[2025-11-05 22:55:17,755] INFO in app: Full data pull completed successfully
+2025-11-05 22:55:17,755 - app - INFO - app.py:270 - Full data pull completed successfully
+[2025-11-05 22:55:17,946] INFO in app: Enhanced background sync process started successfully
+[2025-11-05 22:55:17,946] INFO in app: Enhanced background sync process started successfully
+2025-11-05 22:55:17,946 - app - INFO - app.py:2757 - Enhanced background sync process started successfully
  * Serving Flask app 'app'
  * Debug mode: on
 WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
@@ -22,133 +330,15 @@ Press CTRL+C to quitPress CTRL+C to quit
 
  * Restarting with stat
  * Restarting with stat
-[2025-10-26 19:37:36,421] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\backend
-[2025-10-26 19:37:36,421] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\backend
-2025-10-26 19:37:36,421 - app - INFO - app.py:144 - APP_BASE_DIR: E:\Siri-apps\billing-app\backend
-[2025-10-26 19:37:36,421] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
-[2025-10-26 19:37:36,421] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
-2025-10-26 19:37:36,421 - app - INFO - app.py:145 - JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
-[2025-10-26 19:37:36,421] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
-[2025-10-26 19:37:36,421] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
-2025-10-26 19:37:36,421 - app - INFO - app.py:146 - LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
-MySQL connection pool created successfully with hardcoded values.
-Table 'batch' checked/created successfully.
-[2025-10-26 19:37:38,336] INFO in app: Enhanced background sync process started successfully
-[2025-10-26 19:37:38,336] INFO in app: Enhanced background sync process started successfully
-2025-10-26 19:37:38,336 - app - INFO - app.py:1991 - Enhanced background sync process started successfully
- * Debugger is active!
- * Debugger is active!
- * Debugger PIN: 110-481-538
- * Debugger PIN: 110-481-538
-[2025-10-26 22:19:47,950] INFO in app: Incoming Request: Method=OPTIONS, Path=/api/auth/login, Origin=http://localhost:3000
-[2025-10-26 22:19:47,950] INFO in app: Incoming Request: Method=OPTIONS, Path=/api/auth/login, Origin=http://localhost:3000
-2025-10-26 22:19:47,950 - app - INFO - app.py:69 - Incoming Request: Method=OPTIONS, Path=/api/auth/login, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:47] "OPTIONS /api/auth/login HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:47] "OPTIONS /api/auth/login HTTP/1.1" 200 -
-[2025-10-26 22:19:47,954] INFO in app: Incoming Request: Method=POST, Path=/api/auth/login, Origin=http://localhost:3000
-[2025-10-26 22:19:47,954] INFO in app: Incoming Request: Method=POST, Path=/api/auth/login, Origin=http://localhost:3000
-2025-10-26 22:19:47,954 - app - INFO - app.py:69 - Incoming Request: Method=POST, Path=/api/auth/login, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:47] "POST /api/auth/login HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:47] "POST /api/auth/login HTTP/1.1" 200 -
-[2025-10-26 22:19:49,227] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-[2025-10-26 22:19:49,227] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-2025-10-26 22:19:49,227 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
-[2025-10-26 22:19:49,238] INFO in app: Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
-[2025-10-26 22:19:49,238] INFO in app: Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
-2025-10-26 22:19:49,238 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
-[2025-10-26 22:19:49,241] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
-[2025-10-26 22:19:49,241] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
-[2025-10-26 22:19:49,242] INFO in app: Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
-[2025-10-26 22:19:49,242] INFO in app: Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
-[2025-10-26 22:19:49,244] INFO in app: Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
-[2025-10-26 22:19:49,244] INFO in app: Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
-2025-10-26 22:19:49,241 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
-2025-10-26 22:19:49,242 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
-2025-10-26 22:19:49,244 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/bills HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/bills HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/users HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/users HTTP/1.1" 200 -
-[2025-10-26 22:19:49,249] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-[2025-10-26 22:19:49,249] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-2025-10-26 22:19:49,249 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
-[2025-10-26 22:19:49,256] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
-[2025-10-26 22:19:49,256] INFO in app: Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
-2025-10-26 22:19:49,256 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/bills HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/bills HTTP/1.1" 200 -
-[2025-10-26 22:19:49,261] INFO in app: Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
-[2025-10-26 22:19:49,261] INFO in app: Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
-2025-10-26 22:19:49,261 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/stores HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/stores HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/users HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/users HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/products HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/products HTTP/1.1" 200 -
-[2025-10-26 22:19:49,295] INFO in app: Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
-[2025-10-26 22:19:49,295] INFO in app: Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
-2025-10-26 22:19:49,295 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/stores HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/stores HTTP/1.1" 200 -
-[2025-10-26 22:19:49,296] INFO in app: Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
-[2025-10-26 22:19:49,296] INFO in app: Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
-2025-10-26 22:19:49,296 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/products HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:49] "GET /api/products HTTP/1.1" 200 -
-[2025-10-26 22:19:52,450] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-[2025-10-26 22:19:52,450] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-2025-10-26 22:19:52,450 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
-[2025-10-26 22:19:52,456] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-[2025-10-26 22:19:52,456] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-2025-10-26 22:19:52,456 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
-[2025-10-26 22:19:52,740] INFO in app: Incoming Request: Method=GET, Path=/api/settings, Origin=http://localhost:3000
-[2025-10-26 22:19:52,740] INFO in app: Incoming Request: Method=GET, Path=/api/settings, Origin=http://localhost:3000
-2025-10-26 22:19:52,740 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/settings, Origin=http://localhost:3000
-[2025-10-26 22:19:52,742] INFO in app: Incoming Request: Method=GET, Path=/api/admin-users, Origin=http://localhost:3000
-[2025-10-26 22:19:52,742] INFO in app: Incoming Request: Method=GET, Path=/api/admin-users, Origin=http://localhost:3000
-2025-10-26 22:19:52,742 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/admin-users, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/admin-users HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/admin-users HTTP/1.1" 200 -
-[2025-10-26 22:19:52,746] INFO in app: Incoming Request: Method=GET, Path=/api/admin-users, Origin=http://localhost:3000
-[2025-10-26 22:19:52,746] INFO in app: Incoming Request: Method=GET, Path=/api/admin-users, Origin=http://localhost:3000
-2025-10-26 22:19:52,746 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/admin-users, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/admin-users HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/admin-users HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/settings HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/settings HTTP/1.1" 200 -
-[2025-10-26 22:19:52,764] INFO in app: Incoming Request: Method=GET, Path=/api/settings, Origin=http://localhost:3000
-[2025-10-26 22:19:52,764] INFO in app: Incoming Request: Method=GET, Path=/api/settings, Origin=http://localhost:3000
-2025-10-26 22:19:52,764 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/settings, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/settings HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/settings HTTP/1.1" 200 -
-[2025-10-26 22:19:52,792] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-[2025-10-26 22:19:52,792] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-2025-10-26 22:19:52,792 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
-[2025-10-26 22:19:52,797] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-[2025-10-26 22:19:52,797] INFO in app: Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-2025-10-26 22:19:52,797 - app - INFO - app.py:69 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
-127.0.0.1 - - [26/Oct/2025 22:19:52] "GET /api/notifications?limit=20 HTTP/1.1" 200 -
-[2025-11-05 17:09:59,896] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\backend
-[2025-11-05 17:09:59,896] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\backend
-2025-11-05 17:09:59,896 - app - INFO - app.py:170 - APP_BASE_DIR: E:\Siri-apps\billing-app\backend
-[2025-11-05 17:09:59,910] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
-[2025-11-05 17:09:59,910] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
-2025-11-05 17:09:59,910 - app - INFO - app.py:171 - JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
-[2025-11-05 17:09:59,910] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
-[2025-11-05 17:09:59,910] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
-2025-11-05 17:09:59,910 - app - INFO - app.py:172 - LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
+[2025-11-05 22:55:19,374] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\backend
+[2025-11-05 22:55:19,374] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\backend
+2025-11-05 22:55:19,374 - app - INFO - app.py:170 - APP_BASE_DIR: E:\Siri-apps\billing-app\backend
+[2025-11-05 22:55:19,374] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
+[2025-11-05 22:55:19,374] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
+2025-11-05 22:55:19,374 - app - INFO - app.py:171 - JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
+[2025-11-05 22:55:19,377] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
+[2025-11-05 22:55:19,377] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
+2025-11-05 22:55:19,377 - app - INFO - app.py:172 - LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
 MySQL connection pool created successfully with hardcoded values.
 Table 'batch' checked/created successfully.
 Table 'ProductBarcodes' checked/created successfully.
@@ -156,44 +346,12 @@ Table 'Users' checked/created successfully.
 Ensured 'password' column in 'Users' table is NOT NULL.
 Table 'UserStores' checked/created successfully.
 Table 'Bills' checked/created successfully.
-[2025-11-05 17:10:05,831] INFO in app: BILLS_FILE: E:\Siri-apps\billing-app\backend\data\json\bills.json, Exists: True, Size: 2 bytes
-[2025-11-05 17:10:05,831] INFO in app: BILLS_FILE: E:\Siri-apps\billing-app\backend\data\json\bills.json, Exists: True, Size: 2 bytes
-2025-11-05 17:10:05,831 - app - INFO - app.py:2758 - BILLS_FILE: E:\Siri-apps\billing-app\backend\data\json\bills.json, Exists: True, Size: 2 bytes
-[2025-11-05 17:10:05,835] INFO in app: Enhanced background sync process started successfully
-[2025-11-05 17:10:05,835] INFO in app: Enhanced background sync process started successfully
-2025-11-05 17:10:05,835 - app - INFO - app.py:2665 - Enhanced background sync process started successfully
- * Serving Flask app 'app'
- * Debug mode: on
-WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
- * Running on http://127.0.0.1:8080
-
- * Running on http://127.0.0.1:8080
-Press CTRL+C to quitPress CTRL+C to quit
-
- * Restarting with stat
- * Restarting with stat
-[2025-11-05 17:10:06,830] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\backend
-[2025-11-05 17:10:06,830] INFO in app: APP_BASE_DIR: E:\Siri-apps\billing-app\backend
-2025-11-05 17:10:06,830 - app - INFO - app.py:170 - APP_BASE_DIR: E:\Siri-apps\billing-app\backend
-[2025-11-05 17:10:06,833] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
-[2025-11-05 17:10:06,833] INFO in app: JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
-2025-11-05 17:10:06,833 - app - INFO - app.py:171 - JSON_DIR: E:\Siri-apps\billing-app\backend\data\json
-[2025-11-05 17:10:06,833] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
-[2025-11-05 17:10:06,833] INFO in app: LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
-2025-11-05 17:10:06,833 - app - INFO - app.py:172 - LOGS_DIR: E:\Siri-apps\billing-app\backend\data\logs
-MySQL connection pool created successfully with hardcoded values.
-Table 'batch' checked/created successfully.
-Table 'ProductBarcodes' checked/created successfully.
-Table 'Users' checked/created successfully.
-Ensured 'password' column in 'Users' table is NOT NULL.
-Table 'UserStores' checked/created successfully.
-Table 'Bills' checked/created successfully.
-[2025-11-05 17:10:11,658] INFO in app: BILLS_FILE: E:\Siri-apps\billing-app\backend\data\json\bills.json, Exists: True, Size: 1747 bytes
-[2025-11-05 17:10:11,658] INFO in app: BILLS_FILE: E:\Siri-apps\billing-app\backend\data\json\bills.json, Exists: True, Size: 1747 bytes
-2025-11-05 17:10:11,658 - app - INFO - app.py:2758 - BILLS_FILE: E:\Siri-apps\billing-app\backend\data\json\bills.json, Exists: True, Size: 1747 bytes
-[2025-11-05 17:10:11,659] INFO in app: Enhanced background sync process started successfully
-[2025-11-05 17:10:11,659] INFO in app: Enhanced background sync process started successfully
-2025-11-05 17:10:11,659 - app - INFO - app.py:2665 - Enhanced background sync process started successfully
+[2025-11-05 22:55:23,335] DEBUG in app: Data files already populated, skipping full pull.
+[2025-11-05 22:55:23,335] DEBUG in app: Data files already populated, skipping full pull.
+2025-11-05 22:55:23,335 - app - DEBUG - app.py:2835 - Data files already populated, skipping full pull.
+[2025-11-05 22:55:23,337] INFO in app: Enhanced background sync process started successfully
+[2025-11-05 22:55:23,337] INFO in app: Enhanced background sync process started successfully
+2025-11-05 22:55:23,337 - app - INFO - app.py:2757 - Enhanced background sync process started successfully
  * Debugger is active!
  * Debugger is active!
  * Debugger PIN: 110-481-538
@@ -234,9 +392,9 @@ Traceback (most recent call last):
 
 OSErrorOSError: : [WinError 10038] An operation was attempted on something that is not a socket[WinError 10038] An operation was attempted on something that is not a socket
 
-[2025-11-05 17:12:31,086] INFO in app: Enhanced sync manager stopped gracefully
-[2025-11-05 17:12:31,086] INFO in app: Enhanced sync manager stopped gracefully
-2025-11-05 17:12:31,086 - app - INFO - app.py:2842 - Enhanced sync manager stopped gracefully
-[2025-11-05 17:12:36,218] INFO in app: Enhanced sync manager stopped gracefully
-[2025-11-05 17:12:36,218] INFO in app: Enhanced sync manager stopped gracefully
-2025-11-05 17:12:36,218 - app - INFO - app.py:2842 - Enhanced sync manager stopped gracefully
+[2025-11-05 22:58:19,149] INFO in app: Enhanced sync manager stopped gracefully
+[2025-11-05 22:58:19,149] INFO in app: Enhanced sync manager stopped gracefully
+2025-11-05 22:58:19,149 - app - INFO - app.py:2899 - Enhanced sync manager stopped gracefully
+[2025-11-05 22:58:24,232] INFO in app: Enhanced sync manager stopped gracefully
+[2025-11-05 22:58:24,232] INFO in app: Enhanced sync manager stopped gracefully
+2025-11-05 22:58:24,232 - app - INFO - app.py:2899 - Enhanced sync manager stopped gracefully

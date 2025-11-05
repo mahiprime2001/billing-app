@@ -200,6 +200,98 @@ def _safe_json_dump(path, data):
     except Exception as e:
         app.logger.error(f"Failed to write JSON to {path}: {e}")
 
+def initialize_full_data_pull():
+    """
+    On first startup (if data folder missing/empty), pull ALL data from MySQL
+    into respective JSON files. Only runs once during initialization.
+    """
+    app.logger.info("Starting initial full data pull from MySQL...")
+    
+    try:
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+            
+            # Define table-to-file mappings
+            table_mappings = {
+                'Products': PRODUCTS_FILE,
+                'Users': USERS_FILE,
+                'Bills': BILLS_FILE,
+                'Customers': CUSTOMERS_FILE,
+                'Stores': STORES_FILE,
+                'batch': BATCHES_FILE,
+                'Notifications': NOTIFICATIONS_FILE,
+                'SystemSettings': SETTINGS_FILE
+            }
+            
+            for table_name, json_file in table_mappings.items():
+                try:
+                    app.logger.debug(f"Pulling all records from {table_name}...")
+                    
+                    # Query: get ALL records from the table
+                    cursor.execute(f"SELECT * FROM `{table_name}`")
+                    records = cursor.fetchall()
+                    
+                    if records:
+                        # Convert Decimal and datetime objects for JSON serialization
+                        serialized_records = []
+                        for record in records:
+                            serialized = {
+                                k: (
+                                    float(v) if isinstance(v, Decimal)
+                                    else v.isoformat() if isinstance(v, (datetime, date))
+                                    else v
+                                )
+                                for k, v in record.items()
+                            }
+                            serialized_records.append(serialized)
+                        
+                        # For SystemSettings, save as dict, not list
+                        if table_name == 'SystemSettings':
+                            settings_dict = {s['id']: s for s in serialized_records}
+                            _safe_json_dump(json_file, settings_dict)
+                        else:
+                            _safe_json_dump(json_file, serialized_records)
+                        
+                        app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+                    else:
+                        app.logger.debug(f"No records found in {table_name}, using empty default")
+                        
+                except Exception as table_err:
+                    app.logger.error(f"Error pulling {table_name}: {table_err}", exc_info=True)
+                    continue  # Skip this table, continue with others
+            
+            # Update last sync timestamp
+            settings = get_settings_data()
+            if 'systemSettings' not in settings:
+                settings['systemSettings'] = {}
+            settings['systemSettings']['last_sync_time'] = datetime.now().isoformat()
+            save_settings_data(settings)
+            
+            app.logger.info("Full data pull completed successfully")
+            return True
+            
+    except Exception as e:
+        app.logger.error(f"Error during full data pull: {e}", exc_info=True)
+        return False
+
+
+def should_perform_full_pull():
+    """
+    Check if we should perform initial full data pull.
+    Returns True if any data file is missing or empty.
+    """
+    files_to_check = [
+        PRODUCTS_FILE, USERS_FILE, BILLS_FILE, CUSTOMERS_FILE,
+        STORES_FILE, BATCHES_FILE, NOTIFICATIONS_FILE
+    ]
+    
+    for file_path in files_to_check:
+        if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+            app.logger.info(f"Data file missing/empty: {file_path}. Will perform full pull.")
+            return True
+    
+    return False
+
 # ============================================
 # OFFLINE-FIRST JSON DATA HELPERS
 # ============================================
@@ -2735,47 +2827,12 @@ if __name__ == '__main__':
     # INITIALIZE LOCAL DATA ON STARTUP
     # ============================================
 
-    def initialize_local_data():
-        """
-        Initialize local JSON files on first startup.
-        Pull data from MySQL if local files are empty.
-        """
-        try:
-            # Check if products file exists and is not empty
-            if not os.path.exists(PRODUCTS_FILE) or os.path.getsize(PRODUCTS_FILE) == 0:
-                app.logger.info("Initializing products from MySQL...")
-                if ENHANCED_SYNC_AVAILABLE and sync_manager:
-                    # Trigger a full pull for products if local is empty
-                    result = sync_manager.pull_from_mysql_sync_table(table_name='Products', force_full_pull=True)
-                    if result.get('status') == 'success':
-                        app.logger.info(f"Initialized local products from MySQL: {result.get('applied', 0)} records applied.")
-                else:
-                    app.logger.info("Enhanced sync manager not available, skipping initial product data pull from MySQL.")
-
-            # Check if bills file exists and is not empty
-            bills_file_exists = os.path.exists(BILLS_FILE)
-            bills_file_size = os.path.getsize(BILLS_FILE) if bills_file_exists else 0
-            app.logger.info(f"BILLS_FILE: {BILLS_FILE}, Exists: {bills_file_exists}, Size: {bills_file_size} bytes")
-
-            if not bills_file_exists or bills_file_size == 0:
-                app.logger.info("Initializing bills from MySQL (local bills.json is empty or missing)...")
-                if ENHANCED_SYNC_AVAILABLE and sync_manager:
-                    # Trigger a full pull for bills if local is empty
-                    result = sync_manager.pull_from_mysql_sync_table(table_name='Bills', force_full_pull=True)
-                    if result.get('status') == 'success':
-                        app.logger.info(f"Initialized local bills from MySQL: {result.get('applied', 0)} records applied.")
-                else:
-                    app.logger.info("Enhanced sync manager not available, skipping initial bill data pull from MySQL.")
-
-            # Add similar checks for other critical JSON files (Users, Stores, etc.) if needed
-            # For now, the generic pull_from_mysql_sync_table will handle subsequent syncs.
-            
-        except Exception as e:
-            app.logger.error(f"Error initializing local data: {e}", exc_info=True)
-
-
-    # Call on startup
-    initialize_local_data()
+    # After initialize_local_data()
+    if should_perform_full_pull():
+        app.logger.info("First run detected. Pulling all data from MySQL...")
+        initialize_full_data_pull()
+    else:
+        app.logger.debug("Data files already populated, skipping full pull.")
 
     def merge_pulled_data(pulled_data: dict):
         """Merge pulled MySQL data into local JSON files with conflict resolution"""

@@ -11,8 +11,49 @@
     "updatedAt": "2023-01-01T00:00:00",
     "lastLogin": null,
     "lastLogout": null,
-    "totalSessionDuration": 0,
-    "assignedStores": []
+    "totalSessionDuration": 0
+  },
+  {
+    "id": "17dc8e96-f909-4479-ab78-453eda736bf1",
+    "name": "A. Haram set",
+    "email": "mailbox2249@gmail.com",
+    "password": "r3i!4sLL",
+    "role": "billing_user",
+    "status": "active",
+    "sessionDuration": null,
+    "createdAt": "2025-11-03T14:35:37",
+    "updatedAt": "2025-11-03T14:35:37",
+    "lastLogin": null,
+    "lastLogout": null,
+    "totalSessionDuration": 0
+  },
+  {
+    "id": "4fbbce4b-6c41-4964-99f5-1698a9aca500",
+    "name": "A. Tops",
+    "email": "19jn1a0596@gmail.com",
+    "password": "testing",
+    "role": "billing_user",
+    "status": "active",
+    "sessionDuration": null,
+    "createdAt": "2025-10-31T23:27:46",
+    "updatedAt": "2025-10-31T23:27:46",
+    "lastLogin": null,
+    "lastLogout": null,
+    "totalSessionDuration": 0
+  },
+  {
+    "id": "94ac1f3a-bb34-44ee-b68c-d96b3edef79d",
+    "name": "A.NECKLACE",
+    "email": "MAHENDRAREDDY965@GMAIL.COM",
+    "password": "testing",
+    "role": "billing_user",
+    "status": "active",
+    "sessionDuration": null,
+    "createdAt": "2025-10-31T23:09:44",
+    "updatedAt": "2025-10-31T23:09:44",
+    "lastLogin": null,
+    "lastLogout": null,
+    "totalSessionDuration": 0
   },
   {
     "id": "c55868c9-b09f-4e53-a6fe-d16d7840ae99",
@@ -26,26 +67,6 @@
     "updatedAt": "2025-09-20T19:51:38",
     "lastLogin": null,
     "lastLogout": null,
-    "totalSessionDuration": 0,
-    "assignedStores": [
-      "STR-1758004817814"
-    ]
-  },
-  {
-    "id": "e0d02ce4-d0c6-4132-b858-9dcc26434f20",
-    "name": "Simha Mahendra Reddy",
-    "email": "MAHENDRAREDDY965@GMAIL.COM",
-    "password": "Simhamahi@01",
-    "role": "billing_user",
-    "status": "active",
-    "sessionDuration": null,
-    "createdAt": "2025-09-16T22:39:31",
-    "updatedAt": "2025-09-16T22:39:31",
-    "lastLogin": null,
-    "lastLogout": null,
-    "totalSessionDuration": 0,
-    "assignedStores": [
-      "STR-1758042415183"
-    ]
+    "totalSessionDuration": 0
   }
 ]

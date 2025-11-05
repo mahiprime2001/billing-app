@@ -1,111 +1,33 @@
-2025-11-05 17:10:05,831 - scripts.sync_manager - INFO - Starting background sync scheduler
-2025-11-05 17:10:05,834 - scripts.sync_manager - INFO - Sync scheduler thread started
-2025-11-05 17:10:05,834 - scripts.sync_manager - INFO - Background sync started successfully
-2025-11-05 17:10:05,835 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
-2025-11-05 17:10:05,836 - scripts.sync_manager - INFO - Cleaning up logs older than 2025-10-06T17:10:05.836195
-2025-11-05 17:10:06,306 - scripts.sync_manager - INFO - MySQL sync_table cleanup: 0 entries removed
-2025-11-05 17:10:06,757 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
-2025-11-05 17:10:06,757 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
-2025-11-05 17:10:06,757 - scripts.sync_manager - INFO - No pending sync logs to process
-2025-11-05 17:10:06,757 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
-2025-11-05 17:10:06,757 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
-2025-11-05 17:10:06,973 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: Never. Table: All, Full Pull: False
-2025-11-05 17:10:07,078 - scripts.sync_manager - INFO - Found 34 changes to apply
-2025-11-05 17:10:07,078 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - c55868c9-b09f-4e53-a6fe-d16d7840ae99
-2025-11-05 17:10:07,078 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:07,182 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:07,182 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:07,324 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:07,324 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:07,377 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:07,378 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:07,469 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:07,469 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:07,540 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:07,540 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:07,590 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:07,590 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:07,670 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:07,672 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:07,709 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:07,709 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:07,747 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:07,749 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:07,803 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:07,804 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:07,861 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:07,861 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:07,906 - scripts.sync_manager - DEBUG - Applying: Products - UPDATE - 2e5788c4-5cab-4357-96fe-219ef7a7833d
-2025-11-05 17:10:07,906 - scripts.sync_manager - DEBUG - Applying UPDATE operation to local JSON file: E:\Siri-apps\billing-app\backend\data\json\products.json
-2025-11-05 17:10:07,945 - scripts.sync_manager - INFO - Applied UPDATE to products.json for record 2e5788c4-5cab-4357-96fe-219ef7a7833d
-2025-11-05 17:10:07,984 - scripts.sync_manager - DEBUG - Applying: Products - UPDATE - 5f409f0b-1035-463b-bd4c-14f67f0916a8
-2025-11-05 17:10:07,984 - scripts.sync_manager - DEBUG - Applying UPDATE operation to local JSON file: E:\Siri-apps\billing-app\backend\data\json\products.json
-2025-11-05 17:10:08,014 - scripts.sync_manager - INFO - Applied UPDATE to products.json for record 5f409f0b-1035-463b-bd4c-14f67f0916a8
-2025-11-05 17:10:08,058 - scripts.sync_manager - DEBUG - Applying: Products - UPDATE - c119a802-d484-4242-823f-2cabac974a46
-2025-11-05 17:10:08,059 - scripts.sync_manager - DEBUG - Applying UPDATE operation to local JSON file: E:\Siri-apps\billing-app\backend\data\json\products.json
-2025-11-05 17:10:08,090 - scripts.sync_manager - INFO - Applied UPDATE to products.json for record c119a802-d484-4242-823f-2cabac974a46
-2025-11-05 17:10:08,130 - scripts.sync_manager - DEBUG - Applying: Bills - CREATE - INV-944778
-2025-11-05 17:10:08,130 - scripts.sync_manager - DEBUG - Applying CREATE operation to local JSON file: E:\Siri-apps\billing-app\backend\data\json\bills.json
-2025-11-05 17:10:08,130 - scripts.sync_manager - INFO - Applied CREATE to bills.json for record INV-944778
-2025-11-05 17:10:08,175 - scripts.sync_manager - DEBUG - Applying: BillItems - CREATE - 1762310953078403
-2025-11-05 17:10:08,175 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: BillItems
-2025-11-05 17:10:08,219 - scripts.sync_manager - DEBUG - Applying: Notifications - CREATE - 1762310953650
-2025-11-05 17:10:08,220 - scripts.sync_manager - DEBUG - Applying CREATE operation to local JSON file: E:\Siri-apps\billing-app\backend\data\json\notifications.json
-2025-11-05 17:10:08,222 - scripts.sync_manager - INFO - Applied CREATE to notifications.json for record 1762310953650
-2025-11-05 17:10:08,260 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:08,260 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:08,304 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:08,305 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:08,343 - scripts.sync_manager - DEBUG - Applying: Products - UPDATE - 2e5788c4-5cab-4357-96fe-219ef7a7833d
-2025-11-05 17:10:08,343 - scripts.sync_manager - DEBUG - Applying UPDATE operation to local JSON file: E:\Siri-apps\billing-app\backend\data\json\products.json
-2025-11-05 17:10:08,364 - scripts.sync_manager - INFO - Applied UPDATE to products.json for record 2e5788c4-5cab-4357-96fe-219ef7a7833d
-2025-11-05 17:10:08,402 - scripts.sync_manager - DEBUG - Applying: Products - UPDATE - 5f409f0b-1035-463b-bd4c-14f67f0916a8
-2025-11-05 17:10:08,402 - scripts.sync_manager - DEBUG - Applying UPDATE operation to local JSON file: E:\Siri-apps\billing-app\backend\data\json\products.json
-2025-11-05 17:10:08,430 - scripts.sync_manager - INFO - Applied UPDATE to products.json for record 5f409f0b-1035-463b-bd4c-14f67f0916a8
-2025-11-05 17:10:08,464 - scripts.sync_manager - DEBUG - Applying: Products - UPDATE - c119a802-d484-4242-823f-2cabac974a46
-2025-11-05 17:10:08,464 - scripts.sync_manager - DEBUG - Applying UPDATE operation to local JSON file: E:\Siri-apps\billing-app\backend\data\json\products.json
-2025-11-05 17:10:08,495 - scripts.sync_manager - INFO - Applied UPDATE to products.json for record c119a802-d484-4242-823f-2cabac974a46
-2025-11-05 17:10:08,532 - scripts.sync_manager - DEBUG - Applying: Bills - CREATE - INV-244534
-2025-11-05 17:10:08,536 - scripts.sync_manager - DEBUG - Applying CREATE operation to local JSON file: E:\Siri-apps\billing-app\backend\data\json\bills.json
-2025-11-05 17:10:08,550 - scripts.sync_manager - INFO - Applied CREATE to bills.json for record INV-244534
-2025-11-05 17:10:08,588 - scripts.sync_manager - DEBUG - Applying: BillItems - CREATE - 1762333253484935
-2025-11-05 17:10:08,591 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: BillItems
-2025-11-05 17:10:08,693 - scripts.sync_manager - DEBUG - Applying: Notifications - CREATE - 1762333254034
-2025-11-05 17:10:08,693 - scripts.sync_manager - DEBUG - Applying CREATE operation to local JSON file: E:\Siri-apps\billing-app\backend\data\json\notifications.json
-2025-11-05 17:10:08,704 - scripts.sync_manager - INFO - Applied CREATE to notifications.json for record 1762333254034
-2025-11-05 17:10:08,742 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:08,743 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:08,809 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:08,809 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:08,847 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:08,847 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:08,878 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:08,878 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:08,923 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:08,924 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:09,012 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:09,012 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:09,059 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:09,059 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:09,099 - scripts.sync_manager - DEBUG - Applying: session_events - CREATE - 94ac1f3a-bb34-44ee-b68c-d96b3edef79d
-2025-11-05 17:10:09,099 - scripts.sync_manager - WARNING - No local JSON file mapping found for table name: session_events
-2025-11-05 17:10:09,181 - scripts.sync_manager - INFO - Pull complete: 34 applied, 0 failed
-2025-11-05 17:10:09,380 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'Applied 34/34 changes', 'pulled': 34, 'applied': 34, 'failed': 0}
-2025-11-05 17:10:09,407 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
-2025-11-05 17:10:11,658 - scripts.sync_manager - INFO - Starting background sync scheduler
-2025-11-05 17:10:11,659 - scripts.sync_manager - INFO - Sync scheduler thread started
-2025-11-05 17:10:11,659 - scripts.sync_manager - INFO - Background sync started successfully
-2025-11-05 17:10:11,659 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
-2025-11-05 17:10:11,660 - scripts.sync_manager - INFO - Cleaning up logs older than 2025-10-06T17:10:11.659629
-2025-11-05 17:10:12,046 - scripts.sync_manager - INFO - MySQL sync_table cleanup: 0 entries removed
-2025-11-05 17:10:12,397 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
-2025-11-05 17:10:12,397 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
-2025-11-05 17:10:12,399 - scripts.sync_manager - INFO - No pending sync logs to process
-2025-11-05 17:10:12,399 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
-2025-11-05 17:10:12,399 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
-2025-11-05 17:10:12,514 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-05T16:39:02. Table: All, Full Pull: False
-2025-11-05 17:10:12,548 - scripts.sync_manager - INFO - No new changes to pull
-2025-11-05 17:10:12,728 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
-2025-11-05 17:10:12,752 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
-2025-11-05 17:12:31,086 - scripts.sync_manager - INFO - Background sync process stopped
-2025-11-05 17:12:36,218 - scripts.sync_manager - INFO - Background sync process stopped
+2025-11-05 22:55:12,115 - scripts.sync_manager - INFO - Created directory: E:\Siri-apps\billing-app\backend\data\json
+2025-11-05 22:55:17,946 - scripts.sync_manager - INFO - Starting background sync scheduler
+2025-11-05 22:55:17,946 - scripts.sync_manager - INFO - Sync scheduler thread started
+2025-11-05 22:55:17,946 - scripts.sync_manager - INFO - Background sync started successfully
+2025-11-05 22:55:17,946 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
+2025-11-05 22:55:17,946 - scripts.sync_manager - INFO - Cleaning up logs older than 2025-10-06T22:55:17.946183
+2025-11-05 22:55:18,138 - scripts.sync_manager - INFO - MySQL sync_table cleanup: 0 entries removed
+2025-11-05 22:55:18,325 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-05 22:55:18,325 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-05 22:55:18,325 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-05 22:55:18,326 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-05 22:55:18,326 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-05 22:55:18,448 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-05T22:55:17.755169. Table: All, Full Pull: False
+2025-11-05 22:55:18,489 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-05 22:55:18,670 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-05 22:55:18,673 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-05 22:55:23,335 - scripts.sync_manager - INFO - Starting background sync scheduler
+2025-11-05 22:55:23,335 - scripts.sync_manager - INFO - Sync scheduler thread started
+2025-11-05 22:55:23,337 - scripts.sync_manager - INFO - Background sync started successfully
+2025-11-05 22:55:23,337 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
+2025-11-05 22:55:23,337 - scripts.sync_manager - INFO - Cleaning up logs older than 2025-10-06T22:55:23.337015
+2025-11-05 22:55:23,519 - scripts.sync_manager - INFO - MySQL sync_table cleanup: 0 entries removed
+2025-11-05 22:55:23,698 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-05 22:55:23,698 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-05 22:55:23,698 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-05 22:55:23,698 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-05 22:55:23,698 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-05 22:55:23,808 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-05T22:55:17.755169. Table: All, Full Pull: False
+2025-11-05 22:55:23,843 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-05 22:55:24,014 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-05 22:55:24,030 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-05 22:58:19,149 - scripts.sync_manager - INFO - Background sync process stopped
+2025-11-05 22:58:24,232 - scripts.sync_manager - INFO - Background sync process stopped
