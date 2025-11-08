@@ -6,6 +6,7 @@ import OfflineBanner from "@/components/OfflineBanner";
 import ServerErrorHandler from "@/components/server-error-handler";
 import Updater from "@/components/Updater";
 import packageJson from "../package.json"; // Assuming package.json is one level up from components
+import { invoke } from "@tauri-apps/api/core";
 
 export default function AppProviders({
   children,
@@ -30,8 +31,21 @@ export default function AppProviders({
       }
     };
 
-    // Send initial heartbeat immediately
+    // Ensure backend is running on app load
+    const ensureBackend = async () => {
+      if (typeof window !== 'undefined' && '__TAURI__' in window) {
+        try {
+          const result = await invoke('ensure_backend_running');
+          console.log('Backend check:', result);
+        } catch (error) {
+          console.error('Failed to ensure backend is running:', error);
+        }
+      }
+    };
+
+    // Send initial heartbeat and ensure backend immediately
     sendHeartbeat();
+    ensureBackend();
 
     // Set up interval for continuous heartbeats
     const intervalId = setInterval(sendHeartbeat, pollInterval);

@@ -116,8 +116,11 @@ export default function Updater() {
         okLabel: 'Restart Now',
       });
 
-      // Restart the app
-      await relaunch();
+        // Wait a moment before restarting to ensure clean shutdown
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Restart the app
+        await relaunch();
     } catch (error) {
       console.error('Update installation failed:', error);
       await message('Update download failed. Please try again later.', {

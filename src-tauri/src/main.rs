@@ -572,6 +572,25 @@ fn spawn_sidecar(
     Ok(())
 }
 
+#[tauri::command]
+async fn ensure_backend_running(
+    app_handle: tauri::AppHandle,
+    child_handle_state: tauri::State<'_, Arc<Mutex<Option<CommandChild>>>>,
+) -> Result<String, String> {
+    info!("Checking if backend is running...");
+    
+    // Check if process exists
+    if child_handle_state.lock().unwrap().is_none() {
+        warn!("Backend not running, spawning...");
+        match spawn_sidecar(&app_handle, Arc::clone(&child_handle_state.inner())) {
+            Ok(_) => Ok("Backend started".to_string()),
+            Err(e) => Err(format!("Failed to start backend: {}", e)),
+        }
+    } else {
+        Ok("Backend already running".to_string())
+    }
+}
+
 // ============================================================================
 // MAIN FUNCTION
 // ============================================================================
@@ -582,6 +601,7 @@ fn main() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(child_handle.clone())  // Add this to make it accessible as state
         .setup({
             let child_handle = Arc::clone(&child_handle);
             move |app| {
@@ -628,6 +648,9 @@ fn main() {
                 let handle = app.app_handle().clone();
                 let child_handle_clone = Arc::clone(&child_handle);
                 
+                // Wait a bit if this is a post-update relaunch
+                std::thread::sleep(std::time::Duration::from_millis(1000));
+                
                 match spawn_sidecar(&handle, child_handle_clone.clone()) {
                     Ok(_) => {
                         info!("Sidecar spawned successfully on first attempt");
@@ -636,7 +659,6 @@ fn main() {
                         error!("CRITICAL: Failed to spawn sidecar on first attempt: {}", e);
                         warn!("Will retry in 2 seconds...");
                         
-                        // Retry after a delay
                         let handle_retry = handle.clone();
                         tauri::async_runtime::spawn(async move {
                             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
@@ -694,7 +716,8 @@ fn main() {
             print_to_thermal_printer,
             print_html,
             check_for_updates,
-            install_update
+            install_update,
+            ensure_backend_running  // Add this
         ])
         .build(tauri::generate_context!())
         .expect("error building app");
