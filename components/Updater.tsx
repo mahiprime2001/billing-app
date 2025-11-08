@@ -21,32 +21,37 @@ export default function Updater() {
   } | null>(null);
 
   useEffect(() => {
+    const checkForUpdates = async () => {
+      // Check if running in Tauri environment
+      if (typeof window !== 'undefined' && '__TAURI__' in window) {
+        try {
+          const update = await check();
+          
+          if (!update || !update.available) {
+            console.log('No updates available.');
+            return;
+          }
+
+          currentUpdate.current = update;
+          setUpdateAvailable(true);
+          setUpdateInfo({
+            version: update.version,
+            notes: update.body || 'No release notes available.',
+          });
+
+          // Automatically prompt user about update
+          handleUpdateAvailable();
+        } catch (error) {
+          console.error('Failed to check for updates:', error);
+        }
+      } else {
+        console.log('Not running in Tauri environment, skipping update check');
+      }
+    };
+
     // Check for updates on component mount (app load)
     checkForUpdates();
   }, []);
-
-  async function checkForUpdates() {
-    try {
-      const update = await check();
-      
-      if (!update || !update.available) {
-        console.log('No updates available.');
-        return;
-      }
-
-      currentUpdate.current = update;
-      setUpdateAvailable(true);
-      setUpdateInfo({
-        version: update.version,
-        notes: update.body || 'No release notes available.',
-      });
-
-      // Automatically prompt user about update
-      handleUpdateAvailable();
-    } catch (error) {
-      console.error('Failed to check for updates:', error);
-    }
-  }
 
   async function handleUpdateAvailable() {
     if (!updateAvailable || !currentUpdate.current) return;

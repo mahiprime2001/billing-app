@@ -1,7 +1,7 @@
 [
   {
     "id": 1,
-    "timestamp": "2025-11-05T22:55:18.670751",
+    "timestamp": "2025-11-07T22:00:26.701124",
     "eventType": "scheduled_sync",
     "status": "completed",
     "details": {
@@ -16,12 +16,12 @@
         "message": "No new entries",
         "pulled": 0
       },
-      "timestamp": "2025-11-05T22:55:18.670751"
+      "timestamp": "2025-11-07T22:00:26.701124"
     }
   },
   {
     "id": 2,
-    "timestamp": "2025-11-05T22:55:24.029471",
+    "timestamp": "2025-11-07T22:00:31.703506",
     "eventType": "scheduled_sync",
     "status": "completed",
     "details": {
@@ -36,7 +36,978 @@
         "message": "No new entries",
         "pulled": 0
       },
-      "timestamp": "2025-11-05T22:55:24.014309"
+      "timestamp": "2025-11-07T22:00:31.688597"
+    }
+  },
+  {
+    "id": 3,
+    "timestamp": "2025-11-07T22:03:39.133180",
+    "eventType": "Notifications_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Notifications",
+      "record_id": "all",
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 4,
+    "timestamp": "2025-11-07T22:15:28.088425",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "Processed 1 logs, 0 failed",
+        "processed": 1,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-07T22:15:28.069685"
+    }
+  },
+  {
+    "id": 5,
+    "timestamp": "2025-11-07T22:15:32.368709",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-07T22:15:32.357163"
+    }
+  },
+  {
+    "id": 6,
+    "timestamp": "2025-11-07T22:30:28.779883",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-07T22:30:28.731349"
+    }
+  },
+  {
+    "id": 7,
+    "timestamp": "2025-11-07T22:30:33.059473",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-07T22:30:33.020929"
+    }
+  },
+  {
+    "id": 8,
+    "timestamp": "2025-11-07T22:45:29.418945",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-07T22:45:29.393540"
+    }
+  },
+  {
+    "id": 9,
+    "timestamp": "2025-11-07T22:45:33.714823",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-07T22:45:33.687244"
+    }
+  },
+  {
+    "id": 10,
+    "timestamp": "2025-11-07T22:53:38.349746",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-07T22:53:38.328393"
+    }
+  },
+  {
+    "id": 11,
+    "timestamp": "2025-11-07T22:54:03.127471",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-07T22:54:03.070324"
+    }
+  },
+  {
+    "id": 12,
+    "timestamp": "2025-11-07T23:22:33.436565",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-07T23:22:33.419625"
+    }
+  },
+  {
+    "id": 13,
+    "timestamp": "2025-11-07T23:22:38.141081",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-07T23:22:38.133099"
+    }
+  },
+  {
+    "id": 14,
+    "timestamp": "2025-11-08T13:50:56.027013",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T13:50:56.026004"
+    }
+  },
+  {
+    "id": 15,
+    "timestamp": "2025-11-08T13:51:01.309777",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T13:51:01.309271"
+    }
+  },
+  {
+    "id": 16,
+    "timestamp": "2025-11-08T14:05:56.698306",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T14:05:56.682115"
+    }
+  },
+  {
+    "id": 17,
+    "timestamp": "2025-11-08T14:06:02.171755",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T14:06:02.154217"
+    }
+  },
+  {
+    "id": 18,
+    "timestamp": "2025-11-08T14:20:57.347654",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T14:20:57.310327"
+    }
+  },
+  {
+    "id": 19,
+    "timestamp": "2025-11-08T14:21:02.833400",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T14:21:02.816864"
+    }
+  },
+  {
+    "id": 20,
+    "timestamp": "2025-11-08T14:35:58.089701",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T14:35:58.056249"
+    }
+  },
+  {
+    "id": 21,
+    "timestamp": "2025-11-08T14:36:03.474818",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T14:36:03.464590"
+    }
+  },
+  {
+    "id": 22,
+    "timestamp": "2025-11-08T14:50:58.838942",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T14:50:58.822554"
+    }
+  },
+  {
+    "id": 23,
+    "timestamp": "2025-11-08T14:51:04.164727",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T14:51:04.149972"
+    }
+  },
+  {
+    "id": 24,
+    "timestamp": "2025-11-08T15:05:59.500982",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:05:59.480506"
+    }
+  },
+  {
+    "id": 25,
+    "timestamp": "2025-11-08T15:06:04.873016",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:06:04.843811"
+    }
+  },
+  {
+    "id": 26,
+    "timestamp": "2025-11-08T15:11:44.577145",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:11:44.576133"
+    }
+  },
+  {
+    "id": 27,
+    "timestamp": "2025-11-08T15:12:04.469607",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:12:04.451850"
+    }
+  },
+  {
+    "id": 28,
+    "timestamp": "2025-11-08T15:12:35.024134",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:12:35.006627"
+    }
+  },
+  {
+    "id": 29,
+    "timestamp": "2025-11-08T15:13:04.153480",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:13:04.141742"
+    }
+  },
+  {
+    "id": 30,
+    "timestamp": "2025-11-08T15:16:15.638380",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:16:15.615634"
+    }
+  },
+  {
+    "id": 31,
+    "timestamp": "2025-11-08T15:16:33.664747",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:16:33.641438"
+    }
+  },
+  {
+    "id": 32,
+    "timestamp": "2025-11-08T15:17:23.096003",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:17:23.079438"
+    }
+  },
+  {
+    "id": 33,
+    "timestamp": "2025-11-08T15:20:25.554906",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:20:25.536233"
+    }
+  },
+  {
+    "id": 34,
+    "timestamp": "2025-11-08T15:21:00.502772",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:21:00.463077"
+    }
+  },
+  {
+    "id": 35,
+    "timestamp": "2025-11-08T15:22:25.994410",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:22:25.972480"
+    }
+  },
+  {
+    "id": 36,
+    "timestamp": "2025-11-08T15:25:48.965854",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:25:48.853048"
+    }
+  },
+  {
+    "id": 37,
+    "timestamp": "2025-11-08T15:27:32.682715",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:27:32.663083"
+    }
+  },
+  {
+    "id": 38,
+    "timestamp": "2025-11-08T15:30:59.726427",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:30:59.713502"
+    }
+  },
+  {
+    "id": 39,
+    "timestamp": "2025-11-08T15:31:04.486485",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:31:04.440990"
+    }
+  },
+  {
+    "id": 40,
+    "timestamp": "2025-11-08T15:32:17.017982",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:32:16.943474"
+    }
+  },
+  {
+    "id": 41,
+    "timestamp": "2025-11-08T15:35:12.250096",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:35:12.232496"
+    }
+  },
+  {
+    "id": 42,
+    "timestamp": "2025-11-08T15:46:00.384623",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:46:00.366348"
+    }
+  },
+  {
+    "id": 43,
+    "timestamp": "2025-11-08T15:50:12.899113",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T15:50:12.873088"
+    }
+  },
+  {
+    "id": 44,
+    "timestamp": "2025-11-08T16:01:01.072491",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T16:01:01.039863"
+    }
+  },
+  {
+    "id": 45,
+    "timestamp": "2025-11-08T16:05:13.610658",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T16:05:13.574078"
+    }
+  },
+  {
+    "id": 46,
+    "timestamp": "2025-11-08T16:16:01.755245",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T16:16:01.732960"
+    }
+  },
+  {
+    "id": 47,
+    "timestamp": "2025-11-08T16:20:14.313470",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T16:20:14.277861"
+    }
+  },
+  {
+    "id": 48,
+    "timestamp": "2025-11-08T16:31:02.446447",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T16:31:02.419581"
+    }
+  },
+  {
+    "id": 49,
+    "timestamp": "2025-11-08T16:35:15.056357",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T16:35:15.037418"
+    }
+  },
+  {
+    "id": 50,
+    "timestamp": "2025-11-08T16:46:03.224401",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T16:46:03.175225"
+    }
+  },
+  {
+    "id": 51,
+    "timestamp": "2025-11-08T16:50:15.815076",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-08T16:50:15.790834"
     }
   }
 ]

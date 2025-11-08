@@ -145,24 +145,15 @@ export const NotificationBell: React.FC = () => {
       const data: NotificationResponse = await response.json()
       
       if (data.success) {
-        const seenIds = new Set<string>();
-        const processedNotifications = data.notifications
-          .filter(notification => {
-            // Ensure id is a valid string and unique
-            if (!notification.id || typeof notification.id !== 'string' || seenIds.has(notification.id)) {
-              if (notification.id) { // Only warn if id exists but is a duplicate
-                console.warn(`Duplicate notification ID found and filtered: ${notification.id}`);
-              }
-              return false;
-            }
-            seenIds.add(notification.id);
-            return true;
-          })
-          .map(notification => ({
+        setNotifications(prev => {
+          const newNotifications = data.notifications.filter(newNotif => 
+            !prev.some(existingNotif => existingNotif.id === newNotif.id)
+          ).map(notification => ({
             ...notification,
             _internalKey: crypto.randomUUID(), // Assign a unique internal key
           }));
-        setNotifications(processedNotifications);
+          return [...prev, ...newNotifications];
+        });
         setUnreadCount(data.unreadCount);
       } else {
         setError('Failed to load notifications');

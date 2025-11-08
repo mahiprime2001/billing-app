@@ -1,8 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
+import usePolling from "@/hooks/usePolling"
+import api from "@/app/utils/api"
 
 type OnlineUser = { userId: string; lastEvent: string; lastSeen: string; details?: string }
 type OnlineResp = { windowMinutes: number; onlineCount: number; online: OnlineUser[] }
@@ -45,9 +47,9 @@ import {
   AlertTriangle,
   Users,
 } from "lucide-react"
-import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns"
-import type { DateRange } from "react-day-picker"
+import { Calendar as CalendarIcon } from "lucide-react" // Renamed to avoid conflict with UI Calendar
+import { Calendar } from "@/components/ui/calendar" // Import the shadcn/ui Calendar component
 
 interface User {
   id: string;
@@ -258,140 +260,213 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D"
 
 export default function AnalyticsPage() {
   const router = useRouter()
-  const [bills, setBills] = useState<Bill[]>([])
-  const [stores, setStores] = useState<Store[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [users, setUsers] = useState<User[]>([])
   const [storeAnalytics, setStoreAnalytics] = useState<StoreAnalytics[]>([])
   const [productAnalytics, setProductAnalytics] = useState<ProductAnalytics[]>([])
   const [userSessionAnalytics, setUserSessionAnalytics] = useState<UserSessionAnalytics[]>([])
   const [productAdditionAnalytics, setProductAdditionAnalytics] = useState<ProductAdditionAnalytics[]>([])
-  const [online, setOnline] = useState<OnlineResp | null>(null)
-  const [sessions, setSessions] = useState<SessionsResp | null>(null)
   
-  // Enhanced Analytics State
-  const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null)
-  const [revenueTrends, setRevenueTrends] = useState<RevenueTrend[]>([])
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([])
-  const [inventoryHealth, setInventoryHealth] = useState<InventoryHealth | null>(null)
-  const [storePerformance, setStorePerformance] = useState<StorePerformance[]>([])
-  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([])
-  const [businessAlerts, setBusinessAlerts] = useState<BusinessAlert[]>([])
-  
-  const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [selectedStore, setSelectedStore] = useState<string>("all")
   const [selectedProduct, setSelectedProduct] = useState<string>("all")
   const [selectedDays, setSelectedDays] = useState<string>("30")
   const [trendPeriod, setTrendPeriod] = useState<string>("daily")
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date()),
-  })
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined) // For single date selection, initially undefined
+  const [calendarOpen, setCalendarOpen] = useState(false) // State for custom calendar popover
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date()) // State for custom calendar month navigation
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:8080'
 
-  const refresh = async () => {
-    await fetch('/api/sync/pull', { method: 'POST' })
-    const o = await fetch('/api/analytics/users/online?windowMinutes=5').then(r => r.json())
-    const today = new Date().toISOString().slice(0,10)
-    const s = await fetch(`/api/analytics/users/sessions?from=${today}&to=${today}`).then(r => r.json())
-    setOnline(o)
-    setSessions(s)
+  // Fetchers for usePolling
+  const fetchBills = useCallback(async () => {
+    const response = await api.get<Bill[]>('/api/bills');
+    return response.data;
+  }, []);
 
-    setLoading(true)
-    try {
-      console.log('Fetching data from API endpoints...')
-      const [billsResponse, storesResponse, productsResponse, usersResponse] = await Promise.all([
-        fetch('/api/bills'),
-        fetch('/api/stores'),
-        fetch('/api/products'),
-        fetch('/api/users')
-      ])
+  const fetchStores = useCallback(async () => {
+    const response = await api.get<Store[]>('/api/stores');
+    return response.data;
+  }, []);
 
-      if (!billsResponse.ok) throw new Error('Failed to fetch bills')
-      if (!storesResponse.ok) throw new Error('Failed to fetch stores')
-      if (!productsResponse.ok) throw new Error('Failed to fetch products')
-      if (!usersResponse.ok) throw new Error('Failed to fetch users')
+  const fetchProducts = useCallback(async () => {
+    const response = await api.get<Product[]>('/api/products');
+    return response.data;
+  }, []);
 
-      const [billsData, storesData, productsData, usersData] = await Promise.all([
-        billsResponse.json(),
-        storesResponse.json(),
-        productsResponse.json(),
-        usersResponse.json()
-      ])
+  const fetchUsers = useCallback(async () => {
+    const response = await api.get<User[]>('/api/users');
+    return response.data;
+  }, []);
 
-      console.log('Fetched data:', {
-        bills: billsData.length,
-        stores: storesData.length,
-        products: productsData.length,
-        users: usersData.length
-      })
+  const fetchOnlineUsers = useCallback(async () => {
+    const response = await api.get<OnlineResp>('/api/analytics/users/online?windowMinutes=5');
+    return response.data;
+  }, []);
 
-      setBills(billsData)
-      setStores(storesData)
-      setProducts(productsData)
-      setUsers(usersData)
+  const fetchSessions = useCallback(async () => {
+    const todayStr = new Date().toISOString().slice(0,10);
+    const response = await api.get<SessionsResp>(`/api/analytics/users/sessions?from=${todayStr}&to=${todayStr}`);
+    return response.data;
+  }, []);
 
-      // Load enhanced analytics
-      await loadEnhancedAnalytics(selectedDays, trendPeriod)
-    } catch (error) {
-      console.error('Error loading data:', error)
-      alert('Failed to load analytics data. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+  const fetchDashboardMetrics = useCallback(async () => {
+    const response = await api.get<DashboardMetrics>(`${backendUrl}/api/analytics/dashboard?days=${selectedDays}`);
+    return response.data;
+  }, [selectedDays, backendUrl]);
+
+  const fetchRevenueTrends = useCallback(async () => {
+    const response = await api.get<{ data: RevenueTrend[] }>(`${backendUrl}/api/analytics/revenue/trends?period=${trendPeriod}&days=${selectedDays}`);
+    return response.data.data || [];
+  }, [trendPeriod, selectedDays, backendUrl]);
+
+  const fetchTopProducts = useCallback(async () => {
+    const response = await api.get<{ data: TopProduct[] }>(`${backendUrl}/api/analytics/products/top?limit=10&days=${selectedDays}&sortBy=revenue`);
+    return response.data.data || [];
+  }, [selectedDays, backendUrl]);
+
+  const fetchInventoryHealth = useCallback(async () => {
+    const response = await api.get<InventoryHealth>(`${backendUrl}/api/analytics/inventory/health?days=${selectedDays}`);
+    return response.data;
+  }, [selectedDays, backendUrl]);
+
+  const fetchStorePerformance = useCallback(async () => {
+    const response = await api.get<{ data: StorePerformance[] }>(`${backendUrl}/api/analytics/stores/performance?days=${selectedDays}`);
+    return response.data.data || [];
+  }, [selectedDays, backendUrl]);
+
+  const fetchCategoryBreakdown = useCallback(async () => {
+    const response = await api.get<{ data: CategoryBreakdown[] }>(`${backendUrl}/api/analytics/category/breakdown?days=${selectedDays}`);
+    return response.data.data || [];
+  }, [selectedDays, backendUrl]);
+
+  const fetchBusinessAlerts = useCallback(async () => {
+    const response = await api.get<{ alerts: BusinessAlert[] }>(`${backendUrl}/api/analytics/alerts`);
+    return response.data.alerts || [];
+  }, [backendUrl]);
+
+  // New type for consolidated analytics data
+  interface AllAnalyticsData {
+    bills: Bill[];
+    stores: Store[];
+    products: Product[];
+    users: User[];
+    onlineUsers: OnlineResp;
+    sessions: SessionsResp;
+    dashboardMetrics: DashboardMetrics;
+    revenueTrends: RevenueTrend[];
+    topProducts: TopProduct[];
+    inventoryHealth: InventoryHealth;
+    storePerformance: StorePerformance[];
+    categoryBreakdown: CategoryBreakdown[];
+    businessAlerts: BusinessAlert[];
   }
 
-  const loadEnhancedAnalytics = async (days: string, period: string) => {
-    try {
-      const [
-        dashboardRes,
-        trendsRes,
-        topProductsRes,
-        inventoryRes,
-        storePerformanceRes,
-        categoryRes,
-        alertsRes
-      ] = await Promise.all([
-        fetch(`${backendUrl}/api/analytics/dashboard?days=${days}`),
-        fetch(`${backendUrl}/api/analytics/revenue/trends?period=${period}&days=${days}`),
-        fetch(`${backendUrl}/api/analytics/products/top?limit=10&days=${days}&sortBy=revenue`),
-        fetch(`${backendUrl}/api/analytics/inventory/health?days=${days}`),
-        fetch(`${backendUrl}/api/analytics/stores/performance?days=${days}`),
-        fetch(`${backendUrl}/api/analytics/category/breakdown?days=${days}`),
-        fetch(`${backendUrl}/api/analytics/alerts`)
-      ])
+  // Consolidated fetcher
+  const fetchAllAnalytics = useCallback(async () => {
+    const [
+      bills,
+      stores,
+      products,
+      users,
+      onlineUsers,
+      sessions,
+      dashboardMetrics,
+      revenueTrends,
+      topProducts,
+            inventoryHealth,
+      storePerformance,
+      categoryBreakdown,
+      businessAlerts,
+    ] = await Promise.all([
+      fetchBills(),
+      fetchStores(),
+      fetchProducts(),
+      fetchUsers(),
+      fetchOnlineUsers(),
+      fetchSessions(),
+      fetchDashboardMetrics(),
+      fetchRevenueTrends(),
+      fetchTopProducts(),
+      fetchInventoryHealth(),
+      fetchStorePerformance(),
+      fetchCategoryBreakdown(),
+      fetchBusinessAlerts(),
+    ]);
 
-      const [
-        dashboardData,
-        trendsData,
-        topProductsData,
-        inventoryData,
-        storePerformanceData,
-        categoryData,
-        alertsData
-      ] = await Promise.all([
-        dashboardRes.json(),
-        trendsRes.json(),
-        topProductsRes.json(),
-        inventoryRes.json(),
-        storePerformanceRes.json(),
-        categoryRes.json(),
-        alertsRes.json()
-      ])
+    return {
+      bills,
+      stores,
+      products,
+      users,
+      onlineUsers,
+      sessions,
+      dashboardMetrics,
+      revenueTrends,
+      topProducts,
+      inventoryHealth,
+      storePerformance,
+      categoryBreakdown,
+      businessAlerts,
+    };
+  }, [
+    fetchBills,
+    fetchStores,
+    fetchProducts,
+    fetchUsers,
+    fetchOnlineUsers,
+    fetchSessions,
+    fetchDashboardMetrics,
+    fetchRevenueTrends,
+    fetchTopProducts,
+    fetchInventoryHealth,
+    fetchStorePerformance,
+    fetchCategoryBreakdown,
+    fetchBusinessAlerts,
+  ]);
 
-      setDashboardMetrics(dashboardData)
-      setRevenueTrends(trendsData.data || [])
-      setTopProducts(topProductsData.data || [])
-      setInventoryHealth(inventoryData)
-      setStorePerformance(storePerformanceData.data || [])
-      setCategoryBreakdown(categoryData.data || [])
-      setBusinessAlerts(alertsData.alerts || [])
-    } catch (error) {
-      console.error('Error loading enhanced analytics:', error)
+  // Use a single polling hook
+  const { data: analyticsData, loading, error: analyticsError } = usePolling<AllAnalyticsData>(
+    fetchAllAnalytics,
+    { interval: 30000 } // Increase to 30 seconds
+  );
+
+  // Local state for analytics calculations that depend on fetched data
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [online, setOnline] = useState<OnlineResp | null>(null);
+  const [sessions, setSessions] = useState<SessionsResp | null>(null);
+  const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null);
+  const [revenueTrends, setRevenueTrends] = useState<RevenueTrend[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [inventoryHealth, setInventoryHealth] = useState<InventoryHealth | null>(null);
+  const [storePerformance, setStorePerformance] = useState<StorePerformance[]>([]);
+  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
+  const [businessAlerts, setBusinessAlerts] = useState<BusinessAlert[]>([]);
+
+  // Update local states when polling data changes
+  useEffect(() => {
+    if (analyticsData) {
+      setBills(analyticsData.bills);
+      setStores(analyticsData.stores);
+      setProducts(analyticsData.products);
+      setUsers(analyticsData.users);
+      setOnline(analyticsData.onlineUsers);
+      setSessions(analyticsData.sessions);
+      setDashboardMetrics(analyticsData.dashboardMetrics);
+      setRevenueTrends(analyticsData.revenueTrends);
+      setTopProducts(analyticsData.topProducts);
+      setInventoryHealth(analyticsData.inventoryHealth);
+      setStorePerformance(analyticsData.storePerformance);
+      setCategoryBreakdown(analyticsData.categoryBreakdown);
+      setBusinessAlerts(analyticsData.businessAlerts);
     }
-  }
+  }, [analyticsData]);
+
+  // Error logging for the single polling hook
+  useEffect(() => {
+    if (analyticsError) console.error("Error fetching analytics data:", analyticsError);
+  }, [analyticsError]);
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem("adminLoggedIn")
@@ -407,36 +482,50 @@ export default function AnalyticsPage() {
       router.push("/dashboard")
       return
     }
-
-    refresh()
-    const t = setInterval(refresh, 60_000)
-    return () => clearInterval(t)
+    // No need for manual refresh or setInterval here, usePolling handles it
   }, [router])
 
-  useEffect(() => {
-    if (bills.length > 0) {
-      calculateAnalytics()
-      calculateProductAdditionAnalytics()
+  const refreshAnalytics = useCallback(() => {
+    if (bills.length > 0 && stores.length > 0 && products.length > 0) {
+      calculateAnalytics();
+      calculateProductAdditionAnalytics();
     }
     if (users.length > 0) {
-      calculateUserSessionAnalytics()
+      calculateUserSessionAnalytics();
     }
-  }, [bills, users, dateRange])
+  }, [bills, stores, products, users, selectedDate]);
 
   useEffect(() => {
-    if (!loading) {
-      loadEnhancedAnalytics(selectedDays, trendPeriod)
+    refreshAnalytics();
+  }, [selectedDays, selectedStore, selectedProduct, selectedDate, bills, stores, products, users]);
+
+  // No need for this useEffect as usePolling handles the fetching based on selectedDays and trendPeriod
+  // useEffect(() => {
+  //   if (!loading) {
+  //     loadEnhancedAnalytics(selectedDays, trendPeriod)
+  //   }
+  // }, [selectedDays, trendPeriod])
+
+  const filterBillsByDate = (bills: Bill[]) => {
+    console.log("filterBillsByDate: selectedDate", selectedDate);
+    console.log("filterBillsByDate: input bills count", bills.length);
+
+    if (!selectedDate) {
+      console.log("filterBillsByDate: No selectedDate, returning all bills.");
+      return bills;
     }
-  }, [selectedDays, trendPeriod])
 
-  const filterBillsByDateRange = (bills: Bill[]) => {
-    if (!dateRange?.from || !dateRange?.to) return bills
+    const selectedDayStart = startOfDay(selectedDate);
+    const selectedDayEnd = endOfDay(selectedDate);
 
-    return bills.filter((bill) => {
-      const billDate = new Date(bill.timestamp || bill.createdAt)
-      return billDate >= dateRange.from! && billDate <= dateRange.to!
-    })
-  }
+    const filtered = bills.filter((bill) => {
+      const billDate = new Date(bill.timestamp || bill.createdAt);
+      return billDate >= selectedDayStart && billDate <= selectedDayEnd;
+    });
+
+    console.log("filterBillsByDate: filtered bills count", filtered.length);
+    return filtered;
+  };
 
   const normalizeStoreId = (id: string): string => {
     if (id === 'store_1') return 'STR-1722255700000'
@@ -449,9 +538,11 @@ export default function AnalyticsPage() {
 
   const calculateUserSessionAnalytics = () => {
     const filteredUsers = users.filter(user => {
-      if (!dateRange?.from || !dateRange?.to) return true;
+      if (!selectedDate) return true;
       const lastLoggedDate = new Date(user.lastLogged);
-      return lastLoggedDate >= dateRange.from && lastLoggedDate <= dateRange.to;
+      const selectedDayStart = startOfDay(selectedDate);
+      const selectedDayEnd = endOfDay(selectedDate);
+      return lastLoggedDate >= selectedDayStart && lastLoggedDate <= selectedDayEnd;
     });
 
     const dailySessions: { [key: string]: { totalSessions: number; totalDuration: number; count: number } } = {};
@@ -503,26 +594,30 @@ export default function AnalyticsPage() {
     const dailyProductAdditions: { [key: string]: { productsAdded: Set<string>; totalValueAdded: number } } = {};
 
     productFirstSaleDate.forEach((firstSaleDate, productId) => {
-      if (dateRange?.from && dateRange?.to && firstSaleDate >= dateRange.from && firstSaleDate <= dateRange.to) {
-        const dateKey = format(firstSaleDate, "yyyy-MM-dd");
+      if (selectedDate) {
+        const selectedDayStart = startOfDay(selectedDate);
+        const selectedDayEnd = endOfDay(selectedDate);
+        const dateKey = format(firstSaleDate, "yyyy-MM-dd"); // Moved here
 
-        if (!dailyProductAdditions[dateKey]) {
-          dailyProductAdditions[dateKey] = { productsAdded: new Set(), totalValueAdded: 0 };
-        }
-        dailyProductAdditions[dateKey].productsAdded.add(productId);
+        if (firstSaleDate >= selectedDayStart && firstSaleDate <= selectedDayEnd) {
+          if (!dailyProductAdditions[dateKey]) {
+            dailyProductAdditions[dateKey] = { productsAdded: new Set(), totalValueAdded: 0 };
+          }
+          dailyProductAdditions[dateKey].productsAdded.add(productId);
 
-        const relevantBills = bills.filter(bill => 
-          format(new Date(bill.timestamp || bill.createdAt), "yyyy-MM-dd") === dateKey && 
-          bill.items.some(item => item.productId === productId)
-        );
+          const relevantBills = bills.filter(bill => 
+            format(new Date(bill.timestamp || bill.createdAt), "yyyy-MM-dd") === dateKey && 
+            bill.items.some(item => item.productId === productId)
+          );
 
-        relevantBills.forEach(bill => {
-          bill.items.filter(item => item.productId === productId).forEach(item => {
-            dailyProductAdditions[dateKey].totalValueAdded += item.total;
+          relevantBills.forEach(bill => {
+            bill.items.filter(item => item.productId === productId).forEach(item => {
+              dailyProductAdditions[dateKey].totalValueAdded += item.total;
+            });
           });
-        });
-      }
-    });
+        } // closes if (firstSaleDate >= ...)
+      } // closes if (selectedDate)
+    }); // closes productFirstSaleDate.forEach
 
     const productAdditionData = Object.entries(dailyProductAdditions)
       .map(([date, stats]) => ({
@@ -535,8 +630,50 @@ export default function AnalyticsPage() {
     setProductAdditionAnalytics(productAdditionData);
   };
 
+
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0)
+  const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59)
+
+  const fmtMonthYear = (d: Date) =>
+    d.toLocaleString(undefined, { month: "long", year: "numeric" })
+
+  const daysInMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+
+  const toKey = (d: Date) => {
+    const yyyy = d.getFullYear()
+    const mm = String(d.getMonth() + 1).padStart(2, "0")
+    const dd = String(d.getDate()).padStart(2, "0")
+    return `${yyyy}-${mm}-${dd}`
+  }
+
+  const setQuickDate = (range: string) => {
+    const today = new Date()
+    let date: Date | undefined
+
+    switch (range) {
+      case "today":
+        date = today
+        break
+      case "yesterday":
+        date = subDays(today, 1)
+        break
+      case "all":
+        date = undefined; // Set to undefined for "All Dates"
+        break;
+      default:
+        return
+    }
+    setSelectedDate(date)
+  }
+
+
   const calculateAnalytics = () => {
-    const filteredBills = filterBillsByDateRange(bills)
+    const filteredBills = filterBillsByDate(bills)
 
     const storeStats: { [key: string]: StoreAnalytics } = {}
 
@@ -590,10 +727,8 @@ export default function AnalyticsPage() {
         .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime())
 
       const currentPeriodRevenue = totalRevenue
-      const previousPeriodStart = new Date(dateRange?.from || new Date())
-      previousPeriodStart.setMonth(previousPeriodStart.getMonth() - 1)
-      const previousPeriodEnd = new Date(dateRange?.to || new Date())
-      previousPeriodEnd.setMonth(previousPeriodEnd.getMonth() - 1)
+      const previousPeriodStart = selectedDate ? subDays(selectedDate, 30) : subDays(new Date(), 30) // Example: previous 30 days
+      const previousPeriodEnd = selectedDate ? subDays(selectedDate, 1) : subDays(new Date(), 1) // Example: previous day
 
       const previousPeriodBills = bills.filter((bill) => {
         const billDate = new Date(bill.timestamp || bill.createdAt)
@@ -687,10 +822,8 @@ export default function AnalyticsPage() {
       const currentQuantity = totalQuantitySold
       const currentRevenue = totalRevenue
 
-      const previousPeriodStart = new Date(dateRange?.from || new Date())
-      previousPeriodStart.setMonth(previousPeriodStart.getMonth() - 1)
-      const previousPeriodEnd = new Date(dateRange?.to || new Date())
-      previousPeriodEnd.setMonth(previousPeriodEnd.getMonth() - 1)
+      const previousPeriodStart = selectedDate ? subDays(selectedDate, 30) : subDays(new Date(), 30) // Example: previous 30 days
+      const previousPeriodEnd = selectedDate ? subDays(selectedDate, 1) : subDays(new Date(), 1) // Example: previous day
 
       const previousPeriodBills = bills.filter((bill) => {
         const billDate = new Date(bill.timestamp || bill.createdAt)
@@ -816,9 +949,7 @@ export default function AnalyticsPage() {
           { Key: "Analytics Report", Value: "Store and Product Performance" },
           { Key: "", Value: "" },
           { Key: "Report Generated", Value: format(new Date(), "yyyy-MM-dd HH:mm:ss") },
-          { Key: "Date Range", Value: dateRange?.from && dateRange?.to 
-            ? `${format(dateRange.from, "yyyy-MM-dd")} to ${format(dateRange.to, "yyyy-MM-dd")}` 
-            : "Current Month" },
+          { Key: "Date", Value: selectedDate ? format(selectedDate, "yyyy-MM-dd") : "N/A" },
           { Key: "Selected Store", Value: selectedStore === "all" ? "All Stores" : stores.find(s => s.id === selectedStore)?.name || "All Stores" },
           { Key: "Selected Product", Value: selectedProduct === "all" ? "All Products" : products.find(p => p.id === selectedProduct)?.name || "All Products" },
           { Key: "Total Stores", Value: storeAnalytics.length },
@@ -924,12 +1055,12 @@ export default function AnalyticsPage() {
       }
 
       if (sheetsToExport.billDetails) {
-        const billDetailsData = filterBillsByDateRange(bills).map((bill) => ({
+        const billDetailsData = filterBillsByDate(bills).map((bill: Bill) => ({
           "Bill ID": bill.id,
           "Store Name": bill.storeName,
           "Customer Name": bill.customerName || "N/A",
           "Date": format(new Date(bill.timestamp || bill.createdAt), "yyyy-MM-dd HH:mm:ss"),
-          "Items": bill.items.map(item => `${item.productName} (Qty: ${item.quantity})`).join(", "),
+          "Items": bill.items.map((item: { productName: string; quantity: number }) => `${item.productName} (Qty: ${item.quantity})`).join(", "),
           "Subtotal": Number((bill.subtotal || 0).toFixed(2)),
           "Tax": Number((bill.taxAmount || 0).toFixed(2)),
           "Discount": Number((bill.discountAmount || 0).toFixed(2)),
@@ -945,10 +1076,7 @@ export default function AnalyticsPage() {
         XLSX.utils.book_append_sheet(wb, billDetailsWs, "Bill Details")
       }
 
-      const dateStr =
-        dateRange?.from && dateRange?.to
-          ? `${format(dateRange.from, "yyyy-MM-dd")}_to_${format(dateRange.to, "yyyy-MM-dd")}`
-          : format(new Date(), "yyyy-MM-dd")
+      const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")
       const storeStr = selectedStore === "all" ? "" : `-${stores.find(s => s.id === selectedStore)?.name.replace(/\s+/g, '-') || 'store'}`
       const filename = `Analytics-Report${storeStr}-${dateStr}.xlsx`
 
@@ -981,44 +1109,6 @@ export default function AnalyticsPage() {
     }
   }
 
-  const setQuickDateRange = (range: string) => {
-    const today = new Date()
-    let from: Date
-    let to: Date = today
-
-    switch (range) {
-      case "today":
-        from = today
-        break
-      case "yesterday":
-        from = subDays(today, 1)
-        to = subDays(today, 1)
-        break
-      case "last7days":
-        from = subDays(today, 7)
-        break
-      case "last30days":
-        from = subDays(today, 30)
-        break
-      case "thisMonth":
-        from = startOfMonth(today)
-        to = endOfMonth(today)
-        break
-      case "lastMonth":
-        from = startOfMonth(subDays(today, 30))
-        to = endOfMonth(subDays(today, 30))
-        break
-      case "thisYear":
-        from = startOfYear(today)
-        to = endOfYear(today)
-        break
-      default:
-        return
-    }
-
-    setDateRange({ from, to })
-  }
-
   const filteredStoreAnalytics =
     selectedStore === "all" ? storeAnalytics : storeAnalytics.filter((store) => store.storeId === selectedStore)
 
@@ -1032,7 +1122,7 @@ export default function AnalyticsPage() {
   const totalItems = storeAnalytics.reduce((sum, store) => sum + store.totalItems, 0)
   const averageBillValue = totalBills > 0 ? totalRevenue / totalBills : 0
 
-  if (loading) {
+  if (loading) { // Use the combined loading state
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
@@ -1060,9 +1150,14 @@ export default function AnalyticsPage() {
               <Download className="h-4 w-4 mr-2" />
               {exporting ? "Exporting..." : "Export Report"}
             </Button>
-            <Button onClick={refresh} variant="outline" disabled={exporting}>
+            <Button 
+              onClick={refreshAnalytics} 
+              variant="outline" 
+              className="bg-blue-50 hover:bg-blue-100"
+              disabled={loading}
+            >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh Data
+              Refresh Analytics
             </Button>
           </div>
         </div>
@@ -1111,29 +1206,128 @@ export default function AnalyticsPage() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Filter className="h-5 w-5 mr-2" />
-              Filters & Date Range
+              Filters & Date Selection
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label>Date Range</Label>
-                <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                <Label>Selected Date</Label>
+                <div className="relative">
+                  <Button
+                    variant={"outline"}
+                    className="w-full justify-start text-left font-normal"
+                    onClick={() => setCalendarOpen((v) => !v)}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "LLL dd, y") : <span>Pick a date</span>}
+                  </Button>
+                  {calendarOpen && (
+                    <div className="absolute left-0 z-50 mt-2 bg-white border rounded shadow-lg p-3 w-80">
+                      {/* Month header */}
+                      <div className="flex items-center justify-between mb-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
+                          }
+                        >
+                          ◀
+                        </Button>
+                        <div className="text-sm font-medium">{fmtMonthYear(calendarMonth)}</div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+                          }
+                        >
+                          ▶
+                        </Button>
+                      </div>
+
+                      {/* Weekday headers */}
+                      <div className="grid grid-cols-7 text-[11px] text-gray-500 mb-1">
+                        <div className="text-center">Su</div>
+                        <div className="text-center">Mo</div>
+                        <div className="text-center">Tu</div>
+                        <div className="text-center">We</div>
+                        <div className="text-center">Th</div>
+                        <div className="text-center">Fr</div>
+                        <div className="text-center">Sa</div>
+                      </div>
+
+                      {/* Days grid */}
+                      <div className="grid grid-cols-7 gap-1">
+                        {(() => {
+                          const first = startOfMonth(calendarMonth);
+                          const firstWeekday = first.getDay();
+                          const total = daysInMonth(calendarMonth);
+                          const cells: React.JSX.Element[] = [];
+
+                          // Leading blanks
+                          for (let i = 0; i < firstWeekday; i++) {
+                            cells.push(<div key={`b-${i}`} className="h-8" />);
+                          }
+
+                          // Actual days
+                          for (let day = 1; day <= total; day++) {
+                            const d = new Date(
+                              calendarMonth.getFullYear(),
+                              calendarMonth.getMonth(),
+                              day
+                            );
+                            const today = sameDay(d, new Date());
+                            const isSelected = selectedDate && sameDay(d, selectedDate);
+
+                            let cls =
+                              "h-8 w-8 mx-auto flex items-center justify-center rounded-full cursor-pointer select-none ";
+                            if (today) {
+                              cls += "border-2 border-red-500 text-red-600 ";
+                            }
+                            if (isSelected) {
+                              cls += "bg-blue-600 text-white ";
+                            } else {
+                              cls += "text-gray-700 hover:bg-gray-100 ";
+                            }
+
+                            cells.push(
+                              <div key={toKey(d)} className="flex items-center justify-center">
+                                <div
+                                  className={cls}
+                                  onClick={() => {
+                                    setSelectedDate(d);
+                                    setCalendarOpen(false);
+                                  }}
+                                >
+                                  {day}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return cells;
+                        })()}
+                      </div>
+                      <div className="mt-3 border-t pt-3 text-right">
+                        <Button variant="outline" size="sm" onClick={() => setCalendarOpen(false)}>
+                          Close
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
-                <Label>Quick Ranges</Label>
-                <Select onValueChange={setQuickDateRange}>
+                <Label>Quick Dates</Label>
+                <Select onValueChange={setQuickDate}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select range" />
+                    <SelectValue placeholder="Select date" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">All Dates</SelectItem>
                     <SelectItem value="today">Today</SelectItem>
                     <SelectItem value="yesterday">Yesterday</SelectItem>
-                    <SelectItem value="last7days">Last 7 Days</SelectItem>
-                    <SelectItem value="last30days">Last 30 Days</SelectItem>
-                    <SelectItem value="thisMonth">This Month</SelectItem>
-                    <SelectItem value="lastMonth">Last Month</SelectItem>
-                    <SelectItem value="thisYear">This Year</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1194,17 +1388,17 @@ export default function AnalyticsPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{dashboardMetrics?.revenue.current.toFixed(2) || totalRevenue.toFixed(2)}</div>
+              <div className="text-2xl font-bold">₹{dashboardMetrics?.revenue?.current?.toFixed(2) || totalRevenue.toFixed(2)}</div>
               <div className="flex items-center mt-2">
-                {(dashboardMetrics?.revenue.growth || 0) >= 0 ? (
+                {(dashboardMetrics?.revenue?.growth || 0) >= 0 ? (
                   <TrendingUp className="w-4 h-4 text-green-600 mr-1" />
                 ) : (
                   <TrendingDown className="w-4 h-4 text-red-600 mr-1" />
                 )}
                 <span className={`text-sm font-medium ${
-                  (dashboardMetrics?.revenue.growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  (dashboardMetrics?.revenue?.growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}>
-                  {Math.abs(dashboardMetrics?.revenue.growth || 0).toFixed(1)}%
+                  {Math.abs(dashboardMetrics?.revenue?.growth || 0).toFixed(1)}%
                 </span>
                 <span className="text-xs text-gray-500 ml-1">vs previous</span>
               </div>
@@ -1216,9 +1410,9 @@ export default function AnalyticsPage() {
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{dashboardMetrics?.bills.total || totalBills}</div>
+              <div className="text-2xl font-bold">{dashboardMetrics?.bills?.total || totalBills}</div>
               <p className="text-xs text-muted-foreground">
-                Avg: ₹{(dashboardMetrics?.bills.averageValue || averageBillValue).toFixed(2)}
+                Avg: ₹{(dashboardMetrics?.bills?.averageValue || averageBillValue).toFixed(2)}
               </p>
             </CardContent>
           </Card>
@@ -1228,9 +1422,9 @@ export default function AnalyticsPage() {
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{dashboardMetrics?.items.totalSold || totalItems}</div>
+              <div className="text-2xl font-bold">{dashboardMetrics?.items?.totalSold || totalItems}</div>
               <p className="text-xs text-muted-foreground">
-                {(dashboardMetrics?.items.perTransaction || (totalItems / totalBills)).toFixed(1)} per transaction
+                {(dashboardMetrics?.items?.perTransaction || (totalItems / totalBills)).toFixed(1)} per transaction
               </p>
             </CardContent>
           </Card>
@@ -1240,7 +1434,7 @@ export default function AnalyticsPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{dashboardMetrics?.customers.unique || 0}</div>
+              <div className="text-2xl font-bold">{dashboardMetrics?.customers?.unique || 0}</div>
               <p className="text-xs text-muted-foreground">Active users: {online?.onlineCount ?? 0}</p>
             </CardContent>
           </Card>

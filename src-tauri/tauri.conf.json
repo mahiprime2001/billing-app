@@ -39,11 +39,14 @@
         "https://github.com/mahiprime2001/billing-app/releases/latest/download/update.json"
       ],
       "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZENzM1QzQwMjUxRkYxNkMKUldSczhSOGxRRnh6L1ZlcUQzR2J4UTF0VEpSRVBFQXBDalF0TDZ1R2ZEVTZWSzVDSGRaaTh3MjYK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZENzM1QzQwMjUxRkYxNkMKUldSczhSOGxRRnh6L1ZlcUQzR2J4UTF0VEpSRVBFQXBDalF0TDZ1R2ZEVTZWSzVDSGRaaTh3MjYK",
+      "windows": {
+        "installMode": "passive"
+      }
     }
   },
   "bundle": {
-    "copyright": "all rigths are reserverd by IFLEON",
+    "copyright": "all rights are reserved by IFLEON",
     "publisher": "IFLEON",
     "android": {
       "minSdkVersion": 24
@@ -57,26 +60,23 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico",
-      "icons/icon.png",
-      "icons/icon@2x.png",
-      "icons/icon@3x.png",
-      "icons/icon@4x.png",
-      "icons/icon@5x.png",
-      "icons/icon@6x.png",
-      "icons/icon@7x.png",
-      "icons/icon@8x.png",
-      "icons/icon@9x.png",
-      "icons/icon@10x.png",
-      "icons/icon@11x.png",
-      "icons/icon@12x.png",
-      "icons/icon@13x.png",
-      "icons/icon@14x.png",
-      "icons/icon@15x.png",
-      "icons/icon@16x.png",
-      "icons/icon@2x.ico"
+      "icons/icon.png"
     ],
     "externalBin": [
       "binaries/Siriadmin-backend"
-    ]
+    ],
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "wix": {
+        "language": "en-US"
+      },
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "perMachine",
+        "displayLanguageSelector": false
+      }
+    }
   }
 }

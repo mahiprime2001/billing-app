@@ -35023,3 +35023,407 @@ OSErrorOSError: : [WinError 10038] An operation was attempted on something that 
 [2025-11-03 15:41:10,094] INFO in app: Enhanced sync manager stopped gracefully
 [2025-11-03 15:41:10,094] INFO in app: Enhanced sync manager stopped gracefully
 2025-11-03 15:41:10,094 - app - INFO - app.py:2842 - Enhanced sync manager stopped gracefully
+[2025-11-08 15:28:17,849] INFO in app: APP_BASE_DIR: e:\Siri-apps\billing-app
+[2025-11-08 15:28:17,849] INFO in app: APP_BASE_DIR: e:\Siri-apps\billing-app
+2025-11-08 15:28:17,849 - app - INFO - app.py:170 - APP_BASE_DIR: e:\Siri-apps\billing-app
+[2025-11-08 15:28:17,919] INFO in app: JSON_DIR: e:\Siri-apps\billing-app\data\json
+[2025-11-08 15:28:17,919] INFO in app: JSON_DIR: e:\Siri-apps\billing-app\data\json
+2025-11-08 15:28:17,919 - app - INFO - app.py:171 - JSON_DIR: e:\Siri-apps\billing-app\data\json
+[2025-11-08 15:28:17,919] INFO in app: LOGS_DIR: e:\Siri-apps\billing-app\data\logs
+[2025-11-08 15:28:17,919] INFO in app: LOGS_DIR: e:\Siri-apps\billing-app\data\logs
+2025-11-08 15:28:17,919 - app - INFO - app.py:172 - LOGS_DIR: e:\Siri-apps\billing-app\data\logs
+MySQL connection pool created successfully with hardcoded values.
+Table 'batch' checked/created successfully.
+Table 'ProductBarcodes' checked/created successfully.
+Table 'Users' checked/created successfully.
+Ensured 'password' column in 'Users' table is NOT NULL.
+Table 'UserStores' checked/created successfully.
+Table 'Bills' checked/created successfully.
+[2025-11-08 15:28:21,919] INFO in app: Data file missing/empty: e:\Siri-apps\billing-app\data\json\customers.json. Will perform full pull.
+[2025-11-08 15:28:21,919] INFO in app: Data file missing/empty: e:\Siri-apps\billing-app\data\json\customers.json. Will perform full pull.
+2025-11-08 15:28:21,919 - app - INFO - app.py:290 - Data file missing/empty: e:\Siri-apps\billing-app\data\json\customers.json. Will perform full pull.
+[2025-11-08 15:28:21,923] INFO in app: First run detected. Pulling all data from MySQL...
+[2025-11-08 15:28:21,923] INFO in app: First run detected. Pulling all data from MySQL...
+2025-11-08 15:28:21,923 - app - INFO - app.py:3007 - First run detected. Pulling all data from MySQL...
+[2025-11-08 15:28:21,923] INFO in app: Starting initial full data pull from MySQL...
+[2025-11-08 15:28:21,923] INFO in app: Starting initial full data pull from MySQL...
+2025-11-08 15:28:21,923 - app - INFO - app.py:208 - Starting initial full data pull from MySQL...
+[2025-11-08 15:28:22,028] DEBUG in app: Pulling all records from Products...
+[2025-11-08 15:28:22,028] DEBUG in app: Pulling all records from Products...
+2025-11-08 15:28:22,028 - app - DEBUG - app.py:228 - Pulling all records from Products...
+--- Logging error ---
+--- Logging error ---
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+    self.terminal.write(message)
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+    self.terminal.write(message)
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+    self.terminal.write(message)
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+    self.terminal.write(message)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 70: character maps to <undefined>
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 70: character maps to <undefined>
+Call stack:
+Call stack:
+  File "e:\Siri-apps\billing-app\backend\app.py", line 3008, in <module>
+    initialize_full_data_pull()
+  File "e:\Siri-apps\billing-app\backend\app.py", line 3008, in <module>
+    initialize_full_data_pull()
+--- Logging error ---
+--- Logging error ---
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+    self.terminal.write(message)
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+    self.terminal.write(message)
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+    self.terminal.write(message)
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+    self.terminal.write(message)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 70: character maps to <undefined>
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 70: character maps to <undefined>
+
+During handling of the above exception, another exception occurred:
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+Traceback (most recent call last):
+--- Logging error ---
+--- Logging error ---
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+    stream.write(msg + self.terminator)
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+    self.terminal.write(message)
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+    self.terminal.write(message)
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+    self.terminal.write(message)
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+    self.terminal.write(message)
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 70: character maps to <undefined>
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 70: character maps to <undefined>
+
+During handling of the above exception, another exception occurred:
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+        stream.write(msg + self.terminator)stream.write(msg + self.terminator)
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+        self.terminal.write(message)self.terminal.write(message)
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+        self.terminal.write(message)self.terminal.write(message)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+        return codecs.charmap_encode(input,self.errors,encoding_table)[0]return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+UnicodeEncodeErrorUnicodeEncodeError: : 'charmap' codec can't encode character '\u2192' in position 70: character maps to <undefined>'charmap' codec can't encode character '\u2192' in position 70: character maps to <undefined>
+
+
+
+During handling of the above exception, another exception occurred:
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "e:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+  File "e:\Siri-apps\billing-app\backend\app.py", line 255, in initialize_full_data_pull
+          File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1539, in info
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1539, in info
+        self._log(INFO, msg, args, **kwargs)self._log(INFO, msg, args, **kwargs)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1684, in _log
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1684, in _log
+        self.handle(record)self.handle(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1700, in handle
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1700, in handle
+        self.callHandlers(record)self.callHandlers(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1762, in callHandlers
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1762, in callHandlers
+        hdlr.handle(record)hdlr.handle(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1028, in handle
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1028, in handle
+        self.emit(record)self.emit(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1168, in emit
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1168, in emit
+        self.handleError(record)self.handleError(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1091, in handleError
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1091, in handleError
+        traceback.print_stack(frame, file=sys.stderr)traceback.print_stack(frame, file=sys.stderr)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\traceback.py", line 211, in print_stack
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\traceback.py", line 211, in print_stack
+        print_list(extract_stack(f, limit=limit), file=file)print_list(extract_stack(f, limit=limit), file=file)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\traceback.py", line 27, in print_list
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\traceback.py", line 27, in print_list
+        print(item, file=file, end="")print(item, file=file, end="")
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+        self.terminal.write(message)self.terminal.write(message)
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+        self.terminal.write(message)self.terminal.write(message)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+        return codecs.charmap_encode(input,self.errors,encoding_table)[0]return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+UnicodeEncodeErrorUnicodeEncodeError: : 'charmap' codec can't encode character '\u2192' in position 160: character maps to <undefined>'charmap' codec can't encode character '\u2192' in position 160: character maps to <undefined>
+
+
+
+During handling of the above exception, another exception occurred:
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+        stream.write(msg + self.terminator)stream.write(msg + self.terminator)
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+        self.terminal.write(message)self.terminal.write(message)
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+        self.terminal.write(message)self.terminal.write(message)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+        return codecs.charmap_encode(input,self.errors,encoding_table)[0]return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+UnicodeEncodeErrorUnicodeEncodeError: : 'charmap' codec can't encode character '\u2192' in position 1184: character maps to <undefined>'charmap' codec can't encode character '\u2192' in position 1184: character maps to <undefined>
+
+
+
+During handling of the above exception, another exception occurred:
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "e:\Siri-apps\billing-app\backend\app.py", line 260, in initialize_full_data_pull
+  File "e:\Siri-apps\billing-app\backend\app.py", line 260, in initialize_full_data_pull
+        app.logger.error(f"Error pulling {table_name}: {table_err}", exc_info=True)app.logger.error(f"Error pulling {table_name}: {table_err}", exc_info=True)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1568, in error
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1568, in error
+        self._log(ERROR, msg, args, **kwargs)self._log(ERROR, msg, args, **kwargs)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1684, in _log
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1684, in _log
+        self.handle(record)self.handle(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1700, in handle
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1700, in handle
+        self.callHandlers(record)self.callHandlers(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1762, in callHandlers
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1762, in callHandlers
+        hdlr.handle(record)hdlr.handle(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1028, in handle
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1028, in handle
+        self.emit(record)self.emit(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1168, in emit
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1168, in emit
+        self.handleError(record)self.handleError(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1082, in handleError
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1082, in handleError
+        traceback.print_exception(t, v, tb, None, sys.stderr)traceback.print_exception(t, v, tb, None, sys.stderr)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\traceback.py", line 125, in print_exception
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\traceback.py", line 125, in print_exception
+        te.print(file=file, chain=chain)te.print(file=file, chain=chain)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\traceback.py", line 1050, in print
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\traceback.py", line 1050, in print
+        print(line, file=file, end="")print(line, file=file, end="")
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+        self.terminal.write(message)self.terminal.write(message)
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+        self.terminal.write(message)self.terminal.write(message)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+        return codecs.charmap_encode(input,self.errors,encoding_table)[0]return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+UnicodeEncodeErrorUnicodeEncodeError: : 'charmap' codec can't encode character '\u2192' in position 160: character maps to <undefined>'charmap' codec can't encode character '\u2192' in position 160: character maps to <undefined>
+
+
+
+During handling of the above exception, another exception occurred:
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1163, in emit
+        stream.write(msg + self.terminator)stream.write(msg + self.terminator)
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+        self.terminal.write(message)self.terminal.write(message)
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+        self.terminal.write(message)self.terminal.write(message)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+        return codecs.charmap_encode(input,self.errors,encoding_table)[0]return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+UnicodeEncodeErrorUnicodeEncodeError: : 'charmap' codec can't encode character '\u2192' in position 1189: character maps to <undefined>'charmap' codec can't encode character '\u2192' in position 1189: character maps to <undefined>
+
+
+
+During handling of the above exception, another exception occurred:
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "e:\Siri-apps\billing-app\backend\app.py", line 3008, in <module>
+  File "e:\Siri-apps\billing-app\backend\app.py", line 3008, in <module>
+        initialize_full_data_pull()initialize_full_data_pull()
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 274, in initialize_full_data_pull
+  File "e:\Siri-apps\billing-app\backend\app.py", line 274, in initialize_full_data_pull
+        app.logger.error(f"Error during full data pull: {e}", exc_info=True)app.logger.error(f"Error during full data pull: {e}", exc_info=True)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1568, in error
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1568, in error
+        self._log(ERROR, msg, args, **kwargs)self._log(ERROR, msg, args, **kwargs)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1684, in _log
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1684, in _log
+        self.handle(record)self.handle(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1700, in handle
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1700, in handle
+        self.callHandlers(record)self.callHandlers(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1762, in callHandlers
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1762, in callHandlers
+        hdlr.handle(record)hdlr.handle(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1028, in handle
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1028, in handle
+        self.emit(record)self.emit(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1168, in emit
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1168, in emit
+        self.handleError(record)self.handleError(record)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1082, in handleError
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\logging\__init__.py", line 1082, in handleError
+        traceback.print_exception(t, v, tb, None, sys.stderr)traceback.print_exception(t, v, tb, None, sys.stderr)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\traceback.py", line 125, in print_exception
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\traceback.py", line 125, in print_exception
+        te.print(file=file, chain=chain)te.print(file=file, chain=chain)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\traceback.py", line 1050, in print
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\traceback.py", line 1050, in print
+        print(line, file=file, end="")print(line, file=file, end="")
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+        self.terminal.write(message)self.terminal.write(message)
+
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+  File "e:\Siri-apps\billing-app\backend\app.py", line 158, in write
+        self.terminal.write(message)self.terminal.write(message)
+
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+  File "C:\Users\Dell\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+        return codecs.charmap_encode(input,self.errors,encoding_table)[0]return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+UnicodeEncodeErrorUnicodeEncodeError: : 'charmap' codec can't encode character '\u2192' in position 160: character maps to <undefined>'charmap' codec can't encode character '\u2192' in position 160: character maps to <undefined>
+
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "e:\Siri-apps\billing-app\backend\app.py", line 178, in <module>
+  File "e:\Siri-apps\billing-app\backend\app.py", line 178, in <module>
+        if sys.stdout.encoding != 'utf-8':if sys.stdout.encoding != 'utf-8':
+
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+AttributeErrorAttributeError: : 'DualLogger' object has no attribute 'encoding''DualLogger' object has no attribute 'encoding'
+

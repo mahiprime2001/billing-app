@@ -150,12 +150,18 @@ app.logger.setLevel(logging.DEBUG)
 
 # Redirect stdout and stderr to the log file
 class DualLogger:
-    def __init__(self, filename, encoding='utf-8'):
+    def __init__(self, filename):
         self.terminal = sys.stdout
-        self.log = open(filename, 'a', encoding=encoding)
+        # Ensure the log file is opened with utf-8 encoding
+        self.log = open(filename, 'a', encoding='utf-8')
 
     def write(self, message):
-        self.terminal.write(message)
+        try:
+            # Attempt to write to terminal with utf-8, fallback if not supported
+            self.terminal.write(message)
+        except UnicodeEncodeError:
+            # Fallback for terminals that don't support UTF-8 directly
+            self.terminal.write(message.encode('ascii', 'replace').decode('ascii'))
         self.log.write(message)
         self.log.flush() # Ensure immediate write to file
 
@@ -163,6 +169,7 @@ class DualLogger:
         self.terminal.flush()
         self.log.flush()
 
+# Set stdout and stderr to use the DualLogger with explicit UTF-8 handling
 sys.stdout = DualLogger(LOG_FILE)
 sys.stderr = DualLogger(LOG_FILE)
 
@@ -529,19 +536,27 @@ def _to_date_only(dt_str):
     except Exception:
         return None
 
+def _safe_int(value, default=0):
+    """Safely convert value to int, returning default if conversion fails."""
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+def _safe_float(value, default=0.0):
+    """Safely convert value to float, returning default if conversion fails."""
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
 def _price_of(p):
     """Extract price from product as float"""
-    try:
-        return float(p.get('price') or 0)
-    except Exception:
-        return 0.0
+    return _safe_float(p.get('price'))
 
 def _stock_of(p):
     """Extract stock from product as int"""
-    try:
-        return int(p.get('stock') or 0)
-    except Exception:
-        return 0
+    return _safe_int(p.get('stock'))
 
 @app.route('/')
 def home():
@@ -1879,17 +1894,26 @@ def delete_notification(notification_id):
 
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
-    all_settings = get_settings_data()
+    all_settings = get_settings_data() # This will be like {"1": {...}, "billFormats": {...}} or {}
+    
+    # Extract the actual system settings object. Assuming there's only one systemSettings record,
+    # which is stored under its ID (e.g., "1") in the all_settings dictionary.
+    # If all_settings is empty or doesn't contain a system settings object, it will default to an empty dict.
+    system_settings_from_file = {}
+    for key, value in all_settings.items():
+        if isinstance(value, dict) and "gstin" in value and "taxPercentage" in value: # Heuristic to find systemSettings
+            system_settings_from_file = value
+            break
     
     response_data = {
-        "systemSettings": all_settings.get("systemSettings", {
+        "systemSettings": system_settings_from_file or { # Use the extracted settings, or default if empty
             "gstin": "",
             "taxPercentage": 0,
             "companyName": "",
             "companyAddress": "",
             "companyPhone": "",
             "companyEmail": "",
-        }),
+        },
         "billFormats": all_settings.get("billFormats", {
             "A4": {"width": 210, "height": 297, "margins": {"top": 10, "bottom": 10, "left": 10, "right": 10}, "unit": "mm"},
             "A5": {"width": 148, "height": 210, "margins": {"top": 10, "bottom": 10, "left": 10, "right": 10}, "unit": "mm"},
@@ -1907,8 +1931,22 @@ def update_settings():
     data = request.json or {}
     existing_settings = get_settings_data()
     
+    # Determine the ID for systemSettings. Assume "1" if not explicitly provided or found.
+    # This ID is used as the key in the existing_settings dictionary.
+    setting_id = "1" 
+    if "systemSettings" in data and "id" in data["systemSettings"]:
+        setting_id = data["systemSettings"]["id"]
+    elif existing_settings and any(isinstance(v, dict) and "gstin" in v for v in existing_settings.values()):
+        # Try to find an existing systemSettings ID if not in incoming data
+        for k, v in existing_settings.items():
+            if isinstance(v, dict) and "gstin" in v: # Heuristic to find systemSettings
+                setting_id = k
+                break
+
     if "systemSettings" in data:
-        existing_settings["systemSettings"] = data["systemSettings"]
+        # Store the incoming systemSettings under its ID in the existing_settings dictionary
+        existing_settings[setting_id] = data["systemSettings"]
+    
     if "billFormats" in data:
         existing_settings["billFormats"] = data["billFormats"]
     if "storeFormats" in data:
@@ -1917,8 +1955,8 @@ def update_settings():
     # Save to JSON
     save_settings_data(existing_settings)
     
-    setting_id = existing_settings.get("systemSettings", {}).get("id", "1")
-    system_settings = existing_settings.get("systemSettings", {})
+    # Retrieve the system_settings object using the determined setting_id for DB update
+    system_settings = existing_settings.get(setting_id, {})
     
     # DIRECTLY UPDATE MySQL DATABASE
     try:
@@ -2159,20 +2197,33 @@ def get_analytics_dashboard():
         cutoff_date = datetime.now() - timedelta(days=days)
         
         # Filter bills by date range
-        recent_bills = [
-            b for b in bills 
-            if datetime.fromisoformat(b.get('createdAt', '')) >= cutoff_date
-        ]
+        recent_bills = []
+        for b in bills:
+            created_at_str = b.get('createdAt', '')
+            if created_at_str:
+                try:
+                    bill_date = datetime.fromisoformat(created_at_str)
+                    if bill_date >= cutoff_date:
+                        recent_bills.append(b)
+                except ValueError:
+                    app.logger.warning(f"Invalid createdAt isoformat string for bill ID {b.get('id', 'N/A')}: '{created_at_str}' in get_analytics_dashboard")
         
         # Calculate revenue metrics
         total_revenue = sum(float(b.get('total', 0)) for b in recent_bills)
         
         # Previous period comparison
         previous_cutoff = cutoff_date - timedelta(days=days)
-        previous_bills = [
-            b for b in bills 
-            if previous_cutoff <= datetime.fromisoformat(b.get('createdAt', '')) < cutoff_date
-        ]
+        previous_bills = []
+        for b in bills:
+            created_at_str = b.get('createdAt', '')
+            if created_at_str:
+                try:
+                    bill_date = datetime.fromisoformat(created_at_str)
+                    if previous_cutoff <= bill_date < cutoff_date:
+                        previous_bills.append(b)
+                except ValueError:
+                    app.logger.warning(f"Invalid createdAt isoformat string for bill ID {b.get('id', 'N/A')}: '{created_at_str}' in get_analytics_dashboard (previous period)")
+        
         previous_revenue = sum(float(b.get('total', 0)) for b in previous_bills)
         revenue_growth = ((total_revenue - previous_revenue) / previous_revenue * 100) if previous_revenue > 0 else 0
         
@@ -2246,24 +2297,28 @@ def get_revenue_trends():
         bills_by_period = defaultdict(int)
         
         for bill in bills:
-            try:
-                bill_date = datetime.fromisoformat(bill.get('createdAt', ''))
-                if bill_date < cutoff_date:
+            created_at_str = bill.get('createdAt', '')
+            if created_at_str:
+                try:
+                    bill_date = datetime.fromisoformat(created_at_str)
+                    if bill_date < cutoff_date:
+                        continue
+                    
+                    # Group by period
+                    if period == 'daily':
+                        key = bill_date.strftime('%Y-%m-%d')
+                    elif period == 'weekly':
+                        key = bill_date.strftime('%Y-W%U')
+                    else:  # monthly
+                        key = bill_date.strftime('%Y-%m')
+                    
+                    revenue_by_period[key] += float(bill.get('total', 0))
+                    bills_by_period[key] += 1
+                except ValueError:
+                    app.logger.warning(f"Invalid createdAt isoformat string for bill ID {bill.get('id', 'N/A')}: '{created_at_str}' in get_revenue_trends")
+                except Exception as e:
+                    app.logger.error(f"Error processing bill in get_revenue_trends: {e}")
                     continue
-                
-                # Group by period
-                if period == 'daily':
-                    key = bill_date.strftime('%Y-%m-%d')
-                elif period == 'weekly':
-                    key = bill_date.strftime('%Y-W%U')
-                else:  # monthly
-                    key = bill_date.strftime('%Y-%m')
-                
-                revenue_by_period[key] += float(bill.get('total', 0))
-                bills_by_period[key] += 1
-            except Exception as e:
-                app.logger.error(f"Error processing bill: {e}")
-                continue
         
         # Format response
         trend_data = [
@@ -2305,23 +2360,27 @@ def get_top_products():
         product_stats = defaultdict(lambda: {'revenue': 0, 'quantity': 0, 'bills': 0})
         
         for bill in bills:
-            try:
-                bill_date = datetime.fromisoformat(bill.get('createdAt', ''))
-                if bill_date < cutoff_date:
+            created_at_str = bill.get('createdAt', '')
+            if created_at_str:
+                try:
+                    bill_date = datetime.fromisoformat(created_at_str)
+                    if bill_date < cutoff_date:
+                        continue
+                    
+                    for item in bill.get('items', []):
+                        product_id = item.get('productId')
+                        if product_id:
+                            quantity = int(item.get('quantity', 0))
+                            price = float(item.get('price', 0))
+                            
+                            product_stats[product_id]['revenue'] += price * quantity
+                            product_stats[product_id]['quantity'] += quantity
+                            product_stats[product_id]['bills'] += 1
+                except ValueError:
+                    app.logger.warning(f"Invalid createdAt isoformat string for bill ID {bill.get('id', 'N/A')}: '{created_at_str}' in get_top_products")
+                except Exception as e:
+                    app.logger.error(f"Error processing bill for products in get_top_products: {e}")
                     continue
-                
-                for item in bill.get('items', []):
-                    product_id = item.get('productId')
-                    if product_id:
-                        quantity = int(item.get('quantity', 0))
-                        price = float(item.get('price', 0))
-                        
-                        product_stats[product_id]['revenue'] += price * quantity
-                        product_stats[product_id]['quantity'] += quantity
-                        product_stats[product_id]['bills'] += 1
-            except Exception as e:
-                app.logger.error(f"Error processing bill for products: {e}")
-                continue
         
         # Format and sort results
         results = []
@@ -2364,17 +2423,22 @@ def get_inventory_health():
         # Calculate sold quantities per product
         sold_quantities = defaultdict(int)
         for bill in bills:
-            try:
-                bill_date = datetime.fromisoformat(bill.get('createdAt', ''))
-                if bill_date < cutoff_date:
+            created_at_str = bill.get('createdAt', '')
+            if created_at_str:
+                try:
+                    bill_date = datetime.fromisoformat(created_at_str)
+                    if bill_date < cutoff_date:
+                        continue
+                    
+                    for item in bill.get('items', []):
+                        product_id = item.get('productId')
+                        if product_id:
+                            sold_quantities[product_id] += int(item.get('quantity', 0))
+                except ValueError:
+                    app.logger.warning(f"Invalid createdAt isoformat string for bill ID {bill.get('id', 'N/A')}: '{created_at_str}' in get_inventory_health")
+                except Exception as e:
+                    app.logger.error(f"Error processing bill in get_inventory_health: {e}")
                     continue
-                
-                for item in bill.get('items', []):
-                    product_id = item.get('productId')
-                    if product_id:
-                        sold_quantities[product_id] += int(item.get('quantity', 0))
-            except Exception:
-                continue
         
         # Calculate metrics for each product
         inventory_data = []
@@ -2460,18 +2524,23 @@ def get_store_performance():
         
         # Aggregate bill data by store
         for bill in bills:
-            try:
-                bill_date = datetime.fromisoformat(bill.get('createdAt', ''))
-                if bill_date < cutoff_date:
+            created_at_str = bill.get('createdAt', '')
+            if created_at_str:
+                try:
+                    bill_date = datetime.fromisoformat(created_at_str)
+                    if bill_date < cutoff_date:
+                        continue
+                    
+                    store_id = bill.get('storeId')
+                    if store_id and store_id in store_metrics:
+                        store_metrics[store_id]['revenue'] += float(bill.get('total', 0))
+                        store_metrics[store_id]['bills'] += 1
+                        store_metrics[store_id]['items'] += sum(int(item.get('quantity', 0)) for item in bill.get('items', []))
+                except ValueError:
+                    app.logger.warning(f"Invalid createdAt isoformat string for bill ID {bill.get('id', 'N/A')}: '{created_at_str}' in get_store_performance")
+                except Exception as e:
+                    app.logger.error(f"Error processing bill in get_store_performance: {e}")
                     continue
-                
-                store_id = bill.get('storeId')
-                if store_id and store_id in store_metrics:
-                    store_metrics[store_id]['revenue'] += float(bill.get('total', 0))
-                    store_metrics[store_id]['bills'] += 1
-                    store_metrics[store_id]['items'] += sum(int(item.get('quantity', 0)) for item in bill.get('items', []))
-            except Exception:
-                continue
         
         # Calculate inventory value per store
         for product in products:
@@ -2518,24 +2587,29 @@ def get_category_breakdown():
         category_stats = defaultdict(lambda: {'revenue': 0, 'quantity': 0, 'bills': set()})
         
         for bill in bills:
-            try:
-                bill_date = datetime.fromisoformat(bill.get('createdAt', ''))
-                if bill_date < cutoff_date:
+            created_at_str = bill.get('createdAt', '')
+            if created_at_str:
+                try:
+                    bill_date = datetime.fromisoformat(created_at_str)
+                    if bill_date < cutoff_date:
+                        continue
+                    
+                    for item in bill.get('items', []):
+                        product_id = item.get('productId')
+                        product = product_lookup.get(product_id, {})
+                        category = product.get('category', 'Uncategorized')
+                        
+                        quantity = int(item.get('quantity', 0))
+                        price = float(item.get('price', 0))
+                        
+                        category_stats[category]['revenue'] += price * quantity
+                        category_stats[category]['quantity'] += quantity
+                        category_stats[category]['bills'].add(bill['id'])
+                except ValueError:
+                    app.logger.warning(f"Invalid createdAt isoformat string for bill ID {bill.get('id', 'N/A')}: '{created_at_str}' in get_category_breakdown")
+                except Exception as e:
+                    app.logger.error(f"Error processing bill in get_category_breakdown: {e}")
                     continue
-                
-                for item in bill.get('items', []):
-                    product_id = item.get('productId')
-                    product = product_lookup.get(product_id, {})
-                    category = product.get('category', 'Uncategorized')
-                    
-                    quantity = int(item.get('quantity', 0))
-                    price = float(item.get('price', 0))
-                    
-                    category_stats[category]['revenue'] += price * quantity
-                    category_stats[category]['quantity'] += quantity
-                    category_stats[category]['bills'].add(bill['id'])
-            except Exception:
-                continue
         
         # Format results
         results = [
@@ -2576,7 +2650,7 @@ def get_business_alerts():
         alerts = []
         
         # Low stock alerts
-        low_stock_products = [p for p in products if int(p.get('stock', 0)) < 10]
+        low_stock_products = [p for p in products if _safe_int(p.get('stock')) < 10]
         if low_stock_products:
             alerts.append({
                 'type': 'warning',
@@ -2588,7 +2662,7 @@ def get_business_alerts():
             })
         
         # Out of stock alerts
-        out_of_stock = [p for p in products if int(p.get('stock', 0)) == 0]
+        out_of_stock = [p for p in products if _safe_int(p.get('stock')) == 0]
         if out_of_stock:
             alerts.append({
                 'type': 'error',
@@ -2601,14 +2675,31 @@ def get_business_alerts():
         
         # Revenue drop detection (comparing last 7 days to previous 7 days)
         now = datetime.now()
-        recent_revenue = sum(
-            float(b.get('total', 0)) for b in bills
-            if now - timedelta(days=7) <= datetime.fromisoformat(b.get('createdAt', '')) <= now
-        )
-        previous_revenue = sum(
-            float(b.get('total', 0)) for b in bills
-            if now - timedelta(days=14) <= datetime.fromisoformat(b.get('createdAt', '')) < now - timedelta(days=7)
-        )
+        recent_revenue = 0
+        for b in bills:
+            created_at_str = b.get('createdAt', '')
+            if created_at_str:
+                try:
+                    bill_date = datetime.fromisoformat(created_at_str)
+                    if now - timedelta(days=7) <= bill_date <= now:
+                        recent_revenue += _safe_float(b.get('total'))
+                except ValueError:
+                    app.logger.warning(f"Invalid createdAt isoformat string for bill ID {b.get('id', 'N/A')}: '{created_at_str}' in get_business_alerts (recent revenue)")
+                except Exception as e:
+                    app.logger.error(f"Error processing bill for recent revenue in get_business_alerts: {e}")
+        
+        previous_revenue = 0
+        for b in bills:
+            created_at_str = b.get('createdAt', '')
+            if created_at_str:
+                try:
+                    bill_date = datetime.fromisoformat(created_at_str)
+                    if now - timedelta(days=14) <= bill_date < now - timedelta(days=7):
+                        previous_revenue += _safe_float(b.get('total'))
+                except ValueError:
+                    app.logger.warning(f"Invalid createdAt isoformat string for bill ID {b.get('id', 'N/A')}: '{created_at_str}' in get_business_alerts (previous revenue)")
+                except Exception as e:
+                    app.logger.error(f"Error processing bill for previous revenue in get_business_alerts: {e}")
         
         if previous_revenue > 0:
             revenue_change = ((recent_revenue - previous_revenue) / previous_revenue) * 100
@@ -2625,20 +2716,21 @@ def get_business_alerts():
         # High inventory value sitting (products with high value but low turnover)
         high_value_slow = []
         for product in products:
-            stock = int(product.get('stock', 0))
-            price = float(product.get('price', 0))
+            stock = _safe_int(product.get('stock'))
+            price = _safe_float(product.get('price'))
             value = stock * price
             
             if value > 50000:  # High value threshold
                 # Check recent sales
                 product_sales = sum(
-                    int(item.get('quantity', 0))
+                    _safe_int(item.get('quantity'))
                     for bill in bills[-30:]  # Last 30 bills
-                    for item in bill.get('items', [])
+                    if bill is not None # Ensure bill is not None
+                    for item in (bill.get('items') or []) # Ensure items is an iterable
                     if item.get('productId') == product['id']
                 )
                 
-                if product_sales < stock * 0.1:  # Less than 10% sold
+                if stock > 0 and product_sales < stock * 0.1:  # Less than 10% sold, and stock is not zero
                     high_value_slow.append(product)
         
         if high_value_slow:
@@ -2656,9 +2748,100 @@ def get_business_alerts():
             'count': len(alerts)
         }), 200
     except Exception as e:
-        app.logger.error(f"Error getting business alerts: {e}")
+        app.logger.error(f"Error getting business alerts: {e}", exc_info=True) # Added exc_info=True for full traceback
+        return jsonify({"status": "error", "message": "Internal server error", "details": str(e)}), 500
+
+@app.route('/api/analytics/users/online', methods=['GET'])
+def get_online_users():
+    """Get count and list of online users based on last seen timestamp"""
+    try:
+        window_minutes = int(request.args.get('windowMinutes', 5))
+        
+        # Get all user sessions
+        user_sessions = _get_user_sessions()
+        
+        online_users_list = []
+        current_time = datetime.now(timezone.utc)
+        
+        for session in user_sessions:
+            last_seen_str = session.get('lastSeen')
+            if last_seen_str:
+                try:
+                    last_seen_time = datetime.fromisoformat(last_seen_str).replace(tzinfo=timezone.utc)
+                    if current_time - last_seen_time <= timedelta(minutes=window_minutes):
+                        online_users_list.append({
+                            'userId': session.get('userId'),
+                            'lastEvent': session.get('lastEvent'),
+                            'lastSeen': last_seen_time.isoformat(),
+                            'details': session.get('details')
+                        })
+                except ValueError:
+                    app.logger.warning(f"Invalid lastSeen isoformat string for user ID {session.get('userId', 'N/A')}: '{last_seen_str}' in get_online_users")
+                except Exception as e:
+                    app.logger.error(f"Error processing user session in get_online_users: {e}")
+                    continue
+        
+        return jsonify({
+            'windowMinutes': window_minutes,
+            'onlineCount': len(online_users_list),
+            'online': online_users_list
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Error getting online users: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/api/analytics/users/sessions', methods=['GET'])
+def get_user_sessions_analytics():
+    """
+    Get user session analytics including total sessions and average session duration
+    for a given date range.
+    """
+    try:
+        from_date_str = request.args.get('from')
+        to_date_str = request.args.get('to')
+
+        if not from_date_str or not to_date_str:
+            return jsonify({"status": "error", "message": "Both 'from' and 'to' date parameters are required"}), 400
+
+        from_date = datetime.fromisoformat(from_date_str).date()
+        to_date = datetime.fromisoformat(to_date_str).date()
+
+        all_sessions = _get_user_sessions()
+        
+        total_sessions = 0
+        total_duration_seconds = 0
+        
+        for session in all_sessions:
+            last_logged_str = session.get('lastLogged') # Assuming 'lastLogged' marks the start of a session
+            last_logout_str = session.get('lastLogout') # Assuming 'lastLogout' marks the end of a session
+
+            if last_logged_str and last_logout_str:
+                try:
+                    session_start = datetime.fromisoformat(last_logged_str)
+                    session_end = datetime.fromisoformat(last_logout_str)
+                    
+                    # Ensure session is within the requested date range
+                    if from_date <= session_start.date() <= to_date:
+                        total_sessions += 1
+                        duration = (session_end - session_start).total_seconds()
+                        total_duration_seconds += duration
+                except ValueError:
+                    app.logger.warning(f"Invalid lastLogged/lastLogout isoformat string for user ID {session.get('userId', 'N/A')}: '{last_logged_str}' or '{last_logout_str}' in get_user_sessions_analytics")
+                except Exception as e:
+                    app.logger.error(f"Error processing user session in get_user_sessions_analytics: {e}")
+                    continue
+        
+        avg_session_sec = total_duration_seconds / total_sessions if total_sessions > 0 else 0
+
+        return jsonify({
+            'from': from_date_str,
+            'to': to_date_str,
+            'totalSessions': total_sessions,
+            'avgSessionSec': round(avg_session_sec, 2)
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Error getting user session analytics: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 #-------------------------------------------------
 # Legacy sync endpoints (keep for compatibility) 

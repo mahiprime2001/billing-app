@@ -662,7 +662,7 @@ export default function SettingsPage() {
                   min="0"
                   max="100"
                   step="0.1"
-                  value={settings.taxPercentage}
+                  value={settings.taxPercentage ?? 0}
                   onChange={(e) => handleInputChange("taxPercentage", Number.parseFloat(e.target.value) || 0)}
                   placeholder="Enter tax percentage"
                 />

@@ -1,9 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
+import usePolling from "@/hooks/usePolling"
+import api from "@/app/utils/api"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -55,8 +57,6 @@ interface Bill {
 
 export default function BillingPage() {
   const router = useRouter()
-  const [bills, setBills] = useState<Bill[]>([])
-  const [products, setProducts] = useState<Product[]>([])
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null)
@@ -84,53 +84,41 @@ export default function BillingPage() {
       router.push("/")
       return
     }
-
-    loadData()
   }, [router])
 
-  const loadData = async () => {
-    // Load products from API
-    try {
-      const productsResponse = await fetch("/api/products")
-      if (!productsResponse.ok) {
-        throw new Error("Failed to fetch products")
-      }
-      const productsData = await productsResponse.json()
-      setProducts(productsData)
-    } catch (error) {
-      console.error("Failed to load products:", error)
-      setProducts([]) // Set to empty array on error
-    }
+  const fetchProducts = useCallback(async () => {
+    const response = await api.get("/api/products");
+    return response.data;
+  }, []);
 
-    // Load bills from API
-    try {
-      const response = await fetch("/api/bills")
-      if (!response.ok) {
-        throw new Error("Failed to fetch bills")
-      }
-      const data = await response.json()
-      const mappedData = data.map((bill: any) => ({
-        ...bill,
-        date: bill.timestamp,
-        tax: bill.taxAmount,
-        status: bill.status || "Paid",
-      }))
-      setBills(mappedData)
-    } catch (error) {
-      console.error("Failed to load bills:", error)
-      // Optionally, set bills to an empty array or show an error message
-      setBills([])
-    }
-  }
+  const fetchBills = useCallback(async () => {
+    const response = await api.get("/api/bills");
+    const mappedData = response.data.map((bill: any) => ({
+      ...bill,
+      date: bill.timestamp,
+      tax: bill.taxAmount,
+      status: bill.status || "Paid",
+    }));
+    return mappedData;
+  }, []);
 
-  const saveBills = (updatedBills: Bill[]) => {
-    setBills(updatedBills)
-  }
+  const { data: productsData, loading: productsLoading, error: productsError } = usePolling<Product[]>(fetchProducts, { interval: 5000 });
+  const { data: billsData, loading: billsLoading, error: billsError } = usePolling<Bill[]>(fetchBills, { interval: 5000 });
+
+  // Handle loading and error states (optional, but good practice)
+  useEffect(() => {
+    if (productsError) console.error("Failed to load products:", productsError);
+    if (billsError) console.error("Failed to load bills:", billsError);
+  }, [productsError, billsError]);
+
+  // Ensure products and bills are initialized as empty arrays if polling hasn't returned data yet
+  const currentProducts = productsData || [];
+  const currentBills = billsData || [];
 
   const addItemToBill = () => {
     if (!selectedProductId) return
 
-    const product = products.find((p) => p.id === selectedProductId)
+    const product = currentProducts.find((p) => p.id === selectedProductId)
     if (!product) return
 
     const price = product.price !== undefined && product.price !== null ? product.price : 0; // Ensure price is a number
@@ -209,11 +197,6 @@ export default function BillingPage() {
         throw new Error("Failed to create bill");
       }
 
-      // Only update local state and reset form if API call is successful
-      const updatedBills = [...bills, newBill];
-      saveBills(updatedBills); // Update local state
-      loadData(); // Reload bills after successful creation
-      
       // Reset form
       setCustomerName("");
       setCustomerEmail("");
@@ -229,14 +212,10 @@ export default function BillingPage() {
 
   const deleteBill = async (id: string) => {
     try {
-      const response = await fetch(`/api/bills/${id}`, {
-        method: "DELETE",
-      });
+      const response = await api.delete(`/api/bills/${id}`);
 
-      if (response.ok) {
-        loadData();
-      } else {
-        console.error("Failed to delete bill");
+      if (!response.status.toString().startsWith('2')) { // Check for 2xx status codes
+        throw new Error("Failed to delete bill");
       }
     } catch (error) {
       console.error("Error deleting bill:", error);
@@ -248,7 +227,7 @@ export default function BillingPage() {
     setIsViewDialogOpen(true)
   }
 
-  const filteredBills = bills.filter((bill) => {
+  const filteredBills = currentBills.filter((bill) => {
     const customerName = bill.customerName || ""
     const billId = bill.id || ""
     const searchLower = searchTerm.toLowerCase()
@@ -269,22 +248,14 @@ export default function BillingPage() {
       try {
         const importedBills = JSON.parse(e.target?.result as string);
         // Send to API for processing
-        const response = await fetch("/api/bills/import", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(importedBills),
-        });
+        const response = await api.post("/api/bills/import", importedBills);
 
-        if (response.ok) {
-          console.log("Bills imported successfully");
-          loadData(); // Reload bills after import
-          setIsImportDialogOpen(false);
-          setImportFile(null);
-        } else {
-          console.error("Failed to import bills:", await response.text());
+        if (!response.status.toString().startsWith('2')) { // Check for 2xx status codes
+          throw new Error("Failed to import bills");
         }
+        console.log("Bills imported successfully");
+        setIsImportDialogOpen(false);
+        setImportFile(null);
       } catch (error) {
         console.error("Error parsing or importing bills:", error);
       }
@@ -299,6 +270,8 @@ export default function BillingPage() {
           <div>
             <h1 className="text-3xl font-bold">Billing System</h1>
             <p className="text-muted-foreground">Create and manage bills with discount adjustments</p>
+            {(productsLoading || billsLoading) && <p className="text-sm text-blue-500">Loading data...</p>}
+            {(productsError || billsError) && <p className="text-sm text-red-500">Error loading data.</p>}
           </div>
           <div className="flex space-x-2">
             {/* Import Bills Dialog */}
@@ -394,7 +367,7 @@ export default function BillingPage() {
                             <SelectValue placeholder="Choose a product" />
                           </SelectTrigger>
                           <SelectContent>
-                            {products.map((product) => (
+                            {currentProducts.map((product) => (
                               <SelectItem key={product.id} value={product.id}>
                                 {product.name} - ₹{product.price ? product.price.toFixed(2) : '0.00'}
                               </SelectItem>
@@ -549,7 +522,7 @@ export default function BillingPage() {
         <Card>
           <CardHeader>
             <CardTitle>Bills History</CardTitle>
-            <CardDescription>{bills.length} bills created</CardDescription>
+            <CardDescription>{currentBills.length} bills created</CardDescription>
             <div className="flex items-center space-x-2">
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input
