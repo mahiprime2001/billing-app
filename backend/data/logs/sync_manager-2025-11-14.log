@@ -1,0 +1,488 @@
+2025-11-14 21:40:23,111 - scripts.sync_manager - INFO - Starting background sync scheduler
+2025-11-14 21:40:23,112 - scripts.sync_manager - INFO - Sync scheduler thread started
+2025-11-14 21:40:23,112 - scripts.sync_manager - INFO - Background sync started successfully
+2025-11-14 21:40:23,112 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
+2025-11-14 21:40:23,114 - scripts.sync_manager - INFO - Cleaning up logs older than 2025-10-15T21:40:23.114985
+2025-11-14 21:40:23,348 - scripts.sync_manager - INFO - MySQL sync_table cleanup: 0 entries removed
+2025-11-14 21:40:23,551 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 21:40:23,551 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 21:40:23,567 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 21:40:23,567 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 21:40:23,567 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 21:40:23,694 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 21:40:23,731 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 21:40:23,939 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 21:40:23,946 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 21:40:29,393 - scripts.sync_manager - INFO - Starting background sync scheduler
+2025-11-14 21:40:29,394 - scripts.sync_manager - INFO - Sync scheduler thread started
+2025-11-14 21:40:29,394 - scripts.sync_manager - INFO - Background sync started successfully
+2025-11-14 21:40:29,394 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
+2025-11-14 21:40:29,395 - scripts.sync_manager - INFO - Cleaning up logs older than 2025-10-15T21:40:29.395622
+2025-11-14 21:40:29,597 - scripts.sync_manager - INFO - MySQL sync_table cleanup: 0 entries removed
+2025-11-14 21:40:29,792 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 21:40:29,793 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 21:40:29,793 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 21:40:29,793 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 21:40:29,794 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 21:40:29,904 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 21:40:29,943 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 21:40:30,156 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 21:40:30,178 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 21:41:06,980 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 21:41:07,018 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 21:41:08,469 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 21:41:08,518 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 21:43:14,371 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 21:43:14,415 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 21:43:15,861 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 21:43:15,897 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 21:43:19,279 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 21:43:19,316 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 21:43:24,009 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 21:43:24,054 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 21:55:23,993 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 21:55:23,993 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 21:55:23,994 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 21:55:23,994 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 21:55:23,995 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 21:55:24,361 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 21:55:24,398 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 21:55:24,580 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 21:55:24,606 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 21:55:24,607 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 21:55:30,194 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 21:55:30,194 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 21:55:30,194 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 21:55:30,195 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 21:55:30,195 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 21:55:30,602 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 21:55:30,641 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 21:55:30,839 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 21:55:30,859 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 21:55:30,859 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 22:09:13,334 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:09:13,388 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:09:43,240 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:09:43,279 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:10:13,365 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:10:13,417 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:10:24,635 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 22:10:24,635 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 22:10:24,637 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 22:10:24,638 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 22:10:24,638 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 22:10:25,020 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:10:25,059 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:10:25,244 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 22:10:25,270 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 22:10:25,271 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 22:10:30,877 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 22:10:30,877 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 22:10:30,878 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 22:10:30,878 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 22:10:30,878 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 22:10:31,273 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:10:31,311 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:10:31,530 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 22:10:31,557 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 22:10:31,558 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 22:10:43,485 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:10:43,532 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:11:13,322 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:11:13,359 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:11:43,302 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:11:43,350 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:12:13,509 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:12:13,545 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:12:43,618 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:12:43,655 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:13:52,458 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:13:52,522 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:14:55,463 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:14:55,501 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:15:55,465 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:15:55,504 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:16:55,449 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:16:55,487 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:17:55,434 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:17:55,470 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:18:55,440 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:18:55,477 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:19:55,471 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:19:55,519 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:20:55,454 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:20:55,491 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:21:55,444 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:21:55,482 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:22:55,434 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:22:55,474 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:23:55,419 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:23:55,455 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:24:49,490 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:24:49,531 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:24:55,756 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:24:55,792 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:24:57,247 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:24:57,284 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:00,482 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:00,519 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:05,493 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:05,534 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:10,478 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:10,523 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:15,509 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:15,548 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:20,488 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:20,525 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:25,302 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 22:25:25,302 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 22:25:25,302 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 22:25:25,302 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 22:25:25,304 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 22:25:25,494 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:25,535 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:25,703 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:25,744 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:25,939 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 22:25:25,969 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 22:25:25,969 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 22:25:30,617 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:30,656 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:31,602 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 22:25:31,602 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 22:25:31,602 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 22:25:31,602 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 22:25:31,604 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 22:25:31,733 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:31,827 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:32,018 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 22:25:32,042 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 22:25:32,042 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 22:25:35,503 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:35,539 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:40,483 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:40,518 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:45,483 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:45,518 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:50,473 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:50,518 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:25:55,514 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:25:55,559 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:26:00,487 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:26:00,525 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:26:05,513 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:26:05,555 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:26:10,477 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:26:10,515 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:26:15,484 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:26:15,524 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:26:20,482 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:26:20,518 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:26:25,483 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:26:25,522 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:26:30,484 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:26:30,521 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:26:35,500 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:26:35,544 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:26:40,481 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:26:40,519 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:26:45,493 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:26:45,531 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:26:50,490 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:26:50,528 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:26:55,475 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:26:55,514 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:27:00,478 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:27:00,515 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:27:05,490 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:27:05,531 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:27:10,469 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:27:10,517 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:27:15,483 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:27:15,522 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:27:20,483 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:27:20,525 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:27:25,492 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:27:25,528 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:27:30,486 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:27:30,522 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:27:35,489 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:27:35,535 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:40:25,983 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 22:40:25,983 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 22:40:25,984 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 22:40:25,984 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 22:40:25,984 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 22:40:26,361 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:40:26,399 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:40:26,593 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 22:40:26,619 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 22:40:26,620 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 22:40:32,061 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 22:40:32,061 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 22:40:32,061 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 22:40:32,062 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 22:40:32,062 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 22:40:32,452 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:40:32,488 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:40:32,693 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 22:40:32,717 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 22:40:32,719 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 22:44:09,841 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:44:09,880 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:44:11,351 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:44:11,386 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:44:39,797 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:44:39,833 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:45:10,434 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:45:10,481 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:45:40,422 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:45:40,461 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:46:10,433 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:46:10,478 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:46:40,602 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:46:40,639 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:47:11,482 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:47:11,519 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:47:55,468 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:47:55,505 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:48:55,509 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:48:55,555 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:49:55,864 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:49:55,959 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:50:10,622 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:50:10,660 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:51:01,680 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:51:01,718 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:54:13,333 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:54:13,370 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:55:26,650 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 22:55:26,650 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 22:55:26,653 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 22:55:26,653 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 22:55:26,654 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 22:55:27,037 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:55:27,075 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:55:27,265 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 22:55:27,292 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 22:55:27,292 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 22:55:32,798 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 22:55:32,798 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 22:55:32,799 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 22:55:32,799 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 22:55:32,800 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 22:55:33,201 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:55:33,242 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 22:55:33,432 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 22:55:33,457 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 22:55:33,458 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 22:56:34,197 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 22:56:34,235 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:09:52,897 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:09:52,932 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:10:10,258 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:10:10,297 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:10:27,309 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 23:10:27,309 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 23:10:27,309 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 23:10:27,309 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 23:10:27,309 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 23:10:27,706 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:10:27,743 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:10:27,934 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 23:10:27,961 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 23:10:27,961 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 23:10:33,524 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 23:10:33,526 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 23:10:33,526 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 23:10:33,526 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 23:10:33,526 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 23:10:33,916 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:10:33,953 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:10:34,150 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 23:10:34,194 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 23:10:34,194 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 23:10:39,327 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:10:39,398 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:12:34,312 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:12:34,350 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:13:04,489 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:13:04,527 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:13:34,358 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:13:34,399 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:14:04,384 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:14:04,425 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:14:34,332 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:14:34,369 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:15:04,442 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:15:04,478 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:15:34,462 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:15:34,505 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:16:55,433 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:16:55,469 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:17:55,430 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:17:55,466 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:18:55,430 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:18:55,470 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:19:55,442 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:19:55,479 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:20:55,435 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:20:55,469 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:21:55,442 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:21:55,489 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:22:55,713 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:22:55,774 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:23:04,435 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:23:04,470 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:24:10,980 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:24:11,023 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:24:33,201 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:24:33,236 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:25:27,980 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 23:25:27,980 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 23:25:27,981 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 23:25:27,982 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 23:25:27,982 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 23:25:28,383 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:25:28,423 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:25:28,615 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 23:25:28,644 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 23:25:28,646 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 23:25:34,403 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 23:25:34,406 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 23:25:34,414 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 23:25:34,423 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 23:25:34,428 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 23:25:34,884 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:25:34,920 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:25:35,113 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 23:25:35,139 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 23:25:35,140 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 23:28:00,704 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:28:00,741 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:32:24,322 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:32:24,361 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:33:42,902 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:33:42,948 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:40:28,700 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 23:40:28,700 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 23:40:28,701 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 23:40:28,701 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 23:40:28,702 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 23:40:29,177 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:40:29,225 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:40:29,413 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 23:40:29,444 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 23:40:29,445 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 23:40:35,194 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 23:40:35,194 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 23:40:35,196 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 23:40:35,196 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 23:40:35,196 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 23:40:35,641 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:40:35,681 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:40:35,867 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 23:40:35,892 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 23:40:35,894 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 23:42:03,601 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:42:03,639 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:42:34,480 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:42:34,524 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:43:09,512 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:43:09,556 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:43:34,508 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:43:34,551 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:44:05,329 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:44:05,382 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:44:38,829 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:44:38,869 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:45:04,842 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:45:04,888 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:45:55,478 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:45:55,516 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:46:41,539 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:46:41,597 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:47:16,898 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:47:16,937 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:47:34,458 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:47:34,496 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:48:04,429 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:48:04,476 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:48:55,466 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:48:55,503 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:49:55,453 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:49:55,489 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:50:55,441 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:50:55,478 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:51:44,837 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:51:44,872 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:51:49,783 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:51:49,824 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:51:51,289 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:51:51,334 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:52:24,643 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:52:24,702 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:52:26,236 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:52:26,276 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:52:54,614 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:52:54,649 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:53:25,423 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:53:25,461 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:53:54,613 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:53:54,647 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:54:25,421 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:54:25,457 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:54:55,455 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:54:55,499 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:55:25,441 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:55:25,476 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:55:29,503 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 23:55:29,503 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 23:55:29,504 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 23:55:29,504 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 23:55:29,504 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 23:55:29,878 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:55:29,914 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:55:30,101 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 23:55:30,129 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 23:55:30,130 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 23:55:35,983 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2025-11-14 23:55:35,983 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to MySQL
+2025-11-14 23:55:35,984 - scripts.sync_manager - INFO - No pending sync logs to process
+2025-11-14 23:55:35,984 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2025-11-14 23:55:35,984 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from MySQL
+2025-11-14 23:55:36,387 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:55:36,429 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:55:36,623 - scripts.sync_manager - INFO - Pull result: {'status': 'success', 'message': 'No new entries', 'pulled': 0}
+2025-11-14 23:55:36,651 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2025-11-14 23:55:36,652 - scripts.sync_manager - INFO - No failed logs to retry
+2025-11-14 23:55:55,438 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:55:55,475 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:56:55,476 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:56:55,513 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:57:55,440 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:57:55,478 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:58:31,452 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:58:31,498 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:58:55,432 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:58:55,469 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-14 23:59:55,458 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-14 23:59:55,505 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-15 00:00:56,231 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-15 00:00:56,272 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-15 00:01:55,461 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-15 00:01:55,502 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-15 00:02:29,462 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-15 00:02:29,499 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-15 00:02:55,460 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-15 00:02:55,499 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-15 00:03:55,452 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-15 00:03:55,496 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-15 00:04:24,684 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-15 00:04:24,730 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-15 00:04:55,445 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-15 00:04:55,483 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-15 00:05:25,452 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-15 00:05:25,490 - scripts.sync_manager - INFO - No new changes to pull
+2025-11-15 00:05:55,441 - scripts.sync_manager - INFO - Pulling from MySQL sync_table. Last sync: 2025-11-14T21:40:22.922632. Table: All, Full Pull: False
+2025-11-15 00:05:55,486 - scripts.sync_manager - INFO - No new changes to pull

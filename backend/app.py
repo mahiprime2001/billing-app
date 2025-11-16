@@ -136,6 +136,7 @@ SETTINGS_FILE = os.path.join(JSON_DIR, 'settings.json')
 STORES_FILE = os.path.join(JSON_DIR, 'stores.json')
 SESSIONS_FILE = os.path.join(JSON_DIR, 'user_sessions.json')
 BATCHES_FILE = os.path.join(JSON_DIR, 'batches.json') # NEW
+RETURNS_FILE = os.path.join(JSON_DIR, 'returns.json') # NEW: Returns file path
 SETTINGS_FILE = os.path.join(JSON_DIR, 'settings.json') # NEW
 
 # Configure logging for the Flask app
@@ -227,6 +228,7 @@ def initialize_full_data_pull():
                 'Stores': STORES_FILE,
                 'batch': BATCHES_FILE,
                 'Notifications': NOTIFICATIONS_FILE,
+                'Returns': RETURNS_FILE, # NEW: Add Returns table
                 'SystemSettings': SETTINGS_FILE
             }
             
@@ -289,7 +291,7 @@ def should_perform_full_pull():
     """
     files_to_check = [
         PRODUCTS_FILE, USERS_FILE, BILLS_FILE, CUSTOMERS_FILE,
-        STORES_FILE, BATCHES_FILE, NOTIFICATIONS_FILE
+        STORES_FILE, BATCHES_FILE, NOTIFICATIONS_FILE, RETURNS_FILE # NEW: Add RETURNS_FILE
     ]
     
     for file_path in files_to_check:
@@ -342,6 +344,15 @@ def get_notifications_data():
 def save_notifications_data(notifications):
     """Save notifications to local JSON (PRIMARY storage)"""
     _safe_json_dump(NOTIFICATIONS_FILE, notifications)
+
+# NEW: Returns file path and helpers
+def get_returns_data():
+    """Get returns from local JSON (PRIMARY source)"""
+    return _safe_json_load(RETURNS_FILE, [])
+
+def save_returns_data(returns):
+    """Save returns to local JSON (PRIMARY storage)"""
+    _safe_json_dump(RETURNS_FILE, returns)
 
 # NEW: Customers file path
 CUSTOMERS_FILE = os.path.join(JSON_DIR, 'customers.json')
@@ -448,6 +459,7 @@ def log_crud_operation(json_type: str, operation: str, record_id: str, data: dic
         'customers': 'Customers',
         'stores': 'Stores',
         'notifications': 'Notifications',
+        'returns': 'Returns', # NEW: Add Returns to table mapping
         'settings': 'SystemSettings',
         'batches': 'batch'
     }
@@ -770,6 +782,55 @@ def delete_batch(batch_id):
         return jsonify({"message": "Batch deleted"}), 200
 
     return jsonify({"message": "Batch not found"}), 404
+
+# ---------------------------
+# Returns Endpoints - NEW
+# ---------------------------
+
+@app.route('/api/returns', methods=['GET'])
+def get_returns():
+    """Get all return requests from LOCAL JSON (offline-capable)"""
+    try:
+        returns = get_returns_data()
+        return jsonify(returns), 200
+    except Exception as e:
+        app.logger.error(f"Error getting returns: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/returns/<return_id>/status', methods=['PUT'])
+def update_return_status(return_id):
+    """Update the status of a return request - OFFLINE FIRST approach"""
+    try:
+        update_data = request.json
+        
+        if not update_data or 'status' not in update_data:
+            return jsonify({"error": "Status is required"}), 400
+        
+        new_status = update_data['status']
+        if new_status not in ["approved", "rejected", "completed"]:
+            return jsonify({"error": "Invalid status provided"}), 400
+        
+        # STEP 1: Update in LOCAL JSON FIRST
+        returns = get_returns_data()
+        return_index = next((i for i, r in enumerate(returns) if r.get('return_id') == return_id), -1)
+        
+        if return_index == -1:
+            return jsonify({"error": "Return request not found"}), 404
+        
+        returns[return_index]['status'] = new_status
+        returns[return_index]['updated_at'] = datetime.now(timezone.utc).isoformat()
+        
+        save_returns_data(returns)
+        
+        # STEP 2: Write to MySQL IMMEDIATELY
+        log_crud_operation('returns', 'UPDATE', return_id, returns[return_index])
+        
+        app.logger.info(f"Return request {return_id} status updated to {new_status} (local JSON + MySQL)")
+        return jsonify({"message": f"Return request status updated to {new_status}", "return_id": return_id}), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error updating return status for {return_id}: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 # ---------------------------
 # Product Assignment Endpoints
@@ -3005,6 +3066,12 @@ if __name__ == '__main__':
         DatabaseConnection.create_bills_table()
     except Exception as e:
         app.logger.error(f"Failed to create Bills table: {e}")
+    
+    # NEW: Ensure Returns table is created
+    try:
+        DatabaseConnection.create_returns_table()
+    except Exception as e:
+        app.logger.error(f"Failed to create Returns table: {e}")
     
     # ============================================
     # INITIALIZE LOCAL DATA ON STARTUP

@@ -301,6 +301,42 @@ class DatabaseConnection:
             raise
 
     @classmethod
+    def create_returns_table(cls):
+        """
+        Creates the 'Returns' table if it doesn't already exist.
+        """
+        create_table_query = """
+        CREATE TABLE IF NOT EXISTS Returns (
+            s_no INT AUTO_INCREMENT PRIMARY KEY,
+            return_id VARCHAR(36) NOT NULL UNIQUE,
+            product_name VARCHAR(255) NOT NULL,
+            product_id VARCHAR(255) NULL,
+            customer_name VARCHAR(255) NULL,
+            customer_phone_number VARCHAR(255) NULL,
+            message TEXT NULL,
+            refund_method ENUM('cash','upi') DEFAULT 'cash',
+            bill_id VARCHAR(255) NULL,
+            item_index INT NULL,
+            return_amount DECIMAL(10,2) NULL,
+            status ENUM('pending','approved','rejected','completed') DEFAULT 'pending',
+            created_by VARCHAR(255) NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (bill_id) REFERENCES Bills(id) ON DELETE SET NULL,
+            FOREIGN KEY (product_id) REFERENCES Products(id) ON DELETE SET NULL
+        );
+        """
+        try:
+            with cls.get_connection_ctx() as conn:
+                with cls.get_cursor_ctx(conn) as cursor:
+                    cursor.execute(create_table_query)
+                    conn.commit()
+                    print("Table 'Returns' checked/created successfully.")
+        except MySQLError as err:
+            print(f"Error creating 'Returns' table: {err}")
+            raise
+
+    @classmethod
     def _apply_bills_table_migrations(cls, conn, cursor):
         """
         Applies necessary ALTER TABLE statements to update the Bills table schema.
