@@ -178,6 +178,50 @@ class EnhancedSyncManager:
         sync_logs.append(new_log)
         self.save_sync_logs(sync_logs)
 
+    def _find_all_products_json(self) -> List[str]:
+        """
+        Discover likely `products.json` files across common locations in the repo.
+        Returns an ordered, de-duplicated list of file paths.
+        """
+        candidates = []
+
+        # Common locations relative to the sync manager base_dir and PROJECT_ROOT
+        try:
+            # 1) base_dir/data/json/products.json
+            candidates.append(os.path.join(self.base_dir, 'data', 'json', 'products.json'))
+        except Exception:
+            pass
+
+        try:
+            # 2) PROJECT_ROOT/data/json/products.json (if different)
+            candidates.append(os.path.join(PROJECT_ROOT, '..', 'data', 'json', 'products.json'))
+            candidates.append(os.path.join(PROJECT_ROOT, 'data', 'json', 'products.json'))
+            # 3) src-tauri copy
+            candidates.append(os.path.join(PROJECT_ROOT, '..', 'src-tauri', 'data', 'json', 'products.json'))
+            candidates.append(os.path.join(PROJECT_ROOT, 'src-tauri', 'data', 'json', 'products.json'))
+        except Exception:
+            pass
+
+        # Also glob for any other products.json under the repo (keep it focused to data/json folders)
+        try:
+            search_root = self.base_dir or PROJECT_ROOT
+            glob_paths = glob.glob(os.path.join(search_root, '**', 'data', 'json', 'products.json'), recursive=True)
+            for p in glob_paths:
+                candidates.append(p)
+        except Exception:
+            pass
+
+        # De-dup, keep only existing files (but allow non-existing; _safe_json_dump will create folders)
+        normalized = []
+        for p in candidates:
+            if not p:
+                continue
+            p_norm = os.path.abspath(p)
+            if p_norm not in normalized:
+                normalized.append(p_norm)
+
+        return normalized
+
     def pull_from_mysql_sync_table(self, table_name: Optional[str] = None, force_full_pull: bool = False) -> Dict:
         """
         Pull changes from MySQL sync_table and apply to local JSON.
@@ -202,7 +246,7 @@ class EnhancedSyncManager:
 
                 # Condition for local synced changes
                 local_synced_condition = "(`source` = 'local' AND `status` = 'synced')"
-                if table_name: # Always filter by table_name if provided
+                if table_name:
                     local_synced_condition += " AND `table_name` = %s"
                     query_params.append(table_name)
 
@@ -210,9 +254,7 @@ class EnhancedSyncManager:
                     local_synced_condition += " AND `created_at` > %s"
                     query_params.append(last_sync)
                 elif not force_full_pull and not last_sync:
-                    # If no last_sync and not a forced full pull, get last 1 day of local synced changes
                     local_synced_condition += " AND `created_at` >= DATE_SUB(NOW(), INTERVAL 1 DAY)"
-                # If force_full_pull is True, no timestamp filter is added to local_synced_condition
 
                 query_parts.append(local_synced_condition)
 
@@ -235,7 +277,7 @@ class EnhancedSyncManager:
                 for entry in new_entries:
                     try:
                         sync_id = entry['id']
-                        entry_table_name = entry['table_name'] # Use entry_table_name to avoid conflict with param
+                        entry_table_name = entry['table_name']
                         operation = entry['operation_type']
                         record_id = entry['record_id']
                         
@@ -246,35 +288,25 @@ class EnhancedSyncManager:
                             try:
                                 change_data = json.loads(change_data_raw)
                             except json.JSONDecodeError as json_err:
-                                logger.error(f"JSONDecodeError for entry {sync_id} ({entry_table_name} {record_id}): {json_err}. Raw data: {change_data_raw[:200]}...")
-                                # Mark this specific entry as failed and continue
+                                logger.error(f"JSONDecodeError for entry {sync_id} ({entry_table_name} {record_id}): {json_err}")
                                 cursor.execute("""
                                     UPDATE `sync_table`
                                     SET `status` = 'failed', `error_message` = %s, `sync_attempts` = `sync_attempts` + 1
                                     WHERE `id` = %s
                                 """, (f"JSONDecodeError: {json_err}", sync_id))
                                 failed_ids.append(sync_id)
-                                continue # Skip to next entry
-                            except Exception as other_err:
-                                logger.error(f"Other error parsing JSON for entry {sync_id} ({entry_table_name} {record_id}): {other_err}. Raw data: {change_data_raw[:200]}...")
-                                cursor.execute("""
-                                    UPDATE `sync_table`
-                                    SET `status` = 'failed', `error_message` = %s, `sync_attempts` = `sync_attempts` + 1
-                                    WHERE `id` = %s
-                                """, (f"Other JSON parse error: {other_err}", sync_id))
-                                failed_ids.append(sync_id)
-                                continue # Skip to next entry
+                                continue
                         elif isinstance(change_data_raw, dict):
                             change_data = change_data_raw
                         else:
-                            logger.warning(f"Unexpected change_data type for entry {sync_id} ({entry_table_name} {record_id}): {type(change_data_raw)}. Skipping.")
+                            logger.warning(f"Unexpected change_data type for entry {sync_id}: {type(change_data_raw)}")
                             cursor.execute("""
                                 UPDATE `sync_table`
                                 SET `status` = 'failed', `error_message` = %s, `sync_attempts` = `sync_attempts` + 1
                                 WHERE `id` = %s
                             """, (f"Unexpected change_data type: {type(change_data_raw)}", sync_id))
                             failed_ids.append(sync_id)
-                            continue # Skip to next entry
+                            continue
                         
                         logger.debug(f"Applying: {entry_table_name} - {operation} - {record_id}")
                         
@@ -294,7 +326,6 @@ class EnhancedSyncManager:
                         logger.error(f"Failed to apply entry {entry.get('id')}: {e}", exc_info=True)
                         failed_ids.append(entry.get('id'))
                         
-                        # Update sync_attempts and status to failed if max retries reached
                         cursor.execute("""
                             UPDATE `sync_table`
                             SET `sync_attempts` = `sync_attempts` + 1,
@@ -328,85 +359,9 @@ class EnhancedSyncManager:
             logger.error(f"Error pulling from MySQL sync_table: {e}", exc_info=True)
             return {"status": "error", "message": str(e)}
 
-    def pull_bills_from_sync_table(self) -> Dict:
-        """
-        Specifically pull Bills and BillItems from MySQL sync_table
-        """
-        try:
-            with DatabaseConnection.get_connection_ctx() as conn:
-                cursor = conn.cursor(dictionary=True)
-                
-                last_sync = self.get_last_sync_timestamp()
-                logger.info(f"Pulling Bills from MySQL sync_table. Last sync: {last_sync or 'Never'}")
-                
-                # Query sync_table for Bills and BillItems
-                if last_sync:
-                    query = """
-                        SELECT * FROM sync_table 
-                        WHERE table_name IN ('Bills', 'BillItems', 'Customers')
-                        AND status = 'synced'
-                        AND created_at > %s
-                        ORDER BY created_at ASC
-                    """
-                    cursor.execute(query, (last_sync,))
-                else:
-                    query = """
-                        SELECT * FROM sync_table 
-                        WHERE table_name IN ('Bills', 'BillItems', 'Customers')
-                        AND status = 'synced'
-                        ORDER BY created_at ASC
-                        LIMIT 500
-                    """
-                    cursor.execute(query)
-                
-                entries = cursor.fetchall()
-                
-                if not entries:
-                    logger.info("No new bills to pull")
-                    return {'status': 'success', 'message': 'No new bills', 'pulled': 0}
-                
-                logger.info(f"Found {len(entries)} sync entries for Bills/BillItems/Customers")
-                
-                # Apply each entry to local JSON
-                applied = 0
-                for entry in entries:
-                    try:
-                        table_name = entry['table_name']
-                        operation = entry['operation_type']
-                        
-                        if isinstance(entry['change_data'], (str, bytes)):
-                            change_data = json.loads(entry['change_data'])
-                        else:
-                            change_data = entry['change_data']
-                        
-                        # Apply to local JSON
-                        self._apply_to_local_json(table_name, operation, change_data)
-                        applied += 1
-                        
-                    except Exception as e:
-                        logger.error(f"Failed to apply sync entry {entry.get('id')}: {e}", exc_info=True)
-                
-                # Update last sync timestamp
-                if entries:
-                    latest = max(e['created_at'] for e in entries if e.get('created_at'))
-                    if latest:
-                        self.set_last_sync_timestamp(latest.isoformat())
-                
-                logger.info(f"Bills pull complete: {applied}/{len(entries)} applied")
-                
-                return {
-                    'status': 'success',
-                    'message': f'Applied {applied}/{len(entries)} bill changes',
-                    'pulled': len(entries),
-                    'applied': applied
-                }
-        
-        except Exception as e:
-            logger.error(f"Error pulling bills from sync_table: {e}", exc_info=True)
-            return {'status': 'error', 'message': str(e)}
-
     def _apply_to_local_json(self, table_name: str, operation: str, change_data: Dict) -> None:
         """Apply pulled changes to local JSON files"""
+        # Map DB table names to local JSON files
         json_file_mapping = {
             'Products': 'products.json',
             'Users': 'users.json',
@@ -417,15 +372,82 @@ class EnhancedSyncManager:
             'Notifications': 'notifications.json',
             'batch': 'batches.json'
         }
-        
-        json_file = json_file_mapping.get(table_name)
+
+        # Normalize table_name for case-insensitive matching
+        tn_normalized = (table_name or '').strip()
+
+        # ✅ Special handling for ProductBarcodes: update products.json barcodes list
+        if tn_normalized.lower() in ('productbarcodes', 'product_barcodes'):
+            # Accept multiple common key variants for product id
+            pid = (
+                change_data.get('productId') or change_data.get('product_id') or
+                change_data.get('productID') or change_data.get('productid') or
+                change_data.get('id')
+            )
+            barcode_val = change_data.get('barcode') or change_data.get('code')
+
+            if not pid:
+                logger.warning(f"ProductBarcodes entry missing productId (keys tried: productId, product_id, productID, productid, id): {change_data}")
+                return
+
+            # Update all discovered products.json files to keep copies in sync
+            updated_any = False
+            prod_json_paths = self._find_all_products_json()
+            for products_path in prod_json_paths:
+                products = self._safe_json_load(products_path, [])
+                
+                # Find product
+                found = False
+                for i, p in enumerate(products):
+                    if str(p.get('id')) == str(pid):
+                        found = True
+
+                        # Always fetch and update barcodes from the database, but store only a single `barcode` string
+                        try:
+                            product_barcodes = DatabaseConnection.get_product_barcodes(pid)
+                            if product_barcodes:
+                                products[i]['barcode'] = product_barcodes[0]
+                            else:
+                                # If no barcode found, remove any existing `barcode` key to avoid `null` values
+                                products[i].pop('barcode', None)
+                                logger.debug(f"No barcodes returned from DB for product {pid}; change_data barcode value: {barcode_val}")
+                        except Exception as e:
+                            logger.error(f"Error fetching barcodes for product {pid}: {e}", exc_info=True)
+
+                        # Ensure we don't leave an old `barcodes` list behind
+                        if 'barcodes' in products[i]:
+                            products[i].pop('barcodes', None)
+
+                        products[i]['updatedAt'] = datetime.now().isoformat()
+                        updated_any = True
+                        break
+
+                if not found:
+                    logger.debug(f"Product for barcode update not found in {products_path}: productId={pid}")
+
+                # Persist changes to this file
+                try:
+                    self._safe_json_dump(products_path, products)
+                except Exception as e:
+                    logger.error(f"Failed to write products.json at {products_path}: {e}")
+
+            if updated_any:
+                logger.info(f"Applied ProductBarcodes {operation} to {len(prod_json_paths)} products.json files for product {pid}")
+            else:
+                logger.warning(f"Product for barcode update not found in any products.json: productId={pid}")
+
+            return  # Early return after handling ProductBarcodes
+
+        # ✅ Continue with regular table handling
+        json_file = json_file_mapping.get(tn_normalized)
         if not json_file:
             logger.warning(f"No local JSON file mapping found for table name: {table_name}")
             return
-        
+
         file_path = os.path.join(self.base_dir, 'data', 'json', json_file)
         logger.debug(f"Applying {operation} operation to local JSON file: {file_path}")
-        
+
+        # Special handling for settings.json
         if json_file == 'settings.json':
             settings = self._safe_json_load(file_path, {})
             if operation in ['CREATE', 'UPDATE']:
@@ -433,22 +455,95 @@ class EnhancedSyncManager:
             self._safe_json_dump(file_path, settings)
             logger.info(f"Applied {operation} to {json_file}")
             return
-        
-        data = self._safe_json_load(file_path, [])
+
+        # Get record_id from change_data
         record_id = change_data.get('id')
-        
+
+        # ✅ If this is products.json, update all discovered copies
+        if json_file == 'products.json':
+            prod_paths = self._find_all_products_json()
+            updated_any = False
+            for products_path in prod_paths:
+                data = self._safe_json_load(products_path, [])
+
+                if operation in ['CREATE', 'UPDATE']:
+                    found = False
+                    for i, item in enumerate(data):
+                        if item.get('id') == record_id:
+                            merged = dict(item)
+                            merged.update(change_data)
+                            # Always fetch and update barcodes from the database for products, store single `barcode`
+                            try:
+                                product_barcodes = DatabaseConnection.get_product_barcodes(record_id)
+                                if product_barcodes:
+                                    merged['barcode'] = product_barcodes[0]
+                                else:
+                                    merged.pop('barcode', None)
+                                    logger.debug(f"No barcodes for product {record_id} when updating products.json")
+                            except Exception as e:
+                                logger.error(f"Error fetching barcodes for product {record_id}: {e}", exc_info=True)
+
+                            # Remove any `barcodes` list to keep canonical shape
+                            if 'barcodes' in merged:
+                                merged.pop('barcodes', None)
+
+                            data[i] = merged
+                            found = True
+                            updated_any = True
+                            break
+                    if not found:
+                        # Fetch barcode for new product and store single `barcode`
+                        if record_id:
+                            try:
+                                product_barcodes = DatabaseConnection.get_product_barcodes(record_id)
+                                if product_barcodes:
+                                    change_data['barcode'] = product_barcodes[0]
+                                else:
+                                    change_data.pop('barcode', None)
+                            except Exception as e:
+                                logger.error(f"Error fetching barcodes for new product {record_id}: {e}", exc_info=True)
+
+                        # Remove any 'barcodes' list if present
+                        if 'barcodes' in change_data:
+                            change_data.pop('barcodes', None)
+
+                        data.append(change_data)
+                        updated_any = True
+                elif operation == 'DELETE':
+                    new_data = [item for item in data if item.get('id') != record_id]
+                    if len(new_data) != len(data):
+                        data = new_data
+                        updated_any = True
+
+                try:
+                    self._safe_json_dump(products_path, data)
+                except Exception as e:
+                    logger.error(f"Failed to write products.json at {products_path}: {e}")
+
+            if updated_any:
+                logger.info(f"Applied {operation} to products.json in {len(prod_paths)} locations for record {record_id}")
+            else:
+                logger.warning(f"No products.json copy updated for {operation} record {record_id}")
+
+            return
+
+        # Non-products JSON (single file)
+        data = self._safe_json_load(file_path, [])
+
         if operation in ['CREATE', 'UPDATE']:
             found = False
             for i, item in enumerate(data):
                 if item.get('id') == record_id:
-                    data[i] = change_data
+                    merged = dict(item)
+                    merged.update(change_data)
+                    data[i] = merged
                     found = True
                     break
             if not found:
                 data.append(change_data)
         elif operation == 'DELETE':
             data = [item for item in data if item.get('id') != record_id]
-        
+
         self._safe_json_dump(file_path, data)
         logger.info(f"Applied {operation} to {json_file} for record {record_id}")
 
@@ -670,7 +765,7 @@ class EnhancedSyncManager:
             
             # Initial sync on startup
             logger.info("Performing initial sync and immediate cleanup")
-            self.cleanup_old_logs() # Perform immediate cleanup on startup
+            self.cleanup_old_logs()
             self.scheduled_push_and_pull()
             
             while self.is_running:

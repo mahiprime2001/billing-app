@@ -2,7 +2,7 @@ import axios, { InternalAxiosRequestConfig, AxiosError } from 'axios';
 import Router from 'next/router'; // Import Router for programmatic navigation
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BACKEND_API_URL,
+  baseURL: 'http://localhost:8080', // Hardcoded backend API URL
   withCredentials: true, // Crucial for sending HttpOnly cookies with cross-origin requests
 });
 

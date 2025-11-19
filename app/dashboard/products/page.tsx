@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useMemo, useState, useRef } from "react";
+import { getBarcode } from "@/app/utils/getBarcode";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import type { Product, Batch } from "@/lib/types";
@@ -67,12 +68,51 @@ interface SystemStore {
   status: string
 }
 
-const fetcher = (url: string) => fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`).then((res) => res.json());
+const fetcher = async (url: string) => {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error(`API Error for ${url}:`, errorData);
+      throw new Error(`API request failed with status ${response.status}`);
+    }
+    return response.json();
+  } catch (error) {
+    console.error(`Error fetching ${url}:`, error);
+    throw error;
+  }
+};
 
 export default function ProductsPage() {
   const router = useRouter();
-  const { data: products = [], mutate } = useSWR<Product[]>("/api/products", fetcher);
-  const { data: batches = [], mutate: mutateBatches } = useSWR<Batch[]>("/api/batches", fetcher);
+  const { data: products = [], error: productsError, isLoading: productsLoading, mutate } = useSWR<Product[]>("/api/products", fetcher);
+  const { data: batches = [], error: batchesError, isLoading: batchesLoading, mutate: mutateBatches } = useSWR<Batch[]>("/api/batches", fetcher);
+
+  // Normalize data on fetch
+  const normalizedProducts = useMemo(() => {
+    if (!products) return [];
+
+    return products.map(p => ({
+      ...p,
+      barcodes: Array.isArray(p.barcodes) ? p.barcodes : ((p as any).barcode ? [(p as any).barcode] : []), // Handle both old 'barcode' and new 'barcodes'
+      // keep original price field; do NOT overwrite price with sellingPrice
+      price: typeof p.price === 'number' ? p.price : Number((p as any).price ?? 0),
+      // expose a computed displayPrice (selling price preferred) for places that want it
+      displayPrice: (p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).price ?? 0,
+    }));
+  }, [products]);
+
+  // Debugging logs for SWR data
+  useEffect(() => {
+    console.log("SWR Products Data:", normalizedProducts);
+    if (productsError) {
+      console.error("SWR Products Error:", productsError);
+    }
+    console.log("SWR Batches Data:", batches);
+    if (batchesError) {
+      console.error("SWR Batches Error:", batchesError);
+    }
+  }, [normalizedProducts, productsError, batches, batchesError]);
   const scrollableDivRef = useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [assignedStores, setAssignedStores] = useState<SystemStore[]>([])
@@ -137,7 +177,7 @@ export default function ProductsPage() {
     price: "",
     stock: "",
     sellingPrice: "",
-    barcodes: [""],
+    barcodes: [""], // Initialize with one empty barcode field
     batchId: "",
   });
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
@@ -167,36 +207,33 @@ export default function ProductsPage() {
       price: "",
       stock: "",
       sellingPrice: "",
-      barcodes: [""],
+      barcodes: [""], // Reset to one empty barcode field
       batchId: "",
     })
   }
 
   const addBarcodeField = () => {
-    setFormData({
-      ...formData,
-      barcodes: [...formData.barcodes, ""],
-    })
-  }
-
-  const removeBarcodeField = (index: number) => {
-    if (formData.barcodes.length > 1) {
-      const newBarcodes = formData.barcodes.filter((_, i) => i !== index)
-      setFormData({
-        ...formData,
-        barcodes: newBarcodes,
-      })
-    }
-  }
+    setFormData((prev) => ({
+      ...prev,
+      barcodes: [...prev.barcodes, ""],
+    }));
+  };
 
   const updateBarcodeField = (index: number, value: string) => {
-    const newBarcodes = [...formData.barcodes]
-    newBarcodes[index] = value
-    setFormData({
-      ...formData,
-      barcodes: newBarcodes,
-    })
-  }
+    setFormData((prev) => {
+      const newBarcodes = [...prev.barcodes];
+      newBarcodes[index] = value;
+      return { ...prev, barcodes: newBarcodes };
+    });
+  };
+
+  const removeBarcodeField = (index: number) => {
+    setFormData((prev) => {
+      const newBarcodes = prev.barcodes.filter((_, i) => i !== index);
+      return { ...prev, barcodes: newBarcodes.length > 0 ? newBarcodes : [""] }; // Ensure at least one field remains
+    });
+  };
+
 
   const generateBarcode = () => {
     const timestamp = Date.now().toString()
@@ -207,38 +244,40 @@ export default function ProductsPage() {
   }
 
   const validateBarcode = (barcode: string): boolean => {
-    if (!barcode || barcode.trim() === "") return false
-    return barcode.length >= 1 && barcode.length <= 80
-  }
+    if (!barcode || barcode.trim() === "") return false;
+    return barcode.length >= 1 && barcode.length <= 80;
+  };
 
   const handleAddProduct = async () => {
     if (!formData.name || !formData.price || !formData.stock) {
       alert("Please fill in all required fields");
       return;
     }
-    // Batch is now optional, no check needed here
 
-    const validBarcodes = formData.barcodes.filter((barcode) => barcode.trim() !== "");
-
+    const validBarcodes = formData.barcodes.filter(b => b.trim() !== "");
     if (validBarcodes.length === 0) {
-      alert("Please add at least one barcode");
+      alert("Please add at least one barcode.");
       return;
     }
 
-    const existingBarcodes = products.flatMap((p) => p.barcodes || []);
-    const duplicates = validBarcodes.filter((barcode) => existingBarcodes.includes(barcode));
-
-    if (duplicates.length > 0) {
-      alert(`Barcode(s) already exist: ${duplicates.join(", ")}`);
-      return;
+    for (const barcode of validBarcodes) {
+      if (!validateBarcode(barcode)) {
+        alert(`Please enter a valid barcode (1-80 characters) for: ${barcode}`);
+        return;
+      }
+      const existingBarcode = normalizedProducts.find((p) => p.barcodes?.includes(barcode));
+      if (existingBarcode) {
+        alert(`Barcode already exists: ${barcode} (Product: ${existingBarcode.name})`);
+        return;
+      }
     }
 
-    const newProduct: Omit<Product, "id" | "createdAt" | "updatedAt"> = {
+    const newProduct: Omit<Product, "id" | "createdAt" | "updatedAt" | "barcode"> = { // Exclude 'barcode'
       name: formData.name,
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
       sellingPrice: Number.parseFloat(formData.sellingPrice),
-      barcodes: validBarcodes,
+      barcodes: validBarcodes, // Use the array of barcodes
       batchId: formData.batchId,
     };
 
@@ -268,28 +307,31 @@ export default function ProductsPage() {
       return;
     }
 
-    const validBarcodes = formData.barcodes.filter((barcode) => barcode.trim() !== "");
-
+    const validBarcodes = formData.barcodes.filter(b => b.trim() !== "");
     if (validBarcodes.length === 0) {
-      alert("Please add at least one barcode");
+      alert("Please add at least one barcode.");
       return;
     }
 
-    const otherProducts = products.filter((p) => p.id !== editingProduct.id);
-    const existingBarcodes = otherProducts.flatMap((p) => p.barcodes || []);
-    const duplicates = validBarcodes.filter((barcode) => existingBarcodes.includes(barcode));
-
-    if (duplicates.length > 0) {
-      alert(`Barcode(s) already exist: ${duplicates.join(", ")}`);
-      return;
+    for (const barcode of validBarcodes) {
+      if (!validateBarcode(barcode)) {
+        alert(`Please enter a valid barcode (1-80 characters) for: ${barcode}`);
+        return;
+      }
+      const otherProducts = normalizedProducts.filter((p) => p.id !== editingProduct.id);
+      const existingBarcode = otherProducts.find((p) => p.barcodes?.includes(barcode));
+      if (existingBarcode) {
+        alert(`Barcode already exists: ${barcode} (Product: ${existingBarcode.name})`);
+        return;
+        }
     }
 
-    const updatedProduct: Partial<Product> = {
+    const updatedProduct: Partial<Omit<Product, "barcode">> = { // Exclude 'barcode' from partial update
       name: formData.name,
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
       sellingPrice: Number.parseFloat(formData.sellingPrice),
-      barcodes: validBarcodes,
+      barcodes: validBarcodes, // Use the array of barcodes
       batchId: formData.batchId === "" ? undefined : formData.batchId, // Send undefined if batchId is empty
     };
 
@@ -338,14 +380,19 @@ export default function ProductsPage() {
       price: product.price.toString(),
       stock: product.stock.toString(),
       sellingPrice: (product as any).sellingPrice != null ? (product as any).sellingPrice.toString() : "",
-      barcodes: product.barcodes.length > 0 ? product.barcodes : [""],
+      barcodes: Array.isArray(product.barcodes) && product.barcodes.length > 0 ? product.barcodes : [""], // Initialize with existing barcodes or one empty field
       batchId: product.batchId || "",
     })
     setIsEditDialogOpen(true)
   }
 
   const openPrintDialog = (productIds: string[]) => {
-    const productsToPrint = products.filter(p => productIds.includes(p.id));
+    const productsToPrint = products
+      .filter(p => productIds.includes(p.id))
+      .map(p => ({
+        ...p,
+        barcodes: p.barcodes || [], // Ensure barcodes is always an array
+      }));
     setProductsToPrint(productsToPrint);
     setIsPrintDialogOpen(true);
   };
@@ -411,11 +458,16 @@ export default function ProductsPage() {
 
   // Extended filtered products logic
   const filteredProducts = useMemo(() => {
+    console.log("Filtering products. Current products array:", products);
     const typedProducts: Product[] = products;
-    return typedProducts.filter((product) => {
+    const filtered = typedProducts.filter((product) => {
+    const q = searchTerm.toLowerCase();
     const matchesSearch = searchTerm === "" ||
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.barcodes.some(barcode => barcode.toLowerCase().includes(searchTerm.toLowerCase()));
+      product.name.toLowerCase().includes(q) ||
+      (() => {
+        const bc = getBarcode(product);
+        return bc ? bc.toLowerCase().includes(q) : false;
+      })();
 
     const matchesStock =
       stockFilter === "all" ||
@@ -428,9 +480,10 @@ export default function ProductsPage() {
       (product as any).category?.toLowerCase() === categoryFilter.toLowerCase();
 
     // NEW: Price range filter
+    const productPrice = Number(product.price) || 0; // Ensure price is a number, default to 0
     const priceMin = priceRange.min ? parseFloat(priceRange.min) : 0;
     const priceMax = priceRange.max ? parseFloat(priceRange.max) : Infinity;
-    const matchesPrice = product.price >= priceMin && product.price <= priceMax;
+    const matchesPrice = productPrice >= priceMin && productPrice <= priceMax;
 
     // NEW: Batch filter
     const matchesBatch = batchFilter === "all" || product.batchId === batchFilter;
@@ -438,7 +491,7 @@ export default function ProductsPage() {
     // NEW: Selling Price range filter
     const sellingPriceMin = sellingPriceRange.min ? parseFloat(sellingPriceRange.min) : 0;
     const sellingPriceMax = sellingPriceRange.max ? parseFloat(sellingPriceRange.max) : Infinity;
-    const productSellingPrice = (product as any).sellingPrice || 0;
+    const productSellingPrice = Number((product as any).sellingPrice) || 0; // Ensure sellingPrice is a number, default to 0
     const matchesSellingPrice = productSellingPrice >= sellingPriceMin && productSellingPrice <= sellingPriceMax;
 
     // NEW: Date added filter (using createdAt if available)
@@ -455,8 +508,12 @@ export default function ProductsPage() {
       }
     }
 
-    return matchesSearch && matchesStock && matchesCategory && matchesPrice && matchesBatch && matchesSellingPrice && matchesDate;
+    const match = matchesSearch && matchesStock && matchesCategory && matchesPrice && matchesBatch && matchesSellingPrice && matchesDate;
+    // console.log(`Product ${product.name} (ID: ${product.id}) - Matches: ${match}`); // Too verbose, enable if needed
+    return match;
   });
+  console.log("Filtered Products:", filtered);
+  return filtered;
 }, [products, searchTerm, stockFilter, categoryFilter, priceRange, batchFilter, sellingPriceRange, dateAddedFilter]);
 
   const getStockStatus = (stock: number) => {
@@ -971,7 +1028,19 @@ export default function ProductsPage() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Value of Inventory</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    ₹{products.reduce((sum, p) => sum + p.stock * p.price, 0).toFixed(2)}
+                    {(() => {
+                      const totalValue = products.reduce((sum, p) => {
+                        const stock = Number(p.stock ?? 0);
+                        const price = Number((p as any).sellingPrice ?? (p as any).price ?? 0); // Try sellingPrice first
+                        if (isNaN(stock) || isNaN(price)) {
+                          console.warn(`Invalid stock or price for product ${p.id}: stock=${p.stock}, price=${price}`);
+                          return sum;
+                        }
+                        return sum + (stock * price);
+                      }, 0);
+                      console.log("Calculated Total Inventory Value:", totalValue.toFixed(2));
+                      return `₹${totalValue.toFixed(2)}`;
+                    })()}
                   </p>
                 </div>
               </div>
@@ -1103,25 +1172,33 @@ export default function ProductsPage() {
                             <div className="text-xs text-muted-foreground">{productBatch?.place || ""}</div>
                           </div>
                         </td>
-                        <td className="p-4">
-                          <span className="font-medium">₹{product.price.toFixed(2)}</span>
-                        </td>
-                        <td className="p-4">
-                          <span className="font-medium">₹{(product as any).sellingPrice?.toFixed(2) || "0.00"}</span>
-                        </td>
+                       
+{/* Price column - Your cost price */}
+<td className="p-4">
+  <span className="font-medium">
+    ₹{Number(product.price ?? 0).toFixed(2)}
+  </span>
+</td>
+
+{/* Selling Price column - Customer price */}
+<td className="p-4">
+  <span className="font-medium">
+    ₹{Number((product as any).sellingPrice ?? (product as any).selling_price ?? 0).toFixed(2)}
+  </span>
+</td>
+
+
                         <td className="p-4">
                           <span className="font-medium">{product.stock}</span>
                         </td>
                         <td className="p-4">
                           <div className="space-y-1">
-                            {(product.barcodes || []).slice(0, 2).map((barcode, index) => (
-                              <code key={index} className="text-xs bg-gray-100 px-2 py-1 rounded block">
-                                {barcode}
-                              </code>
-                            ))}
-                            {(product.barcodes || []).length > 2 && (
-                              <span className="text-xs text-gray-500">+{(product.barcodes || []).length - 2} more</span>
-                            )}
+                            {(() => {
+                              const barcode = getBarcode(product);
+                              return barcode ? (
+                                <code className="text-xs bg-gray-100 px-2 py-1 rounded block">{barcode}</code>
+                              ) : null;
+                            })()}
                           </div>
                         </td>
                         <td className="p-4">
@@ -1349,8 +1426,8 @@ export default function ProductsPage() {
 
               const rows = productsForBatchAndDate.map((p) => {
                 const productBatch = batches.find(batch => batch.id === p.batchId);
-                const stock = (p as any).stock ?? 0;
-                const price = Number((p as any).price ?? 0);
+                const stock = Number((p as any).stock) || 0; // Ensure stock is a number, default to 0
+                const price = Number((p as any).price) || 0; // Ensure price is a number, default to 0
                 const value = stock * price;
 
                 totalStock += stock;
@@ -1437,8 +1514,8 @@ export default function ProductsPage() {
 
               const rows = productsForSelectedDate.map((p) => {
                 const productBatch = batches.find(batch => batch.id === p.batchId);
-                const stock = (p as any).stock ?? 0;
-                const price = Number((p as any).price ?? 0);
+                const stock = Number((p as any).stock) || 0; // Ensure stock is a number, default to 0
+                const price = Number((p as any).price) || 0; // Ensure price is a number, default to 0
                 const value = stock * price;
 
                 totalStock += stock;

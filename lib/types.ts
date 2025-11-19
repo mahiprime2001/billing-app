@@ -1,8 +1,8 @@
-export interface Product {
+ export interface Product {
   id: string;
   name: string;
   price: number;
-  barcodes: string[];
+  barcodes?: string[]; // Changed to an array of strings, and made optional
   stock: number;
   sellingPrice?: number;
   batchId?: string; // NEW

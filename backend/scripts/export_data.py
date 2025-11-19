@@ -68,9 +68,24 @@ def export_formatted_data():
         cursor.execute('SELECT productId, barcode FROM ProductBarcodes')
         product_barcodes = cursor.fetchall()
 
+        # Build a mapping productId -> list of barcodes
+        pb_map = {}
+        for pb in product_barcodes:
+            pid = pb.get('productId')
+            code = pb.get('barcode')
+            if pid is None:
+                continue
+            pb_map.setdefault(pid, []).append(code)
+
         formatted_products = []
         for product in products:
-            product['barcodes'] = [pb['barcode'] for pb in product_barcodes if pb['productId'] == product['id']]
+            codes = pb_map.get(product.get('id'), [])
+            # store single canonical barcode (first one) if available
+            product['barcode'] = codes[0] if codes else product.get('barcode')
+            # remove any barcodes list if present; we only use single `barcode`
+            if 'barcodes' in product:
+                product.pop('barcodes', None)
+
             for key, value in product.items():
                 if isinstance(value, datetime):
                     product[key] = value.isoformat()

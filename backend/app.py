@@ -25,6 +25,11 @@ from scripts.export_data import export_formatted_data # NEW: Import export funct
 from utils.print_TSPL import generate_tspl, send_raw_to_printer
 from collections import defaultdict
 
+# Reconfigure stdout and stderr to use UTF-8 encoding for Windows compatibility
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+
 # NEW: Add field name conversion utility
 def convert_camel_to_snake(data):
     """Convert camelCase keys to snake_case for database compatibility"""
@@ -142,37 +147,33 @@ SETTINGS_FILE = os.path.join(JSON_DIR, 'settings.json') # NEW
 # Configure logging for the Flask app
 LOG_DIR = LOGS_DIR # Use the new LOGS_DIR
 LOG_FILE = os.path.join(LOG_DIR, 'app.log')
-file_handler = logging.FileHandler(LOG_FILE)
+file_handler = logging.FileHandler(LOG_FILE, encoding='utf-8') # Explicitly set UTF-8 encoding
 file_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
 file_handler.setFormatter(formatter)
 app.logger.addHandler(file_handler)
 app.logger.setLevel(logging.DEBUG)
 
-# Redirect stdout and stderr to the log file
-class DualLogger:
-    def __init__(self, filename):
-        self.terminal = sys.stdout
-        # Ensure the log file is opened with utf-8 encoding
-        self.log = open(filename, 'a', encoding='utf-8')
+# Remove DualLogger as sys.stdout/stderr are reconfigured directly
+# class DualLogger:
+#     def __init__(self, filename):
+#         self.terminal = sys.stdout
+#         self.log = open(filename, 'a', encoding='utf-8')
+#
+#     def write(self, message):
+#         try:
+#             self.terminal.write(message)
+#         except UnicodeEncodeError:
+#             self.terminal.write(message.encode('ascii', 'replace').decode('ascii'))
+#         self.log.write(message)
+#         self.log.flush()
+#
+#     def flush(self):
+#         self.terminal.flush()
+#         self.log.flush()
 
-    def write(self, message):
-        try:
-            # Attempt to write to terminal with utf-8, fallback if not supported
-            self.terminal.write(message)
-        except UnicodeEncodeError:
-            # Fallback for terminals that don't support UTF-8 directly
-            self.terminal.write(message.encode('ascii', 'replace').decode('ascii'))
-        self.log.write(message)
-        self.log.flush() # Ensure immediate write to file
-
-    def flush(self):
-        self.terminal.flush()
-        self.log.flush()
-
-# Set stdout and stderr to use the DualLogger with explicit UTF-8 handling
-sys.stdout = DualLogger(LOG_FILE)
-sys.stderr = DualLogger(LOG_FILE)
+# sys.stdout = DualLogger(LOG_FILE)
+# sys.stderr = DualLogger(LOG_FILE)
 
 # Verify base directories
 app.logger.info(f"APP_BASE_DIR: {os.environ.get('APP_BASE_DIR', 'Not Set')}")
@@ -253,13 +254,44 @@ def initialize_full_data_pull():
                                 for k, v in record.items()
                             }
                             serialized_records.append(serialized)
-                        
-                        # For SystemSettings, save as dict, not list
-                        if table_name == 'SystemSettings':
-                            settings_dict = {s['id']: s for s in serialized_records}
-                            _safe_json_dump(json_file, settings_dict)
-                        else:
-                            _safe_json_dump(json_file, serialized_records)
+
+                            # If pulling Products, also attach barcodes from ProductBarcodes
+                            if table_name == 'Products':
+                                try:
+                                    # fetch all product barcodes and build mapping
+                                    cursor.execute('SELECT productId, barcode FROM ProductBarcodes')
+                                    pb_rows = cursor.fetchall()
+                                    pb_map = {}
+                                    for pb in pb_rows:
+                                        pid = pb.get('productId')
+                                        code = pb.get('barcode')
+                                        if pid is None:
+                                            continue
+                                        pb_map.setdefault(pid, []).append(code)
+
+                                    for item in serialized_records:
+                                        pid = item.get('id')
+                                        codes = pb_map.get(pid, [])
+                                        # Store only a single canonical barcode (first one)
+                                        if codes:
+                                            item['barcode'] = codes[0]
+                                        else:
+                                            # remove any existing barcode key to avoid nulls
+                                            if 'barcode' in item:
+                                                item.pop('barcode', None)
+
+                                        # Ensure we don't keep legacy 'barcodes' lists
+                                        if 'barcodes' in item:
+                                            item.pop('barcodes', None)
+                                except Exception as e:
+                                    app.logger.debug(f"Could not fetch ProductBarcodes during full pull: {e}")
+
+                            # For SystemSettings, save as dict, not list
+                            if table_name == 'SystemSettings':
+                                settings_dict = {s['id']: s for s in serialized_records}
+                                _safe_json_dump(json_file, settings_dict)
+                            else:
+                                _safe_json_dump(json_file, serialized_records)
                         
                         app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
                     else:
@@ -635,15 +667,22 @@ def create_product():
         #   2. MySQL sync_table (audit trail)
         #   3. Local sync system (enhanced sync manager)
         
-        # STEP 3: If barcodes exist, save them too
-        if 'barcodes' in product_data and product_data['barcodes']:
-            barcodes_list = product_data['barcodes'].split(',') if isinstance(product_data['barcodes'], str) else product_data['barcodes']
-            for barcode in barcodes_list:
-                barcode_data = {
-                    'productId': product_data['id'],
-                    'barcode': barcode.strip()
-                }
-                log_crud_operation('productbarcodes', 'CREATE', barcode, barcode_data)
+        # STEP 3: If barcode(s) provided, save them too. Support both single `barcode` and legacy `barcodes` list
+        barcodes_to_add = []
+        if 'barcode' in product_data and product_data.get('barcode'):
+            barcodes_to_add.append(str(product_data.get('barcode')).strip())
+        if 'barcodes' in product_data and product_data.get('barcodes'):
+            if isinstance(product_data['barcodes'], str):
+                barcodes_to_add.extend([b.strip() for b in product_data['barcodes'].split(',') if b.strip()])
+            elif isinstance(product_data['barcodes'], list):
+                barcodes_to_add.extend([str(b).strip() for b in product_data['barcodes'] if b])
+
+        for barcode in barcodes_to_add:
+            barcode_data = {
+                'productId': product_data['id'],
+                'barcode': barcode
+            }
+            log_crud_operation('productbarcodes', 'CREATE', barcode, barcode_data)
         
         app.logger.info(f"Product created: {product_data['id']} (local JSON + MySQL)")
         return jsonify({"message": "Product created", "id": product_data['id']}), 201
@@ -680,6 +719,23 @@ def update_product(product_id):
         
         # STEP 2: Write to MySQL IMMEDIATELY
         log_crud_operation('products', 'UPDATE', product_id, products[product_index])
+
+        # STEP 3: If barcode updated, write product barcode(s)
+        barcodes_to_add = []
+        if 'barcode' in update_data and update_data.get('barcode'):
+            barcodes_to_add.append(str(update_data.get('barcode')).strip())
+        if 'barcodes' in update_data and update_data.get('barcodes'):
+            if isinstance(update_data['barcodes'], str):
+                barcodes_to_add.extend([b.strip() for b in update_data['barcodes'].split(',') if b.strip()])
+            elif isinstance(update_data['barcodes'], list):
+                barcodes_to_add.extend([str(b).strip() for b in update_data['barcodes'] if b])
+
+        for barcode in barcodes_to_add:
+            barcode_data = {
+                'productId': product_id,
+                'barcode': barcode
+            }
+            log_crud_operation('productbarcodes', 'CREATE', barcode, barcode_data)
         
         app.logger.info(f"Product updated: {product_id} (local JSON + MySQL)")
         return jsonify({"message": "Product updated", "id": product_id}), 200

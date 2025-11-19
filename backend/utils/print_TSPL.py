@@ -19,7 +19,15 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
         tspl.append("REFERENCE 0,0")  # Origin at top-left
         tspl.append("OFFSET 0,-1000")
 
-        barcode = product.get("barcodes", [product.get("id", "")])[0]
+        # Prefer explicit 'barcodes' list (first item), then legacy 'barcode', then product id
+        barcode = ""
+        barcodes_field = product.get("barcodes")
+        if isinstance(barcodes_field, list) and len(barcodes_field) > 0:
+            barcode = str(barcodes_field[0])
+        elif product.get("barcode"):
+            barcode = str(product.get("barcode"))
+        else:
+            barcode = str(product.get("id", ""))
 
         # Barcode: Code 128, positioned at x=8 (1 mm), y=4 (0.5 mm), height=32 dots (4 mm)
         tspl.append(f'BARCODE 20,0,"128",55,1,0,1,1,"{barcode}"')  # Narrower barcode for fit
@@ -28,7 +36,13 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
         # Product name: x=120, y=24 (3 mm)
         tspl.append(f'TEXT 225,24,"1",0,1,1,"{product["name"]}"')
         # Price: x=120, y=44 (5.5 mm)
-        tspl.append(f'TEXT 225,44,"1",0,1,1,"Rs.{product.get("sellingPrice", 0):.2f}"')
+        # Selling price may be in 'selling_price' (snake_case) or 'sellingPrice' (camelCase)
+        selling = product.get('selling_price') if product.get('selling_price') is not None else product.get('sellingPrice', 0)
+        try:
+            selling_val = float(selling or 0)
+        except Exception:
+            selling_val = 0.0
+        tspl.append(f'TEXT 225,44,"1",0,1,1,"Rs.{selling_val:.2f}"')
 
         tspl.append(f"PRINT 1,{copies}")  # Print specified copies
         tspl.append("FEED 0")  # Ensure label advances

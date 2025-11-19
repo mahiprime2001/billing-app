@@ -21,14 +21,9 @@ import {
 } from "@/components/ui/select";
 import { Printer } from "lucide-react";
 import JsBarcode from "jsbarcode";
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  barcodes: string[];
-  stock: number; // Added stock property
-}
+import { getBarcode } from "@/app/utils/getBarcode";
+import { unifiedPrint } from "@/app/utils/printUtils";
+import type { Product } from "@/lib/types"; // Import Product from lib/types
 
 interface PrintDialogProps {
   products: Product[];
@@ -134,8 +129,7 @@ export default function PrintDialog({
     const generatePreviews = () => {
       const newPreviews: { [productId: string]: string | null } = {};
       for (const product of products) {
-        const barcodeValue =
-          product.barcodes && product.barcodes.length > 0 ? product.barcodes[0] : product.id;
+        const barcodeValue = getBarcode(product) || product.id;
         newPreviews[product.id] = createBarcodeImage(barcodeValue);
       }
       setBarcodePreviews(newPreviews);
@@ -161,45 +155,55 @@ export default function PrintDialog({
       alert("No products selected");
       return;
     }
-    if (!selectedPrinter) {
-      alert("No printer selected");
-      return;
-    }
 
     setLoading(true);
     try {
-      const productIds = products.map((p) => p.id);
-      const backendBase = getBackendBase();
-      const apiUrl = `${backendBase}/api/print-label`;
-      console.log("Attempting to POST:", apiUrl);
-
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productIds,
-          copies,
-          printerName: selectedPrinter,
-          storeName: storeName || "Company Name"
-        })
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (response.ok && data.status === "success") {
-        alert("Print job sent successfully.");
-        onPrintSuccess();
-        onClose();
-      } else {
-        const msg = data?.message || `${response.status} ${response.statusText}`;
-        alert("Print failed: " + msg);
+      // Build printable HTML with labels
+      const labelBlocks: string[] = [];
+      for (const product of products) {
+        const barcodeValue = getBarcode(product) || product.id;
+        const imgSrc = barcodePreviews[product.id] || "";
+        for (let c = 0; c < Math.max(1, copies); c++) {
+          labelBlocks.push(`
+            <div class="label" style="display:inline-block;vertical-align:top;width:${labelWidth}mm;height:${labelHeight}mm;box-sizing:border-box;padding:4px;margin:4px;border:0;">
+              <div style="display:flex;flex-direction:row;height:100%;font-family:Arial,Helvetica,sans-serif;">
+                <div style="width:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:2mm;">
+                  ${imgSrc ? `<img src="${imgSrc}" style="max-width:90%;height:auto;display:block;margin-bottom:2px;"/>` : ''}
+                  ${barcodeDisplayValue ? `<div style="font-size:7px;font-weight:bold;text-align:center;">${escapeHtml(barcodeValue)}</div>` : ''}
+                </div>
+                <div style="width:50%;padding-left:2mm;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;">
+                  <div style="font-size:6px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(storeName)}</div>
+                  <div style="font-size:7px;font-weight:bold;margin-top:2px;line-height:1.1;max-height:6mm;overflow:hidden;">Product Name: ${escapeHtml(product.name)}</div>
+                  <div style="font-size:7px;font-weight:bold;white-space:nowrap;margin-top:2px;">Price: ₹${(product.price ?? 0).toFixed(2)}</div>
+                </div>
+              </div>
+            </div>
+          `);
+        }
       }
+
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>Labels</title><style>body{margin:8mm;font-family:Arial,Helvetica,sans-serif} @media print { @page { size: auto; margin: 0; } body{margin:0} .label{page-break-inside:avoid;} }</style></head><body>${labelBlocks.join("\n")}<script>window.onload=function(){window.print();setTimeout(()=>window.close(),300);};</script></body></html>`;
+
+      await unifiedPrint({ htmlContent: html });
+      alert("Print dialog opened.");
+      onPrintSuccess();
+      onClose();
     } catch (error) {
-      alert("Error sending print request.");
+      alert("Error printing labels.");
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
+
+  function escapeHtml(s: string) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -426,9 +430,7 @@ export default function PrintDialog({
                               letterSpacing: "0.2px"
                             }}
                           >
-                            {product.barcodes && product.barcodes.length > 0
-                              ? product.barcodes[0]
-                              : product.id}
+                            {getBarcode(product) || product.id}
                           </div>
                         )}
                       </div>

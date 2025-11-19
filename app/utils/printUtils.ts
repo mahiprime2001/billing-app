@@ -73,57 +73,30 @@ export async function unifiedPrint({
   copies?: number; // Type for copies
   useBackendPrint?: boolean; // Type for backend print flag
 }): Promise<void> {
-  const isTauri = typeof window !== "undefined" && !!window.__TAURI__;
-
-  if (useBackendPrint && productIds && productIds.length > 0) {
-    // Call backend API for printing
-    try {
-      const backendApiUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${backendApiUrl}/api/print-label`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productIds: productIds,
-          copies: copies,
-        }),
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        console.log("Print job sent to backend successfully:", data.message);
-        alert("Print job sent successfully"); // Provide user feedback
-      } else {
-        console.error("Backend print failed:", data.message);
-        alert(`Print failed: ${data.message}`); // Provide user feedback
-        throw new Error(`Backend print failed: ${data.message}`);
-      }
-    } catch (error: unknown) {
-      console.error("Error calling backend print API:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      alert(`Error sending print job: ${errorMessage}`); // Provide user feedback
-      throw new Error(`Error sending print job: ${errorMessage}`);
-    }
-  } else if (isThermalPrinter && thermalContent) {
-    if (isTauri) {
-      await printThermalLabel(thermalContent, true);
-    } else {
-      console.warn("Thermal printing is only supported in Tauri desktop application.");
-      throw new Error("Thermal printing not available in web environment.");
-    }
-  } else if (htmlContent) {
-    if (isTauri) {
-      // Use custom Tauri command for HTML content preparation, then trigger browser print
-      try {
-        await invoke("print_html_document", { html_content: htmlContent });
-        console.log("HTML content sent to backend for preparation. Triggering browser print.");
-        await printInBrowserWindow(htmlContent); // Trigger browser print after backend preparation
-      } catch (error) {
-        console.error("Failed to prepare HTML content via custom Tauri command, falling back to direct browser print:", error);
-        await printInBrowserWindow(htmlContent);
-      }
-    } else {
-      await printInBrowserWindow(htmlContent);
-    }
-  } else {
-    throw new Error("No printable content provided.");
+  // For web use always open a browser window and call window.print().
+  // This intentionally ignores backend/Tauri printing and uses the browser's print dialog.
+  if (htmlContent) {
+    await printInBrowserWindow(htmlContent);
+    return;
   }
+
+  if (thermalContent) {
+    // Wrap thermal content in a simple HTML template so it can be printed via browser.
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Print</title><style>body{font-family:monospace;white-space:pre-wrap;}</style></head><body><pre>${escapeHtml(
+      thermalContent,
+    )}</pre></body></html>`;
+    await printInBrowserWindow(html);
+    return;
+  }
+
+  throw new Error("No printable content provided.");
+}
+
+function escapeHtml(s: string) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }

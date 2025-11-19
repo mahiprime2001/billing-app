@@ -24,22 +24,9 @@ function extractText(htmlContent: string): string {
  * Sends the extracted text directly to the thermal printer via Tauri.
  */
 export async function printHtml(htmlContent: string): Promise<void> {
-  const text = extractText(htmlContent);
-
-  try {
-    // Invoke the Rust print command
-    await invoke('print_to_thermal_printer', {
-      printerName: 'TT0650',  // Your TVS LP 46 DLite identifier
-      content: text,
-      paperWidth: 80,         // in millimeters
-      paperHeight: 12         // in millimeters
-    });
-    console.log('Print job sent to thermal printer.');
-  } catch (err) {
-    console.error('Thermal print failed, falling back to browser print:', err);
-    // Fallback to browser printing if needed
-    await browserPrint(htmlContent);
-  }
+  // Always use the browser print dialog in web builds.
+  // Convert to a printable HTML document and call browserPrint.
+  await browserPrint(htmlContent);
 }
 
 /**

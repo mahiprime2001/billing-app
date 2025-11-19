@@ -38,6 +38,7 @@ import {
   AlertCircle,
 } from "lucide-react"
 import { Product } from "@/lib/types"
+import { getBarcode } from "@/app/utils/getBarcode"
 import PrintButton from "@/components/PrintButton"
 import { printHtml } from "@/lib/printUtils"
 
@@ -209,11 +210,13 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
     }
 
     if (searchTerm) {
-      const filtered = products.filter(
-        (product) =>
-          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (product.barcodes && product.barcodes.some(b => b.includes(searchTerm))),
-      );
+      const q = searchTerm.toLowerCase();
+      const filtered = products.filter((product) => {
+        const nameMatch = product.name.toLowerCase().includes(q);
+        const barcode = getBarcode(product);
+        const barcodeMatch = barcode ? barcode.toLowerCase().includes(q) : false;
+        return nameMatch || barcodeMatch;
+      });
       setFilteredProducts(filtered);
     } else {
       setFilteredProducts(products.slice(0, 20));
@@ -387,13 +390,16 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
 
     const existingItem = activeTab.cart.find((item) => item.productId === product.id)
 
+    // Prefer selling price when available
+    const unitPrice = Number((product as any).sellingPrice ?? (product as any).selling_price ?? product.price ?? 0)
+
     let newCart: CartItem[]
     if (existingItem) {
       if (existingItem.quantity >= product.stock) {
         alert(`Cannot add more. Maximum available: ${product.stock}`)
         return
       }
-      newCart = activeTab.cart.map((item) =>
+        newCart = activeTab.cart.map((item) =>
         item.productId === product.id
           ? {
               ...item,
@@ -409,8 +415,8 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
           productId: product.id,
           productName: product.name,
           quantity: 1,
-          price: product.price,
-          total: product.price,
+          price: unitPrice,
+          total: unitPrice,
         },
       ]
     }
@@ -903,14 +909,30 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <h3 className="font-medium text-sm">{product.name}</h3>
-                            {product.barcodes && product.barcodes.length > 0 && (
-                              <p className="text-xs text-gray-500 mt-1">Barcode: {product.barcodes[0]}</p>
-                            )}
+                            {(() => {
+                              const barcode = getBarcode(product);
+                              return barcode ? (
+                                <p className="text-xs text-gray-500 mt-1">Barcode: {barcode}</p>
+                              ) : null;
+                            })()}
                           </div>
-                          <div className="text-right">
-                            <p className="font-bold text-green-600">₹{product.price.toFixed(2)}</p>
-                            <p className="text-xs text-gray-500">Stock: {product.stock}</p>
-                          </div>
+                                  <div className="text-right">
+                                    {/* Show selling price (support both camelCase and snake_case) */}
+                                    {((product as any).sellingPrice ?? (product as any).selling_price) != null ? (
+                                      <p className="font-bold text-green-600">
+                                        Selling: ₹{Number((product as any).sellingPrice ?? (product as any).selling_price).toFixed(2)}
+                                      </p>
+                                    ) : (
+                                      <p className="font-bold text-green-600">₹{Number(product.price ?? 0).toFixed(2)}</p>
+                                    )}
+
+                                    {/* Show regular price if different or available */}
+                                    {product.price != null && Number(product.price) !== Number((product as any).sellingPrice ?? (product as any).selling_price) && (
+                                      <p className="text-sm text-gray-500">Price: ₹{Number(product.price).toFixed(2)}</p>
+                                    )}
+
+                                    <p className="text-xs text-gray-500">Stock: {product.stock}</p>
+                                  </div>
                         </div>
                       </CardContent>
                     </Card>
