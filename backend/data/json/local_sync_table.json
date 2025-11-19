@@ -1,1 +1,92 @@
-[]
+[
+  {
+    "id": 1,
+    "sync_time": "2025-11-19T17:37:35.322427",
+    "table_name": "batch",
+    "change_type": "CREATE",
+    "record_id": "6f69b01f-afa8-457d-b475-8402450ec9f4",
+    "change_data": {
+      "batchNumber": "btch-s7ksr1",
+      "place": "Nellore",
+      "id": "6f69b01f-afa8-457d-b475-8402450ec9f4",
+      "createdAt": "2025-11-19T17:37:34.371491",
+      "updatedAt": "2025-11-19T17:37:34.371491"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-11-19T17:37:35.322427",
+    "completed_at": "2025-11-19T17:44:55.763875"
+  },
+  {
+    "id": 2,
+    "sync_time": "2025-11-19T17:38:37.311619",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "dc8218a8-25a7-473c-9288-6b4daf6d6722",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "price": 452,
+      "stock": 12,
+      "selling_price": 3212,
+      "barcodes": [
+        "1763554073217409"
+      ],
+      "batchId": "6f69b01f-afa8-457d-b475-8402450ec9f4",
+      "id": "dc8218a8-25a7-473c-9288-6b4daf6d6722",
+      "createdAt": "2025-11-19T12:07:54.221919+00:00",
+      "updatedAt": "2025-11-19T12:07:54.221919+00:00"
+    },
+    "status": "completed",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-11-19T17:38:37.311619",
+    "completed_at": "2025-11-19T17:44:56.208752"
+  },
+  {
+    "id": 3,
+    "sync_time": "2025-11-19T17:57:02.734544",
+    "table_name": "batch",
+    "change_type": "CREATE",
+    "record_id": "7fc3ebb4-1548-44c9-b563-e5ab65bf35d1",
+    "change_data": {
+      "id": "7fc3ebb4-1548-44c9-b563-e5ab65bf35d1",
+      "batchnumber": "btch-13trqw",
+      "place": "hyd",
+      "createdat": "2025-11-19T17:57:01.910280",
+      "updatedat": "2025-11-19T17:57:01.910280"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-11-19T17:57:02.734544"
+  },
+  {
+    "id": 4,
+    "sync_time": "2025-11-19T17:58:02.643362",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "523193ea-dad1-406f-a449-67ab3ed6c5f9",
+    "change_data": {
+      "name": "A. Tops",
+      "price": 213,
+      "stock": 213,
+      "selling_price": 3456,
+      "barcodes": [
+        "1763555254341778"
+      ],
+      "batchId": "7fc3ebb4-1548-44c9-b563-e5ab65bf35d1",
+      "id": "523193ea-dad1-406f-a449-67ab3ed6c5f9",
+      "createdAt": "2025-11-19T12:27:35.547648+00:00",
+      "updatedAt": "2025-11-19T12:27:35.547648+00:00"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-11-19T17:58:02.643362"
+  }
+]

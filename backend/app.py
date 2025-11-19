@@ -784,40 +784,63 @@ def add_batch():
     batches = get_batches_data()
     
     if not new_batch.get('batchNumber') or not new_batch.get('place'):
-        return jsonify({"message": "Batch number and place are required"}), 400
-
-    new_batch['id'] = str(uuid.uuid4())
-    new_batch['createdAt'] = datetime.now().isoformat()
-    new_batch['updatedAt'] = datetime.now().isoformat()
+        return jsonify(message="Batch number and place are required"), 400
     
+    # Generate UUID and timestamps
+    new_batch["id"] = str(uuid.uuid4())
+    new_batch["createdAt"] = datetime.now().isoformat()
+    new_batch["updatedAt"] = datetime.now().isoformat()
+    
+    # Save to local JSON (keep camelCase for frontend compatibility)
     batches.append(new_batch)
     save_batches_data(batches)
     
-    log_crud_operation('batches', 'CREATE', new_batch['id'], new_batch)
+    # Convert to database format (lowercase) for MySQL sync
+    db_batch = {
+        "id": new_batch["id"],
+        "batchnumber": new_batch.get("batchNumber"),  # Convert to lowercase
+        "place": new_batch.get("place"),
+        "createdat": new_batch["createdAt"],
+        "updatedat": new_batch["updatedAt"]
+    }
+    
+    # Log with the database-compatible format
+    log_crud_operation("batches", "CREATE", new_batch["id"], db_batch)
     
     return jsonify(new_batch), 201
 
-@app.route('/api/batches/<batch_id>', methods=['PUT'])
-def update_batch(batch_id):
+@app.route('/api/batches/<batchid>', methods=['PUT'])
+def update_batch(batchid):
     updated_data = request.json or {}
     batches = get_batches_data()
+    
     batch_found = False
     idx = -1
-
+    
     for i, batch in enumerate(batches):
-        if batch['id'] == batch_id:
+        if batch["id"] == batchid:
             batches[i].update(updated_data)
-            batches[i]['updatedAt'] = datetime.now().isoformat()
+            batches[i]["updatedAt"] = datetime.now().isoformat()
             batch_found = True
             idx = i
             break
-
+    
     if batch_found:
         save_batches_data(batches)
-        log_crud_operation('batches', 'UPDATE', batch_id, batches[idx])
+        
+        # Convert to database format for MySQL sync
+        db_batch = {
+            "id": batches[idx]["id"],
+            "batchnumber": batches[idx].get("batchNumber"),  # Convert to lowercase
+            "place": batches[idx].get("place"),
+            "createdat": batches[idx].get("createdAt"),
+            "updatedat": batches[idx]["updatedAt"]
+        }
+        
+        log_crud_operation("batches", "UPDATE", batchid, db_batch)
         return jsonify(batches[idx])
-
-    return jsonify({"message": "Batch not found"}), 404
+    
+    return jsonify(message="Batch not found"), 404
 
 @app.route('/api/batches/<batch_id>', methods=['DELETE'])
 def delete_batch(batch_id):

@@ -238,5 +238,191 @@
       },
       "timestamp": "2025-11-19T17:20:53.692385"
     }
+  },
+  {
+    "id": 13,
+    "timestamp": "2025-11-19T17:35:32.292828",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-19T17:35:32.292828"
+    }
+  },
+  {
+    "id": 14,
+    "timestamp": "2025-11-19T17:35:38.167720",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-19T17:35:38.124362"
+    }
+  },
+  {
+    "id": 15,
+    "timestamp": "2025-11-19T17:37:35.351403",
+    "eventType": "batch_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "batch",
+      "record_id": "6f69b01f-afa8-457d-b475-8402450ec9f4",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 16,
+    "timestamp": "2025-11-19T17:37:55.633183",
+    "eventType": "Products_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "dc8218a8-25a7-473c-9288-6b4daf6d6722",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 17,
+    "timestamp": "2025-11-19T17:38:37.353964",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "dc8218a8-25a7-473c-9288-6b4daf6d6722",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 18,
+    "timestamp": "2025-11-19T17:44:56.564893",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "Processed 2 logs, 0 failed",
+        "processed": 2,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-19T17:44:56.543958"
+    }
+  },
+  {
+    "id": 19,
+    "timestamp": "2025-11-19T17:47:06.602424",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-19T17:47:06.582914"
+    }
+  },
+  {
+    "id": 20,
+    "timestamp": "2025-11-19T17:50:33.066885",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-19T17:50:33.042458"
+    }
+  },
+  {
+    "id": 21,
+    "timestamp": "2025-11-19T17:56:10.719074",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-19T17:56:10.706445"
+    }
+  },
+  {
+    "id": 22,
+    "timestamp": "2025-11-19T17:57:02.749588",
+    "eventType": "batch_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "batch",
+      "record_id": "7fc3ebb4-1548-44c9-b563-e5ab65bf35d1",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 23,
+    "timestamp": "2025-11-19T17:57:36.478299",
+    "eventType": "Products_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "523193ea-dad1-406f-a449-67ab3ed6c5f9",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 24,
+    "timestamp": "2025-11-19T17:58:02.702483",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "523193ea-dad1-406f-a449-67ab3ed6c5f9",
+      "operation_type": "DELETE"
+    }
   }
 ]

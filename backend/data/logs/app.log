@@ -595,3 +595,517 @@
 2025-11-19 17:28:47,913 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
 2025-11-19 17:29:50,914 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
 2025-11-19 17:29:50,918 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:30:43,458 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:30:43,460 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:30:43,467 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:30:43,470 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:30:47,041 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:30:52,042 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:31:56,276 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:01,900 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:06,909 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:11,902 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:16,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:21,910 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:25,812 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:32:25,813 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:32:25,814 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:32:26,440 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:31,912 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:36,895 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:41,903 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:46,904 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:51,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:55,923 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:32:56,687 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:32:56,702 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:32:56,715 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:32:58,739 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2025-11-19 17:33:00,791 - app - WARNING - app.py:1062 - Tauri printers proxy failed: HTTPConnectionPool(host='127.0.0.1', port=5050): Max retries exceeded with url: /api/printers (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000014620570350>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
+2025-11-19 17:33:01,281 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:33:03,331 - app - INFO - app.py:99 - Incoming Request: Method=OPTIONS, Path=/api/print-label, Origin=http://localhost:3000
+2025-11-19 17:33:03,336 - app - INFO - app.py:99 - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2025-11-19 17:33:03,336 - app - INFO - app.py:1095 - Received print request: product_ids=['2e5788c4-5cab-4357-96fe-219ef7a7833d'], copies=1, printer_name=SNBC TVSE LP46 Dlite BPLE, store_name=Siri Art Jewellers
+2025-11-19 17:33:03,336 - app - INFO - print_TSPL.py:50 - Generated TSPL commands (copies=1, store_name=Siri Art Jewellers):
+['GAPDETECT', 'SIZE 80 mm,12 mm', 'GAP 5 mm,0 mm', 'CLS', 'DENSITY 10', 'SPEED 4', 'DIRECTION 1', 'REFERENCE 0,0', 'OFFSET 0,-1000', 'BARCODE 20,0,"128",55,1,0,1,1,"1762160513558784"', 'TEXT 225,4,"1",0,1,1,"Siri Art Jewellers"', 'TEXT 225,24,"1",0,1,1,"A. Haram set"', 'TEXT 225,44,"1",0,1,1,"Rs.657.00"', 'PRINT 1,1', 'FEED 0']
+2025-11-19 17:33:05,374 - app - WARNING - app.py:1128 - Tauri connection failed (HTTPConnectionPool(host='127.0.0.1', port=5050): Max retries exceeded with url: /api/print (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000146205701D0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))), falling back to direct printing.
+2025-11-19 17:33:05,374 - app - INFO - print_TSPL.py:64 - Attempting to send print job to printer: 'SNBC TVSE LP46 Dlite BPLE'
+2025-11-19 17:33:05,375 - app - INFO - print_TSPL.py:80 - Found exact printer name: 'SNBC TVSE LP46 Dlite BPLE'. Opening printer handle.
+2025-11-19 17:33:05,377 - app - INFO - print_TSPL.py:84 - Starting print document with job_id: ('TSPL Print Job', None, 'RAW')
+2025-11-19 17:33:05,451 - app - INFO - print_TSPL.py:86 - Print job started with ID: 5
+2025-11-19 17:33:05,451 - app - INFO - print_TSPL.py:88 - Starting print page.
+2025-11-19 17:33:05,451 - app - INFO - print_TSPL.py:90 - Raw data written to printer.
+2025-11-19 17:33:05,451 - app - INFO - print_TSPL.py:92 - Ending print page.
+2025-11-19 17:33:05,451 - app - INFO - print_TSPL.py:94 - Print document ended successfully.
+2025-11-19 17:33:05,451 - app - INFO - print_TSPL.py:100 - Printer handle closed.
+2025-11-19 17:33:05,451 - app - INFO - app.py:1136 - Direct print job sent to SNBC TVSE LP46 Dlite BPLE successfully.
+2025-11-19 17:33:07,231 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:33:07,233 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:33:07,233 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:33:11,915 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:33:16,906 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:33:21,909 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:33:25,898 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:33:26,894 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:33:31,909 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:33:36,903 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:33:41,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:33:46,895 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:33:51,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:33:55,902 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:33:56,912 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:34:01,909 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:34:06,913 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:34:25,907 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:34:50,897 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:34:55,913 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:35:10,370 - app - INFO - app.py:3205 - Enhanced sync manager stopped gracefully
+2025-11-19 17:35:15,461 - app - INFO - app.py:3205 - Enhanced sync manager stopped gracefully
+2025-11-19 17:35:26,605 - app - INFO - app.py:179 - APP_BASE_DIR: D:\Siri-apps\billing-app\backend
+2025-11-19 17:35:26,605 - app - INFO - app.py:180 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2025-11-19 17:35:26,606 - app - INFO - app.py:181 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2025-11-19 17:35:31,477 - app - DEBUG - app.py:3141 - Data files already populated, skipping full pull.
+2025-11-19 17:35:31,487 - app - INFO - app.py:3057 - Enhanced background sync process started successfully
+2025-11-19 17:35:32,180 - app - INFO - app.py:179 - APP_BASE_DIR: D:\Siri-apps\billing-app\backend
+2025-11-19 17:35:32,180 - app - INFO - app.py:180 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2025-11-19 17:35:32,180 - app - INFO - app.py:181 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2025-11-19 17:35:37,274 - app - DEBUG - app.py:3141 - Data files already populated, skipping full pull.
+2025-11-19 17:35:37,277 - app - INFO - app.py:3057 - Enhanced background sync process started successfully
+2025-11-19 17:36:46,861 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:36:51,898 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:36:56,868 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:36:58,181 - app - INFO - app.py:99 - Incoming Request: Method=OPTIONS, Path=/api/auth/login, Origin=http://localhost:3000
+2025-11-19 17:36:58,185 - app - INFO - app.py:99 - Incoming Request: Method=POST, Path=/api/auth/login, Origin=http://localhost:3000
+2025-11-19 17:37:01,864 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:37:01,895 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:37:01,902 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-11-19 17:37:01,929 - app - INFO - app.py:1564 - Pulling latest bills from MySQL via sync_table
+2025-11-19 17:37:01,934 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-11-19 17:37:01,946 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:37:01,954 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-11-19 17:37:01,975 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:37:01,992 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-11-19 17:37:02,002 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:37:02,005 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-11-19 17:37:02,784 - app - INFO - app.py:1568 - Successfully pulled 0 bills from MySQL
+2025-11-19 17:37:03,782 - app - INFO - app.py:1633 - Fetched 9 bills from MySQL
+2025-11-19 17:37:04,035 - app - INFO - app.py:1659 - Returning 9 total bills (MySQL: 9, Local: 9)
+2025-11-19 17:37:04,053 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-11-19 17:37:04,055 - app - INFO - app.py:1564 - Pulling latest bills from MySQL via sync_table
+2025-11-19 17:37:04,726 - app - INFO - app.py:1568 - Successfully pulled 0 bills from MySQL
+2025-11-19 17:37:05,635 - app - INFO - app.py:1633 - Fetched 9 bills from MySQL
+2025-11-19 17:37:05,837 - app - INFO - app.py:1659 - Returning 9 total bills (MySQL: 9, Local: 9)
+2025-11-19 17:37:06,867 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:37:08,883 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:37:08,885 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:37:08,885 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:37:08,892 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:37:11,864 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:37:16,872 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:37:21,871 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:37:26,862 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:37:31,884 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:37:34,371 - app - INFO - app.py:99 - Incoming Request: Method=OPTIONS, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:37:34,371 - app - INFO - app.py:99 - Incoming Request: Method=POST, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:37:34,910 - app - DEBUG - sync.py:169 - Processing CREATE for batch with ID: 6f69b01f-afa8-457d-b475-8402450ec9f4
+2025-11-19 17:37:34,910 - app - DEBUG - sync.py:39 - Fetching columns for table: batch
+2025-11-19 17:37:34,957 - app - DEBUG - sync.py:42 - Columns for batch: ['id', 'batchnumber', 'place', 'createdat', 'updatedat']
+2025-11-19 17:37:34,957 - app - INFO - sync.py:172 - Filtered change_data for batch: {'place': 'Nellore', 'id': '6f69b01f-afa8-457d-b475-8402450ec9f4'}
+2025-11-19 17:37:34,958 - app - DEBUG - sync.py:193 - Executing UPSERT for batch with data: {'place': 'Nellore', 'id': '6f69b01f-afa8-457d-b475-8402450ec9f4'}
+2025-11-19 17:37:35,004 - app - INFO - sync.py:195 - Primary CREATE applied to batch for ID: 6f69b01f-afa8-457d-b475-8402450ec9f4. Rows affected: 2
+2025-11-19 17:37:35,004 - app - DEBUG - sync.py:53 - Handling related tables for batch with record ID: 6f69b01f-afa8-457d-b475-8402450ec9f4
+2025-11-19 17:37:35,049 - app - INFO - sync.py:234 - Connected to DB: u408450631_siri
+2025-11-19 17:37:35,084 - app - INFO - sync.py:236 - Commit done. Total affected: 2
+2025-11-19 17:37:35,322 - app - INFO - app.py:539 - Successfully wrote CREATE to MySQL table batch for record 6f69b01f-afa8-457d-b475-8402450ec9f4
+2025-11-19 17:37:35,889 - app - INFO - app.py:569 - Logged to MySQL sync_table: batch - CREATE - 6f69b01f-afa8-457d-b475-8402450ec9f4
+2025-11-19 17:37:36,113 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:37:36,870 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:37:38,905 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:37:41,867 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:37:46,862 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:37:51,866 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:37:54,218 - app - INFO - app.py:99 - Incoming Request: Method=OPTIONS, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:37:54,221 - app - INFO - app.py:99 - Incoming Request: Method=POST, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:37:54,917 - app - DEBUG - sync.py:169 - Processing CREATE for Products with ID: dc8218a8-25a7-473c-9288-6b4daf6d6722
+2025-11-19 17:37:54,917 - app - DEBUG - sync.py:39 - Fetching columns for table: Products
+2025-11-19 17:37:54,981 - app - DEBUG - sync.py:42 - Columns for Products: ['id', 'name', 'price', 'stock', 'assignedStoreId', 'batchId', 'selling_price', 'createdAt', 'updatedAt', 'barcode', 'description', 'category', 'supplier', 'imageUrl']
+2025-11-19 17:37:54,984 - app - INFO - sync.py:172 - Filtered change_data for Products: {'name': 'A.NECKLACE', 'price': 452, 'stock': 12, 'selling_price': 3212, 'batchId': '6f69b01f-afa8-457d-b475-8402450ec9f4', 'id': 'dc8218a8-25a7-473c-9288-6b4daf6d6722', 'createdAt': '2025-11-19T12:07:54.221919+00:00', 'updatedAt': '2025-11-19T12:07:54.221919+00:00'}
+2025-11-19 17:37:54,985 - app - DEBUG - sync.py:193 - Executing UPSERT for Products with data: {'name': 'A.NECKLACE', 'price': 452, 'stock': 12, 'selling_price': 3212, 'batchId': '6f69b01f-afa8-457d-b475-8402450ec9f4', 'id': 'dc8218a8-25a7-473c-9288-6b4daf6d6722', 'createdAt': '2025-11-19T12:07:54.221919+00:00', 'updatedAt': '2025-11-19T12:07:54.221919+00:00'}
+2025-11-19 17:37:55,049 - app - INFO - sync.py:195 - Primary CREATE applied to Products for ID: dc8218a8-25a7-473c-9288-6b4daf6d6722. Rows affected: 1
+2025-11-19 17:37:55,057 - app - DEBUG - sync.py:53 - Handling related tables for Products with record ID: dc8218a8-25a7-473c-9288-6b4daf6d6722
+2025-11-19 17:37:55,059 - app - DEBUG - sync.py:56 - Syncing ProductBarcodes for product dc8218a8-25a7-473c-9288-6b4daf6d6722
+2025-11-19 17:37:55,121 - app - DEBUG - sync.py:70 - Adding barcode 1763554073217409 to product dc8218a8-25a7-473c-9288-6b4daf6d6722
+2025-11-19 17:37:55,185 - app - INFO - sync.py:83 - Synced ProductBarcodes for product dc8218a8-25a7-473c-9288-6b4daf6d6722. Added: 1, Removed: 0
+2025-11-19 17:37:55,250 - app - INFO - sync.py:234 - Connected to DB: u408450631_siri
+2025-11-19 17:37:55,315 - app - INFO - sync.py:236 - Commit done. Total affected: 1
+2025-11-19 17:37:55,621 - app - INFO - app.py:539 - Successfully wrote CREATE to MySQL table Products for record dc8218a8-25a7-473c-9288-6b4daf6d6722
+2025-11-19 17:37:56,188 - app - INFO - app.py:569 - Logged to MySQL sync_table: Products - CREATE - dc8218a8-25a7-473c-9288-6b4daf6d6722
+2025-11-19 17:37:56,877 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:37:56,887 - app - DEBUG - sync.py:169 - Processing CREATE for Productbarcodes with ID: 1763554073217409
+2025-11-19 17:37:56,887 - app - DEBUG - sync.py:39 - Fetching columns for table: Productbarcodes
+2025-11-19 17:37:56,969 - app - ERROR - sync.py:241 - DB operation failed for Productbarcodes:1763554073217409 (Type: CREATE) -> 1146 (42S02): Table 'u408450631_siri.Productbarcodes' doesn't exist
+Traceback (most recent call last):
+  File "d:\Siri-apps\billing-app\backend\.venv\Lib\site-packages\mysql\connector\connection_cext.py", line 697, in cmd_query
+    self._cmysql.query(
+_mysql_connector.MySQLInterfaceError: Table 'u408450631_siri.Productbarcodes' doesn't exist
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Siri-apps\billing-app\backend\scripts\sync.py", line 170, in apply_change_to_db
+    table_columns = _get_table_columns(cursor, table_name, logger_instance)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Siri-apps\billing-app\backend\scripts\sync.py", line 40, in _get_table_columns
+    cursor.execute(f"DESCRIBE `{table_name}`")
+  File "d:\Siri-apps\billing-app\backend\.venv\Lib\site-packages\mysql\connector\cursor_cext.py", line 372, in execute
+    result = self._cnx.cmd_query(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "d:\Siri-apps\billing-app\backend\.venv\Lib\site-packages\mysql\connector\opentelemetry\context_propagation.py", line 102, in wrapper
+    return method(cnx, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "d:\Siri-apps\billing-app\backend\.venv\Lib\site-packages\mysql\connector\connection_cext.py", line 705, in cmd_query
+    raise get_mysql_exception(
+mysql.connector.errors.ProgrammingError: 1146 (42S02): Table 'u408450631_siri.Productbarcodes' doesn't exist
+2025-11-19 17:37:57,185 - app - WARNING - app.py:541 - Failed to write CREATE to MySQL table Productbarcodes for record 1763554073217409
+2025-11-19 17:37:57,185 - app - ERROR - app.py:505 - Failed to write CREATE to MySQL table Productbarcodes
+2025-11-19 17:37:57,695 - app - INFO - app.py:569 - Logged to MySQL sync_table: Productbarcodes - CREATE - 1763554073217409
+2025-11-19 17:37:57,899 - app - INFO - app.py:687 - Product created: dc8218a8-25a7-473c-9288-6b4daf6d6722 (local JSON + MySQL)
+2025-11-19 17:37:57,899 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:38:01,899 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:38:04,995 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:38:04,997 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:38:06,914 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:38:08,901 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:38:11,899 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:38:16,905 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:38:21,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:38:24,852 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:38:24,860 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:38:26,867 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:38:31,672 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:38:31,672 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:38:31,865 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:38:36,491 - app - INFO - app.py:99 - Incoming Request: Method=OPTIONS, Path=/api/products/dc8218a8-25a7-473c-9288-6b4daf6d6722, Origin=http://localhost:3000
+2025-11-19 17:38:36,494 - app - INFO - app.py:99 - Incoming Request: Method=DELETE, Path=/api/products/dc8218a8-25a7-473c-9288-6b4daf6d6722, Origin=http://localhost:3000
+2025-11-19 17:38:36,916 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:38:36,952 - app - DEBUG - sync.py:153 - Processing DELETE for Products with ID: dc8218a8-25a7-473c-9288-6b4daf6d6722
+2025-11-19 17:38:36,955 - app - DEBUG - sync.py:158 - Deleting ProductBarcodes for product dc8218a8-25a7-473c-9288-6b4daf6d6722
+2025-11-19 17:38:36,998 - app - DEBUG - sync.py:164 - Deleting primary record from Products with ID: dc8218a8-25a7-473c-9288-6b4daf6d6722
+2025-11-19 17:38:37,040 - app - INFO - sync.py:166 - DELETE applied to Products for ID: dc8218a8-25a7-473c-9288-6b4daf6d6722. Rows affected: 1
+2025-11-19 17:38:37,082 - app - INFO - sync.py:234 - Connected to DB: u408450631_siri
+2025-11-19 17:38:37,121 - app - INFO - sync.py:236 - Commit done. Total affected: 1
+2025-11-19 17:38:37,311 - app - INFO - app.py:539 - Successfully wrote DELETE to MySQL table Products for record dc8218a8-25a7-473c-9288-6b4daf6d6722
+2025-11-19 17:38:37,829 - app - INFO - app.py:569 - Logged to MySQL sync_table: Products - DELETE - dc8218a8-25a7-473c-9288-6b4daf6d6722
+2025-11-19 17:38:38,017 - app - INFO - app.py:765 - Product deleted: dc8218a8-25a7-473c-9288-6b4daf6d6722 (local JSON + MySQL)
+2025-11-19 17:38:38,030 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:38:38,898 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:38:41,904 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:38:46,901 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:38:51,899 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:38:56,906 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:39:01,907 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:39:06,895 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:39:08,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:39:11,895 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:39:14,980 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:39:14,981 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:39:16,872 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:39:21,911 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:39:26,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:39:31,904 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:39:36,911 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:39:38,674 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:39:38,676 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:39:38,892 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:39:41,874 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:39:44,853 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:39:44,865 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:39:45,140 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/settings, Origin=http://localhost:3000
+2025-11-19 17:39:45,141 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/admin-users, Origin=http://localhost:3000
+2025-11-19 17:39:45,144 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/settings, Origin=http://localhost:3000
+2025-11-19 17:39:45,145 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/admin-users, Origin=http://localhost:3000
+2025-11-19 17:39:45,181 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:39:45,189 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:39:46,867 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:39:48,576 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:39:51,872 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:39:56,902 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:40:01,905 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:40:06,902 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:40:11,917 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:40:15,902 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:40:16,899 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:40:21,904 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:40:26,903 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:40:31,904 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:40:36,906 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:40:41,910 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:40:45,903 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:40:46,916 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:40:51,905 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:41:15,905 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:41:39,972 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:41:41,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:41:45,896 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:41:50,911 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:41:54,091 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:42:15,913 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:42:45,909 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:42:50,910 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:43:50,911 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:43:50,911 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:44:50,121 - app - INFO - app.py:179 - APP_BASE_DIR: D:\Siri-apps\billing-app\backend
+2025-11-19 17:44:50,142 - app - INFO - app.py:180 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2025-11-19 17:44:50,151 - app - INFO - app.py:181 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2025-11-19 17:44:54,933 - app - DEBUG - app.py:3141 - Data files already populated, skipping full pull.
+2025-11-19 17:44:54,933 - app - INFO - app.py:3057 - Enhanced background sync process started successfully
+2025-11-19 17:44:55,236 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:44:55,238 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:44:55,256 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:44:56,911 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:45:50,902 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:45:50,902 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:46:50,898 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:46:50,900 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:47:00,625 - app - INFO - app.py:179 - APP_BASE_DIR: D:\Siri-apps\billing-app\backend
+2025-11-19 17:47:00,628 - app - INFO - app.py:180 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2025-11-19 17:47:00,632 - app - INFO - app.py:181 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2025-11-19 17:47:05,579 - app - DEBUG - app.py:3141 - Data files already populated, skipping full pull.
+2025-11-19 17:47:05,579 - app - INFO - app.py:3057 - Enhanced background sync process started successfully
+2025-11-19 17:47:05,895 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:47:05,933 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:47:06,898 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:47:50,932 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:47:50,936 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:48:09,898 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:48:11,905 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:48:50,909 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:48:50,913 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:49:50,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:49:50,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:49:52,898 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:49:57,413 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:49:57,418 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:50:01,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:50:06,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:50:11,910 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:50:15,899 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:50:16,910 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:50:21,901 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:50:26,903 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:50:31,898 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:50:36,896 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:50:41,905 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:50:45,901 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:50:46,904 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:50:51,899 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:50:56,907 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:51:50,906 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:51:50,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:52:50,906 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:52:50,908 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:53:50,905 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:53:50,906 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:54:50,903 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:54:50,905 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:55:50,903 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:55:50,906 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:56:05,186 - app - INFO - app.py:179 - APP_BASE_DIR: D:\Siri-apps\billing-app\backend
+2025-11-19 17:56:05,197 - app - INFO - app.py:180 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2025-11-19 17:56:05,198 - app - INFO - app.py:181 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2025-11-19 17:56:09,798 - app - DEBUG - app.py:3164 - Data files already populated, skipping full pull.
+2025-11-19 17:56:09,860 - app - INFO - app.py:3080 - Enhanced background sync process started successfully
+2025-11-19 17:56:10,079 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:56:10,211 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:56:15,021 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:56:15,914 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:56:50,907 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:56:50,912 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:56:50,963 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:56:51,866 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:56:56,860 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:01,865 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:01,902 - app - INFO - app.py:99 - Incoming Request: Method=OPTIONS, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:57:01,907 - app - INFO - app.py:99 - Incoming Request: Method=POST, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:57:02,377 - app - DEBUG - sync.py:169 - Processing CREATE for batch with ID: 7fc3ebb4-1548-44c9-b563-e5ab65bf35d1
+2025-11-19 17:57:02,377 - app - DEBUG - sync.py:39 - Fetching columns for table: batch
+2025-11-19 17:57:02,418 - app - DEBUG - sync.py:42 - Columns for batch: ['id', 'batchnumber', 'place', 'createdat', 'updatedat']
+2025-11-19 17:57:02,418 - app - INFO - sync.py:172 - Filtered change_data for batch: {'id': '7fc3ebb4-1548-44c9-b563-e5ab65bf35d1', 'batchnumber': 'btch-13trqw', 'place': 'hyd', 'createdat': '2025-11-19T17:57:01.910280', 'updatedat': '2025-11-19T17:57:01.910280'}
+2025-11-19 17:57:02,418 - app - DEBUG - sync.py:193 - Executing UPSERT for batch with data: {'id': '7fc3ebb4-1548-44c9-b563-e5ab65bf35d1', 'batchnumber': 'btch-13trqw', 'place': 'hyd', 'createdat': '2025-11-19T17:57:01.910280', 'updatedat': '2025-11-19T17:57:01.910280'}
+2025-11-19 17:57:02,460 - app - INFO - sync.py:195 - Primary CREATE applied to batch for ID: 7fc3ebb4-1548-44c9-b563-e5ab65bf35d1. Rows affected: 1
+2025-11-19 17:57:02,460 - app - DEBUG - sync.py:53 - Handling related tables for batch with record ID: 7fc3ebb4-1548-44c9-b563-e5ab65bf35d1
+2025-11-19 17:57:02,498 - app - INFO - sync.py:234 - Connected to DB: u408450631_siri
+2025-11-19 17:57:02,534 - app - INFO - sync.py:236 - Commit done. Total affected: 1
+2025-11-19 17:57:02,732 - app - INFO - app.py:539 - Successfully wrote CREATE to MySQL table batch for record 7fc3ebb4-1548-44c9-b563-e5ab65bf35d1
+2025-11-19 17:57:03,228 - app - INFO - app.py:569 - Logged to MySQL sync_table: batch - CREATE - 7fc3ebb4-1548-44c9-b563-e5ab65bf35d1
+2025-11-19 17:57:03,434 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:57:06,906 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:11,914 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:15,148 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:57:15,197 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:57:16,867 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:17,211 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:57:17,217 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:57:17,306 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:57:17,306 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:57:21,867 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:26,862 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:31,863 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:35,543 - app - INFO - app.py:99 - Incoming Request: Method=OPTIONS, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:57:35,547 - app - INFO - app.py:99 - Incoming Request: Method=POST, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:57:36,014 - app - DEBUG - sync.py:169 - Processing CREATE for Products with ID: 523193ea-dad1-406f-a449-67ab3ed6c5f9
+2025-11-19 17:57:36,016 - app - DEBUG - sync.py:39 - Fetching columns for table: Products
+2025-11-19 17:57:36,053 - app - DEBUG - sync.py:42 - Columns for Products: ['id', 'name', 'price', 'stock', 'assignedStoreId', 'batchId', 'selling_price', 'createdAt', 'updatedAt', 'barcode', 'description', 'category', 'supplier', 'imageUrl']
+2025-11-19 17:57:36,053 - app - INFO - sync.py:172 - Filtered change_data for Products: {'name': 'A. Tops', 'price': 213, 'stock': 213, 'selling_price': 3456, 'batchId': '7fc3ebb4-1548-44c9-b563-e5ab65bf35d1', 'id': '523193ea-dad1-406f-a449-67ab3ed6c5f9', 'createdAt': '2025-11-19T12:27:35.547648+00:00', 'updatedAt': '2025-11-19T12:27:35.547648+00:00'}
+2025-11-19 17:57:36,053 - app - DEBUG - sync.py:193 - Executing UPSERT for Products with data: {'name': 'A. Tops', 'price': 213, 'stock': 213, 'selling_price': 3456, 'batchId': '7fc3ebb4-1548-44c9-b563-e5ab65bf35d1', 'id': '523193ea-dad1-406f-a449-67ab3ed6c5f9', 'createdAt': '2025-11-19T12:27:35.547648+00:00', 'updatedAt': '2025-11-19T12:27:35.547648+00:00'}
+2025-11-19 17:57:36,098 - app - INFO - sync.py:195 - Primary CREATE applied to Products for ID: 523193ea-dad1-406f-a449-67ab3ed6c5f9. Rows affected: 1
+2025-11-19 17:57:36,100 - app - DEBUG - sync.py:53 - Handling related tables for Products with record ID: 523193ea-dad1-406f-a449-67ab3ed6c5f9
+2025-11-19 17:57:36,100 - app - DEBUG - sync.py:56 - Syncing ProductBarcodes for product 523193ea-dad1-406f-a449-67ab3ed6c5f9
+2025-11-19 17:57:36,142 - app - DEBUG - sync.py:70 - Adding barcode 1763555254341778 to product 523193ea-dad1-406f-a449-67ab3ed6c5f9
+2025-11-19 17:57:36,179 - app - INFO - sync.py:83 - Synced ProductBarcodes for product 523193ea-dad1-406f-a449-67ab3ed6c5f9. Added: 1, Removed: 0
+2025-11-19 17:57:36,219 - app - INFO - sync.py:234 - Connected to DB: u408450631_siri
+2025-11-19 17:57:36,263 - app - INFO - sync.py:236 - Commit done. Total affected: 1
+2025-11-19 17:57:36,466 - app - INFO - app.py:539 - Successfully wrote CREATE to MySQL table Products for record 523193ea-dad1-406f-a449-67ab3ed6c5f9
+2025-11-19 17:57:36,881 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:36,958 - app - INFO - app.py:569 - Logged to MySQL sync_table: Products - CREATE - 523193ea-dad1-406f-a449-67ab3ed6c5f9
+2025-11-19 17:57:37,683 - app - DEBUG - sync.py:169 - Processing CREATE for Productbarcodes with ID: 1763555254341778
+2025-11-19 17:57:37,683 - app - DEBUG - sync.py:39 - Fetching columns for table: Productbarcodes
+2025-11-19 17:57:37,760 - app - ERROR - sync.py:241 - DB operation failed for Productbarcodes:1763555254341778 (Type: CREATE) -> 1146 (42S02): Table 'u408450631_siri.Productbarcodes' doesn't exist
+Traceback (most recent call last):
+  File "d:\Siri-apps\billing-app\backend\.venv\Lib\site-packages\mysql\connector\connection_cext.py", line 697, in cmd_query
+    self._cmysql.query(
+_mysql_connector.MySQLInterfaceError: Table 'u408450631_siri.Productbarcodes' doesn't exist
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Siri-apps\billing-app\backend\scripts\sync.py", line 170, in apply_change_to_db
+    table_columns = _get_table_columns(cursor, table_name, logger_instance)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Siri-apps\billing-app\backend\scripts\sync.py", line 40, in _get_table_columns
+    cursor.execute(f"DESCRIBE `{table_name}`")
+  File "d:\Siri-apps\billing-app\backend\.venv\Lib\site-packages\mysql\connector\cursor_cext.py", line 372, in execute
+    result = self._cnx.cmd_query(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "d:\Siri-apps\billing-app\backend\.venv\Lib\site-packages\mysql\connector\opentelemetry\context_propagation.py", line 102, in wrapper
+    return method(cnx, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "d:\Siri-apps\billing-app\backend\.venv\Lib\site-packages\mysql\connector\connection_cext.py", line 705, in cmd_query
+    raise get_mysql_exception(
+mysql.connector.errors.ProgrammingError: 1146 (42S02): Table 'u408450631_siri.Productbarcodes' doesn't exist
+2025-11-19 17:57:37,962 - app - WARNING - app.py:541 - Failed to write CREATE to MySQL table Productbarcodes for record 1763555254341778
+2025-11-19 17:57:37,962 - app - ERROR - app.py:505 - Failed to write CREATE to MySQL table Productbarcodes
+2025-11-19 17:57:38,479 - app - INFO - app.py:569 - Logged to MySQL sync_table: Productbarcodes - CREATE - 1763555254341778
+2025-11-19 17:57:38,679 - app - INFO - app.py:687 - Product created: 523193ea-dad1-406f-a449-67ab3ed6c5f9 (local JSON + MySQL)
+2025-11-19 17:57:38,696 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:57:41,906 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:46,911 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:47,902 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:57:51,915 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:56,902 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:57:57,500 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:57:57,500 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2025-11-19 17:58:01,830 - app - INFO - app.py:99 - Incoming Request: Method=OPTIONS, Path=/api/products/523193ea-dad1-406f-a449-67ab3ed6c5f9, Origin=http://localhost:3000
+2025-11-19 17:58:01,835 - app - INFO - app.py:99 - Incoming Request: Method=DELETE, Path=/api/products/523193ea-dad1-406f-a449-67ab3ed6c5f9, Origin=http://localhost:3000
+2025-11-19 17:58:01,864 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:58:02,279 - app - DEBUG - sync.py:153 - Processing DELETE for Products with ID: 523193ea-dad1-406f-a449-67ab3ed6c5f9
+2025-11-19 17:58:02,280 - app - DEBUG - sync.py:158 - Deleting ProductBarcodes for product 523193ea-dad1-406f-a449-67ab3ed6c5f9
+2025-11-19 17:58:02,317 - app - DEBUG - sync.py:164 - Deleting primary record from Products with ID: 523193ea-dad1-406f-a449-67ab3ed6c5f9
+2025-11-19 17:58:02,355 - app - INFO - sync.py:166 - DELETE applied to Products for ID: 523193ea-dad1-406f-a449-67ab3ed6c5f9. Rows affected: 1
+2025-11-19 17:58:02,403 - app - INFO - sync.py:234 - Connected to DB: u408450631_siri
+2025-11-19 17:58:02,443 - app - INFO - sync.py:236 - Commit done. Total affected: 1
+2025-11-19 17:58:02,638 - app - INFO - app.py:539 - Successfully wrote DELETE to MySQL table Products for record 523193ea-dad1-406f-a449-67ab3ed6c5f9
+2025-11-19 17:58:03,207 - app - INFO - app.py:569 - Logged to MySQL sync_table: Products - DELETE - 523193ea-dad1-406f-a449-67ab3ed6c5f9
+2025-11-19 17:58:03,404 - app - INFO - app.py:765 - Product deleted: 523193ea-dad1-406f-a449-67ab3ed6c5f9 (local JSON + MySQL)
+2025-11-19 17:58:03,414 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:58:06,486 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-11-19 17:58:06,488 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:58:06,490 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-11-19 17:58:06,497 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2025-11-19 17:58:06,502 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2025-11-19 17:58:06,505 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:58:06,863 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:58:11,866 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:58:16,867 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:58:21,864 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:58:26,870 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:58:31,862 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:58:36,502 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:58:36,872 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:58:39,854 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/settings, Origin=http://localhost:3000
+2025-11-19 17:58:39,857 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/admin-users, Origin=http://localhost:3000
+2025-11-19 17:58:39,859 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/settings, Origin=http://localhost:3000
+2025-11-19 17:58:39,869 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/admin-users, Origin=http://localhost:3000
+2025-11-19 17:58:39,906 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:58:39,912 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:58:41,865 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:58:46,866 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:58:51,861 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:58:56,863 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:59:01,183 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:59:01,189 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:59:01,501 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:59:01,501 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-11-19 17:59:01,501 - app - INFO - app.py:1587 - Pulling latest bills from MySQL via sync_table
+2025-11-19 17:59:01,768 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:59:01,948 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:59:02,177 - app - INFO - app.py:1591 - Successfully pulled 0 bills from MySQL
+2025-11-19 17:59:02,998 - app - INFO - app.py:1656 - Fetched 9 bills from MySQL
+2025-11-19 17:59:03,197 - app - INFO - app.py:1682 - Returning 9 total bills (MySQL: 9, Local: 9)
+2025-11-19 17:59:03,214 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-11-19 17:59:03,216 - app - INFO - app.py:1587 - Pulling latest bills from MySQL via sync_table
+2025-11-19 17:59:03,874 - app - INFO - app.py:1591 - Successfully pulled 0 bills from MySQL
+2025-11-19 17:59:04,644 - app - INFO - app.py:1656 - Fetched 9 bills from MySQL
+2025-11-19 17:59:04,828 - app - INFO - app.py:1682 - Returning 9 total bills (MySQL: 9, Local: 9)
+2025-11-19 17:59:06,500 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:59:06,546 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-11-19 17:59:06,546 - app - INFO - app.py:1587 - Pulling latest bills from MySQL via sync_table
+2025-11-19 17:59:06,939 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:59:07,169 - app - INFO - app.py:1591 - Successfully pulled 0 bills from MySQL
+2025-11-19 17:59:07,681 - app - INFO - app.py:1656 - Fetched 9 bills from MySQL
+2025-11-19 17:59:07,864 - app - INFO - app.py:1682 - Returning 9 total bills (MySQL: 9, Local: 9)
+2025-11-19 17:59:11,186 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:59:11,501 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-11-19 17:59:11,501 - app - INFO - app.py:1587 - Pulling latest bills from MySQL via sync_table
+2025-11-19 17:59:11,895 - app - INFO - app.py:1591 - Successfully pulled 0 bills from MySQL
+2025-11-19 17:59:11,935 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:59:12,428 - app - INFO - app.py:1656 - Fetched 9 bills from MySQL
+2025-11-19 17:59:12,618 - app - INFO - app.py:1682 - Returning 9 total bills (MySQL: 9, Local: 9)
+2025-11-19 17:59:16,860 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:59:17,031 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:59:17,032 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-11-19 17:59:17,032 - app - INFO - app.py:1587 - Pulling latest bills from MySQL via sync_table
+2025-11-19 17:59:17,383 - app - INFO - app.py:1591 - Successfully pulled 0 bills from MySQL
+2025-11-19 17:59:17,889 - app - INFO - app.py:1656 - Fetched 9 bills from MySQL
+2025-11-19 17:59:18,094 - app - INFO - app.py:1682 - Returning 9 total bills (MySQL: 9, Local: 9)
+2025-11-19 17:59:21,911 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:59:21,914 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:59:22,219 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-11-19 17:59:22,220 - app - INFO - app.py:1587 - Pulling latest bills from MySQL via sync_table
+2025-11-19 17:59:22,561 - app - INFO - app.py:1591 - Successfully pulled 0 bills from MySQL
+2025-11-19 17:59:23,075 - app - INFO - app.py:1656 - Fetched 9 bills from MySQL
+2025-11-19 17:59:23,284 - app - INFO - app.py:1682 - Returning 9 total bills (MySQL: 9, Local: 9)
+2025-11-19 17:59:26,909 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:59:27,208 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:59:27,209 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-11-19 17:59:27,210 - app - INFO - app.py:1587 - Pulling latest bills from MySQL via sync_table
+2025-11-19 17:59:27,558 - app - INFO - app.py:1591 - Successfully pulled 0 bills from MySQL
+2025-11-19 17:59:28,079 - app - INFO - app.py:1656 - Fetched 9 bills from MySQL
+2025-11-19 17:59:28,263 - app - INFO - app.py:1682 - Returning 9 total bills (MySQL: 9, Local: 9)
+2025-11-19 17:59:31,914 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2025-11-19 17:59:31,920 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:59:31,983 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:59:32,227 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-11-19 17:59:32,229 - app - INFO - app.py:1587 - Pulling latest bills from MySQL via sync_table
+2025-11-19 17:59:32,558 - app - INFO - app.py:1591 - Successfully pulled 0 bills from MySQL
+2025-11-19 17:59:33,073 - app - INFO - app.py:1656 - Fetched 9 bills from MySQL
+2025-11-19 17:59:33,269 - app - INFO - app.py:1682 - Returning 9 total bills (MySQL: 9, Local: 9)
+2025-11-19 17:59:36,921 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2025-11-19 17:59:37,220 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2025-11-19 17:59:37,228 - app - INFO - app.py:99 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2025-11-19 17:59:37,228 - app - INFO - app.py:1587 - Pulling latest bills from MySQL via sync_table
+2025-11-19 17:59:37,587 - app - INFO - app.py:1591 - Successfully pulled 0 bills from MySQL
+2025-11-19 17:59:38,127 - app - INFO - app.py:1656 - Fetched 9 bills from MySQL
+2025-11-19 17:59:38,324 - app - INFO - app.py:1682 - Returning 9 total bills (MySQL: 9, Local: 9)
+2025-11-19 17:59:40,727 - app - INFO - app.py:3228 - Enhanced sync manager stopped gracefully
+2025-11-19 17:59:45,820 - app - INFO - app.py:3205 - Enhanced sync manager stopped gracefully
