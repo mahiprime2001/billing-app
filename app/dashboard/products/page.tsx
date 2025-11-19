@@ -1587,6 +1587,7 @@ export default function ProductsPage() {
           onClose={() => setIsPrintDialogOpen(false)}
           onPrintSuccess={handlePrintSuccess}
           storeName={assignedStores?.[0]?.name || "Siri Art Jewellers"}
+          forceBackendPrint={true}
         />
 
         {/* Edit Product Dialog (unchanged, but with formData updates if needed) */}

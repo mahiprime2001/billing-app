@@ -65,6 +65,8 @@ export async function unifiedPrint({
   productIds, // New parameter for product IDs
   copies = 1, // New parameter for copies
   useBackendPrint = false, // New flag to use backend printing
+  printerName, // optional printer name to send to backend
+  storeName, // optional store name to send to backend
 }: {
   htmlContent?: string;
   thermalContent?: string;
@@ -72,9 +74,36 @@ export async function unifiedPrint({
   productIds?: string[]; // Type for product IDs
   copies?: number; // Type for copies
   useBackendPrint?: boolean; // Type for backend print flag
+  printerName?: string;
+  storeName?: string;
 }): Promise<void> {
-  // For web use always open a browser window and call window.print().
-  // This intentionally ignores backend/Tauri printing and uses the browser's print dialog.
+  // If caller requests backend print and provides productIds, attempt backend print first.
+  if (useBackendPrint && productIds && productIds.length > 0) {
+    try {
+      const backendApiUrl = (process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:8080").replace(/\/+$/g, "");
+      const payload: any = { productIds, copies };
+      if (printerName) payload.printerName = printerName;
+      if (storeName) payload.storeName = storeName;
+
+      const response = await fetch(`${backendApiUrl}/api/print-label`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.status === "success") {
+        console.log("Backend print succeeded:", data.message || "");
+        return;
+      }
+      console.warn("Backend print returned non-success, falling back to browser print", data);
+      // fallthrough to browser printing below
+    } catch (err) {
+      console.error("Error sending backend print request, falling back to browser print:", err);
+      // fallthrough to browser printing below
+    }
+  }
+
+  // For web use open a browser window and call window.print().
   if (htmlContent) {
     await printInBrowserWindow(htmlContent);
     return;

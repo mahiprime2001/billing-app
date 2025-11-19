@@ -31,6 +31,7 @@ interface PrintDialogProps {
   onClose: () => void;
   onPrintSuccess: () => void;
   storeName: string;
+  forceBackendPrint?: boolean; // when true, always send print job to backend
 }
 
 function getBackendBase(): string {
@@ -44,13 +45,15 @@ export default function PrintDialog({
   isOpen,
   onClose,
   onPrintSuccess,
-  storeName
+  storeName,
+  forceBackendPrint = false,
 }: PrintDialogProps) {
   const [copies, setCopies] = useState(1); // Default to 1, will be updated in useEffect
   const [loading, setLoading] = useState(false);
   const [barcodePreviews, setBarcodePreviews] = useState<{ [productId: string]: string | null }>({});
   const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
   const [selectedPrinter, setSelectedPrinter] = useState<string>("");
+  const [directPrint, setDirectPrint] = useState<boolean>(false);
 
   // Editable dimensions states
   const [labelWidth, setLabelWidth] = useState(81); // mm
@@ -90,16 +93,6 @@ export default function PrintDialog({
 
     fetchPrinters();
   }, [isOpen]);
-
-  // Set initial copies based on the first product's stock when dialog opens
-  useEffect(() => {
-    if (isOpen && products.length > 0 && products[0].stock !== undefined) {
-      setCopies(products[0].stock);
-    } else if (!isOpen) {
-      setCopies(1); // Reset copies when dialog closes
-    }
-  }, [isOpen, products]);
-
   const createBarcodeImage = (barcodeValue: string): string | null => {
     try {
       const canvas = document.createElement("canvas");
@@ -158,7 +151,18 @@ export default function PrintDialog({
 
     setLoading(true);
     try {
-      // Build printable HTML with labels
+      const shouldUseBackend = forceBackendPrint || directPrint;
+
+      if (shouldUseBackend) {
+        const productIds = products.map((p) => p.id);
+        await unifiedPrint({ useBackendPrint: true, productIds, copies, printerName: selectedPrinter || undefined, storeName });
+        alert("Print job sent to backend.");
+        onPrintSuccess();
+        onClose();
+        return;
+      }
+
+      // Build printable HTML with labels (browser print)
       const labelBlocks: string[] = [];
       for (const product of products) {
         const barcodeValue = getBarcode(product) || product.id;
@@ -292,6 +296,18 @@ export default function PrintDialog({
                   ))}
                 </SelectContent>
               </Select>
+              <div className="flex items-center space-x-2 mt-2">
+                <input
+                  id="direct-print"
+                  type="checkbox"
+                  checked={directPrint}
+                  onChange={(e) => setDirectPrint(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <Label htmlFor="direct-print" className="text-sm font-medium">
+                  Direct print (no browser dialog)
+                </Label>
+              </div>
               {availablePrinters.length === 0 && (
                 <p className="text-sm text-red-500">
                   No printers found. Ensure backend is running and printers are installed.
