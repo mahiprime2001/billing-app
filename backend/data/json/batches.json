@@ -1,23 +1,16 @@
 [
   {
-    "id": "55a31cb9-7390-4dd0-9441-8b2f5e633647",
-    "batchnumber": "",
-    "place": "ygtyfyhfjvhvhnvnhvhnvhcvc",
-    "createdat": "2025-10-21T06:52:16",
-    "updatedat": "2025-10-21T06:52:16"
-  },
-  {
-    "batchNumber": "btch-s7ksr1",
-    "place": "Nellore",
     "id": "6f69b01f-afa8-457d-b475-8402450ec9f4",
-    "createdAt": "2025-11-19T17:37:34.371491",
-    "updatedAt": "2025-11-19T17:37:34.371491"
+    "batchnumber": "",
+    "place": "Nellore",
+    "createdat": "2025-10-21T06:52:16",
+    "updatedat": "2025-11-19T12:07:35"
   },
   {
-    "batchNumber": "btch-13trqw",
-    "place": "hyd",
     "id": "7fc3ebb4-1548-44c9-b563-e5ab65bf35d1",
-    "createdAt": "2025-11-19T17:57:01.910280",
-    "updatedAt": "2025-11-19T17:57:01.910280"
+    "batchnumber": "btch-13trqw",
+    "place": "hyd",
+    "createdat": "2025-11-19T17:57:01",
+    "updatedat": "2025-11-19T17:57:01"
   }
 ]

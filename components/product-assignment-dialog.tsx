@@ -1,7 +1,8 @@
-// components/product-assignment-dialog.tsx
-"use client";
+"use client"
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -10,309 +11,448 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Minus, X } from "lucide-react";
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Search, Package, Plus, Minus, X, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-export interface Product {
-  id: string;
-  name: string;
-  barcode: string;
-  stock: number;
+const API = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:8080'
+
+export type AssignedProduct = {
+  id?: string
+  barcode: string
+  name: string
+  price: number
+  stock?: number
 }
 
-export interface AssignedProduct extends Product {
-  assignedQuantity: number;
+type Props = {
+  storeId: string
+  storeName?: string
+  trigger: React.ReactNode
+  onAssign: (storeId: string, products: AssignedProduct[]) => Promise<void> | void
 }
 
-interface ProductAssignmentDialogProps {
-  storeId: string;
-  storeName: string;
-  trigger: React.ReactNode;
-  onAssign: (storeId: string, products: AssignedProduct[]) => void;
-}
-
-export default function ProductAssignmentDialog({
-  storeId,
-  storeName,
-  trigger,
-  onAssign,
-}: ProductAssignmentDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [assignedProducts, setAssignedProducts] = useState<AssignedProduct[]>(
-    []
-  );
-  const [loading, setLoading] = useState(false);
+export default function ProductAssignmentDialog({ storeId, storeName, trigger, onAssign }: Props) {
+  const [open, setOpen] = useState(false)
+  const [products, setProducts] = useState<AssignedProduct[]>([])
+  const [selected, setSelected] = useState<Record<string, boolean>>({})
+  const [quantityMap, setQuantityMap] = useState<Record<string, number>>({})
+  const [loading, setLoading] = useState(false)
+  const [assigning, setAssigning] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
-    if (isOpen) {
-      loadProducts();
-    }
-  }, [isOpen]);
-
-  const loadProducts = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products`
-      );
-      if (response.ok) {
-        const productsData = await response.json();
-        setProducts(productsData);
-      } else {
-        console.error("Failed to fetch products");
-      }
-    } catch (error) {
-      console.error("Error loading products:", error);
-    }
-    setLoading(false);
-  };
-
-  const filteredProducts = products.filter((product) => {
-    if (!product) return false;
-    const q = searchTerm.toLowerCase();
-    return (
-      product.name?.toLowerCase().includes(q) ||
-      product.barcode?.toLowerCase().includes(q)
-    );
-  });
-
-  const addProduct = (product: Product) => {
-    const existing = assignedProducts.find((p) => p.id === product.id);
-    if (existing) {
-      setAssignedProducts((prev) =>
-        prev.map((p) =>
-          p.id === product.id
-            ? {
-                ...p,
-                assignedQuantity: Math.min(p.assignedQuantity + 1, p.stock),
-              }
-            : p
-        )
-      );
+    if (open) {
+      fetchProducts()
     } else {
-      setAssignedProducts((prev) => [
-        ...prev,
-        { ...product, assignedQuantity: 1 },
-      ]);
+      setSelected({})
+      setQuantityMap({})
+      setSearch('')
     }
-  };
+  }, [open])
 
-  const removeProduct = (productId: string) => {
-    setAssignedProducts((prev) => prev.filter((p) => p.id !== productId));
-  };
-
-  const updateQuantity = (productId: string, change: number) => {
-    setAssignedProducts((prev) =>
-      prev
-        .map((p) => {
-          if (p.id === productId) {
-            const next = Math.max(0, Math.min(p.stock, p.assignedQuantity + change));
-            return { ...p, assignedQuantity: next };
-          }
-          return p;
-        })
-        .filter((p) => p.assignedQuantity > 0)
-    );
-  };
-
-  const handleAssign = () => {
-    if (assignedProducts.length === 0) {
-      alert("Please select at least one product to assign.");
-      return;
+  const fetchProducts = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API}/api/products`)
+      if (res.ok) {
+        const data = await res.json()
+        setProducts(data)
+      }
+    } catch (e) {
+      console.error('Failed to fetch products:', e)
+    } finally {
+      setLoading(false)
     }
-    onAssign(storeId, assignedProducts);
-    handleReset();
-    setIsOpen(false);
-  };
+  }
 
-  const handleReset = () => {
-    setAssignedProducts([]);
-    setSearchTerm("");
-  };
+  const toggleProduct = (id: string) => {
+    setSelected(prev => {
+      const newSelected = { ...prev, [id]: !prev[id] }
+      
+      // Initialize quantity to 1 when selecting
+      if (newSelected[id] && !quantityMap[id]) {
+        const product = products.find(p => (p.id || p.barcode) === id)
+        if (product && (product.stock || 0) > 0) {
+          setQuantityMap(prevQty => ({ ...prevQty, [id]: 1 }))
+        }
+      }
+      
+      return newSelected
+    })
+  }
 
-  const handleCancel = () => {
-    handleReset();
-    setIsOpen(false);
-  };
+  const getProductStock = (productId: string): number => {
+    const product = products.find(p => (p.id || p.barcode) === productId)
+    return product?.stock || 0
+  }
+
+  const updateQuantity = (id: string, delta: number) => {
+    const availableStock = getProductStock(id)
+    setQuantityMap(prev => {
+      const current = prev[id] || 0
+      const newVal = Math.max(0, Math.min(availableStock, current + delta))
+      console.log(`Updating ${id}: ${current} → ${newVal}`)
+      return { ...prev, [id]: newVal }
+    })
+  }
+
+  const setQuantity = (id: string, val: number) => {
+    const availableStock = getProductStock(id)
+    const clampedVal = Math.max(0, Math.min(availableStock, val))
+    console.log(`Setting ${id}: Input=${val}, Clamped=${clampedVal}, Available=${availableStock}`)
+    setQuantityMap(prev => ({ ...prev, [id]: clampedVal }))
+    
+    if (val > availableStock) {
+      setTimeout(() => {
+        alert(`⚠️ Cannot exceed available stock (${availableStock} units)`)
+      }, 100)
+    }
+  }
+
+  const handleAssign = async () => {
+    const selectedProducts = products.filter(p => selected[p.id || p.barcode])
+    
+    if (selectedProducts.length === 0) {
+      alert('Please select at least one product')
+      return
+    }
+
+    // Build payload using quantityMap
+    const payload = selectedProducts.map(p => {
+      const key = p.id || p.barcode
+      const qty = quantityMap[key] || 0
+      return {
+        productId: p.id,
+        quantity: Number(qty)
+      }
+    })
+
+    console.log('🔍 Selected Products:', selectedProducts.map(p => ({ id: p.id, name: p.name })))
+    console.log('🔍 Quantity Map:', quantityMap)
+    console.log('🔍 Final Payload:', payload)
+
+    const hasZeroQuantity = payload.some(p => p.quantity === 0)
+
+    if (hasZeroQuantity) {
+      if (!confirm('⚠️ Some products have 0 quantity. Continue anyway?')) {
+        return
+      }
+    }
+
+    setAssigning(true)
+    try {
+      const res = await fetch(`${API}/api/stores/${storeId}/assign-products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ products: payload }),
+      })
+
+      const responseText = await res.text()
+      console.log('📥 Server response:', responseText)
+
+      if (!res.ok) {
+        let errorMsg = res.statusText
+        try {
+          const err = JSON.parse(responseText)
+          errorMsg = err.message || err.error || errorMsg
+        } catch {}
+        alert(`❌ Failed: ${errorMsg}`)
+        setAssigning(false)
+        return
+      }
+
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch {
+        result = { success: true }
+      }
+
+      console.log('✅ Assignment successful:', result)
+
+      alert(`✅ Successfully assigned ${selectedProducts.length} product(s) to ${storeName || storeId}`)
+      
+      // Call parent callback
+      if (onAssign) {
+        await Promise.resolve(onAssign(storeId, selectedProducts))
+      }
+      
+      // Close dialog and reset
+      setOpen(false)
+      setSelected({})
+      setQuantityMap({})
+      setSearch('')
+      
+      // Refresh products
+      setTimeout(() => fetchProducts(), 500)
+      
+    } catch (e) {
+      console.error('❌ Assign error:', e)
+      alert('❌ An error occurred while assigning products')
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  const filteredProducts = products.filter(p =>
+    p.name?.toLowerCase().includes(search.toLowerCase()) ||
+    p.barcode?.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const selectedCount = Object.values(selected).filter(Boolean).length
+  const selectedProductsList = products.filter(p => selected[p.id || p.barcode])
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-6xl h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-2xl flex items-center">
-            <Plus className="h-6 w-6 mr-2 text-blue-600" />
-            Assign Products to {storeName}
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Package className="h-5 w-5" />
+            Assign Products to {storeName || storeId}
           </DialogTitle>
           <DialogDescription>
-            Select products to assign to this store and set their quantities.
+            Select products and set quantities to assign to this store
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex gap-6 h-[70vh]">
-          {/* Right side - Product selection */}
-          <div className="flex-1 flex flex-col">
-            {/* Search */}
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search by product name or barcode..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+        <div className="flex-1 overflow-hidden flex gap-6">
+          {/* Left Side - Product List */}
+          <div className="flex-1 flex flex-col gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or barcode..."
+                value={search}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            <div className="flex-1 border rounded-xl overflow-hidden bg-muted/10">
+              <div className="overflow-auto h-full">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background z-10">
+                    <TableRow>
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>Barcode</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead className="text-center">Available</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-12">
+                          <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredProducts.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                          No products found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredProducts.map((p) => {
+                        const key = p.id || p.barcode
+                        const isSelected = selected[key]
+                        const hasStock = (p.stock || 0) > 0
+                        
+                        return (
+                          <TableRow
+                            key={key}
+                            onClick={() => hasStock && toggleProduct(key)}
+                            className={cn(
+                              "transition-colors",
+                              hasStock && "cursor-pointer",
+                              !hasStock && "opacity-50 cursor-not-allowed",
+                              isSelected && "bg-primary/5 hover:bg-primary/10"
+                            )}
+                          >
+                            <TableCell>
+                              <div className={cn(
+                                "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                                isSelected 
+                                  ? "bg-primary border-primary scale-110" 
+                                  : hasStock 
+                                    ? "border-muted-foreground/30 hover:border-primary/50"
+                                    : "border-muted-foreground/10"
+                              )}>
+                                {isSelected && <CheckCircle2 className="h-3 w-3 text-primary-foreground" />}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">{p.barcode}</TableCell>
+                            <TableCell className="font-medium">{p.name}</TableCell>
+                            <TableCell className="text-right font-semibold">₹{p.price?.toFixed(2)}</TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant={p.stock === 0 ? "destructive" : "outline"}>
+                                {p.stock || 0}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </div>
 
-            {/* Products */}
-            <div className="flex-1 overflow-y-auto">
-              {loading ? (
-                <div className="text-center py-8">Loading products...</div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredProducts.map((product) => (
-                    <Card
-                      key={product.id}
-                      className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-200"
-                      onClick={() => addProduct(product)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg mb-1">
-                              {product.name}
-                            </h3>
-                            <p className="text-sm text-gray-500 mb-2">
-                              #{product.barcode}
-                            </p>
-                            <Badge variant="outline" className="text-xs">
-                              Stock: {product.stock}
-                            </Badge>
-                          </div>
-                          <Button
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addProduct(product);
-                            }}
-                            className="ml-2"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-
-              {!loading && filteredProducts.length === 0 && (
-                <div className="text-center py-16">
-                  <div className="text-gray-500">
-                    {searchTerm
-                      ? "No products found matching your search."
-                      : "No products available."}
-                  </div>
-                </div>
-              )}
+            <div className="text-xs text-muted-foreground flex items-center justify-between">
+              <span>{filteredProducts.length} product(s) available</span>
+              <span className="font-medium">{selectedCount} selected</span>
             </div>
           </div>
 
-          {/* Left side - Selected products */}
-          <div className="w-80 border-l pl-6 flex flex-col">
-            <h3 className="text-lg font-semibold mb-4">
-              Selected Products ({assignedProducts.length})
-            </h3>
-
-            <div className="flex-1 overflow-y-auto">
-              {assignedProducts.length === 0 ? (
-                <div className="text-center text-gray-500 py-8">
-                  No products selected yet.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {assignedProducts.map((product) => (
-                    <Card key={product.id} className="border">
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <h4 className="font-medium">{product.name}</h4>
-                            <p className="text-xs text-gray-500">
-                              #{product.barcode}
-                            </p>
-                            <Badge variant="outline" className="text-xs mt-1">
-                              Available: {product.stock}
-                            </Badge>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeProduct(product.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        {/* Quantity controls */}
-                        <div className="flex items-center justify-between mt-3">
-                          <span className="text-sm font-medium">Quantity:</span>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(product.id, -1)}
-                              disabled={product.assignedQuantity <= 1}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="min-w-[2rem] text-center font-medium">
-                              {product.assignedQuantity}
-                            </span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(product.id, 1)}
-                              disabled={product.assignedQuantity >= product.stock}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+          {/* Right Side - Selected Products */}
+          <div className="w-96 border rounded-xl p-5 flex flex-col gap-4 bg-muted/20">
+            <div className="flex items-center justify-between">
+              <div className="font-semibold">Selected Products</div>
+              <Badge variant="secondary" className="text-sm">{selectedCount}</Badge>
             </div>
+
+            {selectedProductsList.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
+                <div className="space-y-3">
+                  <Package className="h-16 w-16 mx-auto opacity-10" />
+                  <div>
+                    <p className="font-medium">No products selected</p>
+                    <p className="text-xs mt-1">Click on products to select them</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-auto space-y-3 pr-1">
+                {selectedProductsList.map(p => {
+                  const key = p.id || p.barcode
+                  const qty = quantityMap[key] || 0
+                  const availableStock = p.stock || 0
+                  const isOverStock = qty > availableStock
+                  
+                  return (
+                    <div key={key} className="bg-background border rounded-xl p-4 space-y-3 shadow-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{p.name}</div>
+                          <div className="text-xs text-muted-foreground font-mono mt-0.5">{p.barcode}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Stock: <span className="font-semibold">{availableStock}</span>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0 hover:bg-destructive/10 hover:text-destructive"
+                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            e.stopPropagation()
+                            toggleProduct(key)
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-lg"
+                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            e.stopPropagation()
+                            updateQuantity(key, -1)
+                          }}
+                          disabled={qty === 0}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <div className="flex-1 relative">
+                          <Input
+                            type="number"
+                            min="0"
+                            max={availableStock}
+                            value={qty}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                              e.stopPropagation()
+                              const val = parseInt(e.target.value) || 0
+                              setQuantity(key, val)
+                            }}
+                            onBlur={() => {
+                              console.log(`Current quantity for ${key}:`, quantityMap[key])
+                            }}
+                            className={cn(
+                              "h-9 text-center font-bold text-lg rounded-lg",
+                              isOverStock && "border-destructive focus-visible:ring-destructive"
+                            )}
+                            onClick={(e: React.MouseEvent<HTMLInputElement>) => e.stopPropagation()}
+                          />
+                          {isOverStock && (
+                            <AlertTriangle className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-destructive" />
+                          )}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-lg"
+                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            e.stopPropagation()
+                            updateQuantity(key, 1)
+                          }}
+                          disabled={qty >= availableStock}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {isOverStock && (
+                        <div className="text-xs text-destructive flex items-center gap-1 bg-destructive/5 p-2 rounded-lg">
+                          <AlertTriangle className="h-3 w-3" />
+                          Exceeds available stock
+                        </div>
+                      )}
+                      
+                      <div className="text-xs text-muted-foreground">
+                        Assigning: <span className="font-bold text-foreground">{qty}</span> units
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
 
-        <DialogFooter className="flex justify-between">
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={handleCancel}>
-              Cancel
-            </Button>
-            <Button variant="outline" onClick={handleReset}>
-              Reset
-            </Button>
-          </div>
-          <Button
-            onClick={handleAssign}
-            disabled={assignedProducts.length === 0}
-            className="bg-blue-600 hover:bg-blue-700"
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={assigning} className="min-w-24">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleAssign} 
+            disabled={selectedCount === 0 || assigning}
+            className="min-w-32"
           >
-            Assign Products
+            {assigning ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Assigning...
+              </>
+            ) : (
+              <>Assign {selectedCount > 0 && `(${selectedCount})`}</>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

@@ -370,7 +370,8 @@ class EnhancedSyncManager:
             'Stores': 'stores.json',
             'SystemSettings': 'settings.json',
             'Notifications': 'notifications.json',
-            'batch': 'batches.json'
+            'batch': 'batches.json',
+            'StoreInventory': 'storeinventory.json',  # ADD THIS LINE
         }
 
         # Normalize table_name for case-insensitive matching
@@ -854,7 +855,8 @@ def log_json_crud_operation(json_type: str, operation: str, record_id: str, data
         'stores': 'Stores',
         'notifications': 'Notifications',
         'settings': 'SystemSettings',
-        'batches': 'batch'
+        'batches': 'batch',
+        'storeinventory': 'StoreInventory' # ADDED THIS LINE
     }
     
     table_name = json_to_table_mapping.get(json_type)

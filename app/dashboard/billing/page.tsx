@@ -21,9 +21,31 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Receipt, Trash2, Eye, Search, Percent } from "lucide-react"
+import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer } from "lucide-react" // Added Printer icon
 import { Separator } from "@/components/ui/separator"
 import { Upload } from "lucide-react" // Import Upload icon
+import { unifiedPrint } from "@/app/utils/printUtils"; // Import unifiedPrint
+
+interface BillFormat {
+  width: number
+  height: number | "auto"
+  margins: {
+    top: number
+    bottom: number
+    left: number
+    right: number
+  }
+  unit: string
+}
+
+interface SystemSettings {
+  gstin: string
+  taxPercentage: number
+  companyName: string
+  companyAddress: string
+  companyPhone: string
+  companyEmail: string
+}
 
 interface Product {
   id: string
@@ -45,14 +67,28 @@ interface Bill {
   customerName: string
   customerEmail: string
   customerPhone: string
+  customerAddress?: string // Added customerAddress
   items: BillItem[]
   subtotal: number
-  tax: number
+  tax: number // This 'tax' property seems to be the calculated tax amount.
+             // In generateReceiptHtml, we use bill.tax.toFixed(1)%,
+             // which implies it's a percentage. Let's clarify.
+             // Based on the 'createBill' function, 'tax' is `subtotal * 0.1` so it's an amount.
+             // I'll adjust generateReceiptHtml to use bill.tax and systemSettings.taxPercentage
   discountPercentage: number
   discountAmount: number
   total: number
   date: string
   status: string
+  companyName?: string
+  companyAddress?: string
+  companyPhone?: string
+  companyEmail?: string
+  gstin?: string
+  billFormat?: string
+  storeName?: string
+  storeAddress?: string
+  storePhone?: string
 }
 
 export default function BillingPage() {
@@ -72,12 +108,30 @@ export default function BillingPage() {
   const [selectedProductId, setSelectedProductId] = useState("")
   const [quantity, setQuantity] = useState(1)
   const [discountPercentage, setDiscountPercentage] = useState(0)
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>({
+    gstin: "",
+    taxPercentage: 0,
+    companyName: "",
+    companyAddress: "",
+    companyPhone: "",
+    companyEmail: "",
+  });
+  const [billFormats, setBillFormats] = useState<Record<string, BillFormat>>({});
+  const [selectedBillFormat, setSelectedBillFormat] = useState("A4"); // Default format
 
   useEffect(() => {
-    // Simulate login for development purposes
     if (typeof window !== "undefined") {
       localStorage.setItem("adminLoggedIn", "true")
     }
+
+    // Load system settings and bill formats
+    fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.systemSettings) setSystemSettings(data.systemSettings);
+        if (data.billFormats) setBillFormats(data.billFormats);
+      })
+      .catch((error) => console.error("Failed to load system settings and bill formats:", error));
 
     const isLoggedIn = localStorage.getItem("adminLoggedIn")
     if (isLoggedIn !== "true") {
@@ -180,11 +234,15 @@ export default function BillingPage() {
       total,
       date: new Date().toISOString(),
       status: "Paid",
+      companyName: systemSettings.companyName,
+      companyAddress: systemSettings.companyAddress,
+      companyPhone: systemSettings.companyPhone,
+      companyEmail: systemSettings.companyEmail,
+      gstin: systemSettings.gstin,
+      billFormat: selectedBillFormat,
+      // storeName, storeAddress, storePhone are not available in this context,
+      // they would typically come from the selected store during checkout in billing/page.tsx
     }
-
-    // The saveBills(updatedBills) and subsequent resets were moved inside the try block
-    // to ensure they only happen after a successful API call.
-    // The original code had them outside, which would update local state even if API failed.
 
     try {
       const response = await fetch("/api/bills", {
@@ -197,7 +255,6 @@ export default function BillingPage() {
         throw new Error("Failed to create bill");
       }
 
-      // Reset form
       setCustomerName("");
       setCustomerEmail("");
       setCustomerPhone("");
@@ -214,7 +271,7 @@ export default function BillingPage() {
     try {
       const response = await api.delete(`/api/bills/${id}`);
 
-      if (!response.status.toString().startsWith('2')) { // Check for 2xx status codes
+      if (!response.status.toString().startsWith('2')) {
         throw new Error("Failed to delete bill");
       }
     } catch (error) {
@@ -226,6 +283,201 @@ export default function BillingPage() {
     setSelectedBill(bill)
     setIsViewDialogOpen(true)
   }
+
+  // Generate receipt HTML
+  const generateReceiptHtml = (bill: Bill, format: BillFormat): string => {
+    const isLetter = format.width === 216 && format.height === 279;
+    const isA4 = format.width === 210 && format.height === 297;
+    const isThermal = format.width <= 80;
+    const maxWidth = isThermal ? "80mm" : isLetter ? "216mm" : isA4 ? "210mm" : `${format.width}mm`;
+
+    // Use bill's own company info if available, otherwise fallback to system settings
+    const companyName = bill.companyName || systemSettings.companyName;
+    const companyAddress = bill.companyAddress || systemSettings.companyAddress;
+    const companyPhone = bill.companyPhone || systemSettings.companyPhone;
+    const companyEmail = bill.companyEmail || systemSettings.companyEmail;
+    const gstin = bill.gstin || systemSettings.gstin;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice - ${bill.id}</title>
+          <style>
+            @page {
+              size: ${isLetter ? "letter" : isA4 ? "A4" : `${format.width}mm ${format.height === "auto" ? "auto" : `${format.height}mm`}`};
+              margin: ${format.margins.top}mm ${format.margins.right}mm ${format.margins.bottom}mm ${format.margins.left}mm;
+            }
+            body {
+              font-family: 'Arial', sans-serif;
+              max-width: ${maxWidth};
+              margin: 0 auto;
+              font-size: 13px;
+              color: #000;
+            }
+            .header, .footer {
+              text-align: center;
+              padding: 10px 0;
+            }
+            .company-name {
+              font-size: 18px;
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            .invoice-title {
+              font-size: 16px;
+              font-weight: bold;
+              margin-top: 10px;
+            }
+            .section {
+              margin: 20px 0;
+            }
+            .section-title {
+              font-weight: bold;
+              border-bottom: 1px solid #ccc;
+              margin-bottom: 5px;
+            }
+            .row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 6px;
+            }
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+            }
+            .items-table th, .items-table td {
+              border: 1px solid #ccc;
+              padding: 6px 8px;
+              text-align: left;
+            }
+            .items-table th {
+              background-color: #f2f2f2;
+            }
+            .totals {
+              margin-top: 10px;
+              width: 100%;
+            }
+            .totals td {
+              padding: 6px;
+            }
+            .totals .label {
+              text-align: right;
+              font-weight: bold;
+            }
+            .totals .value {
+              text-align: right;
+              width: 100px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="company-name">${companyName}</div>
+            <div>${companyAddress}</div>
+            <div>Phone: ${companyPhone}</div>
+            <div>Email: ${companyEmail}</div>
+            <div class="invoice-title">INVOICE</div>
+          </div>
+
+          <div class="section">
+            <div class="row">
+              <div><strong>Invoice ID:</strong> ${bill.id}</div>
+              <div><strong>Date:</strong> ${new Date(bill.date).toLocaleString()}</div>
+            </div>
+            ${gstin ? `<div><strong>GSTIN:</strong> ${gstin}</div>` : ""}
+          </div>
+
+          ${
+            bill.customerName || bill.customerPhone
+              ? `
+          <div class="section">
+            <div class="section-title">Customer Details</div>
+            ${bill.customerName ? `<div>Name: ${bill.customerName}</div>` : ""}
+            ${bill.customerPhone ? `<div>Phone: ${bill.customerPhone}</div>` : ""}
+            ${bill.customerEmail ? `<div>Email: ${bill.customerEmail}</div>` : ""}
+            ${bill.customerAddress ? `<div>Address: ${bill.customerAddress}</div>` : ""}
+          </div>`
+              : ""
+          }
+
+          <div class="section">
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Item</th>
+                  <th>Qty</th>
+                  <th>Rate</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${bill.items
+                  .map(
+                    (item: any, i: number) => `
+                  <tr>
+                    <td>${i + 1}</td>
+                    <td>${item.productName}</td>
+                    <td>${item.quantity}</td>
+                    <td>₹${item.price.toFixed(2)}</td>
+                    <td>₹${item.total.toFixed(2)}</td>
+                  </tr>
+                `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="section">
+            <table class="totals">
+              <tr>
+                <td class="label">Subtotal:</td>
+                <td class="value">₹${bill.subtotal.toFixed(2)}</td>
+              </tr>
+              ${
+                bill.discountAmount > 0
+                  ? `<tr>
+                      <td class="label">Discount (${bill.discountPercentage.toFixed(1)}%):</td>
+                      <td class="value">-₹${bill.discountAmount.toFixed(2)}</td>
+                    </tr>`
+                  : ""
+              }
+              <tr>
+                <td class="label">Tax (${systemSettings.taxPercentage}%):</td>
+                <td class="value">₹${bill.tax.toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td class="label">Total:</td>
+                <td class="value"><strong>₹${bill.total.toFixed(2)}</strong></td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="footer">
+            <p>Thank you for your business!</p>
+          </div>
+        </body>
+      </html>
+    `;
+  };
+
+  const handlePrintBill = async (billToPrint: Bill) => {
+    const formatName = billToPrint.billFormat || selectedBillFormat;
+    const format = billFormats[formatName] || billFormats.A4; // Fallback to A4 if format not found
+
+    const receiptHtml = generateReceiptHtml(billToPrint, format);
+
+    try {
+      await unifiedPrint({ htmlContent: receiptHtml });
+    } catch (printError) {
+      console.error("Failed to send print job:", printError);
+      alert("Failed to print bill. Please check console for details.");
+    }
+  };
+
 
   const filteredBills = currentBills.filter((bill) => {
     const customerName = bill.customerName || ""
@@ -250,7 +502,7 @@ export default function BillingPage() {
         // Send to API for processing
         const response = await api.post("/api/bills/import", importedBills);
 
-        if (!response.status.toString().startsWith('2')) { // Check for 2xx status codes
+        if (!response.status.toString().startsWith('2')) {
           throw new Error("Failed to import bills");
         }
         console.log("Bills imported successfully");
@@ -581,6 +833,9 @@ export default function BillingPage() {
                           <Button variant="outline" size="sm" onClick={() => viewBill(bill)}>
                             <Eye className="h-4 w-4" />
                           </Button>
+                          <Button variant="outline" size="sm" onClick={() => handlePrintBill(bill)}>
+                            <Printer className="h-4 w-4" />
+                          </Button>
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button variant="outline" size="sm">
@@ -701,6 +956,12 @@ export default function BillingPage() {
               <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
                 Close
               </Button>
+              {selectedBill && (
+                <Button onClick={() => handlePrintBill(selectedBill)} className="bg-blue-600 hover:bg-blue-700">
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Bill
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

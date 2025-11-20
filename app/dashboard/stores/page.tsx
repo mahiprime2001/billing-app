@@ -99,6 +99,7 @@ function MiniCalendar({
   const dateDataMap = new Map(dates.map(d => [d.date, d]))
   
   const today = new Date()
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const year = currentMonth.getFullYear()
   const month = currentMonth.getMonth()
   
@@ -118,15 +119,18 @@ function MiniCalendar({
   
   // Add days of the month
   for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = new Date(year, month, day).toISOString().split('T')[0]
-    const dateData = dateDataMap.get(dateStr)
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dateData = dateDataMap.get(dateStr);
+
+    console.log(`Checking date: ${dateStr}, has data: ${!!dateData}`); // Debug
+
     calendarDays.push({
       day,
       dateStr,
-      isToday: dateStr === today.toISOString().split('T')[0],
+      isToday: dateStr === todayStr,
       hasData: !!dateData,
-      data: dateData
-    })
+      data: dateData,
+    });
   }
   
   const monthNames = [
@@ -256,12 +260,24 @@ function StoreInsightModal({
   })
 
   useEffect(() => {
-    if (!open || !store) return
+    if (!open || !store) return;
+    
     fetch(`${API}/api/stores/${store.id}/inventory-calendar?days=${days}`)
       .then((r) => r.json())
-      .then((j) => setDates(j.data || []))
-      .catch(() => setDates([]))
-  }, [open, store, days])
+      .then((j) => {
+        console.log("Calendar API response:", j); // Add this debug line
+        if (j.success && j.calendar) {
+          setDates(j.calendar);
+        } else {
+          console.error("Invalid calendar response:", j);
+          setDates([]);
+        }
+      })
+      .catch((err) => {
+        console.error("Calendar fetch error:", err);
+        setDates([]);
+      });
+  }, [open, store, days]);
 
   useEffect(() => {
     if (!open || !store || !selectedDate) return
@@ -287,19 +303,40 @@ function StoreInsightModal({
           <title>Store Inventory — ${store?.name || ""}</title>
           <style>
             body{font-family:Inter,system-ui,Arial;padding:12px}
+            .print-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid #eee}
+            .print-header-left{display:flex;flex-direction:column}
+            .print-header h1{font-size:18px;font-weight:bold;margin:0}
+            .print-header .address{font-size:10px;color:#777;margin-top:2px}
+            .print-header p{font-size:12px;color:#555;margin:0}
             table{width:100%;border-collapse:collapse}
             th,td{border:1px solid #000;padding:6px;text-align:left;font-size:12px}
             tfoot td{font-weight:600}
             @page{size:auto;margin:10mm}
           </style>
         </head>
-        <body>${src}</body>
+        <body>
+          <div class="print-header">
+            <div class="print-header-left">
+              <h1>${store?.name || "Store Inventory"}</h1>
+              ${store?.address ? `<p class="address">${store.address}</p>` : ''}
+            </div>
+            <p>${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+          </div>
+          ${src}
+        </body>
       </html>
     `)
     printWin.document.close()
     printWin.focus()
-    printWin.print() // window.print() on the spawned window
-    printWin.close()
+
+    // Add a small delay to ensure content is rendered before printing
+    const printDelay = setTimeout(() => {
+      printWin.print();
+      printWin.close();
+    }, 250); // 250ms delay, adjust if needed
+
+    // Clear the timeout if the window is closed manually before the delay
+    printWin.onbeforeunload = () => clearTimeout(printDelay);
   }
 
   if (!open || !store) return null
@@ -493,7 +530,8 @@ export default function StoresPage() {
       ]);
 
       if (storesResponse.ok) {
-        const storesData = await storesResponse.json();
+        let storesData: StoreType[] = await storesResponse.json();
+        // Temporarily add a placeholder for numberOfProducts as backend doesn't provide it yet
         setStores(storesData);
       } else {
         console.error("Failed to fetch stores");
@@ -607,31 +645,18 @@ export default function StoresPage() {
     }
   }
 
-  // NEW: Assign products to a store
   const handleProductAssignment = async (storeId: string, products: AssignedProduct[]) => {
+    console.log('📞 handleProductAssignment called')
+    console.log('   Store:', storeId)
+    console.log('   Products:', products)
+    
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/stores/${storeId}/assign-products`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ products }),
-        }
-      );
-
-      if (response.ok) {
-        alert(`Successfully assigned ${products.length} products to the store!`);
-        // Optionally refresh any dependent data:
-        // await loadData();
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        alert(`Failed to assign products: ${errorData.message || "Unknown error"}`);
-      }
+      // Refresh the stores data to show updated inventory
+      await loadData()
     } catch (error) {
-      console.error("Error assigning products:", error);
-      alert("An error occurred while assigning products.");
+      console.error('Error refreshing data:', error)
     }
-  };
+  }
 
   const toggleStoreStatus = async (id: string) => {
     const store = stores.find((s) => s.id === id)

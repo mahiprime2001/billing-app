@@ -40,7 +40,7 @@ import {
 import { Product } from "@/lib/types"
 import { getBarcode } from "@/app/utils/getBarcode"
 import PrintButton from "@/components/PrintButton"
-import { printHtml } from "@/lib/printUtils"
+import { unifiedPrint } from "@/app/utils/printUtils"; // Import unifiedPrint
 
 
 interface CartItem {
@@ -611,9 +611,9 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
     // Generate receipt HTML
     const receiptHtml = generateReceiptHtml(bill, format);
 
-    // Print receipt using printHtml
+    // Print receipt using unifiedPrint
     try {
-      await printHtml(receiptHtml);
+      await unifiedPrint({ htmlContent: receiptHtml });
     } catch (printError) {
       console.error("Failed to send print job:", printError);
       // Handle print error (e.g., show a toast)
@@ -920,18 +920,18 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                                     {/* Show selling price (support both camelCase and snake_case) */}
                                     {((product as any).sellingPrice ?? (product as any).selling_price) != null ? (
                                       <p className="font-bold text-green-600">
-                                        Selling: ₹{Number((product as any).sellingPrice ?? (product as any).selling_price).toFixed(2)}
+                                        Selling: ₹${Number((product as any).sellingPrice ?? (product as any).selling_price).toFixed(2)}
                                       </p>
                                     ) : (
-                                      <p className="font-bold text-green-600">₹{Number(product.price ?? 0).toFixed(2)}</p>
+                                      <p className="font-bold text-green-600">₹${Number(product.price ?? 0).toFixed(2)}</p>
                                     )}
 
                                     {/* Show regular price if different or available */}
                                     {product.price != null && Number(product.price) !== Number((product as any).sellingPrice ?? (product as any).selling_price) && (
-                                      <p className="text-sm text-gray-500">Price: ₹{Number(product.price).toFixed(2)}</p>
+                                      <p className="text-sm text-gray-500">Price: ₹${Number(product.price).toFixed(2)}</p>
                                     )}
 
-                                    <p className="text-xs text-gray-500">Stock: {product.stock}</p>
+                                    <p className="text-xs text-gray-500">Stock: ${product.stock}</p>
                                   </div>
                         </div>
                       </CardContent>
@@ -956,7 +956,7 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold flex items-center">
                     <ShoppingCart className="h-5 w-5 mr-2" />
-                    {activeTab.name}
+                    ${activeTab.name}
                   </h2>
                   <div className="flex items-center space-x-2">
                     {activeTab && selectedStore && billFormats && (
@@ -1015,11 +1015,11 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                   <div className="mt-3 p-3 bg-blue-50 rounded-lg">
                     <div className="flex items-center space-x-2 text-sm">
                       <User className="h-4 w-4 text-blue-600" />
-                      <span className="font-medium">{activeTab.customer.name || "Customer"}</span>
+                      <span className="font-medium">${activeTab.customer.name || "Customer"}</span>
                       {activeTab.customer.phone && (
                         <>
                           <Phone className="h-3 w-3 text-gray-500" />
-                          <span className="text-gray-600">{activeTab.customer.phone}</span>
+                          <span className="text-gray-600">${activeTab.customer.phone}</span>
                         </>
                       )}
                     </div>
@@ -1037,8 +1037,8 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                           <CardContent className="p-3">
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
-                                <h4 className="font-medium text-sm">{item.productName}</h4>
-                                <p className="text-xs text-gray-600">₹{item.price.toFixed(2)} each</p>
+                                <h4 className="font-medium text-sm">${item.productName}</h4>
+                                <p className="text-xs text-gray-600">₹${item.price.toFixed(2)} each</p>
                               </div>
                               <div className="flex items-center space-x-2">
                                 <Button
@@ -1049,7 +1049,7 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                                 >
                                   <Minus className="h-3 w-3" />
                                 </Button>
-                                <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                                <span className="w-8 text-center text-sm font-medium">${item.quantity}</span>
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1070,7 +1070,7 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                             </div>
                             <div className="flex justify-between items-center mt-2">
                               <span className="text-sm text-gray-600">Total:</span>
-                              <span className="font-bold">₹{item.total.toFixed(2)}</span>
+                              <span className="font-bold">₹${item.total.toFixed(2)}</span>
                             </div>
                           </CardContent>
                         </Card>
@@ -1101,24 +1101,24 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                         min="0"
                         max="100"
                       />
-                      <span className="text-sm text-gray-600">(-₹{activeTab.discountAmount.toFixed(2)})</span>
+                      <span className="text-sm text-gray-600">(-₹${activeTab.discountAmount.toFixed(2)})</span>
                     </div>
 
                     {/* Totals */}
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span>Subtotal:</span>
-                        <span>₹{activeTab.subtotal.toFixed(2)}</span>
+                        <span>₹${activeTab.subtotal.toFixed(2)}</span>
                       </div>
                       {activeTab.discountAmount > 0 && (
                         <div className="flex justify-between text-red-600">
                           <span>Discount:</span>
-                          <span>-₹{activeTab.discountAmount.toFixed(2)}</span>
+                          <span>-₹${activeTab.discountAmount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span>Tax ({activeTab.taxPercentage}%):</span>
-                        <span>₹{activeTab.taxAmount.toFixed(2)}</span>
+                        <span>Tax (${activeTab.taxPercentage}%):</span>
+                        <span>₹${activeTab.taxAmount.toFixed(2)}</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between font-bold text-lg">
@@ -1157,11 +1157,11 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                         <Card key={bill.id}>
                           <CardContent className="p-3 text-sm">
                             <div className="flex justify-between">
-                              <span className="font-medium">{bill.id}</span>
-                              <span className="font-bold">₹{bill.total.toFixed(2)}</span>
+                              <span className="font-medium">${bill.id}</span>
+                              <span className="font-bold">₹${bill.total.toFixed(2)}</span>
                             </div>
                             <div className="text-xs text-gray-600">
-                              {new Date(bill.timestamp).toLocaleString()}
+                              ${new Date(bill.timestamp).toLocaleString()}
                             </div>
                           </CardContent>
                         </Card>
@@ -1248,8 +1248,8 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                     <SelectContent>
                       {Object.entries(billFormats).map(([formatName, format]) => (
                         <SelectItem key={formatName} value={formatName}>
-                          {formatName.replace("_", " ")} ({format.width}×
-                          {format.height === "auto" ? "Auto" : format.height}mm)
+                          {formatName.replace("_", " ")} (${format.width}×
+                          ${format.height === "auto" ? "Auto" : format.height}mm)
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1263,27 +1263,27 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                       <div className="flex justify-between">
                         <span>Items:</span>
                         <span>
-                          {activeTab.cart.length} ({activeTab.cart.reduce((sum, item) => sum + item.quantity, 0)} qty)
+                          ${activeTab.cart.length} (${activeTab.cart.reduce((sum, item) => sum + item.quantity, 0)} qty)
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Subtotal:</span>
-                        <span>₹{activeTab.subtotal.toFixed(2)}</span>
+                        <span>₹${activeTab.subtotal.toFixed(2)}</span>
                       </div>
                       {activeTab.discountAmount > 0 && (
                         <div className="flex justify-between text-red-600">
-                          <span>Discount ({activeTab.discountPercentage.toFixed(1)}%):</span>
-                          <span>-₹{activeTab.discountAmount.toFixed(2)}</span>
+                          <span>Discount (${activeTab.discountPercentage.toFixed(1)}%):</span>
+                          <span>-₹${activeTab.discountAmount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span>Tax ({activeTab.taxPercentage}%):</span>
-                        <span>₹{activeTab.taxAmount.toFixed(2)}</span>
+                        <span>Tax (${activeTab.taxPercentage}%):</span>
+                        <span>₹${activeTab.taxAmount.toFixed(2)}</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between font-bold text-lg">
                         <span>Total:</span>
-                        <span>₹{activeTab.total.toFixed(2)}</span>
+                        <span>₹${activeTab.total.toFixed(2)}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -1327,11 +1327,11 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                   <Card>
                     <CardContent className="p-3">
                       <div className="text-sm">
-                        <div className="font-medium">Store: {selectedStore.name}</div>
-                        <div className="text-gray-600 mt-1">{selectedStore.address}</div>
-                        {selectedStore.phone && <div className="text-gray-600">Phone: {selectedStore.phone}</div>}
-                        <div className="text-gray-600">GSTIN: {systemSettings.gstin}</div>
-                        <div className="text-gray-600">Tax Rate: {systemSettings.taxPercentage}%</div>
+                        <div className="font-medium">Store: ${selectedStore.name}</div>
+                        <div className="text-gray-600 mt-1">${selectedStore.address}</div>
+                        {selectedStore.phone && <div className="text-gray-600">Phone: ${selectedStore.phone}</div>}
+                        <div className="text-gray-600">GSTIN: ${systemSettings.gstin}</div>
+                        <div className="text-gray-600">Tax Rate: ${systemSettings.taxPercentage}%</div>
                       </div>
                     </CardContent>
                   </Card>
@@ -1347,9 +1347,9 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                           Customer Details
                         </div>
                         <div className="mt-2 space-y-1 text-gray-600">
-                          {activeTab.customer.name && <div>Name: {activeTab.customer.name}</div>}
-                          {activeTab.customer.phone && <div>Phone: {activeTab.customer.phone}</div>}
-                          {activeTab.customer.email && <div>Email: {activeTab.customer.email}</div>}
+                          {activeTab.customer.name && <div>Name: ${activeTab.customer.name}</div>}
+                          {activeTab.customer.phone && <div>Phone: ${activeTab.customer.phone}</div>}
+                          {activeTab.customer.email && <div>Email: ${activeTab.customer.email}</div>}
                         </div>
                       </div>
                     </CardContent>

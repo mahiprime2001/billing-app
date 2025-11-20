@@ -82,8 +82,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Load environment variables
 load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
 
+
 app = Flask(__name__)
-os.environ['APP_BASE_DIR'] = os.getcwd()
+# Ensure APP_BASE_DIR points to the backend folder (where this app.py lives)
+os.environ['APP_BASE_DIR'] = BASE_DIR
 
 # NEW: Initialize enhanced sync manager if available
 if ENHANCED_SYNC_AVAILABLE:
@@ -111,7 +113,8 @@ CORS(
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'super_secret_key_for_dev')
 
 # --- NEW DATA PATHS ---
-DATA_BASE_DIR = os.path.join(os.getcwd(), 'data')
+# Use backend's directory (BASE_DIR) so JSON files live under `backend/data/...`
+DATA_BASE_DIR = os.path.join(BASE_DIR, 'data')
 JSON_DIR = os.path.join(DATA_BASE_DIR, 'json')
 LOGS_DIR = os.path.join(DATA_BASE_DIR, 'logs')
 
@@ -230,7 +233,8 @@ def initialize_full_data_pull():
                 'batch': BATCHES_FILE,
                 'Notifications': NOTIFICATIONS_FILE,
                 'Returns': RETURNS_FILE, # NEW: Add Returns table
-                'SystemSettings': SETTINGS_FILE
+                'SystemSettings': SETTINGS_FILE,
+                'StoreInventory': os.path.join(JSON_DIR, 'storeinventory.json') # NEW: Add StoreInventory table
             }
             
             for table_name, json_file in table_mappings.items():
@@ -323,7 +327,8 @@ def should_perform_full_pull():
     """
     files_to_check = [
         PRODUCTS_FILE, USERS_FILE, BILLS_FILE, CUSTOMERS_FILE,
-        STORES_FILE, BATCHES_FILE, NOTIFICATIONS_FILE, RETURNS_FILE # NEW: Add RETURNS_FILE
+        STORES_FILE, BATCHES_FILE, NOTIFICATIONS_FILE, RETURNS_FILE, # NEW: Add RETURNS_FILE
+        os.path.join(JSON_DIR, 'storeinventory.json') # NEW: Add StoreInventory file
     ]
     
     for file_path in files_to_check:
@@ -414,6 +419,17 @@ def save_settings_data(settings):
 def _get_user_sessions():
     return _safe_json_load(SESSIONS_FILE, [])
 
+# StoreInventory helpers
+STOREINVENTORY_FILE = os.path.join(JSON_DIR, 'storeinventory.json')
+
+def get_store_inventory_data():
+    """Get store inventory from local JSON"""
+    return _safe_json_load(STOREINVENTORY_FILE, [])
+
+def save_store_inventory_data(inventory):
+    """Save store inventory to local JSON"""
+    _safe_json_dump(STOREINVENTORY_FILE, inventory)
+
 def get_primary_barcode(product: dict) -> str:
     """
     Helper to expose a single primary barcode for UI (e.g., first barcode in list).
@@ -493,7 +509,8 @@ def log_crud_operation(json_type: str, operation: str, record_id: str, data: dic
         'notifications': 'Notifications',
         'returns': 'Returns', # NEW: Add Returns to table mapping
         'settings': 'SystemSettings',
-        'batches': 'batch'
+        'batches': 'batch',
+        'storeinventory': 'StoreInventory'
     }
     
     table_name = table_mapping.get(json_type, json_type.title())
@@ -911,74 +928,577 @@ def update_return_status(return_id):
         app.logger.error(f"Error updating return status for {return_id}: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
+# ============================================================================
+# STORE INVENTORY MANAGEMENT - Multi-Store Product Allocation
+# Place this ONCE in your app.py (around line 2530 or after your stores routes)
+# ============================================================================
+
+@app.route('/api/stores/<store_id>/inventory', methods=['GET'])
+def get_store_inventory(store_id):
+    """Get all products assigned to a specific store"""
+    try:
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+            query = """
+                SELECT 
+                    si.id as inventoryId,
+                    si.storeId,
+                    si.productId,
+                    si.quantity,
+                    si.assignedAt,
+                    si.updatedAt,
+                    p.id,
+                    p.name,
+                    p.barcode,
+                    p.price,
+                    p.selling_price,
+                    p.category,
+                    p.description,
+                    p.stock as totalStock
+                FROM StoreInventory si
+                INNER JOIN Products p ON si.productId = p.id
+                WHERE si.storeId = %s
+                ORDER BY p.name
+            """
+            cursor.execute(query, (store_id,))
+            inventory = cursor.fetchall()
+            return jsonify({"success": True, "data": inventory}), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching store inventory: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/inventory/assign', methods=['POST'])
+def assign_product_to_store():
+    """Assign a product to a store with quantity"""
+    data = request.json
+    store_id = data.get('storeId')
+    product_id = data.get('productId')
+    quantity = data.get('quantity', 0)
+    
+    if not store_id or not product_id:
+        return jsonify({"error": "storeId and productId are required"}), 400
+    
+    try:
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+            
+            # Check if already assigned
+            cursor.execute(
+                "SELECT id, quantity FROM StoreInventory WHERE storeId = %s AND productId = %s",
+                (store_id, product_id)
+            )
+            existing = cursor.fetchone()
+            
+            if existing:
+                cursor.execute("""
+                    UPDATE StoreInventory 
+                    SET quantity = %s, updatedAt = NOW()
+                    WHERE storeId = %s AND productId = %s
+                """, (quantity, store_id, product_id))
+                message = "Inventory updated successfully"
+                inv_id = existing['id']
+            else:
+                inv_id = f"INV-{str(uuid.uuid4())[:13]}"
+                cursor.execute("""
+                    INSERT INTO StoreInventory 
+                    (id, storeId, productId, quantity)
+                    VALUES (%s, %s, %s, %s)
+                """, (inv_id, store_id, product_id, quantity))
+                message = "Product assigned to store successfully"
+            
+            conn.commit()
+            
+            log_crud_operation('StoreInventory', 'UPDATE' if existing else 'CREATE', inv_id, {
+                'id': inv_id,
+                'storeId': store_id,
+                'productId': product_id,
+                'quantity': quantity,
+            })
+            
+            return jsonify({"success": True, "message": message, "inventoryId": inv_id}), 200
+    except Exception as e:
+        app.logger.error(f"Error assigning product to store: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/inventory/<inventory_id>/adjust', methods=['PATCH'])
+def adjust_inventory_quantity(inventory_id):
+    """Adjust inventory quantity (for sales/restocking)"""
+    data = request.json
+    quantity_change = data.get('change', 0)
+    
+    try:
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+            
+            cursor.execute("SELECT * FROM StoreInventory WHERE id = %s", (inventory_id,))
+            current = cursor.fetchone()
+            
+            if not current:
+                return jsonify({"error": "Inventory not found"}), 404
+            
+            cursor.execute("""
+                UPDATE StoreInventory 
+                SET quantity = quantity + %s, updatedAt = NOW()
+                WHERE id = %s
+            """, (quantity_change, inventory_id))
+            
+            conn.commit()
+            
+            log_crud_operation('StoreInventory', 'UPDATE', inventory_id, {
+                'id': inventory_id,
+                'quantity': current['quantity'] + quantity_change
+            })
+            
+            return jsonify({"success": True, "message": "Inventory adjusted"}), 200
+    except Exception as e:
+        app.logger.error(f"Error adjusting inventory: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/products/<product_id>/stores', methods=['GET'])
+def get_product_availability(product_id):
+    """Get product availability across all stores"""
+    try:
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+            query = """
+                SELECT 
+                    si.id as inventoryId,
+                    si.storeId,
+                    s.name as storeName,
+                    s.address as storeAddress,
+                    si.quantity,
+                    si.updatedAt
+                FROM StoreInventory si
+                INNER JOIN Stores s ON si.storeId = s.id
+                WHERE si.productId = %s
+                ORDER BY s.name
+            """
+            cursor.execute(query, (product_id,))
+            availability = cursor.fetchall()
+            return jsonify({"success": True, "data": availability}), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching product availability: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/stores/<store_id>/assign-products', methods=['POST'])
+def bulk_assign_products(store_id):
+    """Bulk assign multiple products to a store"""
+    data = request.json
+    products_to_assign = data.get('products', [])
+    
+    app.logger.info("="*60)
+    app.logger.info(f"📦 BULK ASSIGN REQUEST")
+    app.logger.info(f"📦 Store ID: {store_id}")
+    app.logger.info(f"📦 Products count: {len(products_to_assign)}")
+    
+    if not products_to_assign:
+        return jsonify({"error": "No products provided"}), 400
+    
+    try:
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+            
+            assigned_count = 0
+            
+            for idx, product in enumerate(products_to_assign, 1):
+                product_id = (
+                    product.get('productId') or 
+                    product.get('id') or 
+                    product.get('product_id')
+                )
+                quantity = int(product.get('quantity', 0))
+                
+                app.logger.info(f"📦 Product {idx}: ID={product_id}, Quantity={quantity}")
+                
+                if not product_id:
+                    app.logger.error(f"❌ Product {idx} missing ID")
+                    continue
+                
+                # Get current product info
+                cursor.execute("""
+                    SELECT id, stock FROM Products WHERE id = %s
+                """, (product_id,))
+                product_info = cursor.fetchone()
+                
+                if not product_info:
+                    app.logger.error(f"❌ Product {product_id} not found")
+                    continue
+                
+                current_total_stock = product_info['stock'] or 0
+                
+                # Check if already assigned to this store
+                cursor.execute("""
+                    SELECT id, quantity FROM StoreInventory 
+                    WHERE storeId = %s AND productId = %s
+                """, (store_id, product_id))
+                existing = cursor.fetchone()
+                
+                if existing:
+                    # Calculate difference
+                    old_store_quantity = existing['quantity']
+                    quantity_diff = quantity - old_store_quantity
+                    
+                    app.logger.info(f"   Existing: {old_store_quantity}, New: {quantity}, Diff: {quantity_diff}")
+                    
+                    # Update store inventory
+                    cursor.execute("""
+                        UPDATE StoreInventory 
+                        SET quantity = %s, updatedAt = NOW()
+                        WHERE storeId = %s AND productId = %s
+                    """, (quantity, store_id, product_id))
+                    
+                    # Update total stock in Products (deduct difference)
+                    new_total_stock = current_total_stock - quantity_diff
+                    cursor.execute("""
+                        UPDATE Products 
+                        SET stock = %s, updatedAt = NOW()
+                        WHERE id = %s
+                    """, (new_total_stock, product_id))
+                    
+                    app.logger.info(f"   ✅ Updated - Store qty: {quantity}, Total stock: {new_total_stock}")
+                    
+                    # Log for sync system
+                    log_crud_operation('StoreInventory', 'UPDATE', existing['id'], {
+                        'id': existing['id'],
+                        'storeId': store_id,
+                        'productId': product_id,
+                        'quantity': quantity
+                    })
+                    
+                    # Update Products in sync
+                    log_crud_operation('Products', 'UPDATE', product_id, {
+                        'id': product_id,
+                        'stock': new_total_stock
+                    })
+                    
+                else:
+                    # New assignment
+                    inv_id = f"INV-{uuid.uuid4()}"
+                    
+                    # Insert into StoreInventory
+                    cursor.execute("""
+                        INSERT INTO StoreInventory 
+                        (id, storeId, productId, quantity)
+                        VALUES (%s, %s, %s, %s)
+                    """, (inv_id, store_id, product_id, quantity))
+                    
+                    # Deduct from total stock in Products
+                    new_total_stock = current_total_stock - quantity
+                    cursor.execute("""
+                        UPDATE Products 
+                        SET stock = %s, updatedAt = NOW()
+                        WHERE id = %s
+                    """, (new_total_stock, product_id))
+                    
+                    app.logger.info(f"   ✅ Created - Store qty: {quantity}, Total stock: {new_total_stock}")
+                    
+                    # Log for sync system
+                    log_crud_operation('StoreInventory', 'CREATE', inv_id, {
+                        'id': inv_id,
+                        'storeId': store_id,
+                        'productId': product_id,
+                        'quantity': quantity
+                    })
+                    
+                    # Update Products in sync
+                    log_crud_operation('Products', 'UPDATE', product_id, {
+                        'id': product_id,
+                        'stock': new_total_stock
+                    })
+                
+                # Update local JSON files
+                try:
+                    # Update products.json
+                    products_data = get_products_data()
+                    for p in products_data:
+                        if p.get('id') == product_id:
+                            p['stock'] = new_total_stock
+                            p['updatedAt'] = datetime.now().isoformat()
+                            break
+                    save_products_data(products_data)
+                    app.logger.info(f"   ✅ Updated products.json")
+                    
+                    # Update storeinventory.json
+                    inventory_data = get_store_inventory_data()
+                    found = False
+                    for inv in inventory_data:
+                        if inv.get('storeId') == store_id and inv.get('productId') == product_id:
+                            inv['quantity'] = quantity
+                            inv['updatedAt'] = datetime.now().isoformat()
+                            found = True
+                            break
+                    
+                    if not found and not existing:
+                        inventory_data.append({
+                            'id': inv_id,
+                            'storeId': store_id,
+                            'productId': product_id,
+                            'quantity': quantity,
+                            'assignedAt': datetime.now().isoformat(),
+                            'updatedAt': datetime.now().isoformat()
+                        })
+                    
+                    save_store_inventory_data(inventory_data)
+                    app.logger.info(f"   ✅ Updated storeinventory.json")
+                    
+                except Exception as json_error:
+                    app.logger.error(f"   ⚠️ JSON update failed: {json_error}")
+                
+                assigned_count += 1
+            
+            conn.commit()
+            app.logger.info(f"✅ Successfully assigned {assigned_count} product(s)")
+            app.logger.info("="*60)
+            
+            return jsonify({
+                "success": True,
+                "message": f"Successfully assigned {assigned_count} products"
+            }), 200
+            
+    except Exception as e:
+        app.logger.error(f"❌ ERROR: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/stores/<store_id>/inventory-calendar", methods=["GET"])
+def get_store_inventory_calendar(store_id):
+    try:
+        days = _safe_int(request.args.get("days"), 90)
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days - 1)
+        
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+            
+            # Get store inventory with assignedAt dates
+            query = """
+                SELECT si.productId, si.quantity as initialquantity, 
+                       si.assignedAt, si.updatedAt,
+                       p.name as productName, p.barcode, 
+                       p.selling_price as price, p.category
+                FROM StoreInventory si
+                JOIN Products p ON si.productId = p.id
+                WHERE si.storeId = %s
+            """
+            cursor.execute(query, (store_id,))
+            store_products = cursor.fetchall()
+            
+            app.logger.info(f"Found {len(store_products)} products for store {store_id}")
+            
+            if not store_products:
+                return jsonify({"success": True, "storeId": store_id, "calendar": []}), 200
+            
+            # Build product map with assignment dates
+            product_map = {}
+            for p in store_products:
+                # Handle both datetime and date objects
+                if p["assignedAt"]:
+                    assigned_date = p["assignedAt"].date() if hasattr(p["assignedAt"], 'date') else p["assignedAt"]
+                else:
+                    assigned_date = start_date
+                
+                app.logger.info(f"Product {p['productName']} assigned on {assigned_date}")
+                
+                product_map[p["productId"]] = {
+                    **p,
+                    "assignedDate": assigned_date
+                }
+            
+            # Fetch bill items
+            product_ids = list(product_map.keys())
+            bill_items_query = f"""
+                SELECT bi.productId, bi.quantity, b.timestamp as billDate
+                FROM BillItems bi
+                JOIN Bills b ON bi.billId = b.id
+                WHERE b.storeId = %s
+                  AND bi.productId IN ({','.join(['%s'] * len(product_ids))})
+                  AND b.timestamp BETWEEN %s AND %s
+                ORDER BY b.timestamp
+            """
+            cursor.execute(bill_items_query, (store_id, *product_ids, start_date, end_date + timedelta(days=1)))
+            bill_items = cursor.fetchall()
+            
+            # Initialize calendar data
+            calendar_data = {}
+            for prod_id, prod_info in product_map.items():
+                calendar_data[prod_id] = {
+                    "productId": prod_id,
+                    "productName": prod_info["productName"],
+                    "barcode": prod_info["barcode"],
+                    "price": float(prod_info["price"]) if prod_info["price"] else 0.0,
+                    "category": prod_info["category"],
+                    "dailyStock": {},
+                    "assignedDate": prod_info["assignedDate"]
+                }
+            
+            # Populate initial stock ONLY from assignedDate onwards
+            for current_day in [start_date + timedelta(n) for n in range(days)]:
+                day_str = current_day.isoformat()
+                for prod_id, prod_data in calendar_data.items():
+                    # Only add stock if product was assigned by this date (inclusive)
+                    if current_day >= prod_data["assignedDate"]:
+                        calendar_data[prod_id]["dailyStock"][day_str] = int(product_map[prod_id]["initialquantity"])
+                        app.logger.debug(f"Added stock for {prod_data['productName']} on {day_str}")
+            
+            # Deduct sales
+            for item in bill_items:
+                prod_id = item["productId"]
+                bill_date = item["billDate"].date() if hasattr(item["billDate"], 'date') else item["billDate"]
+                quantity_sold = item["quantity"]
+                
+                # Deduct from bill date onwards
+                for current_day in [bill_date + timedelta(n) for n in range((end_date - bill_date).days + 1)]:
+                    day_str = current_day.isoformat()
+                    if day_str in calendar_data[prod_id]["dailyStock"]:
+                        calendar_data[prod_id]["dailyStock"][day_str] -= int(quantity_sold)
+            
+            # Aggregate by date
+            aggregated_calendar_data = []
+            for current_day in [start_date + timedelta(n) for n in range(days)]:
+                day_str = current_day.isoformat()
+                daily_product_count = 0
+                daily_total_stock = 0
+                daily_total_value = 0
+                
+                for prod_id, prod_data in calendar_data.items():
+                    current_stock_for_day = prod_data["dailyStock"].get(day_str, 0)
+                    if current_stock_for_day > 0:
+                        daily_product_count += 1
+                        daily_total_stock += current_stock_for_day
+                        daily_total_value += current_stock_for_day * prod_data["price"]
+                
+                # Only include days with actual inventory
+                if daily_product_count > 0:
+                    aggregated_calendar_data.append({
+                        "date": day_str,
+                        "count": daily_product_count,
+                        "totalStock": daily_total_stock,
+                        "totalValue": round(daily_total_value, 2)
+                    })
+                    app.logger.info(f"Date {day_str}: {daily_product_count} products, stock {daily_total_stock}")
+            
+            app.logger.info(f"Returning {len(aggregated_calendar_data)} calendar days")
+            
+            return jsonify({
+                "success": True,
+                "storeId": store_id,
+                "calendar": aggregated_calendar_data
+            }), 200
+            
+    except Exception as e:
+        app.logger.error(f"Error getting store inventory calendar: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/stores/<store_id>/inventory-by-date/<date_str>', methods=['GET'])
+def get_store_inventory_by_date(store_id, date_str):
+    """
+    Get products and their quantities for a specific store on a given date.
+    """
+    try:
+        target_date = datetime.fromisoformat(date_str).date()
+        app.logger.info(f"Fetching inventory for store {store_id} on {target_date.isoformat()}")
+
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+
+            # Get all products initially assigned to the store
+            query = """
+                SELECT 
+                    si.productId,
+                    si.quantity as initial_quantity,
+                    p.name as productName,
+                    p.barcode,
+                    p.selling_price as price,
+                    p.category
+                FROM StoreInventory si
+                JOIN Products p ON si.productId = p.id
+                WHERE si.storeId = %s
+            """
+            cursor.execute(query, (store_id,))
+            store_products_initial = cursor.fetchall()
+
+            if not store_products_initial:
+                # Return the specified format even if no products
+                result = {
+                    "rows": [],
+                    "totalStock": 0,
+                    "totalValue": 0.00
+                }
+                app.logger.info(f"Returning 0 rows, stock: 0, value: 0.00 for store {store_id} on {target_date.isoformat()}")
+                return jsonify(result), 200
+
+            product_map = {p['productId']: p for p in store_products_initial}
+            current_stock_levels = {p['productId']: int(p['initial_quantity']) for p in store_products_initial}
+
+            # Fetch relevant bill items up to the target_date for the store and its products
+            bill_items_query = f"""
+                SELECT 
+                    bi.productId,
+                    bi.quantity,
+                    b.timestamp as billDate
+                FROM BillItems bi
+                JOIN Bills b ON bi.billId = b.id
+                WHERE b.storeId = %s
+                AND bi.productId IN ({','.join(['%s'] * len(product_map))})
+                AND b.timestamp < %s
+                ORDER BY b.timestamp
+            """
+            cursor.execute(bill_items_query, (store_id, *product_map.keys(), target_date + timedelta(days=1)))
+            bill_items_before_date = cursor.fetchall()
+
+            # Adjust stock levels based on sales (bill items) up to the target_date
+            for item in bill_items_before_date:
+                prod_id = item['productId']
+                bill_date = item['billDate'].date()
+                quantity_sold = item['quantity']
+
+                if prod_id in current_stock_levels and bill_date <= target_date:
+                    current_stock_levels[prod_id] -= int(quantity_sold)
+            
+            # Format results for the target date and calculate totals
+            rows = []
+            total_stock = 0
+            total_value = 0.00
+            for prod_id, stock in current_stock_levels.items():
+                if stock > 0: # Only include products with positive stock
+                    product_info = product_map[prod_id]
+                    row_price = float(product_info['price'])
+                    row_value = round(stock * row_price, 2)
+                    rows.append({
+                        'id': prod_id, # Changed from productId to id as per frontend expectation
+                        'barcode': product_info['barcode'],
+                        'name': product_info['productName'], # Changed from productName to name
+                        'price': row_price,
+                        'stock': stock,
+                        'rowValue': row_value
+                    })
+                    total_stock += stock
+                    total_value += row_value
+            
+            # Prepare the final result as per frontend expectation
+            result = {
+                "rows": rows,
+                "totalStock": total_stock,
+                "totalValue": round(total_value, 2)
+            }
+            
+            app.logger.info(f"Returning {len(rows)} rows, stock: {total_stock}, value: {round(total_value, 2)}")
+            return jsonify(result), 200
+
+    except ValueError:
+        app.logger.error(f"Invalid date format in get_store_inventory_by_date: {date_str}", exc_info=True)
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
+    except Exception as e:
+        app.logger.error(f"Error in get_store_inventory_by_date: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 # ---------------------------
 # Product Assignment Endpoints
 # ---------------------------
-
-@app.route('/api/stores/<store_id>/assign-products', methods=['POST'])
-def assign_products_to_store(store_id):
-    payload = request.get_json(force=True) or {}
-    items = payload.get('products', [])
-    deduct_stock = bool(payload.get('deductStock', False))
-    
-    if not isinstance(items, list) or len(items) == 0:
-        return jsonify({"message": "No products provided"}), 400
-    
-    products = get_products_data()
-    index_by_id = {p['id']: i for i, p in enumerate(products)}
-    
-    errors = []
-    for it in items:
-        pid = str(it.get('id', '')).strip()
-        qty = int(it.get('assignedQuantity') or 0)
-        
-        if not pid or pid not in index_by_id:
-            errors.append({"productId": pid, "message": "Invalid product id"})
-            continue
-        
-        if qty <= 0:
-            errors.append({"productId": pid, "message": "Quantity must be > 0"})
-            continue
-        
-        p = products[index_by_id[pid]]
-        available = int(p.get('stock') or 0)
-        
-        if qty > available:
-            errors.append({
-                "productId": pid,
-                "message": f"Requested {qty} exceeds available stock {available}"
-            })
-    
-    if errors:
-        return jsonify({"message": "Validation failed", "errors": errors}), 400
-    
-    updated_ids = []
-    for it in items:
-        pid = str(it.get('id', '')).strip()
-        qty = int(it.get('assignedQuantity') or 0)
-        
-        if not pid or pid not in index_by_id or qty <= 0:
-            continue
-        
-        idx = index_by_id[pid]
-        products[idx]['assignedStoreId'] = store_id
-        products[idx]['assignedAt'] = datetime.now().isoformat()  # NEW: Add assigned timestamp
-        
-        if deduct_stock:
-            curr = int(products[idx].get('stock') or 0)
-            products[idx]['stock'] = max(0, curr - qty)
-        
-        products[idx]['updatedAt'] = datetime.now().isoformat()
-        updated_ids.append(pid)
-    
-    save_products_data(products)
-    
-    # ENHANCED: Log updates for assigned products
-    for pid in updated_ids:
-        idx = index_by_id[pid]
-        log_crud_operation('products', 'UPDATE', pid, products[idx])
-    
-    return jsonify({"message": "Products assigned successfully", "updated": updated_ids}), 200
 
 @app.route('/api/stores/<store_id>/assigned-products', methods=['GET'])
 def get_assigned_products_for_store(store_id):
@@ -986,86 +1506,15 @@ def get_assigned_products_for_store(store_id):
     assigned = []
     
     for p in products:
-        if str(p.get('assignedStoreId') or '').strip() == store_id:
+        # Check if the product's assignedStoreId matches the store_id
+        # Use str() and strip() for robust comparison, as some IDs might be ints or have whitespace
+        if str(p.get('assignedStoreId', '')).strip() == store_id:
             q = dict(p)
             q['barcode'] = get_primary_barcode(p)
             assigned.append(q)
     
     return jsonify(assigned), 200
 
-# ---------------------------
-# NEW: Store Inventory Calendar and Detail Endpoints
-# ---------------------------
-
-@app.route('/api/stores/<store_id>/inventory-calendar', methods=['GET'])
-def store_inventory_calendar(store_id):
-    """Get inventory data grouped by date for the past N days"""
-    days = int(request.args.get('days', 60))
-    products = get_products_data()
-    today = datetime.now().date()
-    cutoff = today - timedelta(days=days)
-    buckets = defaultdict(lambda: {"date": "", "count": 0, "totalStock": 0, "totalValue": 0.0})
-
-    for p in products:
-        if str(p.get('assignedStoreId') or '') != store_id:
-            continue
-        
-        # Use assignedAt, falling back to updatedAt or createdAt
-        d = _to_date_only(p.get('assignedAt') or p.get('updatedAt') or p.get('createdAt') or "")
-        if not d:
-            continue
-        
-        if datetime.fromisoformat(d).date() < cutoff:
-            continue
-        
-        b = buckets[d]
-        b["date"] = d
-        b["count"] += 1
-        stk = _stock_of(p)
-        price = _price_of(p)
-        b["totalStock"] += stk
-        b["totalValue"] += stk * price
-
-    # Sort newest first
-    data = sorted(buckets.values(), key=lambda x: x["date"], reverse=True)
-    return jsonify({"days": days, "data": data}), 200
-
-@app.route('/api/stores/<store_id>/inventory-by-date/<date_str>', methods=['GET'])
-def store_inventory_by_date(store_id, date_str):
-    """Get detailed inventory for a specific date"""
-    products = get_products_data()
-    rows = []
-    
-    for p in products:
-        if str(p.get('assignedStoreId') or '') != store_id:
-            continue
-        
-        # Use assignedAt, falling back to updatedAt or createdAt
-        d = _to_date_only(p.get('assignedAt') or p.get('updatedAt') or p.get('createdAt') or "")
-        if d != date_str:
-            continue
-        
-        price = _price_of(p)
-        stk = _stock_of(p)
-        
-        rows.append({
-            "id": p.get("id"),
-            "barcode": get_primary_barcode(p),
-            "name": p.get("name") or p.get("productName") or "",
-            "price": price,
-            "stock": stk,
-            "rowValue": round(price * stk, 2),
-        })
-
-    total_stock = sum(r["stock"] for r in rows)
-    total_value = round(sum(r["rowValue"] for r in rows), 2)
-    
-    return jsonify({
-        "date": date_str, 
-        "rows": rows, 
-        "totalStock": total_stock, 
-        "totalValue": total_value
-    }), 200
 
 # ---------------------------
 # Printers (proxied to Tauri)
@@ -2236,6 +2685,8 @@ def delete_store(store_id):
     
     return '', 204
 
+
+
 # ---------------------------
 # ENHANCED Sync Endpoints
 # ---------------------------
@@ -3105,6 +3556,7 @@ def run_sync_process_in_background():
     except Exception as e:
         app.logger.error(f"Error starting background sync: {e}")
 
+
 if __name__ == '__main__':
     backend_api_url = os.environ.get('NEXT_PUBLIC_BACKEND_API_URL', 'http://127.0.0.1:8080')
     parsed_url = urlparse(backend_api_url)
@@ -3119,42 +3571,6 @@ if __name__ == '__main__':
         except Exception as e:
             app.logger.error(f"Failed to export data from database to JSON: {e}")
 
-    # NEW: Ensure batch table is created (and updated if schema changed)
-    try:
-        DatabaseConnection.create_batch_table()
-    except Exception as e:
-        app.logger.error(f"Failed to create/update batch table: {e}")
-
-    # NEW: Ensure ProductBarcodes table is created
-    try:
-        DatabaseConnection.create_product_barcodes_table()
-    except Exception as e:
-        app.logger.error(f"Failed to create ProductBarcodes table: {e}")
-
-    # NEW: Ensure Users table is created and migrated
-    try:
-        DatabaseConnection.create_users_table()
-    except Exception as e:
-        app.logger.error(f"Failed to create/migrate Users table: {e}")
-
-    # NEW: Ensure UserStores table is created
-    try:
-        DatabaseConnection.create_user_stores_table()
-    except Exception as e:
-        app.logger.error(f"Failed to create UserStores table: {e}")
-
-    # NEW: Ensure Bills table is created
-    try:
-        DatabaseConnection.create_bills_table()
-    except Exception as e:
-        app.logger.error(f"Failed to create Bills table: {e}")
-    
-    # NEW: Ensure Returns table is created
-    try:
-        DatabaseConnection.create_returns_table()
-    except Exception as e:
-        app.logger.error(f"Failed to create Returns table: {e}")
-    
     # ============================================
     # INITIALIZE LOCAL DATA ON STARTUP
     # ============================================

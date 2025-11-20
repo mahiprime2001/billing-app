@@ -53,6 +53,7 @@ import PrintDialog from "@/components/PrintDialog";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { BatchInput } from "@/components/BatchInput";
+import { unifiedPrint } from "@/app/utils/printUtils";
 
 interface AdminUser {
   name: string
@@ -577,7 +578,7 @@ export default function ProductsPage() {
 
   const selectedKey = selectedDate ? toKey(selectedDate) : "";
 
-  function printProductsListForDate(list: Product[], titleDate: Date) {
+  const generatePrintHtml = (list: Product[], titleDate: Date) => {
     let totalStock = 0;
     let totalValue = 0;
 
@@ -603,7 +604,7 @@ export default function ProductsPage() {
       })
       .join("");
 
-    const html = `
+    return `
       <!DOCTYPE html>
       <html>
         <head>
@@ -655,19 +656,15 @@ export default function ProductsPage() {
             </tfoot>
           </table>
           <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(function(){ window.close(); }, 300);
-            };
+            // window.onload = function() { // Not needed for unifiedPrint
+            //   window.print();
+            //   setTimeout(function(){ window.close(); }, 300);
+            // };
           </script>
         </body>
       </html>
     `;
-    const w = window.open("", "_blank");
-    if (!w) return;
-    w.document.write(html);
-    w.document.close();
-  }
+  };
 
   return (
     <DashboardLayout>
@@ -1482,10 +1479,8 @@ export default function ProductsPage() {
                   const productsToPrint = (productsByDate[selectedKey] || []).filter(
                     (p) => p.batchId === selectedBatchForProducts.id
                   );
-                  printProductsListForDate(
-                    productsToPrint as Product[],
-                    selectedDate
-                  );
+                  const htmlContent = generatePrintHtml(productsToPrint as Product[], selectedDate);
+                  unifiedPrint({ htmlContent });
                 }}
               >
                 <Printer className="h-4 w-4 mr-2" />
@@ -1568,10 +1563,8 @@ export default function ProductsPage() {
                 onClick={() => {
                   if (!selectedDate) return;
                   const productsToPrint = productsByDate[selectedKey] || [];
-                  printProductsListForDate(
-                    productsToPrint as Product[],
-                    selectedDate
-                  );
+                  const htmlContent = generatePrintHtml(productsToPrint as Product[], selectedDate);
+                  unifiedPrint({ htmlContent });
                 }}
               >
                 <Printer className="h-4 w-4 mr-2" />
