@@ -578,7 +578,7 @@ export default function ProductsPage() {
 
   const selectedKey = selectedDate ? toKey(selectedDate) : "";
 
-  const generatePrintHtml = (list: Product[], titleDate: Date) => {
+  const generatePrintHtml = (list: Product[], titleDate: Date, storeName?: string) => {
     let totalStock = 0;
     let totalValue = 0;
 
@@ -603,6 +603,8 @@ export default function ProductsPage() {
         </tr>`;
       })
       .join("");
+
+    const storeInfoHtml = storeName ? `<p style="font-size: 14px; margin-bottom: 8px;">Store: ${storeName}</p>` : '';
 
     return `
       <!DOCTYPE html>
@@ -634,6 +636,7 @@ export default function ProductsPage() {
         </head>
         <body>
           <h1>Products on ${titleDate.toDateString()}</h1>
+          ${storeInfoHtml}
           <table>
             <thead>
               <tr>
@@ -1479,8 +1482,18 @@ export default function ProductsPage() {
                   const productsToPrint = (productsByDate[selectedKey] || []).filter(
                     (p) => p.batchId === selectedBatchForProducts.id
                   );
-                  const htmlContent = generatePrintHtml(productsToPrint as Product[], selectedDate);
-                  unifiedPrint({ htmlContent });
+                  const productIdsToPrint = productsToPrint.map(p => p.id);
+                  const htmlContent = generatePrintHtml(
+                    productsToPrint as Product[],
+                    selectedDate,
+                    assignedStores?.[0]?.name || "Siri Art Jewellers"
+                  );
+                  unifiedPrint({
+                    htmlContent,
+                    productIds: productIdsToPrint,
+                    useBackendPrint: true,
+                    storeName: assignedStores?.[0]?.name || "Siri Art Jewellers",
+                  });
                 }}
               >
                 <Printer className="h-4 w-4 mr-2" />
@@ -1563,8 +1576,18 @@ export default function ProductsPage() {
                 onClick={() => {
                   if (!selectedDate) return;
                   const productsToPrint = productsByDate[selectedKey] || [];
-                  const htmlContent = generatePrintHtml(productsToPrint as Product[], selectedDate);
-                  unifiedPrint({ htmlContent });
+                  const productIdsToPrint = productsToPrint.map(p => p.id);
+                  const htmlContent = generatePrintHtml(
+                    productsToPrint as Product[],
+                    selectedDate,
+                    assignedStores?.[0]?.name || "Siri Art Jewellers"
+                  );
+                  unifiedPrint({
+                    htmlContent,
+                    productIds: productIdsToPrint,
+                    useBackendPrint: true,
+                    storeName: assignedStores?.[0]?.name || "Siri Art Jewellers",
+                  });
                 }}
               >
                 <Printer className="h-4 w-4 mr-2" />

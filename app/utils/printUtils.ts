@@ -15,6 +15,8 @@ declare global {
 async function printInBrowserWindow(html: string): Promise<void> {
   return new Promise((resolve, reject) => {
     try {
+      let printExecuted = false; // Flag to prevent duplicate prints
+
       // Create a hidden iframe for printing
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed';
@@ -23,9 +25,9 @@ async function printInBrowserWindow(html: string): Promise<void> {
       iframe.style.width = '0';
       iframe.style.height = '0';
       iframe.style.border = 'none';
-      
+
       document.body.appendChild(iframe);
-      
+
       // Write content to iframe
       const iframeDoc = iframe.contentWindow?.document;
       if (!iframeDoc) {
@@ -33,18 +35,21 @@ async function printInBrowserWindow(html: string): Promise<void> {
         reject(new Error('Failed to access iframe document'));
         return;
       }
-      
+
       iframeDoc.open();
       iframeDoc.write(html);
       iframeDoc.close();
-      
+
       // Wait for content to load, then print
       iframe.onload = () => {
+        if (printExecuted) return; // Prevent duplicate
+        printExecuted = true;
+
         try {
           iframe.contentWindow?.focus();
           iframe.contentWindow?.print();
-          
-          // Clean up after printing (with delay to ensure print dialog appears)
+
+          // Clean up after printing
           setTimeout(() => {
             if (iframe.parentNode) {
               document.body.removeChild(iframe);
@@ -58,9 +63,12 @@ async function printInBrowserWindow(html: string): Promise<void> {
           reject(printError);
         }
       };
-      
-      // Fallback if onload doesn't fire
+
+      // Fallback if onload doesn't fire within 500ms
       setTimeout(() => {
+        if (printExecuted) return; // Prevent duplicate
+        printExecuted = true;
+
         try {
           if (iframe.contentWindow) {
             iframe.contentWindow.focus();
@@ -79,7 +87,7 @@ async function printInBrowserWindow(html: string): Promise<void> {
           reject(e);
         }
       }, 500);
-      
+
     } catch (error) {
       console.error('Print error:', error);
       reject(error);

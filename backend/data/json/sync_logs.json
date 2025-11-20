@@ -38,5 +38,85 @@
       },
       "timestamp": "2025-11-20T19:52:27.135228"
     }
+  },
+  {
+    "id": 3,
+    "timestamp": "2025-11-20T19:59:50.922318",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-20T19:59:50.899178"
+    }
+  },
+  {
+    "id": 4,
+    "timestamp": "2025-11-20T19:59:51.596433",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-20T19:59:51.578860"
+    }
+  },
+  {
+    "id": 5,
+    "timestamp": "2025-11-20T20:14:51.597506",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-20T20:14:51.562941"
+    }
+  },
+  {
+    "id": 6,
+    "timestamp": "2025-11-20T20:14:52.247763",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "success",
+        "message": "No new entries",
+        "pulled": 0
+      },
+      "timestamp": "2025-11-20T20:14:52.247763"
+    }
   }
 ]
