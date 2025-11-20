@@ -50,6 +50,7 @@ import {
 import ProductAssignmentDialog, {
   AssignedProduct,
 } from "@/components/product-assignment-dialog";
+import { unifiedPrint } from "@/app/utils/printUtils";
 
 const API = process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://127.0.0.1:8080"
 
@@ -293,11 +294,9 @@ function StoreInsightModal({
       })
   }, [open, store, selectedDate])
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const src = document.getElementById("printable-table")?.outerHTML || ""
-    const printWin = window.open("", "PRINT", "width=900,height=650")
-    if (!printWin) return
-    printWin.document.write(`
+    const htmlContent = `
       <html>
         <head>
           <title>Store Inventory — ${store?.name || ""}</title>
@@ -325,18 +324,8 @@ function StoreInsightModal({
           ${src}
         </body>
       </html>
-    `)
-    printWin.document.close()
-    printWin.focus()
-
-    // Add a small delay to ensure content is rendered before printing
-    const printDelay = setTimeout(() => {
-      printWin.print();
-      printWin.close();
-    }, 250); // 250ms delay, adjust if needed
-
-    // Clear the timeout if the window is closed manually before the delay
-    printWin.onbeforeunload = () => clearTimeout(printDelay);
+    `;
+    await unifiedPrint({ htmlContent });
   }
 
   if (!open || !store) return null
