@@ -58,11 +58,12 @@
       "createdat": "2025-11-19T17:57:01.910280",
       "updatedat": "2025-11-19T17:57:01.910280"
     },
-    "status": "pending",
+    "status": "completed",
     "retry_count": 0,
     "last_retry": null,
     "error_message": null,
-    "created_at": "2025-11-19T17:57:02.734544"
+    "created_at": "2025-11-19T17:57:02.734544",
+    "completed_at": "2025-11-20T09:56:15.682206"
   },
   {
     "id": 4,
@@ -83,10 +84,11 @@
       "createdAt": "2025-11-19T12:27:35.547648+00:00",
       "updatedAt": "2025-11-19T12:27:35.547648+00:00"
     },
-    "status": "pending",
+    "status": "completed",
     "retry_count": 0,
     "last_retry": null,
     "error_message": null,
-    "created_at": "2025-11-19T17:58:02.643362"
+    "created_at": "2025-11-19T17:58:02.643362",
+    "completed_at": "2025-11-20T09:56:16.168078"
   }
 ]

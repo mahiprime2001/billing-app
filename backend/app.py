@@ -1103,71 +1103,74 @@ def get_printers():
 def api_print_label():
     if request.method == 'OPTIONS':
         response = make_response()
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         return response, 200
     
     try:
         data = request.get_json() or {}
-        product_ids = data.get("productIds", [])
-        copies = int(data.get("copies", 1))
-        printer_name = data.get("printerName", PRINTER_NAME)
-        store_name = data.get("storeName", "Company Name")
+        product_ids = data.get('productIds', [])
+        copies = int(data.get('copies', 1))
+        printer_name = data.get('printerName', 'PRINTERNAME')
+        store_name = data.get('storeName', 'Company Name')
         
-        app.logger.info(f"Received print request: product_ids={product_ids}, copies={copies}, printer_name={printer_name}, store_name={store_name}")
+        # ===== DEBUG: Log incoming request =====
+        app.logger.info("\n" + "🔵"*30)
+        app.logger.info("📨 INCOMING PRINT REQUEST")
+        app.logger.info(f"Product IDs: {product_ids}")
+        app.logger.info(f"Copies Requested: {copies}")
+        app.logger.info(f"Printer Name: {printer_name}")
+        app.logger.info(f"Store Name: {store_name}")
+        app.logger.info("🔵"*30 + "\n")
         
         products = get_products_data()
         selected_products = [p for p in products if p.get('id') in product_ids]
         
         if not selected_products:
-            app.logger.error("No valid products found for print request.")
+            app.logger.error("❌ No valid products found for print request.")
             return {"status": "error", "message": "No valid products found"}, 400
         
-        # Build TSPL locally
+        app.logger.info(f"✅ Found {len(selected_products)} products to print")
+        for idx, prod in enumerate(selected_products):
+            app.logger.info(f"  {idx+1}. {prod.get('name')} (ID: {prod.get('id')})")
+        
+        # Generate TSPL
+        app.logger.info("\n🔧 Generating TSPL commands...")
         tspl_commands = generate_tspl(selected_products, copies, store_name, app.logger)
         
-        # Attempt to delegate to Tauri HTTP API first
-        tauri_payload = {
-            "productIds": product_ids,
-            "copies": copies,
-            "printerName": printer_name,
-            "storeName": store_name,
-            "tsplCommands": tspl_commands,
-        }
+        # Try sending to printer
+        app.logger.info("\n📤 Attempting to send to printer...")
+        
+        if win32print is None:
+            app.logger.error("❌ win32print is not available for direct printing.")
+            return {"status": "error", "message": "win32print not available"}, 500
         
         try:
-            resp = requests.post(f"{TAURI_BASE}/api/print", json=tauri_payload, timeout=5)
+            send_raw_to_printer(printer_name, tspl_commands, app.logger)
             
-            try:
-                body = resp.json()
-            except Exception:
-                body = {"status": "error", "message": resp.text or "Invalid response from Tauri"}
+            app.logger.info("\n" + "🟢"*30)
+            app.logger.info("✅ PRINT REQUEST COMPLETED SUCCESSFULLY")
+            app.logger.info("🟢"*30 + "\n")
             
-            app.logger.info(f"Tauri print response: Status={resp.status_code}, Body={body}")
-            return jsonify(body), resp.status_code
+            return jsonify({
+                "status": "success",
+                "message": "Print job sent successfully",
+                "details": {
+                    "products_count": len(selected_products),
+                    "copies": copies,
+                    "total_labels": len(selected_products) * copies
+                }
+            }), 200
             
-        except requests.exceptions.ConnectionError as ce:
-            app.logger.warning(f"Tauri connection failed ({ce}), falling back to direct printing.")
-            
-            if win32print is None:
-                app.logger.error("win32print is not available for direct printing.")
-                return {"status": "error", "message": "Tauri is not running and direct printing is not available (win32print missing)."}, 500
-            
-            try:
-                send_raw_to_printer(printer_name, tspl_commands, app.logger)
-                app.logger.info(f"Direct print job sent to {printer_name} successfully.")
-                return jsonify({"status": "success", "message": "Print job sent directly to printer."}), 200
-            except Exception as direct_print_e:
-                app.logger.error("Exception in direct print fallback:\n" + traceback.format_exc())
-                return {"status": "error", "message": f"Direct printing failed: {direct_print_e}"}, 500
+        except Exception as direct_print_e:
+            app.logger.error(f"❌ Direct printing failed: {direct_print_e}")
+            app.logger.error(traceback.format_exc())
+            return {"status": "error", "message": f"Direct printing failed: {direct_print_e}"}, 500
         
-        except Exception as e:
-            app.logger.error("Exception in print_label endpoint (Tauri delegation):\n" + traceback.format_exc())
-            return {"status": "error", "message": f"Printing failed: {e}"}, 500
-    
     except Exception as e:
-        app.logger.error("Exception in print_label endpoint:\n" + traceback.format_exc())
+        app.logger.error(f"❌ Exception in print-label endpoint: {e}")
+        app.logger.error(traceback.format_exc())
         return {"status": "error", "message": f"Printing failed: {e}"}, 500
 
 # ---------------------------
