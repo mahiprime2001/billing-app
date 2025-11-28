@@ -21,7 +21,20 @@ interface Batch {
 const fetcher = (url: string) => fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`).then((res) => res.json());
 
 export const BatchManagementTab: React.FC = () => {
-  const { data: batches, error, isLoading: isLoadingBatches } = useSWR<Batch[]>("/api/batches", fetcher);
+  const { data: rawBatches, error, isLoading: isLoadingBatches } = useSWR<any[]>("/api/batches", fetcher);
+
+  // Normalize batch data to camelCase
+  const batches = React.useMemo(() => {
+    if (!rawBatches) return [];
+    return rawBatches.map((batch: any) => ({
+      id: batch.id,
+      batchNumber: batch.batchnumber || batch.batchNumber || "",
+      place: batch.place || "",
+      createdAt: batch.createdat || batch.createdAt,
+      updatedAt: batch.updatedat || batch.updatedAt,
+    }));
+  }, [rawBatches]);
+
   const [newBatchNumber, setNewBatchNumber] = useState("");
   const [newPlace, setNewPlace] = useState("");
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
@@ -230,13 +243,13 @@ export const BatchManagementTab: React.FC = () => {
                     <TableHead>Batch Number</TableHead>
                     <TableHead>Place</TableHead>
                     <TableHead>Created At</TableHead>
+                    <TableHead>Updated At</TableHead> {/* NEW: Added Updated At column */}
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {batches.map((batch) => (
-                    <TableRow key={batch.id}>
-                      <TableCell className="font-medium">
+                    <TableRow key={batch.id}><TableCell className="font-medium">
                         {editingBatchId === batch.id ? (
                           <Input
                             value={editedBatchNumber}
@@ -246,8 +259,7 @@ export const BatchManagementTab: React.FC = () => {
                         ) : (
                           batch.batchNumber
                         )}
-                      </TableCell>
-                      <TableCell>
+                      </TableCell><TableCell>
                         {editingBatchId === batch.id ? (
                           <Input
                             value={editedPlace}
@@ -257,9 +269,7 @@ export const BatchManagementTab: React.FC = () => {
                         ) : (
                           batch.place
                         )}
-                      </TableCell>
-                      <TableCell>{new Date(batch.createdAt).toLocaleDateString()}</TableCell>
-                      <TableCell>
+                      </TableCell><TableCell>{new Date(batch.createdAt).toLocaleDateString()}</TableCell><TableCell>{batch.updatedAt ? new Date(batch.updatedAt).toLocaleDateString() : "N/A"}</TableCell><TableCell>
                         {editingBatchId === batch.id ? (
                           <div className="flex space-x-2">
                             <Button
@@ -293,8 +303,7 @@ export const BatchManagementTab: React.FC = () => {
                             </Button>
                           </div>
                         )}
-                      </TableCell>
-                    </TableRow>
+                      </TableCell></TableRow>
                   ))}
                 </TableBody>
               </Table>

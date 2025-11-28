@@ -408,6 +408,113 @@ def get_bills_data():
 def save_bills_data(bills):
     _safe_json_dump(BILLS_FILE, bills)
 
+def _get_all_bills_merged():
+    """
+    Helper to get all bills, pulling from MySQL via sync_table first,
+    then returning combined data from MySQL and local JSON.
+    """
+    # Step 1: Pull latest bills from MySQL using sync_table
+    global ENHANCED_SYNC_AVAILABLE, sync_manager # Access global variables
+    if ENHANCED_SYNC_AVAILABLE and sync_manager:
+        app.logger.info("Pulling latest bills from MySQL via sync_table")
+        pull_result = sync_manager.pull_from_mysql_sync_table()
+        
+        if pull_result.get('status') == 'success':
+            app.logger.info(f"Successfully pulled {pull_result.get('applied', 0)} bills from MySQL")
+        else:
+            app.logger.warning(f"Sync pull failed: {pull_result.get('message')}")
+    
+    # Step 2: Get bills from MySQL database directly
+    mysql_bills = []
+    try:
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+            
+            # Query Bills with BillItems
+            cursor.execute("""
+                SELECT 
+                    b.*,
+                    c.name as customerName,
+                    c.phone as customerPhone,
+                    c.email as customerEmail,
+                    s.name as storeName,
+                    u.name as createdByName
+                FROM Bills b
+                LEFT JOIN Customers c ON b.customerId = c.id
+                LEFT JOIN Stores s ON b.storeId = s.id
+                LEFT JOIN Users u ON b.createdBy = u.id
+                ORDER BY b.timestamp DESC
+            """)
+            
+            bills_raw = cursor.fetchall()
+            
+            # Get bill items for each bill
+            for bill in bills_raw:
+                bill_id = bill['id']
+                
+                cursor.execute("""
+                    SELECT * FROM BillItems 
+                    WHERE billId = %s
+                """, (bill_id,))
+                
+                items = cursor.fetchall()
+                
+                # Convert Decimal to float for JSON serialization
+                bill_dict = {}
+                for key, value in bill.items():
+                    if isinstance(value, Decimal):
+                        bill_dict[key] = float(value)
+                    elif isinstance(value, (datetime, date)):
+                        bill_dict[key] = value.isoformat()
+                    else:
+                        bill_dict[key] = value
+                
+                # Convert items
+                items_list = []
+                for item in items:
+                    item_dict = {}
+                    for key, value in item.items():
+                        if isinstance(value, Decimal):
+                            item_dict[key] = float(value)
+                        elif isinstance(value, (datetime, date)):
+                            item_dict[key] = value.isoformat()
+                        else:
+                            item_dict[key] = value
+                    items_list.append(item_dict)
+                
+                bill_dict['items'] = items_list
+                mysql_bills.append(bill_dict)
+            
+            app.logger.info(f"Fetched {len(mysql_bills)} bills from MySQL")
+    
+    except Exception as db_error:
+        app.logger.error(f"Error fetching bills from MySQL: {db_error}")
+        # Fallback to local JSON if MySQL fails
+        mysql_bills = []
+    
+    # Step 3: Get local JSON bills as fallback
+    local_bills = get_bills_data()
+    
+    # Step 4: Merge and deduplicate (MySQL takes precedence)
+    bills_map = {}
+    
+    # Add MySQL bills first (higher priority)
+    for bill in mysql_bills:
+        bills_map[bill['id']] = bill
+    
+    # Add local bills that aren't in MySQL
+    for bill in local_bills:
+        if bill['id'] not in bills_map:
+            bills_map[bill['id']] = bill
+    
+    # Convert to list and sort by timestamp
+    final_bills = list(bills_map.values())
+    final_bills.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+    
+    app.logger.info(f"Returning {len(final_bills)} total bills (MySQL: {len(mysql_bills)}, Local: {len(local_bills)})")
+    
+    return final_bills
+
 def get_settings_data():
     """Get settings from local JSON (PRIMARY source)"""
     return _safe_json_load(SETTINGS_FILE, {})
@@ -499,6 +606,7 @@ def log_crud_operation(json_type: str, operation: str, record_id: str, data: dic
     2. Logs to MySQL sync_table for tracking
     3. Logs to local sync system (existing)
     """
+    app.logger.info(f"log_crud_operation called: json_type={json_type}, operation={operation}, record_id={record_id}") # ADDED LOG
     # Map JSON types to database table names
     table_mapping = {
         'products': 'Products',
@@ -510,7 +618,8 @@ def log_crud_operation(json_type: str, operation: str, record_id: str, data: dic
         'returns': 'Returns', # NEW: Add Returns to table mapping
         'settings': 'SystemSettings',
         'batches': 'batch',
-        'storeinventory': 'StoreInventory'
+        'storeinventory': 'StoreInventory',
+        'billitems': 'BillItems' # ← Changed from mapping to "BillItems"
     }
     
     table_name = table_mapping.get(json_type, json_type.title())
@@ -2016,6 +2125,67 @@ def flush_data():
                     }
                 ), 200
             
+            # ====== BILLS FLUSH ======
+            elif category == 'bills':
+                # Fetch all bills to restore stock
+                all_bills = get_bills_data() # Use local JSON bills for stock restoration
+                products = get_products_data()
+                
+                updated_products_for_log = []
+                
+                # Filter out any non-dictionary bills directly from the source to prevent 'NoneType' object is not iterable
+                # Ensure each bill is a dictionary before processing
+                all_bills = [b for b in all_bills if isinstance(b, dict)]
+
+                for bill in all_bills:
+                    for item in bill.get('items') or []:
+                        product_id = item.get('productId')
+                        quantity = item.get('quantity')
+                        
+                        if product_id and quantity is not None:
+                            for product in products:
+                                if product['id'] == product_id:
+                                    # Restore stock
+                                    product['stock'] = int(product.get('stock') or 0) + int(quantity or 0)
+                                    product['updatedAt'] = datetime.now(timezone.utc).isoformat()
+                                    updated_products_for_log.append(product)
+                                    break
+                
+                save_products_data(products) # Save updated product stock locally
+                
+                # Update products in MySQL and log CRUD for stock changes
+                for product_data in updated_products_for_log:
+                    log_crud_operation('products', 'UPDATE', product_data['id'], product_data)
+                
+                # Delete all bill items from the database
+                cursor.execute("DELETE FROM `BillItems`")
+                deleted_bill_items_count = cursor.rowcount
+                
+                # Delete all bills from the database
+                cursor.execute("DELETE FROM `Bills`")
+                deleted_bills_count = cursor.rowcount
+                
+                conn.commit()
+                
+                # Clear local bills data
+                save_bills_data([])
+                
+                log_crud_operation('bills', 'FLUSH', 'all', {
+                    'deleted_bills_count': deleted_bills_count,
+                    'deleted_bill_items_count': deleted_bill_items_count,
+                    'products_stock_restored': len(updated_products_for_log)
+                })
+                
+                return jsonify(
+                    status="success",
+                    message=f"Flushed {deleted_bills_count} bills and {deleted_bill_items_count} bill items. Product stock restored.",
+                    details={
+                        'bills_deleted': deleted_bills_count,
+                        'bill_items_deleted': deleted_bill_items_count,
+                        'products_stock_restored': len(updated_products_for_log)
+                    }
+                ), 200
+            
             else:
                 return jsonify(status="error", message="Invalid category specified"), 400
             
@@ -2030,111 +2200,11 @@ def flush_data():
 @app.route('/api/bills', methods=['GET'])
 def get_bills():
     """
-    Get all bills - pulls from MySQL via sync_table first,
-    then returns combined data from MySQL and local JSON
+    Get all bills - retrieves the merged data from MySQL and local JSON.
     """
     try:
-        # Step 1: Pull latest bills from MySQL using sync_table
-        if ENHANCED_SYNC_AVAILABLE and sync_manager:
-            app.logger.info("Pulling latest bills from MySQL via sync_table")
-            pull_result = sync_manager.pull_from_mysql_sync_table()
-            
-            if pull_result.get('status') == 'success':
-                app.logger.info(f"Successfully pulled {pull_result.get('applied', 0)} bills from MySQL")
-            else:
-                app.logger.warning(f"Sync pull failed: {pull_result.get('message')}")
-        
-        # Step 2: Get bills from MySQL database directly
-        mysql_bills = []
-        try:
-            with DatabaseConnection.get_connection_ctx() as conn:
-                cursor = conn.cursor(dictionary=True)
-                
-                # Query Bills with BillItems
-                cursor.execute("""
-                    SELECT 
-                        b.*,
-                        c.name as customerName,
-                        c.phone as customerPhone,
-                        c.email as customerEmail,
-                        s.name as storeName,
-                        u.name as createdByName
-                    FROM Bills b
-                    LEFT JOIN Customers c ON b.customerId = c.id
-                    LEFT JOIN Stores s ON b.storeId = s.id
-                    LEFT JOIN Users u ON b.createdBy = u.id
-                    ORDER BY b.timestamp DESC
-                """)
-                
-                bills_raw = cursor.fetchall()
-                
-                # Get bill items for each bill
-                for bill in bills_raw:
-                    bill_id = bill['id']
-                    
-                    cursor.execute("""
-                        SELECT * FROM BillItems 
-                        WHERE billId = %s
-                    """, (bill_id,))
-                    
-                    items = cursor.fetchall()
-                    
-                    # Convert Decimal to float for JSON serialization
-                    bill_dict = {}
-                    for key, value in bill.items():
-                        if isinstance(value, Decimal):
-                            bill_dict[key] = float(value)
-                        elif isinstance(value, (datetime, date)):
-                            bill_dict[key] = value.isoformat()
-                        else:
-                            bill_dict[key] = value
-                    
-                    # Convert items
-                    items_list = []
-                    for item in items:
-                        item_dict = {}
-                        for key, value in item.items():
-                            if isinstance(value, Decimal):
-                                item_dict[key] = float(value)
-                            elif isinstance(value, (datetime, date)):
-                                item_dict[key] = value.isoformat()
-                            else:
-                                item_dict[key] = value
-                        items_list.append(item_dict)
-                    
-                    bill_dict['items'] = items_list
-                    mysql_bills.append(bill_dict)
-                
-                app.logger.info(f"Fetched {len(mysql_bills)} bills from MySQL")
-        
-        except Exception as db_error:
-            app.logger.error(f"Error fetching bills from MySQL: {db_error}")
-            # Fallback to local JSON if MySQL fails
-            mysql_bills = []
-        
-        # Step 3: Get local JSON bills as fallback
-        local_bills = get_bills_data()
-        
-        # Step 4: Merge and deduplicate (MySQL takes precedence)
-        bills_map = {}
-        
-        # Add MySQL bills first (higher priority)
-        for bill in mysql_bills:
-            bills_map[bill['id']] = bill
-        
-        # Add local bills that aren't in MySQL
-        for bill in local_bills:
-            if bill['id'] not in bills_map:
-                bills_map[bill['id']] = bill
-        
-        # Convert to list and sort by timestamp
-        final_bills = list(bills_map.values())
-        final_bills.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-        
-        app.logger.info(f"Returning {len(final_bills)} total bills (MySQL: {len(mysql_bills)}, Local: {len(local_bills)})")
-        
+        final_bills = _get_all_bills_merged()
         return jsonify(final_bills), 200
-    
     except Exception as e:
         app.logger.error(f"Error getting bills: {e}", exc_info=True)
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
@@ -2142,6 +2212,9 @@ def get_bills():
 @app.route('/api/bills', methods=['POST'])
 def add_bill():
     new_bill = request.json or {}
+    # Use _get_all_bills_merged() to get current state, then add new bill.
+    # However, for adding a bill, we should primarily add to local JSON and then sync.
+    # The get_bills_data() is for modifying the actual local file.
     bills = get_bills_data()
     products = get_products_data()
     
@@ -2154,7 +2227,7 @@ def add_bill():
     
     # Handle stock updates
     updated_products = []
-    for item in new_bill.get('items', []):
+    for item in new_bill.get('items') or []:
         product_id = item.get('productId')
         quantity = item.get('quantity')
         
@@ -2180,16 +2253,18 @@ def add_bill():
 
 @app.route('/api/bills/<bill_id>', methods=['DELETE'])
 def delete_bill(bill_id):
-    bills = get_bills_data()
-    products = get_products_data()
-    
-    bill_to_delete = next((b for b in bills if b['id'] == bill_id), None)
+    # Get the merged view of bills to ensure we operate on the most current data
+    all_current_bills = _get_all_bills_merged()
+    products = get_products_data() # Assuming products are kept up-to-date by other mechanisms
+
+    bill_to_delete = next((b for b in all_current_bills if b['id'] == bill_id), None)
     if not bill_to_delete:
+        app.logger.warning(f"Attempted to delete bill {bill_id} but it was not found in merged data.")
         return jsonify({"message": "Bill not found"}), 404
     
     # Restore stock
     updated_products = []
-    for item in bill_to_delete.get('items', []):
+    for item in bill_to_delete.get('items') or []:
         product_id = item.get('productId')
         quantity = item.get('quantity')
         
@@ -2208,13 +2283,57 @@ def delete_bill(bill_id):
     for product in updated_products:
         log_crud_operation('products', 'UPDATE', product['id'], product)
     
-    bills = [b for b in bills if b['id'] != bill_id]
-    save_bills_data(bills)
+    local_bills = get_bills_data() # Get local bills data
+    # First, delete associated BillItems from the database (via log_crud_operation)
+    for item in bill_to_delete.get('items') or []:
+        item_id = item.get('id')
+        if item_id:
+            log_crud_operation('billitems', 'DELETE', item_id, item)
+            app.logger.info(f"ACTION: DELETE_BILL_ITEM - Item {item_id} deleted for bill {bill_id}")
+
+    local_bills = [b for b in local_bills if b['id'] != bill_id] # Filter local bills
+    save_bills_data(local_bills) # Save updated local bills
     
-    # ENHANCED: Log CRUD operation to sync system
+    # ENHANCED: Log CRUD operation to sync system for the bill itself
     log_crud_operation('bills', 'DELETE', bill_id, bill_to_delete)
     
     return jsonify({"message": "Bill deleted"}), 200
+
+@app.route('/api/flushed-bills', methods=['GET'])
+def get_flushed_bill_data():
+    """
+    Retrieves data for bills that have been 'flushed' (i.e., successfully synced DELETE operations)
+    from the MySQL sync_table.
+    """
+    try:
+        flushed_bills = []
+        with DatabaseConnection.get_connection_ctx() as conn:
+            cursor = conn.cursor(dictionary=True)
+            
+            query = """
+                SELECT id, table_name, record_id, operation_type, created_at
+                FROM sync_table
+                WHERE table_name = 'Bills'
+                AND operation_type = 'DELETE'
+                AND status = 'synced'
+                ORDER BY created_at DESC
+                LIMIT 500
+            """
+            cursor.execute(query)
+            flushed_bills = cursor.fetchall()
+            
+            # Convert datetime objects to ISO format for JSON serialization
+            for bill in flushed_bills:
+                if 'created_at' in bill and isinstance(bill['created_at'], (datetime, date)):
+                    bill['syncedat'] = bill['created_at'].isoformat()
+            
+            app.logger.info(f"Fetched {len(flushed_bills)} flushed bill entries from sync_table.")
+        
+        return jsonify({"flushedBills": flushed_bills}), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching flushed bill data from sync_table: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Failed to fetch flushed bill data", "details": str(e)}), 500
 
 @app.route('/api/bills/sync', methods=['GET'])
 def get_bills_from_sync_table():
@@ -2961,7 +3080,7 @@ def get_top_products():
                     if bill_date < cutoff_date:
                         continue
                     
-                    for item in bill.get('items', []):
+                    for item in bill.get('items') or []:
                         product_id = item.get('productId')
                         if product_id:
                             quantity = int(item.get('quantity', 0))

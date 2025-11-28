@@ -87,7 +87,18 @@ const fetcher = async (url: string) => {
 export default function ProductsPage() {
   const router = useRouter();
   const { data: products = [], error: productsError, isLoading: productsLoading, mutate } = useSWR<Product[]>("/api/products", fetcher);
-  const { data: batches = [], error: batchesError, isLoading: batchesLoading, mutate: mutateBatches } = useSWR<Batch[]>("/api/batches", fetcher);
+  const { data: rawBatches = [], error: batchesError, isLoading: batchesLoading, mutate: mutateBatches } = useSWR<Batch[]>("/api/batches", fetcher);
+
+  // Normalize batch data to camelCase
+  const batches = useMemo(() => {
+    return rawBatches.map((batch: any) => ({
+      id: batch.id,
+      batchNumber: batch.batchnumber || batch.batchNumber,
+      place: batch.place,
+      createdAt: batch.createdat || batch.createdAt,
+      updatedAt: batch.updatedat || batch.updatedat,
+    }));
+  }, [rawBatches]);
 
   // Normalize data on fetch
   const normalizedProducts = useMemo(() => {
@@ -102,7 +113,6 @@ export default function ProductsPage() {
       displayPrice: (p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).price ?? 0,
     }));
   }, [products]);
-
   // Debugging logs for SWR data
   useEffect(() => {
     console.log("SWR Products Data:", normalizedProducts);
@@ -1169,7 +1179,10 @@ export default function ProductsPage() {
                         <td className="p-4">
                           <div>
                             <div className="font-medium">{productBatch?.batchNumber || "N/A"}</div>
-                            <div className="text-xs text-muted-foreground">{productBatch?.place || ""}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {productBatch?.place || ""}
+                              {productBatch?.createdAt && ` (Created: ${new Date(productBatch.createdAt).toLocaleDateString()})`}
+                            </div>
                           </div>
                         </td>
                        

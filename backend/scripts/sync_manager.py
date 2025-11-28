@@ -371,7 +371,8 @@ class EnhancedSyncManager:
             'SystemSettings': 'settings.json',
             'Notifications': 'notifications.json',
             'batch': 'batches.json',
-            'StoreInventory': 'storeinventory.json',  # ADD THIS LINE
+            'StoreInventory': 'storeinventory.json',
+            'BillItems': 'billitems.json', # ADDED THIS LINE
         }
 
         # Normalize table_name for case-insensitive matching
@@ -470,7 +471,7 @@ class EnhancedSyncManager:
                 if operation in ['CREATE', 'UPDATE']:
                     found = False
                     for i, item in enumerate(data):
-                        if item.get('id') == record_id:
+                        if str(item.get('id')) == str(record_id): # Convert to string for consistent comparison
                             merged = dict(item)
                             merged.update(change_data)
                             # Always fetch and update barcodes from the database for products, store single `barcode`
@@ -511,7 +512,7 @@ class EnhancedSyncManager:
                         data.append(change_data)
                         updated_any = True
                 elif operation == 'DELETE':
-                    new_data = [item for item in data if item.get('id') != record_id]
+                    new_data = [item for item in data if str(item.get('id')) != str(record_id)] # Convert to string for consistent comparison
                     if len(new_data) != len(data):
                         data = new_data
                         updated_any = True
@@ -534,7 +535,7 @@ class EnhancedSyncManager:
         if operation in ['CREATE', 'UPDATE']:
             found = False
             for i, item in enumerate(data):
-                if item.get('id') == record_id:
+                if str(item.get('id')) == str(record_id): # Convert to string for consistent comparison
                     merged = dict(item)
                     merged.update(change_data)
                     data[i] = merged
@@ -543,7 +544,7 @@ class EnhancedSyncManager:
             if not found:
                 data.append(change_data)
         elif operation == 'DELETE':
-            data = [item for item in data if item.get('id') != record_id]
+            data = [item for item in data if str(item.get('id')) != str(record_id)] # Convert to string for consistent comparison
 
         self._safe_json_dump(file_path, data)
         logger.info(f"Applied {operation} to {json_file} for record {record_id}")
