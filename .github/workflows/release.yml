@@ -109,14 +109,14 @@ jobs:
           ARCH=$(uname -m)
           if [[ "${{ runner.os }}" == "Linux" ]]; then
             cp backend/dist/app \
-              src-tauri/binaries/${BACKEND_NAME}-x86_64-unknown-linux-gnu
+              "src-tauri/binaries/${BACKEND_NAME}-x86_64-unknown-linux-gnu"
           else
             if [[ "$ARCH" == "arm64" ]]; then
               cp backend/dist/app \
-                src-tauri/binaries/${BACKEND_NAME}-aarch64-apple-darwin
+                "src-tauri/binaries/${BACKEND_NAME}-aarch64-apple-darwin"
             else
               cp backend/dist/app \
-                src-tauri/binaries/${BACKEND_NAME}-x86_64-apple-darwin
+                "src-tauri/binaries/${BACKEND_NAME}-x86_64-apple-darwin"
             fi
           fi
 
@@ -202,10 +202,18 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          # Ensure directory exists
           New-Item -ItemType Directory -Force -Path src-tauri/binaries | Out-Null
+
+          $binariesPath = (Resolve-Path "src-tauri/binaries").Path
+
           Get-ChildItem -Recurse -Filter "${env:BACKEND_NAME}-*" | ForEach-Object {
-            Copy-Item $_.FullName src-tauri/binaries/
+            # Skip if the file is already in src-tauri/binaries
+            if ($_.DirectoryName -ne $binariesPath) {
+              Copy-Item $_.FullName $binariesPath -Force
+            }
           }
+
           Write-Host "Binaries in src-tauri/binaries:"
           Get-ChildItem src-tauri/binaries
 
@@ -213,7 +221,7 @@ jobs:
         run: cargo tauri build --target ${{ matrix.target }}
 
 # ==================================================
-# 4. RELEASE (SIMPLE – NO UPDATER MERGE YET)
+# 4. RELEASE (SIMPLE PLACEHOLDER)
 # ==================================================
   release:
     needs: [prepare, tauri]
