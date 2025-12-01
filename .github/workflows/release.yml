@@ -214,90 +214,131 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cargo tauri build --target ${{ matrix.target }}
 
-      - name: Prepare Updater Assets
+      - name: Prepare Updater Assets (Windows)
+        if: runner.os == 'Windows'
         shell: bash
         run: |
           bundleDir="src-tauri/target/${{ matrix.target }}/release/bundle"
           version="${{ needs.prepare-environment.outputs.version }}"
           repo="${GITHUB_REPOSITORY}"
-          tag="v$version"
-          ASSETS=""
-          OUTJSON="$bundleDir/update.json"
-
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            msi="$(find "$bundleDir/msi" -name "*.msi" -type f | head -n 1)"
-            exe="$(find "$bundleDir/nsis" -name "*setup.exe" -type f | head -n 1)"
-            msiSig="$(find "$bundleDir/msi" -name "*.sig" -type f | head -n 1)"
-            exeSig="$(find "$bundleDir/nsis" -name "*.sig" -type f | head -n 1)"
-            pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-            msiName=$(basename "$msi")
-            exeName=$(basename "$exe")
-            msiSigContent=""; [ -f "$msiSig" ] && msiSigContent=$(cat "$msiSig")
-            exeSigContent=""; [ -f "$exeSig" ] && exeSigContent=$(cat "$exeSig")
-            cat > "$OUTJSON" <<EOF
-{
-  "version": "$version",
-  "notes": "Multi-platform release with Python backend support",
-  "pub_date": "$pubDate",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "$msiSigContent",
-      "url": "https://github.com/$repo/releases/download/$tag/$msiName"
-    },
-    "windows-x86_64-nsis": {
-      "signature": "$exeSigContent",
-      "url": "https://github.com/$repo/releases/download/$tag/$exeName"
-    }
-  }
-}
-EOF
-            ASSETS="$msi,$exe,$OUTJSON"
-          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            dmg="$(find "$bundleDir/dmg" -name "*.dmg" -type f | head -n 1)"
-            dmgSig="$(find "$bundleDir/dmg" -name "*.sig" -type f | head -n 1)"
-            pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-            dmgName=$(basename "$dmg")
-            dmgSigContent=""; [ -f "$dmgSig" ] && dmgSigContent=$(cat "$dmgSig")
-            cat > "$OUTJSON" <<EOF
-{
-  "version": "$version",
-  "notes": "Multi-platform release with Python backend support",
-  "pub_date": "$pubDate",
-  "platforms": {
-    "${{ matrix.target }}": {
-      "signature": "$dmgSigContent",
-      "url": "https://github.com/$repo/releases/download/$tag/$dmgName"
-    }
-  }
-}
-EOF
-            ASSETS="$dmg,$OUTJSON"
-          else
-            appimage="$(find "$bundleDir/appimage" -name "*.AppImage" -type f | head -n 1)"
-            appimageSig="$(find "$bundleDir/appimage" -name "*.sig" -type f | head -n 1)"
-            deb="$(find "$bundleDir/deb" -name "*.deb" -type f | head -n 1)"
-            pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-            appimageName=$(basename "$appimage")
-            appimageSigContent=""; [ -f "$appimageSig" ] && appimageSigContent=$(cat "$appimageSig")
-            cat > "$OUTJSON" <<EOF
-{
-  "version": "$version",
-  "notes": "Multi-platform release with Python backend support",
-  "pub_date": "$pubDate",
-  "platforms": {
-    "linux-x86_64": {
-      "signature": "$appimageSigContent",
-      "url": "https://github.com/$repo/releases/download/$tag/$appimageName"
-    }
-  }
-}
-EOF
-            ASSETS="$appimage,$OUTJSON"
-            if [ -n "$deb" ]; then
-              ASSETS="$ASSETS,$deb"
-            fi
+          tag="v${version}"
+          
+          msi=$(find "${bundleDir}/msi" -name "*.msi" -type f | head -n 1)
+          exe=$(find "${bundleDir}/nsis" -name "*setup.exe" -type f | head -n 1)
+          msiSig=$(find "${bundleDir}/msi" -name "*.sig" -type f | head -n 1)
+          exeSig=$(find "${bundleDir}/nsis" -name "*.sig" -type f | head -n 1)
+          
+          pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          msiName=$(basename "$msi")
+          exeName=$(basename "$exe")
+          
+          msiSigContent=""
+          if [ -f "$msiSig" ]; then
+            msiSigContent=$(cat "$msiSig")
           fi
-          echo "ASSETS=$ASSETS" >> $GITHUB_ENV
+          
+          exeSigContent=""
+          if [ -f "$exeSig" ]; then
+            exeSigContent=$(cat "$exeSig")
+          fi
+          
+          cat > "${bundleDir}/update.json" <<EOF
+          {
+            "version": "${version}",
+            "notes": "Multi-platform release with Python backend support",
+            "pub_date": "${pubDate}",
+            "platforms": {
+              "windows-x86_64": {
+                "signature": "${msiSigContent}",
+                "url": "https://github.com/${repo}/releases/download/${tag}/${msiName}"
+              },
+              "windows-x86_64-nsis": {
+                "signature": "${exeSigContent}",
+                "url": "https://github.com/${repo}/releases/download/${tag}/${exeName}"
+              }
+            }
+          }
+          EOF
+          
+          echo "ASSETS=${msi},${exe},${bundleDir}/update.json" >> $GITHUB_ENV
+
+      - name: Prepare Updater Assets (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          bundleDir="src-tauri/target/${{ matrix.target }}/release/bundle"
+          version="${{ needs.prepare-environment.outputs.version }}"
+          repo="${GITHUB_REPOSITORY}"
+          tag="v${version}"
+          target="${{ matrix.target }}"
+          
+          dmg=$(find "${bundleDir}/dmg" -name "*.dmg" -type f | head -n 1)
+          dmgSig=$(find "${bundleDir}/dmg" -name "*.sig" -type f | head -n 1)
+          
+          pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          dmgName=$(basename "$dmg")
+          
+          dmgSigContent=""
+          if [ -f "$dmgSig" ]; then
+            dmgSigContent=$(cat "$dmgSig")
+          fi
+          
+          cat > "${bundleDir}/update.json" <<EOF
+          {
+            "version": "${version}",
+            "notes": "Multi-platform release with Python backend support",
+            "pub_date": "${pubDate}",
+            "platforms": {
+              "${target}": {
+                "signature": "${dmgSigContent}",
+                "url": "https://github.com/${repo}/releases/download/${tag}/${dmgName}"
+              }
+            }
+          }
+          EOF
+          
+          echo "ASSETS=${dmg},${bundleDir}/update.json" >> $GITHUB_ENV
+
+      - name: Prepare Updater Assets (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          bundleDir="src-tauri/target/${{ matrix.target }}/release/bundle"
+          version="${{ needs.prepare-environment.outputs.version }}"
+          repo="${GITHUB_REPOSITORY}"
+          tag="v${version}"
+          
+          appimage=$(find "${bundleDir}/appimage" -name "*.AppImage" -type f | head -n 1)
+          appimageSig=$(find "${bundleDir}/appimage" -name "*.sig" -type f | head -n 1)
+          deb=$(find "${bundleDir}/deb" -name "*.deb" -type f | head -n 1)
+          
+          pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          appimageName=$(basename "$appimage")
+          
+          appimageSigContent=""
+          if [ -f "$appimageSig" ]; then
+            appimageSigContent=$(cat "$appimageSig")
+          fi
+          
+          cat > "${bundleDir}/update.json" <<EOF
+          {
+            "version": "${version}",
+            "notes": "Multi-platform release with Python backend support",
+            "pub_date": "${pubDate}",
+            "platforms": {
+              "linux-x86_64": {
+                "signature": "${appimageSigContent}",
+                "url": "https://github.com/${repo}/releases/download/${tag}/${appimageName}"
+              }
+            }
+          }
+          EOF
+          
+          ASSETS="${appimage},${bundleDir}/update.json"
+          if [ -n "$deb" ]; then
+            ASSETS="${ASSETS},${deb}"
+          fi
+          echo "ASSETS=${ASSETS}" >> $GITHUB_ENV
 
       - name: Create or Update GitHub Release
         env:
@@ -305,16 +346,16 @@ EOF
         shell: bash
         run: |
           tag="v${{ needs.prepare-environment.outputs.version }}"
-
+          
           gh auth status
-
+          
           if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" 2>/dev/null; then
             gh release create "$tag" \
               --title "Siri Billing App $tag" \
               --notes "Multi-platform automated release with Python backend support for version $tag" \
               --repo "$GITHUB_REPOSITORY"
           fi
-
+          
           echo "$ASSETS" | tr ',' '\n' | while read -r asset; do
             if [ -f "$asset" ]; then
               echo "Uploading $asset..."
