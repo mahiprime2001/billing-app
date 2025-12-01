@@ -1,4 +1,4 @@
-name: Multi-Platform Tauri Release with Python Backend
+name: Tauri Multi-Platform Release (Best Practice)
 
 on:
   push:
@@ -8,14 +8,17 @@ on:
 permissions:
   contents: write
 
+env:
+  APP_NAME: Siri Billing App
+
+# ==================================================
+# 1. VERSION PREPARATION
+# ==================================================
 jobs:
-# --------------------------------------------------
-# 1) PREPARE VERSION
-# --------------------------------------------------
-  prepare-environment:
+  prepare:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.calc.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,59 +26,59 @@ jobs:
 
       - run: sudo apt-get install -y jq
 
-      - id: calc
+      - id: version
         shell: bash
         run: |
           git fetch --tags --force
-          TAURI_FILE="src-tauri/tauri.conf.json"
-          PREV=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          RANGE=${PREV:+$PREV..HEAD}
+          LAST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          RANGE="$LAST..HEAD"
 
           if git log $RANGE --pretty=%B | grep -q "BREAKING CHANGE"; then TYPE=major
           elif git log $RANGE --pretty=%B | grep -q "^feat:"; then TYPE=minor
           else TYPE=patch; fi
 
-          OLD=$(jq -r '.version' $TAURI_FILE)
+          OLD=${LAST#v}
           IFS='.' read M m p <<< "$OLD"
-
           case $TYPE in
             major) M=$((M+1)); m=0; p=0 ;;
             minor) m=$((m+1)); p=0 ;;
             patch) p=$((p+1)) ;;
           esac
 
-          echo "version=$M.$m.$p" >> $GITHUB_OUTPUT
+          VERSION="$M.$m.$p"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - run: |
-          jq ".version = \"${{ steps.calc.outputs.version }}\"" src-tauri/tauri.conf.json > t && mv t src-tauri/tauri.conf.json
-          jq ".version = \"${{ steps.calc.outputs.version }}\"" package.json > t && mv t package.json
+          jq ".version = \"${{ steps.version.outputs.version }}\"" src-tauri/tauri.conf.json > t && mv t src-tauri/tauri.conf.json
+          jq ".version = \"${{ steps.version.outputs.version }}\"" package.json > t && mv t package.json
 
       - run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add .
-          git commit -m "chore: release v${{ steps.calc.outputs.version }}" || true
-          git push
-          git tag v${{ steps.calc.outputs.version }}
-          git push origin v${{ steps.calc.outputs.version }}
+          git commit -m "chore: release v${{ steps.version.outputs.version }}" || true
+          git tag v${{ steps.version.outputs.version }}
+          git push --follow-tags
 
-# --------------------------------------------------
-# 2) BUILD PYTHON BACKEND
-# --------------------------------------------------
-  build-backend:
-    needs: prepare-environment
+# ==================================================
+# 2. BUILD PYTHON BACKEND (ONE PER OS)
+# ==================================================
+  backend:
+    needs: prepare
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
-            name: linux-x86_64
+            bin: backend-x86_64-unknown-linux-gnu
           - os: macos-latest
-            name: macos-x86_64
+            bin: backend-x86_64-apple-darwin
           - os: macos-latest
-            name: macos-aarch64
+            bin: backend-aarch64-apple-darwin
           - os: windows-latest
-            name: windows-x86_64.exe
+            bin: backend-x86_64-pc-windows-msvc.exe
+
     runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -87,35 +90,45 @@ jobs:
           pip install -r backend/requirements.txt
           pip install pyinstaller
 
-      - run: |
-          cd backend
-          pyinstaller --onefile --name backend app.py
+      - working-directory: backend
+        run: pyinstaller --onefile app.py
 
-      - run: |
+      - shell: bash
+        run: |
           mkdir -p src-tauri/binaries
-          cp backend/dist/* src-tauri/binaries/${{ matrix.name }}
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp backend/dist/app.exe "src-tauri/binaries/${{ matrix.bin }}"
+          else
+            cp backend/dist/app "src-tauri/binaries/${{ matrix.bin }}"
+            chmod +x "src-tauri/binaries/${{ matrix.bin }}"
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
-          name: backend-${{ matrix.name }}
-          path: src-tauri/binaries/*
+          name: ${{ matrix.bin }}
+          path: src-tauri/binaries/${{ matrix.bin }}
 
-# --------------------------------------------------
-# 3) BUILD TAURI + PLATFORM UPDATERS
-# --------------------------------------------------
-  build-tauri:
-    needs: build-backend
+# ==================================================
+# 3. BUILD TAURI + PLATFORM UPDATE PARTIALS
+# ==================================================
+  tauri:
+    needs: backend
     strategy:
       matrix:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            platform: windows-x86_64
           - os: macos-latest
             target: x86_64-apple-darwin
+            platform: x86_64-apple-darwin
           - os: macos-latest
             target: aarch64-apple-darwin
+            platform: aarch64-apple-darwin
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            platform: linux-x86_64
+
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -132,49 +145,44 @@ jobs:
       - run: npm install
 
       - uses: actions/download-artifact@v4
+
       - run: |
           mkdir -p src-tauri/binaries
-          find . -path "*backend-*" -type f -exec cp {} src-tauri/binaries/ \;
+          find . -name "backend-*" -exec cp {} src-tauri/binaries/ \;
 
       - run: cargo tauri build --target ${{ matrix.target }}
 
-# ------------------ CREATE PLATFORM UPDATE JSON ------------------
-      - name: Create updater JSON
-        shell: bash
+# ---------- CREATE PARTIAL UPDATER JSON ----------
+      - shell: bash
         run: |
           bundle="src-tauri/target/${{ matrix.target }}/release/bundle"
-          version="${{ needs.prepare-environment.outputs.version }}"
+          version="${{ needs.prepare.outputs.version }}"
           repo="$GITHUB_REPOSITORY"
           tag="v$version"
           date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-          file="$bundle/update-${{ matrix.target }}.json"
-
           case "${{ runner.os }}" in
             Windows)
-              asset=$(ls $bundle/msi/*.msi | head -n1)
-              sig=$(cat $(ls $bundle/msi/*.sig))
-              platform="windows-x86_64"
+              asset=$(ls $bundle/msi/*.msi)
+              sig=$(cat $bundle/msi/*.sig)
               ;;
             macOS)
               asset=$(ls $bundle/dmg/*.dmg)
-              sig=$(cat $(ls $bundle/dmg/*.sig))
-              platform="${{ matrix.target }}"
+              sig=$(cat $bundle/dmg/*.sig)
               ;;
             Linux)
               asset=$(ls $bundle/appimage/*.AppImage)
-              sig=$(cat $(ls $bundle/appimage/*.sig))
-              platform="linux-x86_64"
+              sig=$(cat $bundle/appimage/*.sig)
               ;;
           esac
 
-          cat > "$file" <<EOF
+          cat > updater-${{ matrix.platform }}.json <<EOF
           {
             "version": "$version",
-            "notes": "Stable release",
+            "notes": "Stable $APP_NAME release",
             "pub_date": "$date",
             "platforms": {
-              "$platform": {
+              "${{ matrix.platform }}": {
                 "url": "https://github.com/$repo/releases/download/$tag/$(basename $asset)",
                 "signature": "$sig"
               }
@@ -184,17 +192,18 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: updater-${{ matrix.target }}
-          path: src-tauri/target/${{ matrix.target }}/release/bundle/update-*.json
+          name: updater-${{ matrix.platform }}
+          path: updater-${{ matrix.platform }}.json
 
-# --------------------------------------------------
-# 4) MERGE UPDATERS + RELEASE
-# --------------------------------------------------
+# ==================================================
+# 4. MERGE UPDATER + RELEASE
+# ==================================================
   release:
-    needs: [prepare-environment, build-tauri]
+    needs: [prepare, tauri]
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       - uses: actions/download-artifact@v4
 
@@ -206,13 +215,13 @@ jobs:
               pub_date: .[0].pub_date,
               platforms: (map(.platforms) | add)
             }
-          ' updater-*/update-*.json > update.json
+          ' updater-*/updater-*.json > update.json
 
       - run: |
-          gh release create v${{ needs.prepare-environment.outputs.version }} \
-            --title "Siri Billing App" \
-            --notes "Automated release" || true
+          gh release create v${{ needs.prepare.outputs.version }} \
+            --title "${APP_NAME} v${{ needs.prepare.outputs.version }}" \
+            --notes "Automated multi-platform release" || true
 
-          gh release upload v${{ needs.prepare-environment.outputs.version }} \
+          gh release upload v${{ needs.prepare.outputs.version }} \
             update.json \
             --clobber
