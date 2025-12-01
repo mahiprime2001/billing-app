@@ -1,4 +1,4 @@
-name: Tauri Multi-Platform Release (Stable)
+name: Tauri Multi-Platform Release (Final Fixed)
 
 on:
   push:
@@ -9,10 +9,11 @@ permissions:
   contents: write
 
 env:
-  APP_NAME: Siri Billing App
+  APP_NAME: Siriadmin
+  BACKEND_NAME: Siriadmin-backend
 
 # ==================================================
-# 1. PREPARE VERSION
+# 1. VERSION PREPARATION
 # ==================================================
 jobs:
   prepare:
@@ -61,7 +62,7 @@ jobs:
           git push --follow-tags
 
 # ==================================================
-# 2. BUILD PYTHON BACKEND
+# 2. BUILD PYTHON BACKEND (EXACT FILENAMES)
 # ==================================================
   backend:
     needs: prepare
@@ -69,13 +70,13 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            bin: backend-x86_64-unknown-linux-gnu
+            platform: x86_64-unknown-linux-gnu
           - os: macos-latest
-            bin: backend-x86_64-apple-darwin
+            platform: x86_64-apple-darwin
           - os: macos-latest
-            bin: backend-aarch64-apple-darwin
+            platform: aarch64-apple-darwin
           - os: windows-latest
-            bin: backend-x86_64-pc-windows-msvc.exe
+            platform: x86_64-pc-windows-msvc.exe
 
     runs-on: ${{ matrix.os }}
 
@@ -91,44 +92,55 @@ jobs:
           pip install -r backend/requirements.txt
           pip install pyinstaller
 
-      - working-directory: backend
+      - name: Build backend
+        working-directory: backend
         run: pyinstaller --onefile app.py
 
-      - shell: bash
+      - name: Rename backend binary (FIXED)
+        shell: bash
         run: |
           mkdir -p src-tauri/binaries
+
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cp backend/dist/app.exe "src-tauri/binaries/${{ matrix.bin }}"
+            cp backend/dist/app.exe \
+              src-tauri/binaries/${{ env.BACKEND_NAME }}-x86_64-pc-windows-msvc.exe
+          elif [[ "${{ runner.os }}" == "Linux" ]]; then
+            cp backend/dist/app \
+              src-tauri/binaries/${{ env.BACKEND_NAME }}-x86_64-unknown-linux-gnu
           else
-            cp backend/dist/app "src-tauri/binaries/${{ matrix.bin }}"
-            chmod +x "src-tauri/binaries/${{ matrix.bin }}"
+            ARCH=$(uname -m)
+            if [[ "$ARCH" == "arm64" ]]; then
+              cp backend/dist/app \
+                src-tauri/binaries/${{ env.BACKEND_NAME }}-aarch64-apple-darwin
+            else
+              cp backend/dist/app \
+                src-tauri/binaries/${{ env.BACKEND_NAME }}-x86_64-apple-darwin
+            fi
           fi
+
+          chmod +x src-tauri/binaries/* || true
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.bin }}
-          path: src-tauri/binaries/${{ matrix.bin }}
+          name: backend-${{ matrix.platform }}
+          path: src-tauri/binaries/${{ env.BACKEND_NAME }}-*
 
 # ==================================================
-# 3. BUILD TAURI APP + PLATFORM UPDATER PARTS
+# 3. BUILD TAURI (SAFE)
 # ==================================================
   tauri:
     needs: backend
     strategy:
       matrix:
         include:
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            platform: windows-x86_64
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            platform: x86_64-apple-darwin
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            platform: aarch64-apple-darwin
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            platform: linux-x86_64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
 
     runs-on: ${{ matrix.os }}
 
@@ -156,65 +168,24 @@ jobs:
             libssl-dev \
             libudev-dev
 
-      - name: Install Tauri CLI ✅ (FIX)
+      - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
       - run: npm install
 
       - uses: actions/download-artifact@v4
 
-      - run: |
+      - name: Place backend binaries
+        run: |
           mkdir -p src-tauri/binaries
-          find . -name "backend-*" -exec cp {} src-tauri/binaries/ \;
+          find . -name "${{ env.BACKEND_NAME }}-*" -exec cp {} src-tauri/binaries/ \;
+          ls -la src-tauri/binaries
 
-      - name: Build Tauri App
+      - name: Build Tauri App ✅
         run: cargo tauri build --target ${{ matrix.target }}
 
-# --------- CREATE PLATFORM UPDATER JSON ----------
-      - shell: bash
-        run: |
-          bundle="src-tauri/target/${{ matrix.target }}/release/bundle"
-          version="${{ needs.prepare.outputs.version }}"
-          repo="$GITHUB_REPOSITORY"
-          tag="v$version"
-          date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-          case "${{ runner.os }}" in
-            Windows)
-              asset=$(ls $bundle/msi/*.msi | head -n1)
-              sig=$(cat $bundle/msi/*.sig)
-              ;;
-            macOS)
-              asset=$(ls $bundle/dmg/*.dmg | head -n1)
-              sig=$(cat $bundle/dmg/*.sig)
-              ;;
-            Linux)
-              asset=$(ls $bundle/appimage/*.AppImage | head -n1)
-              sig=$(cat $bundle/appimage/*.sig)
-              ;;
-          esac
-
-          cat > updater-${{ matrix.platform }}.json <<EOF
-          {
-            "version": "$version",
-            "notes": "Stable $APP_NAME release",
-            "pub_date": "$date",
-            "platforms": {
-              "${{ matrix.platform }}": {
-                "url": "https://github.com/$repo/releases/download/$tag/$(basename $asset)",
-                "signature": "$sig"
-              }
-            }
-          }
-          EOF
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: updater-${{ matrix.platform }}
-          path: updater-${{ matrix.platform }}.json
-
 # ==================================================
-# 4. MERGE UPDATERS + CREATE RELEASE
+# 4. RELEASE (OPTIONAL – SAFE PLACEHOLDER)
 # ==================================================
   release:
     needs: [prepare, tauri]
@@ -223,25 +194,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - uses: actions/download-artifact@v4
-
-      - name: Merge updater files
-        run: |
-          jq -s '
-            {
-              version: .[0].version,
-              notes: .[0].notes,
-              pub_date: .[0].pub_date,
-              platforms: (map(.platforms) | add)
-            }
-          ' updater-*/updater-*.json > update.json
-
-      - name: Create GitHub Release
-        run: |
+      - run: |
           gh release create v${{ needs.prepare.outputs.version }} \
             --title "${APP_NAME} v${{ needs.prepare.outputs.version }}" \
-            --notes "Automated multi-platform release" || true
-
-          gh release upload v${{ needs.prepare.outputs.version }} \
-            update.json \
-            --clobber
+            --notes "Automated release" || true
