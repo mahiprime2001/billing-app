@@ -1,208 +1,253 @@
-name: Tauri Multi-Platform Release
+name: "Tauri Windows Auto Release"
+
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
+
 
 permissions:
   contents: write
+  actions: read
 
-env:
-  APP_NAME: Siriadmin
-  BACKEND_NAME: Siriadmin-backend
 
-# ==================================================
-# 1. PREPARE VERSION
-# ==================================================
 jobs:
-  prepare:
+  prepare-environment:
+    name: Prepare Version & Environment
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
-
+      version: ${{ steps.calculate.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - run: sudo apt-get install -y jq
 
-      - id: version
+      - name: Install dependencies
+        run: sudo apt-get install -y jq
+
+
+      - id: calculate
         shell: bash
         run: |
+          set -euo pipefail
+          TAURI_FILE="src-tauri/tauri.conf.json"
           git fetch --tags --force
-          LAST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          RANGE="$LAST..HEAD"
-
-          if git log $RANGE --pretty=%B | grep -q "BREAKING CHANGE"; then TYPE=major
-          elif git log $RANGE --pretty=%B | grep -q "^feat:"; then TYPE=minor
-          else TYPE=patch; fi
-
-          OLD=${LAST#v}
-          IFS='.' read M m p <<< "$OLD"
-          case $TYPE in
-            major) M=$((M+1)); m=0; p=0 ;;
-            minor) m=$((m+1)); p=0 ;;
-            patch) p=$((p+1)) ;;
-          esac
-
-          VERSION="$M.$m.$p"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - run: |
-          jq ".version = \"${{ steps.version.outputs.version }}\"" src-tauri/tauri.conf.json > t && mv t src-tauri/tauri.conf.json
-          jq ".version = \"${{ steps.version.outputs.version }}\"" package.json > t && mv t package.json
-
-      - run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add src-tauri/tauri.conf.json package.json
-          git commit -m "chore: release v${{ steps.version.outputs.version }}" || true
-          git tag v${{ steps.version.outputs.version }} || true
-          git push --follow-tags || true
-
-# ==================================================
-# 2. BUILD PYTHON BACKEND
-# ==================================================
-  backend:
-    needs: prepare
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - run: |
-          pip install --upgrade pip
-          pip install -r backend/requirements.txt
-          pip install pyinstaller
-
-      - name: Build backend
-        working-directory: backend
-        run: pyinstaller --onefile app.py
-
-      # ------------ LINUX + macOS ------------
-      - name: Place backend binary (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          mkdir -p src-tauri/binaries
-          ARCH=$(uname -m)
-
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
-            cp backend/dist/app \
-              "src-tauri/binaries/${BACKEND_NAME}-x86_64-unknown-linux-gnu"
-          else
-            if [[ "$ARCH" == "arm64" ]]; then
-              cp backend/dist/app \
-                "src-tauri/binaries/${BACKEND_NAME}-aarch64-apple-darwin"
-            else
-              cp backend/dist/app \
-                "src-tauri/binaries/${BACKEND_NAME}-x86_64-apple-darwin"
-            fi
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          RANGE=${PREV_TAG:+$PREV_TAG..HEAD}
+          if git log $RANGE --pretty=%B | grep -q "BREAKING CHANGE"; then TYPE="major"
+          elif git log $RANGE --pretty=%B | grep -q "^feat:"; then TYPE="minor"
+          elif git log $RANGE --pretty=%B | grep -q "^fix:"; then TYPE="patch"
+          else TYPE="patch"; fi
+          OLD_VERSION=$(jq -r '.version' "$TAURI_FILE")
+          if [ -z "$OLD_VERSION" ] || [ "$OLD_VERSION" = "null" ]; then
+            echo "Version not found in $TAURI_FILE"
+            exit 1
           fi
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD_VERSION"
+          case "$TYPE" in
+            major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH+1)) ;;
+          esac
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          while git rev-parse "v${NEW_VERSION}" >/dev/null 2>&1; do
+            PATCH=$((PATCH+1))
+            NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          done
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
-          chmod +x src-tauri/binaries/*
 
-      # ------------ WINDOWS ------------
-      - name: Place backend binary (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
+      - name: Update version in Tauri config
         run: |
-          New-Item -ItemType Directory -Force src-tauri/binaries | Out-Null
-          Copy-Item backend/dist/app.exe `
-            "src-tauri/binaries/${env:BACKEND_NAME}-x86_64-pc-windows-msvc.exe"
+          jq ".version = \"${{ steps.calculate.outputs.version }}\"" src-tauri/tauri.conf.json > tmp.$$.json && mv tmp.$$.json src-tauri/tauri.conf.json
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: backend-${{ runner.os }}
-          path: src-tauri/binaries/${{ env.BACKEND_NAME }}-*
 
-# ==================================================
-# 3. BUILD TAURI APP (SIGNING FIX APPLIED)
-# ==================================================
-  tauri:
-    needs: backend
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: macos-latest
-            target: x86_64-apple-darwin
-          - os: macos-latest
-            target: aarch64-apple-darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
+      - name: Update version in package.json
+        run: |
+          jq ".version = \"${{ steps.calculate.outputs.version }}\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
 
-    runs-on: ${{ matrix.os }}
 
+      - name: Commit updated version to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src-tauri/tauri.conf.json package.json
+          git commit -m "chore: bump version to v${{ steps.calculate.outputs.version }}" || echo "No version changes to commit"
+          git push origin HEAD:main
+
+
+      - name: Create and push tag
+        run: |
+          git tag "v${{ steps.calculate.outputs.version }}" || echo "Tag exists"
+          git push origin "v${{ steps.calculate.outputs.version }}" || echo "Tag already exists, continuing"
+
+
+  build-and-release-windows:
+    name: Build & Release Windows
+    needs: prepare-environment
+    runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code (latest main)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
 
-      - name: Linux deps
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            libssl-dev \
-            libudev-dev \
-            patchelf
+      - name: Install dependencies
+        run: npm install
+
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
-      - run: npm install
 
-      - uses: actions/download-artifact@v4
-
-      # ----- Copy backend binaries safely -----
-      - name: Place backend binaries
-        shell: bash
+      - name: Wrap raw updater key into PEM env
+        shell: pwsh
         run: |
-          mkdir -p src-tauri/binaries
-          find . -name "${BACKEND_NAME}-*" ! -path "*/src-tauri/binaries/*" \
-            -exec cp {} src-tauri/binaries/ \;
-          ls -la src-tauri/binaries
+          $ErrorActionPreference = "Stop"
+          
+          # Load raw key (handle empty)
+          $rawKey = "${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}".Trim()
+          if (-not $rawKey) {
+            Write-Host "Raw updater key secret is empty or not set. Skipping signing (build may fail if required)."
+            echo "TAURI_SIGNER_KEY=" >> $env:GITHUB_ENV
+            echo "TAURI_SIGNER_PASSWORD=" >> $env:GITHUB_ENV
+            exit 0
+          }
 
-      # ✅✅✅ LINUX SIGNING FIX IS HERE ✅✅✅
-      - name: Build Tauri App
+
+          # Fold base64 to 64-char lines (PEM standard)
+          $folded = $rawKey -replace '(.{64})', "$1`n"
+
+
+          # Build full PEM string (assume PKCS#8; change to RSA if needed, e.g., if starts with 'MIG')
+          $pem = "-----BEGIN PRIVATE KEY-----`n$folded`n-----END PRIVATE KEY-----"
+          # For RSA keys: "-----BEGIN RSA PRIVATE KEY-----`n$folded`n-----END RSA PRIVATE KEY-----"
+
+
+          # Debug
+          Write-Host "Wrapped PEM lines: $($pem -split '`n').Count"
+          Write-Host "First 50 chars masked: $($pem.Substring(0, [Math]::Min(50, $pem.Length)) -replace '.', '*')"
+
+
+          # Set env for Tauri build auto-signing
+          echo "TAURI_SIGNER_KEY=$pem" >> $env:GITHUB_ENV
+          echo "TAURI_SIGNER_PASSWORD=${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}" >> $env:GITHUB_ENV
+
+
+      - name: Build Tauri App (Windows) with Auto-Signing
         env:
+          TAURI_SIGNER_KEY: ${{ env.TAURI_SIGNER_KEY }}
+          TAURI_SIGNER_PASSWORD: ${{ env.TAURI_SIGNER_PASSWORD }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: cargo tauri build --target ${{ matrix.target }}
+        run: cargo tauri build
 
-# ==================================================
-# 4. RELEASE
-# ==================================================
-  release:
-    needs: [prepare, tauri]
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    steps:
-      - run: |
-          gh release create v${{ needs.prepare.outputs.version }} \
-            --title "${APP_NAME} v${{ needs.prepare.outputs.version }}" \
-            --notes "Automated multi-platform release" || true
+      - name: Prepare Updater Assets (Read Sigs, update.json, Set Bundles for Upload)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $bundleDir = "src-tauri/target/release/bundle"
+          $version = "${{ needs.prepare-environment.outputs.version }}"
+          $repo = $env:GITHUB_REPOSITORY
+          $tag = "v$version"
+
+
+          # Find bundles and auto-generated sigs
+          $msi = Get-ChildItem -Path "$bundleDir/msi" -Filter "*.msi" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $msiSig = Get-ChildItem -Path "$bundleDir/msi" -Filter "*.sig" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $exe = Get-ChildItem -Path "$bundleDir/nsis" -Filter "*setup.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $exeSig = Get-ChildItem -Path "$bundleDir/nsis" -Filter "*.sig" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+
+          if (-not $msi -or -not $exe) { throw "Missing bundle files (MSI/EXE not found)" }
+
+
+          # Read sig contents (or empty if missing)
+          $msiSigContent = if ($msiSig) { Get-Content -Path $msiSig.FullName -Raw -Encoding UTF8 } else { Write-Host "No MSI .sig found"; "" }
+          $exeSigContent = if ($exeSig) { Get-Content -Path $exeSig.FullName -Raw -Encoding UTF8 } else { Write-Host "No EXE .sig found"; "" }
+
+
+          Write-Host "Found MSI: $($msi.FullName)"
+          Write-Host "Found EXE: $($exe.FullName)"
+
+
+          # Generate update.json with direct URLs to .msi and .exe (for Tauri updater ingestion format)
+          $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+          $msiName = [System.Uri]::EscapeDataString($(Split-Path $msi.FullName -Leaf))
+          $exeName = [System.Uri]::EscapeDataString($(Split-Path $exe.FullName -Leaf))
+          $msiUrl = "https://github.com/$repo/releases/download/$tag/$msiName"
+          $exeUrl = "https://github.com/$repo/releases/download/$tag/$exeName"
+
+
+          $updateJson = @{
+            version = $version
+            notes = "Added auto-update support and fixed minor bugs."
+            pub_date = $pubDate
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = $msiSigContent.Trim()
+                url = $msiUrl
+              }
+              "windows-x86_64-nsis" = @{
+                signature = $exeSigContent.Trim()
+                url = $exeUrl
+              }
+            }
+          } | ConvertTo-Json -Depth 6
+
+
+          $updatePath = "$bundleDir/update.json"
+          $updateJson | Out-File -FilePath $updatePath -Encoding UTF8
+          Write-Host "Generated update.json"
+
+
+          # Set assets: .msi, .exe, and update.json
+          $assets = "$($msi.FullName) $($exe.FullName) $updatePath"
+          echo "ASSETS=$assets" >> $env:GITHUB_ENV
+
+
+      - name: Create or Update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = "v${{ needs.prepare-environment.outputs.version }}"
+          $assets = $env:ASSETS -split ' '
+
+
+          gh auth status
+
+
+          # Create if not exists
+          gh release view $tag --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "Siri Admin App $tag" --notes "Automated Tauri Windows release with updater support for version $tag" --repo $env:GITHUB_REPOSITORY
+          }
+
+
+          # Upload assets (.msi, .exe, update.json)
+          foreach ($asset in $assets) {
+            if (Test-Path $asset) {
+              Write-Host "Uploading $asset..."
+              gh release upload $tag $asset --clobber --repo $env:GITHUB_REPOSITORY
+            }
+          }
