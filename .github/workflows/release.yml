@@ -1,4 +1,4 @@
-name: Tauri Multi-Platform Release (Best Practice)
+name: Tauri Multi-Platform Release (Stable)
 
 on:
   push:
@@ -12,7 +12,7 @@ env:
   APP_NAME: Siri Billing App
 
 # ==================================================
-# 1. VERSION PREPARATION
+# 1. PREPARE VERSION
 # ==================================================
 jobs:
   prepare:
@@ -61,7 +61,7 @@ jobs:
           git push --follow-tags
 
 # ==================================================
-# 2. BUILD PYTHON BACKEND (ONE PER OS)
+# 2. BUILD PYTHON BACKEND
 # ==================================================
   backend:
     needs: prepare
@@ -87,6 +87,7 @@ jobs:
           python-version: "3.11"
 
       - run: |
+          pip install --upgrade pip
           pip install -r backend/requirements.txt
           pip install pyinstaller
 
@@ -109,7 +110,7 @@ jobs:
           path: src-tauri/binaries/${{ matrix.bin }}
 
 # ==================================================
-# 3. BUILD TAURI + PLATFORM UPDATE PARTIALS
+# 3. BUILD TAURI APP + PLATFORM UPDATER PARTS
 # ==================================================
   tauri:
     needs: backend
@@ -142,6 +143,22 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libudev-dev
+
+      - name: Install Tauri CLI ✅ (FIX)
+        run: cargo install tauri-cli --locked
+
       - run: npm install
 
       - uses: actions/download-artifact@v4
@@ -150,9 +167,10 @@ jobs:
           mkdir -p src-tauri/binaries
           find . -name "backend-*" -exec cp {} src-tauri/binaries/ \;
 
-      - run: cargo tauri build --target ${{ matrix.target }}
+      - name: Build Tauri App
+        run: cargo tauri build --target ${{ matrix.target }}
 
-# ---------- CREATE PARTIAL UPDATER JSON ----------
+# --------- CREATE PLATFORM UPDATER JSON ----------
       - shell: bash
         run: |
           bundle="src-tauri/target/${{ matrix.target }}/release/bundle"
@@ -163,15 +181,15 @@ jobs:
 
           case "${{ runner.os }}" in
             Windows)
-              asset=$(ls $bundle/msi/*.msi)
+              asset=$(ls $bundle/msi/*.msi | head -n1)
               sig=$(cat $bundle/msi/*.sig)
               ;;
             macOS)
-              asset=$(ls $bundle/dmg/*.dmg)
+              asset=$(ls $bundle/dmg/*.dmg | head -n1)
               sig=$(cat $bundle/dmg/*.sig)
               ;;
             Linux)
-              asset=$(ls $bundle/appimage/*.AppImage)
+              asset=$(ls $bundle/appimage/*.AppImage | head -n1)
               sig=$(cat $bundle/appimage/*.sig)
               ;;
           esac
@@ -196,7 +214,7 @@ jobs:
           path: updater-${{ matrix.platform }}.json
 
 # ==================================================
-# 4. MERGE UPDATER + RELEASE
+# 4. MERGE UPDATERS + CREATE RELEASE
 # ==================================================
   release:
     needs: [prepare, tauri]
@@ -207,7 +225,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
 
-      - run: |
+      - name: Merge updater files
+        run: |
           jq -s '
             {
               version: .[0].version,
@@ -217,7 +236,8 @@ jobs:
             }
           ' updater-*/updater-*.json > update.json
 
-      - run: |
+      - name: Create GitHub Release
+        run: |
           gh release create v${{ needs.prepare.outputs.version }} \
             --title "${APP_NAME} v${{ needs.prepare.outputs.version }}" \
             --notes "Automated multi-platform release" || true
