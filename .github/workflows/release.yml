@@ -1,5 +1,4 @@
-name: "Tauri Windows Auto Release"
-
+name: "Multi-Platform Tauri Release with Python Backend"
 
 on:
   push:
@@ -7,11 +6,9 @@ on:
       - main
   workflow_dispatch:
 
-
 permissions:
   contents: write
   actions: read
-
 
 jobs:
   prepare-environment:
@@ -25,10 +22,8 @@ jobs:
         with:
           fetch-depth: 0
 
-
       - name: Install dependencies
         run: sudo apt-get install -y jq
-
 
       - id: calculate
         shell: bash
@@ -60,16 +55,13 @@ jobs:
           done
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
-
       - name: Update version in Tauri config
         run: |
           jq ".version = \"${{ steps.calculate.outputs.version }}\"" src-tauri/tauri.conf.json > tmp.$$.json && mv tmp.$$.json src-tauri/tauri.conf.json
 
-
       - name: Update version in package.json
         run: |
           jq ".version = \"${{ steps.calculate.outputs.version }}\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
-
 
       - name: Commit updated version to main
         run: |
@@ -79,175 +71,344 @@ jobs:
           git commit -m "chore: bump version to v${{ steps.calculate.outputs.version }}" || echo "No version changes to commit"
           git push origin HEAD:main
 
-
       - name: Create and push tag
         run: |
           git tag "v${{ steps.calculate.outputs.version }}" || echo "Tag exists"
           git push origin "v${{ steps.calculate.outputs.version }}" || echo "Tag already exists, continuing"
 
-
-  build-and-release-windows:
-    name: Build & Release Windows
+  build-python-backend:
+    name: Build Python Backend
     needs: prepare-environment
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary-name: backend-x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary-name: backend-x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary-name: backend-aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary-name: backend-x86_64-pc-windows-msvc.exe
+    runs-on: ${{ matrix.platform.os }}
     steps:
-      - name: Checkout code (latest main)
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build backend with PyInstaller (Unix)
+        if: runner.os != 'Windows'
+        working-directory: backend
+        run: |
+          pyinstaller --onefile --name backend app.py
+
+      - name: Build backend with PyInstaller (Windows)
+        if: runner.os == 'Windows'
+        working-directory: backend
+        shell: pwsh
+        run: |
+          pyinstaller --onefile --name backend app.py
+
+      - name: Rename and prepare binary (Unix)
+        if: runner.os != 'Windows'
+        working-directory: backend
+        run: |
+          mkdir -p ../src-tauri/binaries
+          cp dist/backend ../src-tauri/binaries/${{ matrix.platform.binary-name }}
+          chmod +x ../src-tauri/binaries/${{ matrix.platform.binary-name }}
+
+      - name: Rename and prepare binary (Windows)
+        if: runner.os == 'Windows'
+        working-directory: backend
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ../src-tauri/binaries
+          Copy-Item dist/backend.exe ../src-tauri/binaries/${{ matrix.platform.binary-name }}
+
+      - name: Upload backend binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ matrix.platform.target }}
+          path: src-tauri/binaries/${{ matrix.platform.binary-name }}
+          retention-days: 1
+
+  build-and-release-tauri:
+    name: Build & Release Tauri
+    needs: [prepare-environment, build-python-backend]
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bundles: dmg,app
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: dmg,app
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: msi,nsis
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-
+        with:
+          targets: ${{ matrix.platform.target }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Install dependencies
+      - name: Install Node dependencies
         run: npm install
 
+      - name: Download all backend binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Copy backend binaries to src-tauri/binaries
+        shell: bash
+        run: |
+          mkdir -p src-tauri/binaries
+          find artifacts -type f -exec cp {} src-tauri/binaries/ \;
+          ls -la src-tauri/binaries/
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
-
-      - name: Wrap raw updater key into PEM env
+      - name: Wrap raw updater key into PEM env (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          
-          # Load raw key (handle empty)
           $rawKey = "${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}".Trim()
           if (-not $rawKey) {
-            Write-Host "Raw updater key secret is empty or not set. Skipping signing (build may fail if required)."
+            Write-Host "Raw updater key secret is empty or not set. Skipping signing."
             echo "TAURI_SIGNER_KEY=" >> $env:GITHUB_ENV
             echo "TAURI_SIGNER_PASSWORD=" >> $env:GITHUB_ENV
             exit 0
           }
-
-
-          # Fold base64 to 64-char lines (PEM standard)
           $folded = $rawKey -replace '(.{64})', "$1`n"
-
-
-          # Build full PEM string (assume PKCS#8; change to RSA if needed, e.g., if starts with 'MIG')
           $pem = "-----BEGIN PRIVATE KEY-----`n$folded`n-----END PRIVATE KEY-----"
-          # For RSA keys: "-----BEGIN RSA PRIVATE KEY-----`n$folded`n-----END RSA PRIVATE KEY-----"
-
-
-          # Debug
-          Write-Host "Wrapped PEM lines: $($pem -split '`n').Count"
-          Write-Host "First 50 chars masked: $($pem.Substring(0, [Math]::Min(50, $pem.Length)) -replace '.', '*')"
-
-
-          # Set env for Tauri build auto-signing
           echo "TAURI_SIGNER_KEY=$pem" >> $env:GITHUB_ENV
           echo "TAURI_SIGNER_PASSWORD=${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}" >> $env:GITHUB_ENV
 
+      - name: Wrap raw updater key into PEM env (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          rawKey="${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}"
+          if [ -z "$rawKey" ]; then
+            echo "Raw updater key secret is empty or not set. Skipping signing."
+            echo "TAURI_SIGNER_KEY=" >> $GITHUB_ENV
+            echo "TAURI_SIGNER_PASSWORD=" >> $GITHUB_ENV
+            exit 0
+          fi
+          folded=$(echo "$rawKey" | fold -w 64)
+          pem="-----BEGIN PRIVATE KEY-----
+          $folded
+          -----END PRIVATE KEY-----"
+          echo "TAURI_SIGNER_KEY<<EOF" >> $GITHUB_ENV
+          echo "$pem" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          echo "TAURI_SIGNER_PASSWORD=${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}" >> $GITHUB_ENV
 
-      - name: Build Tauri App (Windows) with Auto-Signing
+      - name: Build Tauri App with Auto-Signing
         env:
           TAURI_SIGNER_KEY: ${{ env.TAURI_SIGNER_KEY }}
           TAURI_SIGNER_PASSWORD: ${{ env.TAURI_SIGNER_PASSWORD }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: cargo tauri build
+        run: cargo tauri build --target ${{ matrix.platform.target }}
 
-
-      - name: Prepare Updater Assets (Read Sigs, update.json, Set Bundles for Upload)
+      - name: Prepare Updater Assets (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $bundleDir = "src-tauri/target/release/bundle"
+          $bundleDir = "src-tauri/target/${{ matrix.platform.target }}/release/bundle"
           $version = "${{ needs.prepare-environment.outputs.version }}"
           $repo = $env:GITHUB_REPOSITORY
           $tag = "v$version"
-
-
-          # Find bundles and auto-generated sigs
-          $msi = Get-ChildItem -Path "$bundleDir/msi" -Filter "*.msi" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          $msiSig = Get-ChildItem -Path "$bundleDir/msi" -Filter "*.sig" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          $exe = Get-ChildItem -Path "$bundleDir/nsis" -Filter "*setup.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          $exeSig = Get-ChildItem -Path "$bundleDir/nsis" -Filter "*.sig" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-
-
-          if (-not $msi -or -not $exe) { throw "Missing bundle files (MSI/EXE not found)" }
-
-
-          # Read sig contents (or empty if missing)
-          $msiSigContent = if ($msiSig) { Get-Content -Path $msiSig.FullName -Raw -Encoding UTF8 } else { Write-Host "No MSI .sig found"; "" }
-          $exeSigContent = if ($exeSig) { Get-Content -Path $exeSig.FullName -Raw -Encoding UTF8 } else { Write-Host "No EXE .sig found"; "" }
-
-
-          Write-Host "Found MSI: $($msi.FullName)"
-          Write-Host "Found EXE: $($exe.FullName)"
-
-
-          # Generate update.json with direct URLs to .msi and .exe (for Tauri updater ingestion format)
+          
+          $msi = Get-ChildItem -Path "$bundleDir/msi" -Filter "*.msi" | Select-Object -First 1
+          $msiSig = Get-ChildItem -Path "$bundleDir/msi" -Filter "*.sig" | Select-Object -First 1
+          $exe = Get-ChildItem -Path "$bundleDir/nsis" -Filter "*setup.exe" | Select-Object -First 1
+          $exeSig = Get-ChildItem -Path "$bundleDir/nsis" -Filter "*.sig" | Select-Object -First 1
+          
+          if (-not $msi -or -not $exe) { throw "Missing bundle files" }
+          
+          $msiSigContent = if ($msiSig) { Get-Content -Path $msiSig.FullName -Raw } else { "" }
+          $exeSigContent = if ($exeSig) { Get-Content -Path $exeSig.FullName -Raw } else { "" }
+          
           $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-          $msiName = [System.Uri]::EscapeDataString($(Split-Path $msi.FullName -Leaf))
-          $exeName = [System.Uri]::EscapeDataString($(Split-Path $exe.FullName -Leaf))
-          $msiUrl = "https://github.com/$repo/releases/download/$tag/$msiName"
-          $exeUrl = "https://github.com/$repo/releases/download/$tag/$exeName"
-
-
+          $msiName = [System.Uri]::EscapeDataString($msi.Name)
+          $exeName = [System.Uri]::EscapeDataString($exe.Name)
+          
           $updateJson = @{
             version = $version
-            notes = "Added auto-update support and fixed minor bugs."
+            notes = "Multi-platform release with Python backend support"
             pub_date = $pubDate
             platforms = @{
               "windows-x86_64" = @{
                 signature = $msiSigContent.Trim()
-                url = $msiUrl
+                url = "https://github.com/$repo/releases/download/$tag/$msiName"
               }
               "windows-x86_64-nsis" = @{
                 signature = $exeSigContent.Trim()
-                url = $exeUrl
+                url = "https://github.com/$repo/releases/download/$tag/$exeName"
               }
             }
           } | ConvertTo-Json -Depth 6
-
-
+          
           $updatePath = "$bundleDir/update.json"
           $updateJson | Out-File -FilePath $updatePath -Encoding UTF8
-          Write-Host "Generated update.json"
-
-
-          # Set assets: .msi, .exe, and update.json
-          $assets = "$($msi.FullName) $($exe.FullName) $updatePath"
+          
+          $assets = "$($msi.FullName),$($exe.FullName),$updatePath"
           echo "ASSETS=$assets" >> $env:GITHUB_ENV
 
+      - name: Prepare Updater Assets (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          bundleDir="src-tauri/target/${{ matrix.platform.target }}/release/bundle"
+          version="${{ needs.prepare-environment.outputs.version }}"
+          repo="${GITHUB_REPOSITORY}"
+          tag="v$version"
+          
+          dmg=$(find "$bundleDir/dmg" -name "*.dmg" -type f | head -n 1)
+          dmgSig=$(find "$bundleDir/dmg" -name "*.sig" -type f | head -n 1)
+          
+          if [ -z "$dmg" ]; then
+            echo "No DMG found"
+            exit 1
+          fi
+          
+          dmgSigContent=""
+          if [ -f "$dmgSig" ]; then
+            dmgSigContent=$(cat "$dmgSig")
+          fi
+          
+          pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          dmgName=$(basename "$dmg" | jq -sRr @uri)
+          
+          cat > "$bundleDir/update.json" <<EOF
+{
+  "version": "$version",
+  "notes": "Multi-platform release with Python backend support",
+  "pub_date": "$pubDate",
+  "platforms": {
+    "${{ matrix.platform.target }}": {
+      "signature": "$dmgSigContent",
+      "url": "https://github.com/$repo/releases/download/$tag/$dmgName"
+    }
+  }
+}
+EOF
+          
+          echo "ASSETS=$dmg,$bundleDir/update.json" >> $GITHUB_ENV
+
+      - name: Prepare Updater Assets (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          bundleDir="src-tauri/target/${{ matrix.platform.target }}/release/bundle"
+          version="${{ needs.prepare-environment.outputs.version }}"
+          repo="${GITHUB_REPOSITORY}"
+          tag="v$version"
+          
+          appimage=$(find "$bundleDir/appimage" -name "*.AppImage" -type f | head -n 1)
+          appimageSig=$(find "$bundleDir/appimage" -name "*.sig" -type f | head -n 1)
+          deb=$(find "$bundleDir/deb" -name "*.deb" -type f | head -n 1)
+          
+          if [ -z "$appimage" ]; then
+            echo "No AppImage found"
+            exit 1
+          fi
+          
+          appimageSigContent=""
+          if [ -f "$appimageSig" ]; then
+            appimageSigContent=$(cat "$appimageSig")
+          fi
+          
+          pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          appimageName=$(basename "$appimage" | jq -sRr @uri)
+          
+          cat > "$bundleDir/update.json" <<EOF
+{
+  "version": "$version",
+  "notes": "Multi-platform release with Python backend support",
+  "pub_date": "$pubDate",
+  "platforms": {
+    "linux-x86_64": {
+      "signature": "$appimageSigContent",
+      "url": "https://github.com/$repo/releases/download/$tag/$appimageName"
+    }
+  }
+}
+EOF
+          
+          assets="$appimage,$bundleDir/update.json"
+          if [ -n "$deb" ]; then
+            assets="$assets,$deb"
+          fi
+          echo "ASSETS=$assets" >> $GITHUB_ENV
 
       - name: Create or Update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: pwsh
+        shell: bash
         run: |
-          $ErrorActionPreference = "Stop"
-          $tag = "v${{ needs.prepare-environment.outputs.version }}"
-          $assets = $env:ASSETS -split ' '
-
-
+          tag="v${{ needs.prepare-environment.outputs.version }}"
+          IFS=',' read -ra assets <<< "$ASSETS"
+          
           gh auth status
-
-
-          # Create if not exists
-          gh release view $tag --repo $env:GITHUB_REPOSITORY
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --title "Siri Admin App $tag" --notes "Automated Tauri Windows release with updater support for version $tag" --repo $env:GITHUB_REPOSITORY
-          }
-
-
-          # Upload assets (.msi, .exe, update.json)
-          foreach ($asset in $assets) {
-            if (Test-Path $asset) {
-              Write-Host "Uploading $asset..."
-              gh release upload $tag $asset --clobber --repo $env:GITHUB_REPOSITORY
-            }
-          }
+          
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" 2>/dev/null; then
+            gh release create "$tag" \
+              --title "Siri Billing App $tag" \
+              --notes "Multi-platform automated release with Python backend support for version $tag" \
+              --repo "$GITHUB_REPOSITORY"
+          fi
+          
+          for asset in "${assets[@]}"; do
+            if [ -f "$asset" ]; then
+              echo "Uploading $asset..."
+              gh release upload "$tag" "$asset" --clobber --repo "$GITHUB_REPOSITORY"
+            fi
+          done
