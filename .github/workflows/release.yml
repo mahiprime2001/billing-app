@@ -49,17 +49,19 @@ jobs:
           VERSION="$M.$m.$p"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - run: |
+      - name: Update version files
+        run: |
           jq ".version = \"${{ steps.version.outputs.version }}\"" src-tauri/tauri.conf.json > t && mv t src-tauri/tauri.conf.json
           jq ".version = \"${{ steps.version.outputs.version }}\"" package.json > t && mv t package.json
 
-      - run: |
+      - name: Commit and tag
+        run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add .
+          git add src-tauri/tauri.conf.json package.json
           git commit -m "chore: release v${{ steps.version.outputs.version }}" || true
-          git tag v${{ steps.version.outputs.version }}
-          git push --follow-tags
+          git tag v${{ steps.version.outputs.version }} || true
+          git push --follow-tags || true
 
 # ==================================================
 # 2. BUILD PYTHON BACKEND (EXACT FILENAMES)
@@ -87,38 +89,47 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: |
+      - name: Install Python deps
+        run: |
           pip install --upgrade pip
           pip install -r backend/requirements.txt
           pip install pyinstaller
 
-      - name: Build backend
+      - name: Build backend with PyInstaller
         working-directory: backend
         run: pyinstaller --onefile app.py
 
-      - name: Rename backend binary (FIXED)
+      # ---------- NON-WINDOWS (Linux + macOS) ----------
+      - name: Rename backend binary (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           mkdir -p src-tauri/binaries
 
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cp backend/dist/app.exe \
-              src-tauri/binaries/${{ env.BACKEND_NAME }}-x86_64-pc-windows-msvc.exe
-          elif [[ "${{ runner.os }}" == "Linux" ]]; then
+          ARCH=$(uname -m)
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
             cp backend/dist/app \
-              src-tauri/binaries/${{ env.BACKEND_NAME }}-x86_64-unknown-linux-gnu
+              src-tauri/binaries/${BACKEND_NAME}-x86_64-unknown-linux-gnu
           else
-            ARCH=$(uname -m)
             if [[ "$ARCH" == "arm64" ]]; then
               cp backend/dist/app \
-                src-tauri/binaries/${{ env.BACKEND_NAME }}-aarch64-apple-darwin
+                src-tauri/binaries/${BACKEND_NAME}-aarch64-apple-darwin
             else
               cp backend/dist/app \
-                src-tauri/binaries/${{ env.BACKEND_NAME }}-x86_64-apple-darwin
+                src-tauri/binaries/${BACKEND_NAME}-x86_64-apple-darwin
             fi
           fi
 
-          chmod +x src-tauri/binaries/* || true
+          chmod +x src-tauri/binaries/${BACKEND_NAME}-*
+
+      # ---------- WINDOWS ----------
+      - name: Rename backend binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path src-tauri/binaries | Out-Null
+          Copy-Item backend/dist/app.exe `
+            "src-tauri/binaries/${env:BACKEND_NAME}-x86_64-pc-windows-msvc.exe"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -126,7 +137,7 @@ jobs:
           path: src-tauri/binaries/${{ env.BACKEND_NAME }}-*
 
 # ==================================================
-# 3. BUILD TAURI (SAFE)
+# 3. BUILD TAURI (USES BACKEND BINARIES)
 # ==================================================
   tauri:
     needs: backend
@@ -171,21 +182,38 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
-      - run: npm install
+      - name: Install Node deps
+        run: npm install
 
       - uses: actions/download-artifact@v4
 
-      - name: Place backend binaries
+      # ---------- NON-WINDOWS ----------
+      - name: Place backend binaries (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           mkdir -p src-tauri/binaries
-          find . -name "${{ env.BACKEND_NAME }}-*" -exec cp {} src-tauri/binaries/ \;
+          find . -name "${BACKEND_NAME}-*" -exec cp {} src-tauri/binaries/ \;
+          echo "Binaries in src-tauri/binaries:"
           ls -la src-tauri/binaries
 
-      - name: Build Tauri App ✅
+      # ---------- WINDOWS ----------
+      - name: Place backend binaries (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path src-tauri/binaries | Out-Null
+          Get-ChildItem -Recurse -Filter "${env:BACKEND_NAME}-*" | ForEach-Object {
+            Copy-Item $_.FullName src-tauri/binaries/
+          }
+          Write-Host "Binaries in src-tauri/binaries:"
+          Get-ChildItem src-tauri/binaries
+
+      - name: Build Tauri App
         run: cargo tauri build --target ${{ matrix.target }}
 
 # ==================================================
-# 4. RELEASE (OPTIONAL – SAFE PLACEHOLDER)
+# 4. RELEASE (SIMPLE – NO UPDATER MERGE YET)
 # ==================================================
   release:
     needs: [prepare, tauri]
@@ -194,7 +222,8 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - run: |
+      - name: Create GitHub Release
+        run: |
           gh release create v${{ needs.prepare.outputs.version }} \
             --title "${APP_NAME} v${{ needs.prepare.outputs.version }}" \
-            --notes "Automated release" || true
+            --notes "Automated multi-platform release" || true
