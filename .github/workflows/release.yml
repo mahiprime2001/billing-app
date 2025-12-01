@@ -1,21 +1,321 @@
+name: "Multi-Platform Tauri Release with Python Backend"
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  prepare-environment:
+    name: Prepare Version & Environment
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.calculate.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: sudo apt-get install -y jq
+
+      - id: calculate
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAURI_FILE="src-tauri/tauri.conf.json"
+          git fetch --tags --force
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          RANGE=${PREV_TAG:+$PREV_TAG..HEAD}
+          if git log $RANGE --pretty=%B | grep -q "BREAKING CHANGE"; then TYPE="major"
+          elif git log $RANGE --pretty=%B | grep -q "^feat:"; then TYPE="minor"
+          elif git log $RANGE --pretty=%B | grep -q "^fix:"; then TYPE="patch"
+          else TYPE="patch"; fi
+          OLD_VERSION=$(jq -r '.version' "$TAURI_FILE")
+          if [ -z "$OLD_VERSION" ] || [ "$OLD_VERSION" = "null" ]; then
+            echo "Version not found in $TAURI_FILE"
+            exit 1
+          fi
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD_VERSION"
+          case "$TYPE" in
+            major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH+1)) ;;
+          esac
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          while git rev-parse "v${NEW_VERSION}" >/dev/null 2>&1; do
+            PATCH=$((PATCH+1))
+            NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          done
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update version in Tauri config
+        run: |
+          jq ".version = \"${{ steps.calculate.outputs.version }}\"" src-tauri/tauri.conf.json > tmp.$$.json && mv tmp.$$.json src-tauri/tauri.conf.json
+
+      - name: Update version in package.json
+        run: |
+          jq ".version = \"${{ steps.calculate.outputs.version }}\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
+
+      - name: Commit updated version to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src-tauri/tauri.conf.json package.json
+          git commit -m "chore: bump version to v${{ steps.calculate.outputs.version }}" || echo "No version changes to commit"
+          git push origin HEAD:main
+
+      - name: Create and push tag
+        run: |
+          git tag "v${{ steps.calculate.outputs.version }}" || echo "Tag exists"
+          git push origin "v${{ steps.calculate.outputs.version }}" || echo "Tag already exists, continuing"
+
+  build-python-backend:
+    name: Build Python Backend
+    needs: prepare-environment
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary-name: backend-x86_64-unknown-linux-gnu
+          - os: macos-latest
+            binary-name: backend-x86_64-apple-darwin
+          - os: macos-latest
+            binary-name: backend-aarch64-apple-darwin
+          - os: windows-latest
+            binary-name: backend-x86_64-pc-windows-msvc.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build backend with PyInstaller (Unix)
+        if: runner.os != 'Windows'
+        working-directory: backend
+        run: |
+          pyinstaller --onefile --name backend app.py
+
+      - name: Build backend with PyInstaller (Windows)
+        if: runner.os == 'Windows'
+        working-directory: backend
+        shell: pwsh
+        run: |
+          pyinstaller --onefile --name backend app.py
+
+      - name: Rename and prepare binary (Unix)
+        if: runner.os != 'Windows'
+        working-directory: backend
+        run: |
+          mkdir -p ../src-tauri/binaries
+          cp dist/backend ../src-tauri/binaries/${{ matrix.binary-name }}
+          chmod +x ../src-tauri/binaries/${{ matrix.binary-name }}
+
+      - name: Rename and prepare binary (Windows)
+        if: runner.os == 'Windows'
+        working-directory: backend
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ../src-tauri/binaries
+          Copy-Item dist/backend.exe ../src-tauri/binaries/${{ matrix.binary-name }}
+
+      - name: Upload backend binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ matrix.binary-name }}
+          path: src-tauri/binaries/${{ matrix.binary-name }}
+          retention-days: 1
+
+  build-and-release-tauri:
+    name: Build & Release Tauri
+    needs: [prepare-environment, build-python-backend]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bundles: dmg,app
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: dmg,app
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: msi,nsis
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Download all backend binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Copy backend binaries to src-tauri/binaries
+        shell: bash
+        run: |
+          mkdir -p src-tauri/binaries
+          find artifacts -type f -exec cp {} src-tauri/binaries/ \;
+          ls -la src-tauri/binaries/
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+
+      - name: Build Tauri App with Auto-Signing
+        env:
+          TAURI_SIGNER_KEY: ${{ secrets.TAURI_SIGNER_KEY }}
+          TAURI_SIGNER_PASSWORD: ${{ secrets.TAURI_SIGNER_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: cargo tauri build --target ${{ matrix.target }}
+
+      - name: Prepare Updater Assets
+        shell: bash
+        run: |
+          bundleDir="src-tauri/target/${{ matrix.target }}/release/bundle"
+          version="${{ needs.prepare-environment.outputs.version }}"
+          repo="${GITHUB_REPOSITORY}"
+          tag="v$version"
+          ASSETS=""
+          OUTJSON="$bundleDir/update.json"
+
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            msi="$(find "$bundleDir/msi" -name "*.msi" -type f | head -n 1)"
+            exe="$(find "$bundleDir/nsis" -name "*setup.exe" -type f | head -n 1)"
+            msiSig="$(find "$bundleDir/msi" -name "*.sig" -type f | head -n 1)"
+            exeSig="$(find "$bundleDir/nsis" -name "*.sig" -type f | head -n 1)"
+            pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            msiName=$(basename "$msi")
+            exeName=$(basename "$exe")
+            msiSigContent=""; [ -f "$msiSig" ] && msiSigContent=$(cat "$msiSig")
+            exeSigContent=""; [ -f "$exeSig" ] && exeSigContent=$(cat "$exeSig")
+            cat > "$OUTJSON" <<EOF
+{
+  "version": "$version",
+  "notes": "Multi-platform release with Python backend support",
+  "pub_date": "$pubDate",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "$msiSigContent",
+      "url": "https://github.com/$repo/releases/download/$tag/$msiName"
+    },
+    "windows-x86_64-nsis": {
+      "signature": "$exeSigContent",
+      "url": "https://github.com/$repo/releases/download/$tag/$exeName"
+    }
+  }
+}
+EOF
+            ASSETS="$msi,$exe,$OUTJSON"
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            dmg="$(find "$bundleDir/dmg" -name "*.dmg" -type f | head -n 1)"
+            dmgSig="$(find "$bundleDir/dmg" -name "*.sig" -type f | head -n 1)"
+            pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            dmgName=$(basename "$dmg")
+            dmgSigContent=""; [ -f "$dmgSig" ] && dmgSigContent=$(cat "$dmgSig")
+            cat > "$OUTJSON" <<EOF
+{
+  "version": "$version",
+  "notes": "Multi-platform release with Python backend support",
+  "pub_date": "$pubDate",
+  "platforms": {
+    "${{ matrix.target }}": {
+      "signature": "$dmgSigContent",
+      "url": "https://github.com/$repo/releases/download/$tag/$dmgName"
+    }
+  }
+}
+EOF
+            ASSETS="$dmg,$OUTJSON"
+          else
+            appimage="$(find "$bundleDir/appimage" -name "*.AppImage" -type f | head -n 1)"
+            appimageSig="$(find "$bundleDir/appimage" -name "*.sig" -type f | head -n 1)"
+            deb="$(find "$bundleDir/deb" -name "*.deb" -type f | head -n 1)"
+            pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            appimageName=$(basename "$appimage")
+            appimageSigContent=""; [ -f "$appimageSig" ] && appimageSigContent=$(cat "$appimageSig")
+            cat > "$OUTJSON" <<EOF
+{
+  "version": "$version",
+  "notes": "Multi-platform release with Python backend support",
+  "pub_date": "$pubDate",
+  "platforms": {
+    "linux-x86_64": {
+      "signature": "$appimageSigContent",
+      "url": "https://github.com/$repo/releases/download/$tag/$appimageName"
+    }
+  }
+}
+EOF
+            ASSETS="$appimage,$OUTJSON"
+            if [ -n "$deb" ]; then
+              ASSETS="$ASSETS,$deb"
+            fi
+          fi
+          echo "ASSETS=$ASSETS" >> $GITHUB_ENV
+
       - name: Create or Update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           tag="v${{ needs.prepare-environment.outputs.version }}"
-          
+
           gh auth status
-          
+
           if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" 2>/dev/null; then
             gh release create "$tag" \
               --title "Siri Billing App $tag" \
               --notes "Multi-platform automated release with Python backend support for version $tag" \
               --repo "$GITHUB_REPOSITORY"
           fi
-          
-          IFS=',' read -ra assets <<< "$ASSETS"
-          for asset in "${assets[@]}"; do
+
+          echo "$ASSETS" | tr ',' '\n' | while read -r asset; do
             if [ -f "$asset" ]; then
               echo "Uploading $asset..."
               gh release upload "$tag" "$asset" --clobber --repo "$GITHUB_REPOSITORY"
