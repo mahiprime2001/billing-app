@@ -1,364 +1,218 @@
-name: "Multi-Platform Tauri Release with Python Backend"
+name: Multi-Platform Tauri Release with Python Backend
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
-  actions: read
 
 jobs:
+# --------------------------------------------------
+# 1) PREPARE VERSION
+# --------------------------------------------------
   prepare-environment:
-    name: Prepare Version & Environment
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.calculate.outputs.version }}
+      version: ${{ steps.calc.outputs.version }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install dependencies
-        run: sudo apt-get install -y jq
+      - run: sudo apt-get install -y jq
 
-      - id: calculate
+      - id: calc
         shell: bash
         run: |
-          set -euo pipefail
-          TAURI_FILE="src-tauri/tauri.conf.json"
           git fetch --tags --force
-          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          RANGE=${PREV_TAG:+$PREV_TAG..HEAD}
-          if git log $RANGE --pretty=%B | grep -q "BREAKING CHANGE"; then TYPE="major"
-          elif git log $RANGE --pretty=%B | grep -q "^feat:"; then TYPE="minor"
-          elif git log $RANGE --pretty=%B | grep -q "^fix:"; then TYPE="patch"
-          else TYPE="patch"; fi
-          OLD_VERSION=$(jq -r '.version' "$TAURI_FILE")
-          if [ -z "$OLD_VERSION" ] || [ "$OLD_VERSION" = "null" ]; then
-            echo "Version not found in $TAURI_FILE"
-            exit 1
-          fi
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD_VERSION"
-          case "$TYPE" in
-            major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
-            minor) MINOR=$((MINOR+1)); PATCH=0 ;;
-            patch) PATCH=$((PATCH+1)) ;;
+          TAURI_FILE="src-tauri/tauri.conf.json"
+          PREV=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          RANGE=${PREV:+$PREV..HEAD}
+
+          if git log $RANGE --pretty=%B | grep -q "BREAKING CHANGE"; then TYPE=major
+          elif git log $RANGE --pretty=%B | grep -q "^feat:"; then TYPE=minor
+          else TYPE=patch; fi
+
+          OLD=$(jq -r '.version' $TAURI_FILE)
+          IFS='.' read M m p <<< "$OLD"
+
+          case $TYPE in
+            major) M=$((M+1)); m=0; p=0 ;;
+            minor) m=$((m+1)); p=0 ;;
+            patch) p=$((p+1)) ;;
           esac
-          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-          while git rev-parse "v${NEW_VERSION}" >/dev/null 2>&1; do
-            PATCH=$((PATCH+1))
-            NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-          done
-          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Update version in Tauri config
-        run: |
-          jq ".version = \"${{ steps.calculate.outputs.version }}\"" src-tauri/tauri.conf.json > tmp.$$.json && mv tmp.$$.json src-tauri/tauri.conf.json
+          echo "version=$M.$m.$p" >> $GITHUB_OUTPUT
 
-      - name: Update version in package.json
-        run: |
-          jq ".version = \"${{ steps.calculate.outputs.version }}\"" package.json > tmp.$$.json && mv tmp.$$.json package.json
+      - run: |
+          jq ".version = \"${{ steps.calc.outputs.version }}\"" src-tauri/tauri.conf.json > t && mv t src-tauri/tauri.conf.json
+          jq ".version = \"${{ steps.calc.outputs.version }}\"" package.json > t && mv t package.json
 
-      - name: Commit updated version to main
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src-tauri/tauri.conf.json package.json
-          git commit -m "chore: bump version to v${{ steps.calculate.outputs.version }}" || echo "No version changes to commit"
-          git push origin HEAD:main
+      - run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "chore: release v${{ steps.calc.outputs.version }}" || true
+          git push
+          git tag v${{ steps.calc.outputs.version }}
+          git push origin v${{ steps.calc.outputs.version }}
 
-      - name: Create and push tag
-        run: |
-          git tag "v${{ steps.calculate.outputs.version }}" || echo "Tag exists"
-          git push origin "v${{ steps.calculate.outputs.version }}" || echo "Tag already exists, continuing"
-
-  build-python-backend:
-    name: Build Python Backend
+# --------------------------------------------------
+# 2) BUILD PYTHON BACKEND
+# --------------------------------------------------
+  build-backend:
     needs: prepare-environment
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
-            binary-name: Siriadmin-backend-x86_64-unknown-linux-gnu
+            name: linux-x86_64
           - os: macos-latest
-            binary-name: Siriadmin-backend-x86_64-apple-darwin
+            name: macos-x86_64
           - os: macos-latest
-            binary-name: Siriadmin-backend-aarch64-apple-darwin
+            name: macos-aarch64
           - os: windows-latest
-            binary-name: Siriadmin-backend-x86_64-pc-windows-msvc.exe
+            name: windows-x86_64.exe
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: Install Python dependencies
-        working-directory: backend
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - run: |
+          pip install -r backend/requirements.txt
           pip install pyinstaller
 
-      - name: Build backend with PyInstaller (Unix)
-        if: runner.os != 'Windows'
-        working-directory: backend
-        run: |
+      - run: |
+          cd backend
           pyinstaller --onefile --name backend app.py
 
-      - name: Build backend with PyInstaller (Windows)
-        if: runner.os == 'Windows'
-        working-directory: backend
-        shell: pwsh
-        run: |
-          pyinstaller --onefile --name backend app.py
+      - run: |
+          mkdir -p src-tauri/binaries
+          cp backend/dist/* src-tauri/binaries/${{ matrix.name }}
 
-      - name: Rename and prepare binary (Unix)
-        if: runner.os != 'Windows'
-        working-directory: backend
-        run: |
-          mkdir -p ../src-tauri/binaries
-          cp dist/backend ../src-tauri/binaries/${{ matrix.binary-name }}
-          chmod +x ../src-tauri/binaries/${{ matrix.binary-name }}
-
-      - name: Rename and prepare binary (Windows)
-        if: runner.os == 'Windows'
-        working-directory: backend
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path ../src-tauri/binaries
-          Copy-Item dist/backend.exe ../src-tauri/binaries/${{ matrix.binary-name }}
-
-      - name: Upload backend binary artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: backend-${{ matrix.binary-name }}
-          path: src-tauri/binaries/${{ matrix.binary-name }}
-          retention-days: 1
+          name: backend-${{ matrix.name }}
+          path: src-tauri/binaries/*
 
-  build-and-release-tauri:
-    name: Build & Release Tauri
-    needs: [prepare-environment, build-python-backend]
+# --------------------------------------------------
+# 3) BUILD TAURI + PLATFORM UPDATERS
+# --------------------------------------------------
+  build-tauri:
+    needs: build-backend
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            bundles: deb,appimage
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            bundles: dmg,app
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            bundles: dmg,app
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            bundles: msi,nsis
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install dependencies (Ubuntu)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libudev-dev libssl-dev
-
-      - name: Install Node dependencies
-        run: npm install
-
-      - name: Download all backend binaries
-        uses: actions/download-artifact@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          path: artifacts
+          targets: ${{ matrix.target }}
 
-      - name: Copy backend binaries to src-tauri/binaries
-        shell: bash
-        run: |
+      - run: npm install
+
+      - uses: actions/download-artifact@v4
+      - run: |
           mkdir -p src-tauri/binaries
-          find artifacts -type f -exec cp {} src-tauri/binaries/ \;
-          ls -la src-tauri/binaries/
+          find . -path "*backend-*" -type f -exec cp {} src-tauri/binaries/ \;
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --locked
+      - run: cargo tauri build --target ${{ matrix.target }}
 
-      - name: Build Tauri App with Auto-Signing
-        env:
-          TAURI_SIGNER_KEY: ${{ secrets.TAURI_SIGNER_KEY }}
-          TAURI_SIGNER_PASSWORD: ${{ secrets.TAURI_SIGNER_PASSWORD }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: cargo tauri build --target ${{ matrix.target }}
-
-      - name: Prepare Updater Assets (Windows)
-        if: runner.os == 'Windows'
+# ------------------ CREATE PLATFORM UPDATE JSON ------------------
+      - name: Create updater JSON
         shell: bash
         run: |
-          bundleDir="src-tauri/target/${{ matrix.target }}/release/bundle"
+          bundle="src-tauri/target/${{ matrix.target }}/release/bundle"
           version="${{ needs.prepare-environment.outputs.version }}"
-          repo="${GITHUB_REPOSITORY}"
-          tag="v${version}"
-          
-          msi=$(find "${bundleDir}/msi" -name "*.msi" -type f | head -n 1)
-          exe=$(find "${bundleDir}/nsis" -name "*setup.exe" -type f | head -n 1)
-          msiSig=$(find "${bundleDir}/msi" -name "*.sig" -type f | head -n 1)
-          exeSig=$(find "${bundleDir}/nsis" -name "*.sig" -type f | head -n 1)
-          
-          pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          msiName=$(basename "$msi")
-          exeName=$(basename "$exe")
-          
-          msiSigContent=""
-          if [ -f "$msiSig" ]; then
-            msiSigContent=$(cat "$msiSig")
-          fi
-          
-          exeSigContent=""
-          if [ -f "$exeSig" ]; then
-            exeSigContent=$(cat "$exeSig")
-          fi
-          
-          cat > "${bundleDir}/update.json" <<EOF
+          repo="$GITHUB_REPOSITORY"
+          tag="v$version"
+          date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          file="$bundle/update-${{ matrix.target }}.json"
+
+          case "${{ runner.os }}" in
+            Windows)
+              asset=$(ls $bundle/msi/*.msi | head -n1)
+              sig=$(cat $(ls $bundle/msi/*.sig))
+              platform="windows-x86_64"
+              ;;
+            macOS)
+              asset=$(ls $bundle/dmg/*.dmg)
+              sig=$(cat $(ls $bundle/dmg/*.sig))
+              platform="${{ matrix.target }}"
+              ;;
+            Linux)
+              asset=$(ls $bundle/appimage/*.AppImage)
+              sig=$(cat $(ls $bundle/appimage/*.sig))
+              platform="linux-x86_64"
+              ;;
+          esac
+
+          cat > "$file" <<EOF
           {
-            "version": "${version}",
-            "notes": "Multi-platform release with Python backend support",
-            "pub_date": "${pubDate}",
+            "version": "$version",
+            "notes": "Stable release",
+            "pub_date": "$date",
             "platforms": {
-              "windows-x86_64": {
-                "signature": "${msiSigContent}",
-                "url": "https://github.com/${repo}/releases/download/${tag}/${msiName}"
-              },
-              "windows-x86_64-nsis": {
-                "signature": "${exeSigContent}",
-                "url": "https://github.com/${repo}/releases/download/${tag}/${exeName}"
+              "$platform": {
+                "url": "https://github.com/$repo/releases/download/$tag/$(basename $asset)",
+                "signature": "$sig"
               }
             }
           }
           EOF
-          
-          echo "ASSETS=${msi},${exe},${bundleDir}/update.json" >> $GITHUB_ENV
 
-      - name: Prepare Updater Assets (macOS)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          bundleDir="src-tauri/target/${{ matrix.target }}/release/bundle"
-          version="${{ needs.prepare-environment.outputs.version }}"
-          repo="${GITHUB_REPOSITORY}"
-          tag="v${version}"
-          target="${{ matrix.target }}"
-          
-          dmg=$(find "${bundleDir}/dmg" -name "*.dmg" -type f | head -n 1)
-          dmgSig=$(find "${bundleDir}/dmg" -name "*.sig" -type f | head -n 1)
-          
-          pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          dmgName=$(basename "$dmg")
-          
-          dmgSigContent=""
-          if [ -f "$dmgSig" ]; then
-            dmgSigContent=$(cat "$dmgSig")
-          fi
-          
-          cat > "${bundleDir}/update.json" <<EOF
-          {
-            "version": "${version}",
-            "notes": "Multi-platform release with Python backend support",
-            "pub_date": "${pubDate}",
-            "platforms": {
-              "${target}": {
-                "signature": "${dmgSigContent}",
-                "url": "https://github.com/${repo}/releases/download/${tag}/${dmgName}"
-              }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: updater-${{ matrix.target }}
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/update-*.json
+
+# --------------------------------------------------
+# 4) MERGE UPDATERS + RELEASE
+# --------------------------------------------------
+  release:
+    needs: [prepare-environment, build-tauri]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/download-artifact@v4
+
+      - run: |
+          jq -s '
+            {
+              version: .[0].version,
+              notes: .[0].notes,
+              pub_date: .[0].pub_date,
+              platforms: (map(.platforms) | add)
             }
-          }
-          EOF
-          
-          echo "ASSETS=${dmg},${bundleDir}/update.json" >> $GITHUB_ENV
+          ' updater-*/update-*.json > update.json
 
-      - name: Prepare Updater Assets (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          bundleDir="src-tauri/target/${{ matrix.target }}/release/bundle"
-          version="${{ needs.prepare-environment.outputs.version }}"
-          repo="${GITHUB_REPOSITORY}"
-          tag="v${version}"
-          
-          appimage=$(find "${bundleDir}/appimage" -name "*.AppImage" -type f | head -n 1)
-          appimageSig=$(find "${bundleDir}/appimage" -name "*.sig" -type f | head -n 1)
-          deb=$(find "${bundleDir}/deb" -name "*.deb" -type f | head -n 1)
-          
-          pubDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          appimageName=$(basename "$appimage")
-          
-          appimageSigContent=""
-          if [ -f "$appimageSig" ]; then
-            appimageSigContent=$(cat "$appimageSig")
-          fi
-          
-          cat > "${bundleDir}/update.json" <<EOF
-          {
-            "version": "${version}",
-            "notes": "Multi-platform release with Python backend support",
-            "pub_date": "${pubDate}",
-            "platforms": {
-              "linux-x86_64": {
-                "signature": "${appimageSigContent}",
-                "url": "https://github.com/${repo}/releases/download/${tag}/${appimageName}"
-              }
-            }
-          }
-          EOF
-          
-          ASSETS="${appimage},${bundleDir}/update.json"
-          if [ -n "$deb" ]; then
-            ASSETS="${ASSETS},${deb}"
-          fi
-          echo "ASSETS=${ASSETS}" >> $GITHUB_ENV
+      - run: |
+          gh release create v${{ needs.prepare-environment.outputs.version }} \
+            --title "Siri Billing App" \
+            --notes "Automated release" || true
 
-      - name: Create or Update GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          tag="v${{ needs.prepare-environment.outputs.version }}"
-          
-          gh auth status
-          
-          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" 2>/dev/null; then
-            gh release create "$tag" \
-              --title "Siri Billing App $tag" \
-              --notes "Multi-platform automated release with Python backend support for version $tag" \
-              --repo "$GITHUB_REPOSITORY"
-          fi
-          
-          echo "$ASSETS" | tr ',' '\n' | while read -r asset; do
-            if [ -f "$asset" ]; then
-              echo "Uploading $asset..."
-              gh release upload "$tag" "$asset" --clobber --repo "$GITHUB_REPOSITORY"
-            fi
-          done
+          gh release upload v${{ needs.prepare-environment.outputs.version }} \
+            update.json \
+            --clobber
