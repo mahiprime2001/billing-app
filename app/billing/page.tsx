@@ -49,6 +49,7 @@ interface CartItem {
   quantity: number
   price: number
   total: number
+  barcodes: string[] // Added barcodes to cart item
 }
 
 interface Customer {
@@ -417,6 +418,7 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
           quantity: 1,
           price: unitPrice,
           total: unitPrice,
+          barcodes: product.barcodes || [], // Include product barcodes
         },
       ]
     }

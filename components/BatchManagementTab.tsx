@@ -21,7 +21,32 @@ interface Batch {
 const fetcher = (url: string) => fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`).then((res) => res.json());
 
 export const BatchManagementTab: React.FC = () => {
-  const { data: batches, error, isLoading: isLoadingBatches } = useSWR<Batch[]>("/api/batches", fetcher);
+  const { data: rawBatches, error, isLoading: isLoadingBatches } = useSWR<Batch[]>("/api/batches", fetcher);
+  // Normalize batch fields from backend (handle createdat/createdAt, batch_number/batchNumber variations)
+  const batches: Batch[] | undefined = (() => {
+    const seenIds = new Set<string>();
+    return rawBatches?.map((b: any) => {
+      let uniqueId = b.id || b.ID || b._id;
+
+      if (!uniqueId || seenIds.has(uniqueId)) {
+        uniqueId = typeof window !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+        // Ensure the newly generated ID is also unique within this mapping session
+        while (seenIds.has(uniqueId)) {
+          uniqueId = typeof window !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+        }
+      }
+      seenIds.add(uniqueId);
+
+      const normalized: any = {
+        id: uniqueId, // Use the guaranteed unique ID
+        batchNumber: b.batchNumber || b.batch_number || b.batchnumber || b.batch || "",
+        place: b.place || b.location || b.placeName || "",
+        createdAt: b.createdAt || b.createdat || b.created_at || b.created || b.createdAt || null,
+        updatedAt: b.updatedAt || b.updatedat || b.updated_at || b.updated || null,
+      }
+      return normalized as Batch
+    });
+  })();
   const [newBatchNumber, setNewBatchNumber] = useState("");
   const [newPlace, setNewPlace] = useState("");
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
@@ -244,7 +269,7 @@ export const BatchManagementTab: React.FC = () => {
                             disabled={isSaving}
                           />
                         ) : (
-                          batch.batchNumber
+                          batch.batchNumber || batch.id
                         )}
                       </TableCell>
                       <TableCell>
@@ -258,7 +283,7 @@ export const BatchManagementTab: React.FC = () => {
                           batch.place
                         )}
                       </TableCell>
-                      <TableCell>{new Date(batch.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>{batch.createdAt ? new Date(batch.createdAt).toLocaleDateString() : "-"}</TableCell>
                       <TableCell>
                         {editingBatchId === batch.id ? (
                           <div className="flex space-x-2">

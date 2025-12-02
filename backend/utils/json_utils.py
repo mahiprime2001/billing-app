@@ -99,3 +99,47 @@ class AssignedProductManager:
             save_json_file(self.filepath, updated_assignments)
             return True, "Product unassigned successfully."
         return False, "Assignment not found."
+
+def convert_camel_to_snake(data):
+    """Convert camelCase keys to snake_case for database compatibility"""
+    converted = {}
+    for key, value in data.items():
+        if key == 'sellingPrice':
+            converted['selling_price'] = value
+        elif key == 'batchId':
+            converted['batchid'] = value
+        elif key == 'assignedStoreId':
+            converted['assignedstoreid'] = value
+        elif key == 'productId':
+            converted['productid'] = value
+        elif key == 'assignedAt':
+            converted['assignedat'] = value
+        elif key == 'updatedAt':
+            converted['updatedat'] = value
+        elif key == 'createdAt':
+            converted['createdat'] = value
+        elif key == 'batchNumber':
+            converted['batchnumber'] = value
+        elif key == 'userId':
+            converted['userid'] = value
+        else:
+            converted[key] = value
+    return converted
+
+def convert_snake_to_camel(data):
+    """Convert snake_case keys to camelCase for frontend compatibility"""
+    converted = {}
+    for key, value in data.items():
+        if key == 'selling_price':
+            converted['sellingPrice'] = value
+        elif key == 'batchid':
+            converted['batchId'] = value
+        elif key == 'assignedstoreid':
+            converted['assignedStoreId'] = value
+        elif key == 'createdat':
+            converted['createdAt'] = value
+        elif key == 'updatedat':
+            converted['updatedAt'] = value
+        else:
+            converted[key] = value
+    return converted

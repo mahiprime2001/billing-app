@@ -1,32 +1,34 @@
 [
   {
-    "id": "INV-a26642e4-1c6e-4a4b-b2a0-49d85ea9351c",
-    "storeId": "STR-1758042415183",
-    "productId": "2e5788c4-5cab-4357-96fe-219ef7a7833d",
-    "quantity": 6,
-    "minStockLevel": 0,
-    "maxStockLevel": null,
-    "assignedAt": "2025-11-20T11:08:50",
-    "updatedAt": "2025-11-20T11:08:50"
-  },
-  {
-    "id": "INV-cc59c072-4372-4090-921d-99c9b3f8b279",
-    "storeId": "store3",
-    "productId": "2e5788c4-5cab-4357-96fe-219ef7a7833d",
-    "quantity": 9,
-    "minStockLevel": 0,
-    "maxStockLevel": null,
-    "assignedAt": "2025-11-20T09:21:11",
-    "updatedAt": "2025-11-20T13:28:57"
-  },
-  {
-    "id": "INV-e8662a75-475a-4a44-80c4-3bccac0f207a",
+    "id": "INV-cceea6fc-8cf4-49aa-bf94-6ec24306a519",
     "storeId": "STR-1761569064837",
-    "productId": "5f409f0b-1035-463b-bd4c-14f67f0916a8",
-    "quantity": 4,
-    "minStockLevel": 0,
-    "maxStockLevel": null,
-    "assignedAt": "2025-11-20T11:25:03",
-    "updatedAt": "2025-11-20T11:25:03"
+    "productId": "bb000455-504b-45a9-be64-9059124d5ad6",
+    "quantity": 11,
+    "assignedAt": "2025-11-29T23:23:12.751912",
+    "updatedAt": "2025-11-29T23:23:12.751912"
+  },
+  {
+    "id": "INV-aeaffa89-e040-4a17-bfad-77f8ddb5e774",
+    "storeId": "STR-1761569064837",
+    "productId": "10affb06-933f-4551-9e81-4bff91f372ed",
+    "quantity": 1,
+    "assignedAt": "2025-11-29T23:23:14.028787",
+    "updatedAt": "2025-11-29T23:23:14.028787"
+  },
+  {
+    "id": "INV-edd7e712-cd9f-45d1-8494-7bcc5b72c953",
+    "storeId": "STR-1764438854928",
+    "productId": "f46b3c94-4a73-4bbd-ba7b-63e2419bc8bb",
+    "quantity": 5,
+    "assignedAt": "2025-11-30T12:31:31.248439",
+    "updatedAt": "2025-11-30T12:31:31.248439"
+  },
+  {
+    "id": "INV-481d220a-78c7-4b03-8b70-2d008e6d8147",
+    "storeId": "STR-1764438854928",
+    "productId": "4051d7e6-6dcd-4ffb-ac89-dd9089f1a8ba",
+    "quantity": 15,
+    "assignedAt": "2025-11-30T15:00:07.881970",
+    "updatedAt": "2025-11-30T15:00:07.881970"
   }
 ]

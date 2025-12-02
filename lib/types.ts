@@ -2,11 +2,20 @@
   id: string;
   name: string;
   price: number;
-  barcodes?: string[]; // Changed to an array of strings, and made optional
+  barcode?: string; // String for backend storage, comma-separated
   stock: number;
   sellingPrice?: number;
   batchId?: string; // NEW
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreInventory {
+  id: string;
+  storeId: string;
+  productId: string;
+  quantity: number;
+  assignedAt: string;
   updatedAt: string;
 }
 

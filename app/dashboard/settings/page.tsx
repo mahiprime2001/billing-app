@@ -43,6 +43,9 @@ interface SystemSettings {
   companyAddress: string
   companyPhone: string
   companyEmail: string
+  id?: number
+  last_sync_id?: number
+  last_sync_time?: string
 }
 
 interface AdminUser {
@@ -88,6 +91,9 @@ export default function SettingsPage() {
     companyAddress: "",
     companyPhone: "",
     companyEmail: "",
+    id: undefined,
+    last_sync_id: undefined,
+    last_sync_time: undefined,
   })
   const [billFormats, setBillFormats] = useState<Record<string, BillFormat>>({})
   const [storeFormats, setStoreFormats] = useState<Record<string, string>>({})
@@ -99,6 +105,15 @@ export default function SettingsPage() {
   const [isSecondConfirmOpen, setIsSecondConfirmOpen] = useState(false)
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
   const [adminUsersToKeep, setAdminUsersToKeep] = useState<string[]>([])
+
+  const defaultSystemSettings: SystemSettings = {
+    gstin: "XX-XXXXX-XXXXX-X",
+    taxPercentage: 18,
+    companyName: "Your Company Name Pvt Ltd",
+    companyAddress: "123 Main St, City, State, ZIP",
+    companyPhone: "+91 98765 43210",
+    companyEmail: "info@yourcompany.com",
+  };
   
   // Update checking states
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
@@ -131,6 +146,7 @@ export default function SettingsPage() {
       const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/admin-users")
       if (response.ok) {
         const data = await response.json()
+        // console.log("Admin Users API response data:", JSON.stringify(data, null, 2)) // Removed console log
         setAdminUsers(data.adminUsers)
       } else {
         console.error("Failed to fetch admin users:", response.statusText)
@@ -151,11 +167,118 @@ export default function SettingsPage() {
   }
 
   const loadSettings = async () => {
+    // --- TEMPORARY MOCK DATA FROM settings.json for debugging ---
+    const mockData: {
+      systemSettings: SystemSettings;
+      billFormats: Record<string, BillFormat>;
+      storeFormats: Record<string, string>;
+    } = {
+      "systemSettings": {
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyEmail": "info@siri.ifleon.com",
+        "companyName": "SIRI ART JEWELLERY",
+        "companyPhone": "+91 889771771",
+        "gstin": "27AAFCV2449G1Z7",
+        "id": 1,
+        "last_sync_id": 1035,
+        "last_sync_time": "2025-11-03T09:44:24",
+        "taxPercentage": 10.4
+      },
+      "billFormats": {
+        "A4": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "A5": {
+          "height": 210,
+          "margins": {
+            "bottom": 15,
+            "left": 15,
+            "right": 15,
+            "top": 15
+          },
+          "unit": "mm",
+          "width": 148
+        },
+        "Custom": {
+          "height": 297,
+          "margins": {
+            "bottom": 20,
+            "left": 20,
+            "right": 20,
+            "top": 20
+          },
+          "unit": "mm",
+          "width": 210
+        },
+        "Thermal_58mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 3,
+            "left": 3,
+            "right": 3,
+            "top": 3
+          },
+          "unit": "mm",
+          "width": 58
+        },
+        "Thermal_80mm": {
+          "height": "auto",
+          "margins": {
+            "bottom": 5,
+            "left": 5,
+            "right": 5,
+            "top": 5
+          },
+          "unit": "mm",
+          "width": 80
+        }
+      },
+      "storeFormats": {}
+    };
+
+    setSettings({
+      gstin: mockData.systemSettings.gstin || defaultSystemSettings.gstin,
+      taxPercentage: mockData.systemSettings.taxPercentage ?? defaultSystemSettings.taxPercentage,
+      companyName: mockData.systemSettings.companyName || defaultSystemSettings.companyName,
+      companyAddress: mockData.systemSettings.companyAddress || defaultSystemSettings.companyAddress,
+      companyPhone: mockData.systemSettings.companyPhone || defaultSystemSettings.companyPhone,
+      companyEmail: mockData.systemSettings.companyEmail || defaultSystemSettings.companyEmail,
+      id: mockData.systemSettings.id,
+      last_sync_id: mockData.systemSettings.last_sync_id,
+      last_sync_time: mockData.systemSettings.last_sync_time,
+    });
+
+    setBillFormats(mockData.billFormats);
+    setStoreFormats(mockData.storeFormats);
+    // --- END TEMPORARY MOCK DATA ---
+
+    // Original API fetch logic - uncomment this when the backend is configured to serve settings.json correctly
     try {
       const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/settings")
       if (response.ok) {
         const data = await response.json()
-        if (data.systemSettings) setSettings(data.systemSettings)
+        
+        const receivedSystemSettings = data.systemSettings || {};
+        setSettings({
+          gstin: receivedSystemSettings.gstin || defaultSystemSettings.gstin,
+          taxPercentage: receivedSystemSettings.taxPercentage ?? defaultSystemSettings.taxPercentage,
+          companyName: receivedSystemSettings.companyName || defaultSystemSettings.companyName,
+          companyAddress: receivedSystemSettings.companyAddress || defaultSystemSettings.companyAddress,
+          companyPhone: receivedSystemSettings.companyPhone || defaultSystemSettings.companyPhone,
+          companyEmail: receivedSystemSettings.companyEmail || defaultSystemSettings.companyEmail,
+          id: receivedSystemSettings.id,
+          last_sync_id: receivedSystemSettings.last_sync_id,
+          last_sync_time: receivedSystemSettings.last_sync_time,
+        });
+
         if (data.billFormats) setBillFormats(data.billFormats)
         if (data.storeFormats) setStoreFormats(data.storeFormats)
       }
@@ -820,34 +943,41 @@ export default function SettingsPage() {
                     Assign specific bill formats to different stores. Each store can have its own printing format.
                   </div>
 
-                  {Object.keys(storeFormats).map((storeId) => (
-                    <Card key={storeId}>
-                      <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-medium">{storeId}</h4>
+                  {Object.keys(storeFormats).length > 0 ? (
+                    Object.keys(storeFormats).map((storeId) => (
+                      <Card key={storeId}>
+                        <CardContent className="pt-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium">{storeId}</h4>
+                            </div>
+                            <div className="w-48">
+                              <Select
+                                value={storeFormats[storeId] || "A4"}
+                                onValueChange={(value) => assignFormatToStore(storeId, value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select format" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Object.keys(billFormats).map((formatName) => (
+                                    <SelectItem key={formatName} value={formatName}>
+                                      {formatName.replace("_", " ")}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
-                          <div className="w-48">
-                            <Select
-                              value={storeFormats[storeId] || "A4"}
-                              onValueChange={(value) => assignFormatToStore(storeId, value)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select format" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Object.keys(billFormats).map((formatName) => (
-                                  <SelectItem key={formatName} value={formatName}>
-                                    {formatName.replace("_", " ")}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-8">
+                      <p className="mb-2">No stores configured yet.</p>
+                      <p className="text-sm">Add stores in the "Stores" section of the dashboard to assign bill formats.</p>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
@@ -1004,6 +1134,12 @@ export default function SettingsPage() {
                   <span>Email: {settings.companyEmail}</span>
                 </div>
                 <p className="text-sm font-mono">GSTIN: {settings.gstin}</p>
+                {settings.id !== undefined && (
+                  <p className="text-xs text-gray-500">Settings ID: {settings.id}</p>
+                )}
+                {settings.last_sync_time && (
+                  <p className="text-xs text-gray-500">Last Sync: {new Date(settings.last_sync_time).toLocaleString()}</p>
+                )}
                 <div className="mt-4 p-3 bg-white rounded border">
                   <div className="text-sm space-y-1">
                     <div className="flex justify-between">

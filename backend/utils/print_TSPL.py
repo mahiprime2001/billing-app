@@ -47,13 +47,16 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
             
             # Get barcode
             barcode = ""
-            barcodes_field = product.get("barcodes")
-            if isinstance(barcodes_field, list) and len(barcodes_field) > 0:
-                barcode = str(barcodes_field[0])
-            elif product.get("barcode"):
+            barcodes_str = product.get("barcodes")
+            if isinstance(barcodes_str, str) and barcodes_str.strip():
+                # Split by comma and take the first non-empty barcode
+                codes = [b.strip() for b in barcodes_str.split(',') if b.strip()]
+                if codes:
+                    barcode = codes[0]
+            elif product.get("barcode"): # Fallback for old 'barcode' field if it still exists
                 barcode = str(product.get("barcode"))
             else:
-                barcode = str(product.get("id", ""))
+                barcode = str(product.get("id", "")) # Fallback to product ID
             
             logger.info(f"    🔖 Barcode: {barcode}")
             

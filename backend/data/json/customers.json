@@ -1,11 +1,38 @@
 [
   {
+    "address": "",
+    "createdat": "2025-11-30T22:43:30.287587",
+    "email": "",
+    "id": "CUST-9bbc046f3ec4",
+    "name": "Walk-in Customer",
+    "phone": "",
+    "updatedat": "2025-11-30T22:43:30.287587"
+  },
+  {
+    "address": "",
+    "createdat": "2025-11-30T22:40:56.680614",
+    "email": "",
+    "id": "CUST-e94dd587b323",
+    "name": "Walk-in Customer",
+    "phone": "",
+    "updatedat": "2025-11-30T22:40:56.680614"
+  },
+  {
+    "address": "",
+    "createdat": "2025-11-30T22:31:35.849166",
+    "email": "",
+    "id": "CUST-8d2ed34b0eaa",
+    "name": "Walk-in Customer",
+    "phone": "",
+    "updatedat": "2025-11-30T22:31:35.849166"
+  },
+  {
+    "address": null,
+    "createdat": "2025-08-10T15:53:40",
+    "email": null,
     "id": "CUST-1754821420265",
     "name": "Walk-in Customer",
     "phone": null,
-    "email": null,
-    "address": null,
-    "createdAt": "2025-08-10T15:53:40",
-    "updatedAt": "2025-08-10T15:53:40"
+    "updatedat": "2025-08-10T15:53:40"
   }
 ]

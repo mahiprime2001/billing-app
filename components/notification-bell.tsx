@@ -17,7 +17,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 // Notification types
 export interface Notification {
   id: string
-  type: "PASSWORD_RESET" | "USER_LOGIN" | "SYSTEM_ALERT"
+  type: "PASSWORD_RESET" | "USER_LOGIN" | "SYSTEM_ALERT" | "RETURN_REQUEST" // Added RETURN_REQUEST
   title: string
   message: string
   userId: string
@@ -27,6 +27,7 @@ export interface Notification {
   createdAt: string
   syncLogId: number
   _internalKey?: string // Add an internal key for React list reconciliation
+  link?: string // Optional link for redirection
 }
 
 interface NotificationResponse {
@@ -56,13 +57,25 @@ const NotificationItem: React.FC<{
     switch (notification.type) {
       case "PASSWORD_RESET":
         return <User className="h-4 w-4 text-blue-600" />
+      case "RETURN_REQUEST": // Added icon for return requests
+        return <RefreshCw className="h-4 w-4 text-purple-600" />
       default:
         return <Bell className="h-4 w-4 text-gray-600" />
     }
   }
 
+  const handleNotificationClick = () => {
+    if (notification.link) {
+      window.location.href = notification.link;
+    }
+    onMarkAsRead(notification.id);
+  };
+
   return (
-    <div className={`group p-3 hover:bg-accent/50 transition-colors border-l-2 ${!notification.isRead ? 'bg-blue-50/50 border-l-blue-500' : 'border-l-transparent'}`}>
+    <div 
+      className={`group p-3 hover:bg-accent/50 transition-colors border-l-2 ${!notification.isRead ? 'bg-blue-50/50 border-l-blue-500' : 'border-l-transparent'} ${notification.link ? 'cursor-pointer' : ''}`}
+      onClick={handleNotificationClick}
+    >
       <div className="flex items-start space-x-3">
         <Avatar className="h-8 w-8 rounded-lg flex-shrink-0">
           <AvatarFallback className="rounded-lg bg-blue-100 text-blue-600 text-xs">

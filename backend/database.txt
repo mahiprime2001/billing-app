@@ -72,13 +72,6 @@ Table: Notifications
   - created_at (datetime) NULLABLE DEFAULT current_timestamp()  
   - updated_at (datetime) NULLABLE DEFAULT current_timestamp()  
 
-Table: ProductBarcodes
-  - id (int(11)) NOT NULL  PRIMARY KEY AUTO_INCREMENT
-  - productId (varchar(255)) NULLABLE   
-  - barcode (varchar(255)) NULLABLE   
-  Foreign Keys:
-    - Constraint: ProductBarcodes_ibfk_1, Column: productId, References: Products(id)
-
 Table: Products
   - id (varchar(255)) NOT NULL  PRIMARY KEY 
   - name (varchar(255)) NULLABLE   
@@ -88,12 +81,12 @@ Table: Products
   - selling_price (decimal(10,2)) NULLABLE   
   - createdAt (datetime) NULLABLE DEFAULT current_timestamp()  
   - updatedAt (datetime) NULLABLE DEFAULT current_timestamp()  
-  - barcode (varchar(255)) NULLABLE   
+  - barcodes (text) NULLABLE   
   - description (text) NULLABLE   
   - category (varchar(255)) NULLABLE   
   - supplier (varchar(255)) NULLABLE   
   - imageUrl (text) NULLABLE   
-  Foreign Keys:
+  FoeignKy:
     - Constraint: fk_products_batch, Column: batchId, References: batch(id)
 
 Table: Returns
@@ -226,4 +219,4 @@ Table: sync_table_backup
   - sync_time (datetime) NULLABLE   
   - change_type (varchar(50)) NULLABLE   
   - change_data (longtext) NULLABLE   
-  - timestamp (datetime) NULLABLE DEFAULT current_timestamp()  
+  - timestamp (datetime) NULLABLE DEFAULT current_timestamp()

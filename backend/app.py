@@ -18,7 +18,9 @@ from dotenv import load_dotenv
 from urllib.parse import urlparse
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash # NEW: For password hashing
-from utils.db import DatabaseConnection
+from utils.supabase_db import db as SupabaseDBClient_instance # Renamed for clarity
+from utils.supabase_db import db # Import the global SupabaseDB instance
+from utils.db import DatabaseConnection as MySQLDatabaseConnection
 from utils import sync_utils  # Keep existing sync_utils for compatibility
 from scripts.sync import apply_change_to_db  # Keep apply_change_to_db for direct DB operations
 from scripts.export_data import export_formatted_data # NEW: Import export function
@@ -30,17 +32,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')
 
-# NEW: Add field name conversion utility
-def convert_camel_to_snake(data):
-    """Convert camelCase keys to snake_case for database compatibility"""
-    converted = {}
-    for key, value in data.items():
-        # Convert sellingPrice -> selling_price
-        if key == 'sellingPrice':
-            converted['selling_price'] = value
-        else:
-            converted[key] = value
-    return converted
+from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel # NEW: Import conversion utilities
 
 # NEW: Import enhanced sync manager
 try:
@@ -103,7 +95,7 @@ def log_request_info():
 # Enable CORS for specific origins and methods
 CORS(
     app,
-    resources={r"/api/*": {"origins": "*"}},
+    resources={r"/api/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000", "http://127.0.0.1:5050"]}},
     supports_credentials=True,
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
@@ -133,6 +125,28 @@ def ensure_data_directories():
         else:
             app.logger.debug(f"Directory already exists: {directory}")
 
+def cleanup_old_log_files(log_directory, days_to_keep):
+    """
+    Deletes log files in the specified directory that are older than days_to_keep.
+    """
+    app.logger.info(f"Starting log file cleanup in {log_directory}. Keeping files for {days_to_keep} days.")
+    cutoff_time = datetime.now() - timedelta(days=days_to_keep)
+    
+    deleted_count = 0
+    for filename in os.listdir(log_directory):
+        filepath = os.path.join(log_directory, filename)
+        if os.path.isfile(filepath) and filename.startswith('app-log-') and filename.endswith('.log'):
+            try:
+                # Get file modification time
+                file_mod_time = datetime.fromtimestamp(os.path.getmtime(filepath))
+                if file_mod_time < cutoff_time:
+                    os.remove(filepath)
+                    app.logger.info(f"Deleted old log file: {filepath}")
+                    deleted_count += 1
+            except Exception as e:
+                app.logger.error(f"Error deleting log file {filepath}: {e}")
+    app.logger.info(f"Finished log file cleanup. Deleted {deleted_count} old log files.")
+
 # Call once during startup
 ensure_data_directories()
 
@@ -146,10 +160,17 @@ SESSIONS_FILE = os.path.join(JSON_DIR, 'user_sessions.json')
 BATCHES_FILE = os.path.join(JSON_DIR, 'batches.json') # NEW
 RETURNS_FILE = os.path.join(JSON_DIR, 'returns.json') # NEW: Returns file path
 SETTINGS_FILE = os.path.join(JSON_DIR, 'settings.json') # NEW
+USERSTORES_FILE = os.path.join(JSON_DIR, 'userstores.json') # NEW: UserStores file path
 
 # Configure logging for the Flask app
 LOG_DIR = LOGS_DIR # Use the new LOGS_DIR
-LOG_FILE = os.path.join(LOG_DIR, 'app.log')
+# Dynamic log file naming with date
+LOG_FILE_NAME = f"app-log-{datetime.now().strftime('%Y-%m-%d')}.log"
+LOG_FILE = os.path.join(LOG_DIR, LOG_FILE_NAME)
+
+# Ensure the log directory exists before creating the file handler
+os.makedirs(LOG_DIR, exist_ok=True)
+
 file_handler = logging.FileHandler(LOG_FILE, encoding='utf-8') # Explicitly set UTF-8 encoding
 file_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
@@ -191,7 +212,11 @@ def _safe_json_load(path, default):
         return default
     try:
         with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+            # Ensure top-level dictionary keys are strings to prevent TypeError with jsonify
+            if isinstance(data, dict):
+                return {str(k): v for k, v in data.items()}
+            return data
     except json.JSONDecodeError:
         return default
 
@@ -214,106 +239,85 @@ def _safe_json_dump(path, data):
 
 def initialize_full_data_pull():
     """
-    On first startup (if data folder missing/empty), pull ALL data from MySQL
+    On first startup (if data folder missing/empty), pull ALL data from Supabase
     into respective JSON files. Only runs once during initialization.
     """
-    app.logger.info("Starting initial full data pull from MySQL...")
+    app.logger.info("Starting initial full data pull from Supabase...")
     
     try:
-        with DatabaseConnection.get_connection_ctx() as conn:
-            cursor = conn.cursor(dictionary=True)
+        client = db.client # Get Supabase client
             
-            # Define table-to-file mappings
-            table_mappings = {
-                'Products': PRODUCTS_FILE,
-                'Users': USERS_FILE,
-                'Bills': BILLS_FILE,
-                'Customers': CUSTOMERS_FILE,
-                'Stores': STORES_FILE,
-                'batch': BATCHES_FILE,
-                'Notifications': NOTIFICATIONS_FILE,
-                'Returns': RETURNS_FILE, # NEW: Add Returns table
-                'SystemSettings': SETTINGS_FILE,
-                'StoreInventory': os.path.join(JSON_DIR, 'storeinventory.json') # NEW: Add StoreInventory table
-            }
+        # Define table-to-file mappings
+        table_mappings = {
+            'products': PRODUCTS_FILE, # Use lowercase table names for Supabase
+            'users': USERS_FILE,
+            'bills': BILLS_FILE,
+            'customers': CUSTOMERS_FILE,
+            'stores': STORES_FILE,
+            'batch': BATCHES_FILE,
+            'notifications': NOTIFICATIONS_FILE,
+            'returns': RETURNS_FILE,
+            'systemsettings': SETTINGS_FILE, # Lowercase
+            'storeinventory': os.path.join(JSON_DIR, 'storeinventory.json') # Lowercase
+        }
             
-            for table_name, json_file in table_mappings.items():
-                try:
-                    app.logger.debug(f"Pulling all records from {table_name}...")
+        for table_name, json_file in table_mappings.items():
+            try:
+                app.logger.debug(f"Pulling all records from {table_name}...")
                     
-                    # Query: get ALL records from the table
-                    cursor.execute(f"SELECT * FROM `{table_name}`")
-                    records = cursor.fetchall()
+                # Query: get ALL records from the table
+                result = client.table(table_name).select("*").execute()
+                records = result.data
                     
-                    if records:
-                        # Convert Decimal and datetime objects for JSON serialization
-                        serialized_records = []
-                        for record in records:
-                            serialized = {
-                                k: (
-                                    float(v) if isinstance(v, Decimal)
-                                    else v.isoformat() if isinstance(v, (datetime, date))
-                                    else v
-                                )
-                                for k, v in record.items()
-                            }
-                            serialized_records.append(serialized)
-
-                            # If pulling Products, also attach barcodes from ProductBarcodes
-                            if table_name == 'Products':
-                                try:
-                                    # fetch all product barcodes and build mapping
-                                    cursor.execute('SELECT productId, barcode FROM ProductBarcodes')
-                                    pb_rows = cursor.fetchall()
-                                    pb_map = {}
-                                    for pb in pb_rows:
-                                        pid = pb.get('productId')
-                                        code = pb.get('barcode')
-                                        if pid is None:
-                                            continue
-                                        pb_map.setdefault(pid, []).append(code)
-
-                                    for item in serialized_records:
-                                        pid = item.get('id')
-                                        codes = pb_map.get(pid, [])
-                                        # Store only a single canonical barcode (first one)
-                                        if codes:
-                                            item['barcode'] = codes[0]
-                                        else:
-                                            # remove any existing barcode key to avoid nulls
-                                            if 'barcode' in item:
-                                                item.pop('barcode', None)
-
-                                        # Ensure we don't keep legacy 'barcodes' lists
-                                        if 'barcodes' in item:
-                                            item.pop('barcodes', None)
-                                except Exception as e:
-                                    app.logger.debug(f"Could not fetch ProductBarcodes during full pull: {e}")
-
-                            # For SystemSettings, save as dict, not list
-                            if table_name == 'SystemSettings':
-                                settings_dict = {s['id']: s for s in serialized_records}
-                                _safe_json_dump(json_file, settings_dict)
-                            else:
-                                _safe_json_dump(json_file, serialized_records)
+                if records:
+                    serialized_records = []
+                    for record in records:
+                        # Apply snake_case to camelCase conversion for each record
+                        converted_record = convert_snake_to_camel(record)
                         
-                        app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+                        # Handle Decimal to float conversion and keep other values as is
+                        serialized = {
+                            k: (float(v) if isinstance(v, Decimal) else v)
+                            for k, v in converted_record.items()
+                        }
+                        serialized_records.append(serialized)
+
+                        # If pulling Products, ensure barcodes are correctly mapped
+                        if table_name == 'products': # Lowercase
+                            # The 'barcodes' field should already be part of the product record
+                            # No need for separate productbarcodes fetch
+                            pass
+
+                        serialized_records.append(serialized)
+
+                    # After collecting all records, save to the respective JSON file
+                    if table_name == 'systemsettings': # Lowercase
+                        settings_dict = {s['id']: s for s in serialized_records}
+                        _safe_json_dump(json_file, settings_dict)
                     else:
-                        app.logger.debug(f"No records found in {table_name}, using empty default")
+                        _safe_json_dump(json_file, serialized_records)
                         
-                except Exception as table_err:
-                    app.logger.error(f"Error pulling {table_name}: {table_err}", exc_info=True)
-                    continue  # Skip this table, continue with others
+                    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+                else:
+                    app.logger.debug(f"No records found in {table_name}, using empty default. Initializing empty list for {json_file}")
+                    _safe_json_dump(json_file, []) # Ensure an empty list is saved if no records are found.
+                        
+            except Exception as table_err:
+                app.logger.error(f"Error pulling {table_name}: {table_err}", exc_info=True)
+                # If there's an error pulling a specific table, ensure its local JSON is still initialized to an empty list
+                # to prevent further errors when the frontend tries to read it.
+                _safe_json_dump(json_file, [])
+                continue  # Skip this table, continue with others
             
-            # Update last sync timestamp
-            settings = get_settings_data()
-            if 'systemSettings' not in settings:
-                settings['systemSettings'] = {}
-            settings['systemSettings']['last_sync_time'] = datetime.now().isoformat()
-            save_settings_data(settings)
+        # Update last sync timestamp
+        settings = get_settings_data()
+        if 'systemSettings' not in settings:
+            settings['systemSettings'] = {}
+        settings['systemSettings']['last_sync_time'] = datetime.now().isoformat()
+        save_settings_data(settings)
             
-            app.logger.info("Full data pull completed successfully")
-            return True
+        app.logger.info("Full data pull completed successfully")
+        return True
             
     except Exception as e:
         app.logger.error(f"Error during full data pull: {e}", exc_info=True)
@@ -350,6 +354,20 @@ def save_products_data(products):
     """Save products to local JSON (PRIMARY storage)"""
     _safe_json_dump(PRODUCTS_FILE, products)
 
+def update_product_stock(product_id, delta, context=""):
+    """
+    Guardrail: Explicitly disallow product stock updates during store assignment context.
+    For other contexts, this would be the place to implement stock modification logic.
+    """
+    if context == "assignment":
+        raise Exception(
+            f"❌ Stock updates for product {product_id} not allowed during store assignment. "
+            "Only store inventory quantity should be modified."
+        )
+    # If other contexts need to update product stock, implement logic here.
+    # For now, it's strictly a guardrail.
+    pass # No actual stock update logic implemented here yet, just the guardrail
+
 def get_users_data():
     """Get users from local JSON (PRIMARY source)"""
     return _safe_json_load(USERS_FILE, [])
@@ -382,6 +400,35 @@ def save_notifications_data(notifications):
     """Save notifications to local JSON (PRIMARY storage)"""
     _safe_json_dump(NOTIFICATIONS_FILE, notifications)
 
+def add_notification(notification_data: dict):
+    """Adds a new notification to the system."""
+    notifications = get_notifications_data()
+    
+    # Generate ID if not present
+    if 'id' not in notification_data:
+        notification_data['id'] = str(uuid.uuid4())
+
+    # Add timestamps (Supabase schema uses camelCase for created_at, updated_at in local JSON)
+    now_iso = datetime.now().isoformat()
+    if 'createdAt' not in notification_data:
+        notification_data['createdAt'] = now_iso
+    if 'updatedAt' not in notification_data:
+        notification_data['updatedAt'] = now_iso
+    
+    # Default values for new notifications
+    notification_data.setdefault('isRead', False)
+    notification_data.setdefault('syncLogId', 0) # Placeholder or actual ID if relevant
+
+    notifications.insert(0, notification_data) # Add to the beginning of the list
+    save_notifications_data(notifications)
+    
+    # Log for sync to Supabase (using snake_case for DB)
+    db_notification_data = convert_camel_to_snake(notification_data)
+    log_crud_operation('notifications', 'CREATE', notification_data['id'], db_notification_data)
+    app.logger.info(f"Notification created: {notification_data['title']} ({notification_data['id']})")
+    return notification_data
+
+
 # NEW: Returns file path and helpers
 def get_returns_data():
     """Get returns from local JSON (PRIMARY source)"""
@@ -408,6 +455,14 @@ def get_bills_data():
 def save_bills_data(bills):
     _safe_json_dump(BILLS_FILE, bills)
 
+def get_user_stores_data():
+    """Get user stores from local JSON (PRIMARY source)"""
+    return _safe_json_load(USERSTORES_FILE, [])
+
+def save_user_stores_data(userstores):
+    """Save user stores to local JSON (PRIMARY storage)"""
+    _safe_json_dump(USERSTORES_FILE, userstores)
+
 def get_settings_data():
     """Get settings from local JSON (PRIMARY source)"""
     return _safe_json_load(SETTINGS_FILE, {})
@@ -432,14 +487,15 @@ def save_store_inventory_data(inventory):
 
 def get_primary_barcode(product: dict) -> str:
     """
-    Helper to expose a single primary barcode for UI (e.g., first barcode in list).
+    Helper to expose a single primary barcode for UI (e.g., first barcode in a comma-separated string).
     """
-    if isinstance(product.get('barcode'), str) and product['barcode'].strip():
-        return product['barcode']
-    barcodes = product.get('barcodes')
-    if isinstance(barcodes, list) and len(barcodes) > 0:
-        return str(barcodes[0])
+    barcodes_str = product.get('barcodes')
+    if isinstance(barcodes_str, str) and barcodes_str.strip():
+        # Split by comma and return the first non-empty barcode
+        codes = [b.strip() for b in barcodes_str.split(',') if b.strip()]
+        return codes[0] if codes else ""
     return ""
+
 
 def queue_for_sync(table_name: str, record_data: dict, operation_type: str):
     """
@@ -461,43 +517,35 @@ def queue_for_sync(table_name: str, record_data: dict, operation_type: str):
 def log_to_sync_table_only(table_name: str, record_data: dict, operation_type: str):
     """
     Fallback method to log to sync_table when sync_controller is not available.
+    This now logs to Supabase.
     """
     try:
-        conn = DatabaseConnection.get_connection()
-        if not conn:
-            app.logger.warning("No database connection - change stored locally only")
-            return
-        
-        cursor = conn.cursor()
+        client = db.client # Get Supabase client
+            
         change_data_json = json.dumps(record_data, default=str, ensure_ascii=False)
-        
-        query = """
-            INSERT INTO sync_table 
-            (table_name, record_id, operation_type, change_data, source, status, created_at)
-            VALUES (%s, %s, %s, %s, 'local', 'pending', NOW())
-        """
-        
-        cursor.execute(query, (
-            table_name,
-            str(record_data.get('id', '')),
-            operation_type.upper(),
-            change_data_json
-        ))
-        
-        conn.commit()
-        cursor.close()
-        conn.close()
-        
+            
+        sync_data = {
+            'table_name': table_name,
+            'record_id': str(record_data.get('id', '')),
+            'operation_type': operation_type.upper(),
+            'change_data': change_data_json,
+            'source': 'local',
+            'status': 'pending', # Still pending if it's a fallback to be processed later
+            'created_at': datetime.now().isoformat()
+        }
+            
+        client.table('sync_table').insert(sync_data).execute()
+            
     except Exception as e:
-        app.logger.error(f"Error logging to sync_table: {e}")
+        app.logger.error(f"Error logging to Supabase sync_table (fallback): {e}")
 
 # Enhanced sync logging function with DIRECT MySQL table writes
 def log_crud_operation(json_type: str, operation: str, record_id: str, data: dict):
     """
     Enhanced CRUD logging that:
-    1. Writes directly to the MySQL table (Products, Users, Bills, etc.)
-    2. Logs to MySQL sync_table for tracking
-    3. Logs to local sync system (existing)
+    1. Writes directly to the MySQL table (Products, Users, Bills, etc.) if enhanced sync is on,
+       or queues for legacy sync.
+    2. Logs to Supabase sync_table for tracking.
     """
     # Map JSON types to database table names
     table_mapping = {
@@ -507,86 +555,81 @@ def log_crud_operation(json_type: str, operation: str, record_id: str, data: dic
         'customers': 'Customers',
         'stores': 'Stores',
         'notifications': 'Notifications',
-        'returns': 'Returns', # NEW: Add Returns to table mapping
+        'returns': 'Returns',
         'settings': 'SystemSettings',
         'batches': 'batch',
-        'storeinventory': 'StoreInventory'
+        'storeinventory': 'StoreInventory',
+        'userstores': 'UserStores'
     }
     
     table_name = table_mapping.get(json_type, json_type.title())
+
+    # --- Normalize userstores fields strictly ---
+    # Ensure that for 'userstores', only 'userid' and 'storeid' are present in the data
+    if table_name.lower() == 'userstores':
+        normalized_data = {
+            'userid': data.get('userid'),
+            'storeid': data.get('storeid')
+        }
+        # Filter out None values to ensure strict adherence to schema
+        data = {k: v for k, v in normalized_data.items() if v is not None}
+        app.logger.debug(f"Normalized userstores data for sync: {data}")
     
-    # STEP 1: Write directly to the actual MySQL table
-    try:
-        success = _write_to_mysql_table(table_name, operation, record_id, data)
-        if not success:
-            app.logger.error(f"Failed to write {operation} to MySQL table {table_name}")
-    except Exception as e:
-        app.logger.error(f"Error writing to MySQL table {table_name}: {e}", exc_info=True)
-    
-    # STEP 2: Log to enhanced sync manager (existing)
+    # Determine the primary data persistence path based on sync availability
     if ENHANCED_SYNC_AVAILABLE and sync_manager:
-        log_json_crud_operation(json_type, operation, record_id, data)
+        try:
+            log_json_crud_operation(json_type, operation, record_id, data)
+            app.logger.info(f"Enhanced sync manager recorded {operation} for {table_name}:{record_id}.")
+        except Exception as e:
+            app.logger.error(f"Error delegating to enhanced sync manager for {table_name}:{record_id}: {e}", exc_info=True)
     else:
-        # Fall back to legacy sync system
-        sync_utils.add_to_sync_table(table_name, operation, record_id, data)
+        try:
+            sync_utils.add_to_sync_table(table_name, operation, record_id, data)
+            app.logger.info(f"Legacy sync system added {operation} for {table_name}:{record_id} to local sync_table.")
+        except Exception as e:
+            app.logger.error(f"Error adding to legacy sync_table for {table_name}:{record_id}: {e}", exc_info=True)
     
-    # STEP 3: Log to MySQL sync_table for tracking
+    # Log to Supabase sync_table for tracking (audit trail), regardless of sync system used.
     try:
-        _log_to_mysql_sync_table(table_name, operation, record_id, data)
+        _log_to_supabase_sync_table(table_name, operation, record_id, data)
     except Exception as e:
-        app.logger.error(f"Failed to log to MySQL sync_table: {e}", exc_info=True)
+        app.logger.error(f"Failed to log to Supabase sync_table for {table_name}:{record_id}: {e}", exc_info=True)
 
-def _write_to_mysql_table(table_name: str, operation: str, record_id: str, data: dict) -> bool:
+def _log_to_supabase_sync_table(table_name: str, operation: str, record_id: str, data: dict):
     """
-    Write data directly to the actual MySQL table
+    Log changes to Supabase sync_table for tracking (audit trail).
     """
     try:
-        from scripts.sync import apply_change_to_db
-        
-        # Use the existing apply_change_to_db function from sync.py
-        success = apply_change_to_db(
-            table_name=table_name,
-            change_type=operation.upper(),
-            record_id=record_id,
-            change_data=data,
-            logger_instance=app.logger
-        )
-        
-        if success:
-            app.logger.info(f"Successfully wrote {operation} to MySQL table {table_name} for record {record_id}")
-        else:
-            app.logger.warning(f"Failed to write {operation} to MySQL table {table_name} for record {record_id}")
-        
-        return success
-        
-    except Exception as e:
-        app.logger.error(f"Error in _write_to_mysql_table for {table_name}: {e}", exc_info=True)
-        return False
+        client = db.client # Get Supabase client
+            
+        # Serialize change data to JSON
+        change_data_json = json.dumps(data, default=str, ensure_ascii=False)
+            
+        sync_data = {
+            'table_name': table_name,
+            'record_id': str(record_id),
+            'operation_type': operation.upper(),
+            'change_data': change_data_json,
+            'source': 'local',
+            'status': 'synced', # Mark as synced as it's directly written (for audit)
+            'created_at': datetime.now().isoformat()
+        }
 
-def _log_to_mysql_sync_table(table_name: str, operation: str, record_id: str, data: dict):
-    """
-    Log changes to MySQL sync_table for tracking (audit trail)
-    """
-    try:
-        with DatabaseConnection.get_connection_ctx() as conn:
-            cursor = conn.cursor()
+        # This block is now less critical due to early normalization, but kept as a safeguard
+        if table_name.lower() == 'userstores':
+            temp_data = json.loads(sync_data['change_data'])
+            if 'createdat' in temp_data and temp_data['createdat'] is None:
+                del temp_data['createdat']
+            if 'updatedat' in temp_data and temp_data['updatedat'] is None:
+                del temp_data['updatedat']
+            sync_data['change_data'] = json.dumps(temp_data, default=str, ensure_ascii=False)
+
+        client.table('sync_table').insert(sync_data).execute()
             
-            # Serialize change data to JSON
-            change_data_json = json.dumps(data, default=str, ensure_ascii=False)
-            
-            query = """
-                INSERT INTO `sync_table` 
-                (`table_name`, `record_id`, `operation_type`, `change_data`, `source`, `status`, `created_at`)
-                VALUES (%s, %s, %s, %s, 'local', 'synced', NOW())
-            """
-            
-            cursor.execute(query, (table_name, str(record_id), operation.upper(), change_data_json))
-            conn.commit()
-            
-            app.logger.info(f"Logged to MySQL sync_table: {table_name} - {operation} - {record_id}")
+        app.logger.info(f"Logged to Supabase sync_table: {table_name} - {operation} - {record_id}")
             
     except Exception as e:
-        app.logger.error(f"Error logging to MySQL sync_table: {e}", exc_info=True)
+        app.logger.error(f"Error logging to Supabase sync_table: {e}", exc_info=True)
         raise
 
 # Helper functions for new inventory endpoints
@@ -629,29 +672,287 @@ def not_found(error):
     return jsonify({"status": "error", "message": "Resource not found"}), 404
 
 # ============================================
-# PRODUCTS API - OFFLINE FIRST
+# CUSTOMERS API - OFFLINE FIRST
 # ============================================
 
-@app.route("/api/products", methods=["GET"])
-def get_products():
-    """Get products from LOCAL JSON (offline-capable)"""
+# ============================================
+# CUSTOMERS API - OFFLINE FIRST (LOCAL JSON)
+# ============================================
+
+@app.route("/api/local/customers", methods=["GET"])
+def get_local_customers():
+    """Get customers from LOCAL JSON"""
     try:
-        products = get_products_data()
-        
-        # Transform to use selling_price
-        for product in products:
-            if 'selling_price' in product and product['selling_price']:
-                product['displayPrice'] = product['selling_price']
-            elif 'price' in product:
-                product['displayPrice'] = product['price']
-        
-        return jsonify(products), 200
+        customers = get_customers_data()
+        transformed_customers = [convert_snake_to_camel(customer) for customer in customers]
+        app.logger.debug(f"Returning {len(transformed_customers)} customers from local JSON.")
+        return jsonify(transformed_customers), 200
     except Exception as e:
-        app.logger.error(f"Error getting products: {e}")
+        app.logger.error(f"Error getting local customers: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/local/customers/update", methods=["POST"])
+def update_local_customers():
+    """Update local JSON customers with new data"""
+    try:
+        customers_data = request.json
+        if not isinstance(customers_data, list):
+            return jsonify({"error": "Expected a list of customers"}), 400
+        
+        # Convert from camelCase to snake_case before saving to local JSON
+        snake_case_customers = [convert_camel_to_snake(customer) for customer in customers_data]
+        save_customers_data(snake_case_customers)
+        app.logger.info(f"Updated local JSON with {len(customers_data)} customers.")
+        return jsonify({"message": f"Local customers updated with {len(customers_data)} records."}), 200
+    except Exception as e:
+        app.logger.error(f"Error updating local customers: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
-@app.route("/api/products", methods=["POST"])
+@app.route("/api/supabase/customers", methods=["GET"])
+def get_supabase_customers():
+    """Get customers directly from Supabase"""
+    try:
+        client = db.client
+        response = client.table("customers").select("*").execute()
+        customers = response.data or []
+        
+        # Calculate total bills and total spent for each customer
+        # This logic needs to pull from Supabase bills as well for consistency
+        # For simplicity for this task, we'll return raw customers and let frontend handle full aggregation if needed
+        # Or, ideally, this would be a materialized view or a more complex query if performance is critical
+        
+        # For now, just convert to camelCase for frontend
+        transformed_customers = [convert_snake_to_camel(customer) for customer in customers]
+        
+        app.logger.debug(f"Returning {len(transformed_customers)} customers from Supabase.")
+        return jsonify(transformed_customers), 200
+    except Exception as e:
+        app.logger.error(f"Error getting Supabase customers: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+# Original /api/customers endpoint (can keep if other parts of the app still rely on its merging logic)
+@app.route("/api/customers", methods=["GET"])
+def get_customers():
+    """Get customers by merging local and Supabase (for existing calls)"""
+    try:
+        # Prioritize Supabase if available
+        supabase_customers_response = get_supabase_customers()
+        if supabase_customers_response.status_code == 200:
+            supabase_customers = json.loads(supabase_customers_response.data)
+        else:
+            supabase_customers = []
+
+        local_customers_response = get_local_customers()
+        if local_customers_response.status_code == 200:
+            local_customers = json.loads(local_customers_response.data)
+        else:
+            local_customers = []
+        
+        merged_customers_map = {c.get('id'): c for c in local_customers if c.get('id')}
+        for sc in supabase_customers:
+            if sc.get('id'):
+                merged_customers_map[sc['id']] = sc
+        
+        final_customers = list(merged_customers_map.values())
+
+        # Recalculate total bills and total spent based on a comprehensive bill set
+        # This part still needs to be refined for a pure Supabase-first approach if bills are also fetched conditionally.
+        # For now, it will use get_bills_data() which might also be a mix.
+        # A more robust solution would be to pass a 'source' parameter or have separate full Supabase-only endpoints for aggregation.
+        bills_response = get_bills() # Using the existing merged bills endpoint
+        if bills_response.status_code == 200:
+            bills = json.loads(bills_response.data)
+        else:
+            bills = []
+
+        customer_bills_map = defaultdict(lambda: {'totalBills': 0, 'totalSpent': 0.0})
+
+        for bill in bills:
+            customer_email = bill.get('customerEmail')
+            customer_phone = bill.get('customerPhone')
+            total = float(bill.get('total', 0))
+
+            if customer_email:
+                customer_bills_map[customer_email]['totalBills'] += 1
+                customer_bills_map[customer_email]['totalSpent'] += total
+            if customer_phone and customer_phone != customer_email:
+                customer_bills_map[customer_phone]['totalBills'] += 1
+                customer_bills_map[customer_phone]['totalSpent'] += total
+
+        final_customers_with_stats = []
+        for customer in final_customers:
+            identifier = customer.get('email') or customer.get('phone')
+            if identifier and identifier in customer_bills_map:
+                customer['totalBills'] = customer_bills_map[identifier]['totalBills']
+                customer['totalSpent'] = round(customer_bills_map[identifier]['totalSpent'], 2)
+            else:
+                customer['totalBills'] = 0
+                customer['totalSpent'] = 0.0
+            final_customers_with_stats.append(customer)
+
+        app.logger.debug(f"Returning {len(final_customers_with_stats)} merged customers for frontend.")
+        return jsonify(final_customers_with_stats), 200
+    except Exception as e:
+        app.logger.error(f"Error getting merged customers: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+# ============================================
+# PRODUCTS API - OFFLINE FIRST (LOCAL JSON)
+# ============================================
+
+@app.route("/api/local/products", methods=["GET"])
+def get_local_products():
+    """Get products from LOCAL JSON"""
+    try:
+        products = get_products_data()
+        transformed_products = []
+        for product in products:
+            converted_product = convert_snake_to_camel(product)
+            if 'sellingPrice' in converted_product and converted_product['sellingPrice']:
+                converted_product['displayPrice'] = converted_product['sellingPrice']
+            elif 'price' in converted_product:
+                converted_product['displayPrice'] = converted_product['price']
+            
+            barcode_str = converted_product.get('barcode')
+            if isinstance(barcode_str, str) and barcode_str.strip():
+                converted_product['barcodes'] = [b.strip() for b in barcode_str.split(',') if b.strip()]
+            else:
+                converted_product['barcodes'] = []
+            transformed_products.append(converted_product)
+        
+        app.logger.debug(f"Returning {len(transformed_products)} products from local JSON.")
+        return jsonify(transformed_products), 200
+    except Exception as e:
+        app.logger.error(f"Error getting local products: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/local/products/update", methods=["POST"])
+def update_local_products():
+    """Update local JSON products with new data"""
+    try:
+        products_data = request.json
+        if not isinstance(products_data, list):
+            return jsonify({"error": "Expected a list of products"}), 400
+        
+        snake_case_products = [convert_camel_to_snake(product) for product in products_data]
+        save_products_data(snake_case_products)
+        app.logger.info(f"Updated local JSON with {len(products_data)} products.")
+        return jsonify({"message": f"Local products updated with {len(products_data)} records."}), 200
+    except Exception as e:
+        app.logger.error(f"Error updating local products: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/supabase/products", methods=["GET"])
+def get_supabase_products():
+    """Get products directly from Supabase"""
+    try:
+        client = db.client
+        response = client.table("products").select("*").execute()
+        products = response.data or []
+        
+        transformed_products = []
+        for product in products:
+            converted_product = convert_snake_to_camel(product)
+            if 'sellingPrice' in converted_product and converted_product['sellingPrice']:
+                converted_product['displayPrice'] = converted_product['sellingPrice']
+            elif 'price' in converted_product:
+                converted_product['displayPrice'] = converted_product['price']
+            
+            barcode_str = converted_product.get('barcode')
+            if isinstance(barcode_str, str) and barcode_str.strip():
+                converted_product['barcodes'] = [b.strip() for b in barcode_str.split(',') if b.strip()]
+            else:
+                converted_product['barcodes'] = []
+            transformed_products.append(converted_product)
+        
+        app.logger.debug(f"Returning {len(transformed_products)} products from Supabase.")
+        return jsonify(transformed_products), 200
+    except Exception as e:
+        app.logger.error(f"Error getting Supabase products: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+# Original /api/products endpoint (can keep if other parts of the app still rely on its merging logic)
+@app.route("/api/products", methods=["GET"])
+def get_products():
+    """Get products by merging local and Supabase (for existing calls)"""
+    try:
+        # This endpoint now primarily relies on merged data from local JSON and Supabase.
+        # Background sync (run by EnhancedSyncManager) is responsible for keeping local JSONs updated.
+        # A synchronous pull from Supabase sync_table is no longer performed here
+        # to improve responsiveness of the GET /api/products endpoint.
+
+        # Step 1: Fetch from Supabase (this is now the preferred source)
+        supabase_products = []
+        try:
+            supabase_products_response, status_code = get_supabase_products()
+            if status_code == 200:
+                # Ensure response.data is bytes before trying to decode and load
+                if isinstance(supabase_products_response.data, bytes):
+                    supabase_products = json.loads(supabase_products_response.data.decode('utf-8'))
+                else: # Fallback for string data (should not happen if jsonify is used correctly)
+                    supabase_products = json.loads(supabase_products_response.data)
+            else:
+                # Corrected error message extraction for Flask Response object
+                error_details = 'N/A'
+                if isinstance(supabase_products_response.data, bytes):
+                    try:
+                        error_json = json.loads(supabase_products_response.data.decode('utf-8'))
+                        error_details = error_json.get('error', 'Unknown error structure')
+                    except json.JSONDecodeError:
+                        error_details = supabase_products_response.data.decode('utf-8')
+                app.logger.warning(f"Failed to fetch products from Supabase (Status: {status_code}), falling back to local. Details: {error_details}")
+        except Exception as e:
+            app.logger.error(f"Error fetching/loading Supabase products: {e}", exc_info=True)
+            app.logger.warning("Continuing get_products without Supabase data due to error.")
+        
+        # Step 2: Fetch from local JSON (as fallback or additional source)
+        local_products = []
+        try:
+            local_products_response, status_code = get_local_products()
+            if status_code == 200:
+                if isinstance(local_products_response.data, bytes):
+                    local_products = json.loads(local_products_response.data.decode('utf-8'))
+                else:
+                    local_products = json.loads(local_products_response.data)
+            else:
+                # Corrected error message extraction for Flask Response object
+                error_details = 'N/A'
+                if isinstance(local_products_response.data, bytes):
+                    try:
+                        error_json = json.loads(local_products_response.data.decode('utf-8'))
+                        error_details = error_json.get('error', 'Unknown error structure')
+                    except json.JSONDecodeError:
+                        error_details = local_products_response.data.decode('utf-8')
+                app.logger.warning(f"Failed to fetch products from local JSON (Status: {status_code}). Details: {error_details}")
+        except Exception as e:
+            app.logger.error(f"Error fetching/loading local products: {e}", exc_info=True)
+            app.logger.warning("Continuing get_products without local JSON data due to error.")
+
+        # Step 3: Merge and deduplicate (Supabase takes precedence over local JSON)
+        products_map = {}
+        # Add local products first (lower priority)
+        for product in local_products:
+            if product.get('id'):
+                products_map[product['id']] = product
+        
+        # Add Supabase products (higher priority), overwriting local if IDs match
+        for product in supabase_products:
+            if product.get('id'):
+                products_map[product['id']] = product
+        
+        final_products = list(products_map.values())
+        final_products.sort(key=lambda x: x.get('name', ''), reverse=False) # Example sorting by name
+        
+        app.logger.debug(f"Returning {len(final_products)} total products (Supabase: {len(supabase_products)}, Local JSON: {len(local_products)})")
+        
+        return jsonify(final_products), 200
+    
+    except Exception as e:
+        app.logger.error(f"Error getting merged products: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
+
+
+@app.route('/api/products', methods=['POST'])
 def create_product():
     """Create product - OFFLINE FIRST approach"""
     try:
@@ -660,56 +961,80 @@ def create_product():
         if not product_data:
             return jsonify({"error": "No product data provided"}), 400
         
-        # ADD THIS LINE - Convert field names
+        # Convert field names from camelCase to snake_case
         product_data = convert_camel_to_snake(product_data)
         
         # Generate ID if not present
         if 'id' not in product_data:
             product_data['id'] = str(uuid.uuid4())
         
-        # Add timestamps
-        now = datetime.now(timezone.utc).isoformat()
-        product_data['createdAt'] = now
-        product_data['updatedAt'] = now
+        # Add timestamps (using Supabase schema names - no underscore)
+        now_naive = datetime.now().isoformat()
+        if 'createdat' not in product_data:
+            product_data['createdat'] = now_naive
+        product_data['updatedat'] = now_naive
         
-        # STEP 1: Save to LOCAL JSON FIRST (offline-first)
+        # HANDLE BARCODES: Convert array/single barcode to comma-separated string
+        all_barcodes = []
+        
+        # Handle single 'barcode' field (if present)
+        if 'barcode' in product_data and product_data.get('barcode'):
+            barcode_val = str(product_data.get('barcode', '')).strip()
+            if barcode_val:
+                all_barcodes.append(barcode_val)
+        
+        # Handle 'barcodes' field (array or string)
+        if 'barcodes' in product_data and product_data.get('barcodes'):
+            barcodes_val = product_data.get('barcodes')
+            if isinstance(barcodes_val, list):
+                # It's an array - convert each item to string
+                all_barcodes.extend([str(b).strip() for b in barcodes_val if str(b).strip()])
+            elif isinstance(barcodes_val, str):
+                # It's already a string - split by comma
+                all_barcodes.extend([b.strip() for b in barcodes_val.split(',') if b.strip()])
+        
+        # Store as comma-separated string (remove duplicates and sort)
+        if all_barcodes:
+            product_data['barcode'] = ','.join(sorted(list(set(all_barcodes))))
+        else:
+            product_data['barcode'] = ''
+        
+        # Remove 'barcodes' field if it exists (we now only use 'barcode')
+        product_data.pop('barcodes', None)
+
+        # Handle empty batchId: convert to None for Supabase to handle as NULL
+        if 'batchid' in product_data and product_data['batchid'] == '':
+            product_data['batchid'] = None
+        
+        # STEP 1: Insert product directly into Supabase (for immediate visibility)
+        client = db.client
+        app.logger.info(f"Attempting to insert product {product_data['id']} into Supabase...")
+        supabase_response = client.table('products').insert(product_data).execute()
+        
+        # Check for errors from Supabase
+        if supabase_response.data is None or len(supabase_response.data) == 0:
+            app.logger.error(f"Supabase insertion failed for product {product_data['id']}: {supabase_response.error}")
+            raise Exception(f"Supabase insertion failed: {supabase_response.error}")
+        
+        app.logger.info(f"Product {product_data['id']} inserted successfully into Supabase.")
+
+        # STEP 2: Save to LOCAL JSON (offline-first strategy still maintains local copy)
         products = get_products_data()
         products.append(product_data)
         save_products_data(products)
         
-        # STEP 2: Write to MySQL IMMEDIATELY (use log_crud_operation instead of queue_for_sync)
+        # STEP 3: Log for sync to Supabase (for audit trail or if other systems rely on sync_table)
         log_crud_operation('products', 'CREATE', product_data['id'], product_data)
-        # ↑ This function writes to:
-        #   1. MySQL Products table (immediate)
-        #   2. MySQL sync_table (audit trail)
-        #   3. Local sync system (enhanced sync manager)
         
-        # STEP 3: If barcode(s) provided, save them too. Support both single `barcode` and legacy `barcodes` list
-        barcodes_to_add = []
-        if 'barcode' in product_data and product_data.get('barcode'):
-            barcodes_to_add.append(str(product_data.get('barcode')).strip())
-        if 'barcodes' in product_data and product_data.get('barcodes'):
-            if isinstance(product_data['barcodes'], str):
-                barcodes_to_add.extend([b.strip() for b in product_data['barcodes'].split(',') if b.strip()])
-            elif isinstance(product_data['barcodes'], list):
-                barcodes_to_add.extend([str(b).strip() for b in product_data['barcodes'] if b])
-
-        for barcode in barcodes_to_add:
-            barcode_data = {
-                'productId': product_data['id'],
-                'barcode': barcode
-            }
-            log_crud_operation('productbarcodes', 'CREATE', barcode, barcode_data)
-        
-        app.logger.info(f"Product created: {product_data['id']} (local JSON + MySQL)")
+        app.logger.info(f"Product created {product_data['id']} (Supabase + local JSON + Supabase sync_table log)")
         return jsonify({"message": "Product created", "id": product_data['id']}), 201
-        
+    
     except Exception as e:
         app.logger.error(f"Error creating product: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/products/<product_id>", methods=["PUT"])
+@app.route('/api/products/<product_id>', methods=['PUT'])
 def update_product(product_id):
     """Update product - OFFLINE FIRST approach"""
     try:
@@ -718,45 +1043,65 @@ def update_product(product_id):
         if not update_data:
             return jsonify({"error": "No update data provided"}), 400
         
-        # ADD THIS LINE - Convert field names
+        # Convert field names from camelCase to snake_case
         update_data = convert_camel_to_snake(update_data)
         
-        # STEP 1: Update in LOCAL JSON FIRST
+        # Find the product
         products = get_products_data()
         product_index = next((i for i, p in enumerate(products) if p.get('id') == product_id), -1)
         
         if product_index == -1:
             return jsonify({"error": "Product not found"}), 404
         
-        # Merge updates
-        products[product_index].update(update_data)
-        products[product_index]['updatedAt'] = datetime.now(timezone.utc).isoformat()
+        # HANDLE BARCODES UPDATE
+        if 'barcode' in update_data or 'barcodes' in update_data:
+            all_barcodes = []
+            
+            # Use the existing 'barcode' value from the product being updated as a base
+            existing_product_barcode_str = products[product_index].get('barcode', '')
+            if existing_product_barcode_str:
+                all_barcodes.extend([b.strip() for b in existing_product_barcode_str.split(',') if b.strip()])
+
+            # Handle single 'barcode' field from update_data
+            if 'barcode' in update_data and update_data.get('barcode'):
+                barcode_val = str(update_data.get('barcode', '')).strip()
+                if barcode_val:
+                    all_barcodes.append(barcode_val)
+            
+            # Handle 'barcodes' field (array or string) from update_data
+            if 'barcodes' in update_data and update_data.get('barcodes'):
+                barcodes_val = update_data.get('barcodes')
+                if isinstance(barcodes_val, list):
+                    all_barcodes.extend([str(b).strip() for b in barcodes_val if str(b).strip()])
+                elif isinstance(barcodes_val, str):
+                    all_barcodes.extend([b.strip() for b in barcodes_val.split(',') if b.strip()])
+            
+            # Store as comma-separated string (remove duplicates and sort)
+            if all_barcodes:
+                update_data['barcode'] = ','.join(sorted(list(set(all_barcodes))))
+            else:
+                update_data['barcode'] = ''
         
+        # Remove 'barcodes' field if it exists (we now only use 'barcode')
+        update_data.pop('barcodes', None)
+        
+        # Ensure 'barcode' field exists in update_data, even if empty, before updating
+        if 'barcode' not in update_data:
+            update_data['barcode'] = ''
+        
+        # Update timestamp (using Supabase schema name - no underscore)
+        update_data['updatedat'] = datetime.now().isoformat()
+        
+        # STEP 1: Update in LOCAL JSON FIRST
+        products[product_index].update(update_data)
         save_products_data(products)
         
-        # STEP 2: Write to MySQL IMMEDIATELY
+        # STEP 2: Log for sync to Supabase
         log_crud_operation('products', 'UPDATE', product_id, products[product_index])
-
-        # STEP 3: If barcode updated, write product barcode(s)
-        barcodes_to_add = []
-        if 'barcode' in update_data and update_data.get('barcode'):
-            barcodes_to_add.append(str(update_data.get('barcode')).strip())
-        if 'barcodes' in update_data and update_data.get('barcodes'):
-            if isinstance(update_data['barcodes'], str):
-                barcodes_to_add.extend([b.strip() for b in update_data['barcodes'].split(',') if b.strip()])
-            elif isinstance(update_data['barcodes'], list):
-                barcodes_to_add.extend([str(b).strip() for b in update_data['barcodes'] if b])
-
-        for barcode in barcodes_to_add:
-            barcode_data = {
-                'productId': product_id,
-                'barcode': barcode
-            }
-            log_crud_operation('productbarcodes', 'CREATE', barcode, barcode_data)
         
-        app.logger.info(f"Product updated: {product_id} (local JSON + MySQL)")
+        app.logger.info(f"Product updated {product_id} (local JSON + Supabase sync)")
         return jsonify({"message": "Product updated", "id": product_id}), 200
-        
+    
     except Exception as e:
         app.logger.error(f"Error updating product: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
@@ -764,26 +1109,48 @@ def update_product(product_id):
 
 @app.route("/api/products/<product_id>", methods=["DELETE"])
 def delete_product(product_id):
-    """Delete product - OFFLINE FIRST approach"""
+    """Delete product - OFFLINE FIRST approach, prioritizing Supabase deletion."""
     try:
-        # STEP 1: Delete from LOCAL JSON FIRST
+        # STEP 1: Attempt to get product data from local JSON for logging (if found)
         products = get_products_data()
         product_index = next((i for i, p in enumerate(products) if p.get('id') == product_id), -1)
         
-        if product_index == -1:
+        deleted_product_for_log = None
+        if product_index != -1:
+            deleted_product_for_log = products[product_index] # Keep a copy for logging
+
+        # STEP 2: Delete from Supabase first
+        client = db.client
+        app.logger.info(f"Attempting to delete product {product_id} from Supabase...")
+        supabase_delete_response = client.table('products').delete().eq('id', product_id).execute()
+        
+        supabase_deleted_count = 0
+        if supabase_delete_response.data:
+            supabase_deleted_count = len(supabase_delete_response.data)
+            app.logger.info(f"Product {product_id} deleted from Supabase. Count: {supabase_deleted_count}")
+        elif supabase_delete_response.error:
+            # Log error but don't necessarily fail if the error means "not found"
+            app.logger.warning(f"Supabase deletion for product {product_id} returned an error: {supabase_delete_response.error}")
+        
+        # STEP 3: Delete from LOCAL JSON (if it was found there)
+        if product_index != -1:
+            products.pop(product_index)
+            save_products_data(products)
+            app.logger.info(f"Product {product_id} deleted from local JSON.")
+        
+        # If product wasn't found in either Supabase or local JSON
+        if supabase_deleted_count == 0 and product_index == -1:
+            app.logger.warning(f"Product {product_id} not found in Supabase or local JSON. Returning 404.")
             return jsonify({"error": "Product not found"}), 404
         
-        deleted_product = products.pop(product_index)
-        save_products_data(products)
+        # STEP 4: Log the deletion operation (using data retrieved from local JSON if available)
+        log_crud_operation('products', 'DELETE', product_id, deleted_product_for_log or {'id': product_id})
         
-        # STEP 2: Write to MySQL IMMEDIATELY
-        log_crud_operation('products', 'DELETE', product_id, deleted_product)
-        
-        app.logger.info(f"Product deleted: {product_id} (local JSON + MySQL)")
+        app.logger.info(f"Product {product_id} deletion process completed.")
         return jsonify({"message": "Product deleted"}), 200
         
     except Exception as e:
-        app.logger.error(f"Error deleting product: {e}", exc_info=True)
+        app.logger.error(f"Error deleting product {product_id}: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 # ---------------------------
@@ -797,87 +1164,126 @@ def get_batches():
 
 @app.route('/api/batches', methods=['POST'])
 def add_batch():
-    new_batch = request.json or {}
-    batches = get_batches_data()
+    new_batch_data = request.json or {}
     
-    if not new_batch.get('batchNumber') or not new_batch.get('place'):
+    if not new_batch_data.get('batchNumber') or not new_batch_data.get('place'):
         return jsonify(message="Batch number and place are required"), 400
     
     # Generate UUID and timestamps
-    new_batch["id"] = str(uuid.uuid4())
-    new_batch["createdAt"] = datetime.now().isoformat()
-    new_batch["updatedAt"] = datetime.now().isoformat()
+    new_batch_data["id"] = str(uuid.uuid4())
+    now_iso = datetime.now().isoformat()
+    new_batch_data["createdat"] = now_iso
+    new_batch_data["updatedat"] = now_iso
+    # Also set camelCase fields for frontend compatibility for local JSON storage
+    new_batch_data["createdAt"] = now_iso
+    new_batch_data["updatedAt"] = now_iso
+
+    # Convert to database format (snake_case where applicable)
+    db_batch_data = convert_camel_to_snake(new_batch_data)
+
+    try:
+        # STEP 1: Insert batch directly into Supabase (for immediate visibility)
+        supabase_response = db.create_batch(db_batch_data)
+        if supabase_response is None:
+            raise Exception("Supabase insert returned no data.")
+        
+        app.logger.info(f"Batch {new_batch_data['id']} inserted successfully into Supabase.")
+
+        # STEP 2: Save to local JSON (offline-first strategy still maintains local copy)
+        batches = get_batches_data()
+        batches.append(new_batch_data) # Use original camelCase data for local JSON
+        save_batches_data(batches)
+        
+        # STEP 3: Log for sync to Supabase sync_table (for audit trail)
+        log_crud_operation("batches", "CREATE", new_batch_data["id"], db_batch_data)
+        
+        return jsonify(new_batch_data), 201
     
-    # Save to local JSON (keep camelCase for frontend compatibility)
-    batches.append(new_batch)
-    save_batches_data(batches)
-    
-    # Convert to database format (lowercase) for MySQL sync
-    db_batch = {
-        "id": new_batch["id"],
-        "batchnumber": new_batch.get("batchNumber"),  # Convert to lowercase
-        "place": new_batch.get("place"),
-        "createdat": new_batch["createdAt"],
-        "updatedat": new_batch["updatedAt"]
-    }
-    
-    # Log with the database-compatible format
-    log_crud_operation("batches", "CREATE", new_batch["id"], db_batch)
-    
-    return jsonify(new_batch), 201
+    except Exception as e:
+        app.logger.error(f"Error adding batch: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/batches/<batchid>', methods=['PUT'])
 def update_batch(batchid):
     updated_data = request.json or {}
-    batches = get_batches_data()
     
-    batch_found = False
-    idx = -1
+    if not updated_data.get('batchNumber') or not updated_data.get('place'):
+        return jsonify(message="Batch number and place are required"), 400
     
-    for i, batch in enumerate(batches):
-        if batch["id"] == batchid:
-            batches[i].update(updated_data)
-            batches[i]["updatedAt"] = datetime.now().isoformat()
-            batch_found = True
-            idx = i
-            break
-    
-    if batch_found:
-        save_batches_data(batches)
+    # Convert incoming data to snake_case for Supabase interaction
+    db_updated_data = convert_camel_to_snake(updated_data)
+    now_iso = datetime.now().isoformat()
+    db_updated_data["updatedat"] = now_iso
+
+    try:
+        # STEP 1: Update batch directly in Supabase (for immediate visibility)
+        supabase_response = db.update_batch(batchid, db_updated_data)
+        if supabase_response is None:
+            return jsonify(message="Batch not found in Supabase or update failed"), 404
         
-        # Convert to database format for MySQL sync
-        db_batch = {
-            "id": batches[idx]["id"],
-            "batchnumber": batches[idx].get("batchNumber"),  # Convert to lowercase
-            "place": batches[idx].get("place"),
-            "createdat": batches[idx].get("createdAt"),
-            "updatedat": batches[idx]["updatedAt"]
-        }
+        app.logger.info(f"Batch {batchid} updated successfully in Supabase.")
+
+        # STEP 2: Update local JSON (offline-first strategy still maintains local copy)
+        batches = get_batches_data()
+        batch_found = False
+        idx = -1
+        for i, batch in enumerate(batches):
+            if batch["id"] == batchid:
+                batches[i].update(updated_data)
+                batches[i]["updatedat"] = now_iso # Update snake_case for local JSON
+                batches[i]["updatedAt"] = now_iso # Update camelCase for local JSON
+                batch_found = True
+                idx = i
+                break
         
-        log_crud_operation("batches", "UPDATE", batchid, db_batch)
-        return jsonify(batches[idx])
+        if batch_found:
+            save_batches_data(batches)
+            
+            # STEP 3: Log for sync to Supabase sync_table (for audit trail)
+            log_crud_operation("batches", "UPDATE", batchid, db_updated_data)
+            return jsonify(batches[idx])
+        else:
+            return jsonify(message="Batch not found in local JSON"), 404
     
-    return jsonify(message="Batch not found"), 404
+    except Exception as e:
+        app.logger.error(f"Error updating batch: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/batches/<batch_id>', methods=['DELETE'])
 def delete_batch(batch_id):
-    batches = get_batches_data()
-    initial_len = len(batches)
-
+    # Retrieve batch data before deletion for logging
     deleted_batch = None
-    for batch in batches:
+    batches_data = get_batches_data()
+    for batch in batches_data:
         if batch['id'] == batch_id:
             deleted_batch = batch
             break
 
-    batches = [batch for batch in batches if batch['id'] != batch_id]
+    try:
+        # STEP 1: Delete from Supabase directly
+        supabase_success = db.delete_batch(batch_id)
+        if not supabase_success:
+            return jsonify({"error": "Batch not found in Supabase or deletion failed"}), 404
+        
+        app.logger.info(f"Batch {batch_id} deleted successfully from Supabase.")
 
-    if len(batches) < initial_len:
-        save_batches_data(batches)
-        log_crud_operation('batches', 'DELETE', batch_id, deleted_batch or {})
-        return jsonify({"message": "Batch deleted"}), 200
-
-    return jsonify({"message": "Batch not found"}), 404
+        # STEP 2: Delete from local JSON
+        batches = get_batches_data()
+        initial_len = len(batches)
+        batches = [batch for batch in batches if batch['id'] != batch_id]
+        
+        if len(batches) < initial_len:
+            save_batches_data(batches)
+            
+            # STEP 3: Log for sync to Supabase sync_table (for audit trail)
+            log_crud_operation('batches', 'DELETE', batch_id, deleted_batch or {})
+            return jsonify({"message": "Batch deleted"}), 200
+        else:
+            return jsonify({"message": "Batch not found in local JSON"}), 404
+            
+    except Exception as e:
+        app.logger.error(f"Error deleting batch: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 # ---------------------------
 # Returns Endpoints - NEW
@@ -890,8 +1296,67 @@ def get_returns():
         returns = get_returns_data()
         return jsonify(returns), 200
     except Exception as e:
-        app.logger.error(f"Error getting returns: {e}")
+        app.logger.error(f"Error getting returns: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/returns', methods=['POST'])
+def create_return_request():
+    """Create a new return request - OFFLINE FIRST approach"""
+    try:
+        return_data = request.json
+        if not return_data:
+            return jsonify({"error": "No return data provided"}), 400
+
+        # Generate ID
+        if 'returnId' not in return_data:
+            return_data['returnId'] = str(uuid.uuid4())
+
+        # Add timestamps (Supabase schema uses camelCase for created_at, updated_at in local JSON)
+        now_iso = datetime.now().isoformat()
+        return_data['createdAt'] = now_iso
+        return_data['updatedAt'] = now_iso
+        
+        # Default status to pending
+        return_data.setdefault('status', 'pending')
+
+        # Convert to snake_case for internal storage and DB logging
+        snake_case_return_data = convert_camel_to_snake(return_data)
+
+        # Save to local JSON first
+        returns = get_returns_data()
+        returns.append(snake_case_return_data)
+        save_returns_data(returns)
+
+        # Log to sync
+        log_crud_operation('returns', 'CREATE', return_data['returnId'], snake_case_return_data)
+        
+        # Create a notification for the new return request
+        notification_title = f"New Return Request: {return_data['returnId']}"
+        notification_message = f"Customer {return_data.get('customerName', 'N/A')} has requested a return for {return_data.get('productName', 'N/A')}."
+        
+        # Link to the returns page, potentially with a filter for this return ID if a deep link exists
+        notification_link = f"/dashboard/returns?returnId={return_data['returnId']}"
+
+        add_notification({
+            "id": str(uuid.uuid4()),
+            "type": "RETURN_REQUEST",
+            "title": notification_title,
+            "message": notification_message,
+            "userId": "system", # Or actual user submitting the request if available
+            "userName": "System",
+            "userEmail": "system@example.com",
+            "isRead": False,
+            "createdAt": now_iso,
+            "link": notification_link # Add the link for redirection
+        })
+
+        app.logger.info(f"Return request created: {return_data['returnId']}")
+        return jsonify({"message": "Return request created", "returnId": return_data['returnId']}), 201
+
+    except Exception as e:
+        app.logger.error(f"Error creating return request: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/returns/<return_id>/status', methods=['PUT'])
 def update_return_status(return_id):
@@ -914,14 +1379,41 @@ def update_return_status(return_id):
             return jsonify({"error": "Return request not found"}), 404
         
         returns[return_index]['status'] = new_status
-        returns[return_index]['updated_at'] = datetime.now(timezone.utc).isoformat()
+        # Use 'updatedat' for consistency with Supabase schema
+        returns[return_index]['updatedat'] = datetime.now(timezone.utc).isoformat()
         
         save_returns_data(returns)
         
-        # STEP 2: Write to MySQL IMMEDIATELY
-        log_crud_operation('returns', 'UPDATE', return_id, returns[return_index])
+        # STEP 2: Log for sync to Supabase (assuming log_crud_operation handles snake_case conversion for DB)
+        # However, since the source data (returns[return_index]) is already in local JSON format
+        # with potentially 'updated_at', it needs to be converted to Supabase schema format before logging.
+        converted_return_data = convert_camel_to_snake(returns[return_index])
+        log_crud_operation('returns', 'UPDATE', return_id, converted_return_data)
         
-        app.logger.info(f"Return request {return_id} status updated to {new_status} (local JSON + MySQL)")
+        # Clear the corresponding notification
+        # Find the notification for this return_id
+        notifications = get_notifications_data()
+        notification_found = False
+        notification_to_clear_id = None
+
+        # Iterate in reverse to find and process the newest notification first (if multiple)
+        for i in range(len(notifications) - 1, -1, -1):
+            n = notifications[i]
+            if n.get('type') == 'RETURN_REQUEST' and f"New Return Request: {return_id}" in n.get('title', ''):
+                # Mark as read
+                n['isRead'] = True
+                notification_to_clear_id = n['id']
+                notification_found = True
+                app.logger.info(f"Notification {n['id']} for return {return_id} marked as read due to status update.")
+                # We could also delete it: notifications.pop(i)
+                # For now, mark as read. If we want to delete, need to update save_notifications_data and log
+                break # Assuming one relevant notification per return ID
+
+        if notification_found:
+            save_notifications_data(notifications)
+            log_crud_operation('notifications', 'UPDATE', notification_to_clear_id, notifications[i]) # Log the update
+
+        app.logger.info(f"Return request {return_id} status updated to {new_status} (local JSON + Supabase sync)")
         return jsonify({"message": f"Return request status updated to {new_status}", "return_id": return_id}), 200
         
     except Exception as e:
@@ -930,47 +1422,49 @@ def update_return_status(return_id):
 
 # ============================================================================
 # STORE INVENTORY MANAGEMENT - Multi-Store Product Allocation
-# Place this ONCE in your app.py (around line 2530 or after your stores routes)
 # ============================================================================
 
 @app.route('/api/stores/<store_id>/inventory', methods=['GET'])
 def get_store_inventory(store_id):
     """Get all products assigned to a specific store"""
     try:
-        with DatabaseConnection.get_connection_ctx() as conn:
-            cursor = conn.cursor(dictionary=True)
-            query = """
-                SELECT 
-                    si.id as inventoryId,
-                    si.storeId,
-                    si.productId,
-                    si.quantity,
-                    si.assignedAt,
-                    si.updatedAt,
-                    p.id,
-                    p.name,
-                    p.barcode,
-                    p.price,
-                    p.selling_price,
-                    p.category,
-                    p.description,
-                    p.stock as totalStock
-                FROM StoreInventory si
-                INNER JOIN Products p ON si.productId = p.id
-                WHERE si.storeId = %s
-                ORDER BY p.name
-            """
-            cursor.execute(query, (store_id,))
-            inventory = cursor.fetchall()
-            return jsonify({"success": True, "data": inventory}), 200
+        # Use Supabase client directly
+        response = db.client.table("storeinventory").select(
+            "id:id, storeid:storeId, productid:productId, quantity:quantity, assignedat:assignedAt, updatedat:updatedAt, products(id, name, barcodes, price, selling_price, category, description, stock)"
+        ).eq("storeid", store_id).order("products.name").execute()
+
+        inventory_raw = response.data
+
+        # Flatten the structure and process barcodes
+        inventory = []
+        for item_data in inventory_raw:
+            product_data = item_data.pop('products') # Extract product data
+            if product_data:
+                # Merge inventory item and product data
+                merged_item = {
+                    **item_data,
+                    "id": product_data['id'], # Use product ID as primary for the frontend list
+                    "name": product_data['name'],
+                    "barcodes": product_data['barcodes'],
+                    "price": product_data['price'],
+                    "selling_price": product_data['selling_price'],
+                    "category": product_data['category'],
+                    "description": product_data['description'],
+                    "totalStock": product_data['stock'],
+                    "inventoryId": item_data['id'] # Keep original inventory ID if needed
+                }
+                merged_item['barcode'] = get_primary_barcode(merged_item)
+                inventory.append(merged_item)
+
+        return jsonify({"success": True, "data": inventory}), 200
     except Exception as e:
-        app.logger.error(f"Error fetching store inventory: {e}")
+        app.logger.error(f"Error fetching store inventory: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/inventory/assign', methods=['POST'])
-def assign_product_to_store():
-    """Assign a product to a store with quantity"""
+def update_product_to_store_inventory():
+    """Update a product's quantity in store inventory (setting new quantity)"""
     data = request.json
     store_id = data.get('storeId')
     product_id = data.get('productId')
@@ -980,45 +1474,50 @@ def assign_product_to_store():
         return jsonify({"error": "storeId and productId are required"}), 400
     
     try:
-        with DatabaseConnection.get_connection_ctx() as conn:
-            cursor = conn.cursor(dictionary=True)
-            
-            # Check if already assigned
-            cursor.execute(
-                "SELECT id, quantity FROM StoreInventory WHERE storeId = %s AND productId = %s",
-                (store_id, product_id)
-            )
-            existing = cursor.fetchone()
-            
-            if existing:
-                cursor.execute("""
-                    UPDATE StoreInventory 
-                    SET quantity = %s, updatedAt = NOW()
-                    WHERE storeId = %s AND productId = %s
-                """, (quantity, store_id, product_id))
-                message = "Inventory updated successfully"
-                inv_id = existing['id']
-            else:
-                inv_id = f"INV-{str(uuid.uuid4())[:13]}"
-                cursor.execute("""
-                    INSERT INTO StoreInventory 
-                    (id, storeId, productId, quantity)
-                    VALUES (%s, %s, %s, %s)
-                """, (inv_id, store_id, product_id, quantity))
-                message = "Product assigned to store successfully"
-            
-            conn.commit()
-            
-            log_crud_operation('StoreInventory', 'UPDATE' if existing else 'CREATE', inv_id, {
-                'id': inv_id,
-                'storeId': store_id,
-                'productId': product_id,
-                'quantity': quantity,
-            })
-            
-            return jsonify({"success": True, "message": message, "inventoryId": inv_id}), 200
+        client = db.client
+        
+        # Check if already assigned
+        response = client.table("storeinventory").select("id, quantity, assignedat").eq("storeid", store_id).eq("productid", product_id).execute()
+        existing = response.data[0] if response.data else None
+        
+        now_iso = datetime.now().isoformat()
+        if existing:
+            update_data = {
+                "quantity": quantity, # Set to new quantity
+                "updatedat": now_iso
+            }
+            client.table("storeinventory").update(update_data).eq("id", existing['id']).execute()
+            message = "Inventory updated successfully"
+            inv_id = existing['id']
+            createdat = existing.get('assignedat') or now_iso
+            op_type = 'UPDATE'
+        else:
+            inv_id = f"INV-{str(uuid.uuid4())[:13]}"
+            createdat = now_iso
+            insert_data = {
+                "id": inv_id,
+                "storeid": store_id,
+                "productid": product_id,
+                "quantity": quantity,
+                "assignedat": createdat,
+                "updatedat": now_iso
+            }
+            client.table("storeinventory").insert(insert_data).execute()
+            message = "Product assigned to store successfully"
+            op_type = 'CREATE'
+        
+        log_crud_operation('storeinventory', op_type, inv_id, {
+            'id': inv_id,
+            'storeid': store_id,
+            'productid': product_id,
+            'quantity': quantity,
+            'assignedat': createdat,
+            'updatedat': now_iso,
+        })
+        
+        return jsonify({"success": True, "message": message, "inventoryId": inv_id}), 200
     except Exception as e:
-        app.logger.error(f"Error assigning product to store: {e}")
+        app.logger.error(f"Error updating product to store inventory: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
@@ -1029,7 +1528,7 @@ def adjust_inventory_quantity(inventory_id):
     quantity_change = data.get('change', 0)
     
     try:
-        with DatabaseConnection.get_connection_ctx() as conn:
+        with MySQLDatabaseConnection.get_connection_ctx() as conn:
             cursor = conn.cursor(dictionary=True)
             
             cursor.execute("SELECT * FROM StoreInventory WHERE id = %s", (inventory_id,))
@@ -1038,17 +1537,22 @@ def adjust_inventory_quantity(inventory_id):
             if not current:
                 return jsonify({"error": "Inventory not found"}), 404
             
+            now_iso = datetime.now().isoformat()
+            
             cursor.execute("""
                 UPDATE StoreInventory 
-                SET quantity = quantity + %s, updatedAt = NOW()
+                SET quantity = quantity + %s, updatedat = %s
                 WHERE id = %s
-            """, (quantity_change, inventory_id))
+            """, (quantity_change, now_iso, inventory_id))
             
             conn.commit()
             
             log_crud_operation('StoreInventory', 'UPDATE', inventory_id, {
                 'id': inventory_id,
-                'quantity': current['quantity'] + quantity_change
+                'quantity': current['quantity'] + quantity_change,
+                'updatedat': now_iso,
+                # MySQL/Postgres storeinventory uses 'assignedat' as the created/assigned timestamp
+                'assignedat': current.get('assignedat').isoformat() if current.get('assignedat') else now_iso
             })
             
             return jsonify({"success": True, "message": "Inventory adjusted"}), 200
@@ -1061,7 +1565,7 @@ def adjust_inventory_quantity(inventory_id):
 def get_product_availability(product_id):
     """Get product availability across all stores"""
     try:
-        with DatabaseConnection.get_connection_ctx() as conn:
+        with MySQLDatabaseConnection.get_connection_ctx() as conn:
             cursor = conn.cursor(dictionary=True)
             query = """
                 SELECT 
@@ -1072,7 +1576,7 @@ def get_product_availability(product_id):
                     si.quantity,
                     si.updatedAt
                 FROM StoreInventory si
-                INNER JOIN Stores s ON si.storeId = s.id
+                INNER JOIN Stores s ON si.productId = s.id
                 WHERE si.productId = %s
                 ORDER BY s.name
             """
@@ -1099,401 +1603,401 @@ def bulk_assign_products(store_id):
         return jsonify({"error": "No products provided"}), 400
     
     try:
-        with DatabaseConnection.get_connection_ctx() as conn:
-            cursor = conn.cursor(dictionary=True)
+        client = db.client
+        assigned_count = 0
+        
+        for idx, product_data_in_request in enumerate(products_to_assign, 1):
+            product_id = (
+                product_data_in_request.get('productId') or 
+                product_data_in_request.get('id') or 
+                product_data_in_request.get('product_id')
+            )
+            quantity = int(product_data_in_request.get('quantity', 0))
             
-            assigned_count = 0
+            app.logger.info(f"📦 Product {idx}: ID={product_id}, Quantity={quantity}")
             
-            for idx, product in enumerate(products_to_assign, 1):
-                product_id = (
-                    product.get('productId') or 
-                    product.get('id') or 
-                    product.get('product_id')
-                )
-                quantity = int(product.get('quantity', 0))
+            if not product_id:
+                app.logger.error(f"❌ Product {idx} missing ID")
+                continue
+            
+            # Get current product info from Supabase
+            product_response = client.table("products").select("id, stock").eq("id", product_id).maybe_single().execute()
+            
+            # Check if product_response is None before accessing .data
+            if product_response is None:
+                product_info = None
+            else:
+                product_info = product_response.data
+            
+            if not product_info:
+                app.logger.error(f"❌ Product {product_id} not found in Supabase. Skipping assignment.")
+                continue
+            
+            current_total_stock = product_info['stock'] or 0
+            
+            # Check if already assigned to this store
+            existing_inventory_response = client.table("storeinventory").select("id, quantity, assignedat").eq("storeid", store_id).eq("productid", product_id).execute()
+            existing_inventory = existing_inventory_response.data[0] if existing_inventory_response.data else None
+            
+            now_iso = datetime.now().isoformat()
+            
+            if existing_inventory:
+                # Calculate difference
+                old_store_quantity = existing_inventory['quantity']
+                quantity_diff = quantity - old_store_quantity
                 
-                app.logger.info(f"📦 Product {idx}: ID={product_id}, Quantity={quantity}")
+                app.logger.info(f"   Existing: {old_store_quantity}, New: {quantity}, Diff: {quantity_diff}")
                 
-                if not product_id:
-                    app.logger.error(f"❌ Product {idx} missing ID")
-                    continue
+                # Update store inventory in Supabase (use DB column names)
+                update_inventory_data = {
+                    "quantity": quantity,
+                    "updatedat": now_iso
+                }
+                app.logger.debug(f"SUPABASE UPDATE storeinventory payload: {update_inventory_data}, id={existing_inventory['id']}")
+                client.table("storeinventory").update(update_inventory_data).eq("id", existing_inventory['id']).execute()
                 
-                # Get current product info
-                cursor.execute("""
-                    SELECT id, stock FROM Products WHERE id = %s
-                """, (product_id,))
-                product_info = cursor.fetchone()
+                # ❌ No product stock deduction on assignment, only update storeinventory
+                app.logger.info(f"   ✅ Updated - Store qty: {quantity} (Product stock untouched)")
                 
-                if not product_info:
-                    app.logger.error(f"❌ Product {product_id} not found")
-                    continue
+                # Log for sync system (storeinventory only)
+                log_crud_operation('storeinventory', 'UPDATE', existing_inventory['id'], {
+                    'id': existing_inventory['id'],
+                    'storeid': store_id,
+                    'productid': product_id,
+                    'quantity': quantity,
+                    'assignedat': existing_inventory.get('assignedat') or now_iso,
+                    'updatedat': now_iso
+                })
                 
-                current_total_stock = product_info['stock'] or 0
+            else:
+                # New assignment
+                inv_id = f"INV-{uuid.uuid4()}"
                 
-                # Check if already assigned to this store
-                cursor.execute("""
-                    SELECT id, quantity FROM StoreInventory 
-                    WHERE storeId = %s AND productId = %s
-                """, (store_id, product_id))
-                existing = cursor.fetchone()
+                # Insert into StoreInventory in Supabase
+                insert_inventory_data = {
+                    "id": inv_id,
+                    "storeid": store_id,
+                    "productid": product_id,
+                    "quantity": quantity,
+                    "assignedat": now_iso,
+                    "updatedat": now_iso
+                }
+                app.logger.debug(f"SUPABASE INSERT storeinventory payload: {insert_inventory_data}")
+                client.table("storeinventory").insert(insert_inventory_data).execute()
                 
-                if existing:
-                    # Calculate difference
-                    old_store_quantity = existing['quantity']
-                    quantity_diff = quantity - old_store_quantity
-                    
-                    app.logger.info(f"   Existing: {old_store_quantity}, New: {quantity}, Diff: {quantity_diff}")
-                    
-                    # Update store inventory
-                    cursor.execute("""
-                        UPDATE StoreInventory 
-                        SET quantity = %s, updatedAt = NOW()
-                        WHERE storeId = %s AND productId = %s
-                    """, (quantity, store_id, product_id))
-                    
-                    # Update total stock in Products (deduct difference)
-                    new_total_stock = current_total_stock - quantity_diff
-                    cursor.execute("""
-                        UPDATE Products 
-                        SET stock = %s, updatedAt = NOW()
-                        WHERE id = %s
-                    """, (new_total_stock, product_id))
-                    
-                    app.logger.info(f"   ✅ Updated - Store qty: {quantity}, Total stock: {new_total_stock}")
-                    
-                    # Log for sync system
-                    log_crud_operation('StoreInventory', 'UPDATE', existing['id'], {
-                        'id': existing['id'],
-                        'storeId': store_id,
-                        'productId': product_id,
-                        'quantity': quantity
-                    })
-                    
-                    # Update Products in sync
-                    log_crud_operation('Products', 'UPDATE', product_id, {
-                        'id': product_id,
-                        'stock': new_total_stock
-                    })
-                    
-                else:
-                    # New assignment
-                    inv_id = f"INV-{uuid.uuid4()}"
-                    
-                    # Insert into StoreInventory
-                    cursor.execute("""
-                        INSERT INTO StoreInventory 
-                        (id, storeId, productId, quantity)
-                        VALUES (%s, %s, %s, %s)
-                    """, (inv_id, store_id, product_id, quantity))
-                    
-                    # Deduct from total stock in Products
-                    new_total_stock = current_total_stock - quantity
-                    cursor.execute("""
-                        UPDATE Products 
-                        SET stock = %s, updatedAt = NOW()
-                        WHERE id = %s
-                    """, (new_total_stock, product_id))
-                    
-                    app.logger.info(f"   ✅ Created - Store qty: {quantity}, Total stock: {new_total_stock}")
-                    
-                    # Log for sync system
-                    log_crud_operation('StoreInventory', 'CREATE', inv_id, {
+                # ❌ No product stock deduction on assignment, only insert storeinventory
+                app.logger.info(f"   ✅ Created - Store qty: {quantity} (Product stock untouched)")
+                
+                # Log for sync system (storeinventory only)
+                log_crud_operation('storeinventory', 'CREATE', inv_id, {
+                    'id': inv_id,
+                    'storeid': store_id,
+                    'productid': product_id,
+                    'quantity': quantity,
+                    'assignedat': now_iso,
+                    'updatedat': now_iso
+                })
+            
+            # Update local JSON files (storeinventory only)
+            try:
+                # Update storeinventory.json
+                inventory_data = get_store_inventory_data()
+                found = False
+                for inv in inventory_data:
+                    if inv.get('storeId') == store_id and inv.get('productId') == product_id:
+                        inv['quantity'] = quantity
+                        inv['updatedAt'] = datetime.now().isoformat()
+                        found = True
+                        break
+                
+                if not found and not existing_inventory:
+                    inventory_data.append({
                         'id': inv_id,
                         'storeId': store_id,
                         'productId': product_id,
-                        'quantity': quantity
-                    })
-                    
-                    # Update Products in sync
-                    log_crud_operation('Products', 'UPDATE', product_id, {
-                        'id': product_id,
-                        'stock': new_total_stock
+                        'quantity': quantity,
+                        'assignedAt': datetime.now().isoformat(),
+                        'updatedAt': datetime.now().isoformat()
                     })
                 
-                # Update local JSON files
-                try:
-                    # Update products.json
-                    products_data = get_products_data()
-                    for p in products_data:
-                        if p.get('id') == product_id:
-                            p['stock'] = new_total_stock
-                            p['updatedAt'] = datetime.now().isoformat()
-                            break
-                    save_products_data(products_data)
-                    app.logger.info(f"   ✅ Updated products.json")
-                    
-                    # Update storeinventory.json
-                    inventory_data = get_store_inventory_data()
-                    found = False
-                    for inv in inventory_data:
-                        if inv.get('storeId') == store_id and inv.get('productId') == product_id:
-                            inv['quantity'] = quantity
-                            inv['updatedAt'] = datetime.now().isoformat()
-                            found = True
-                            break
-                    
-                    if not found and not existing:
-                        inventory_data.append({
-                            'id': inv_id,
-                            'storeId': store_id,
-                            'productId': product_id,
-                            'quantity': quantity,
-                            'assignedAt': datetime.now().isoformat(),
-                            'updatedAt': datetime.now().isoformat()
-                        })
-                    
-                    save_store_inventory_data(inventory_data)
-                    app.logger.info(f"   ✅ Updated storeinventory.json")
-                    
-                except Exception as json_error:
-                    app.logger.error(f"   ⚠️ JSON update failed: {json_error}")
+                save_store_inventory_data(inventory_data)
+                app.logger.info(f"   ✅ Updated storeinventory.json (products.json untouched)")
                 
-                assigned_count += 1
+            except Exception as json_error:
+                app.logger.error(f"   ⚠️ JSON update failed for storeinventory: {json_error}", exc_info=True)
             
-            conn.commit()
-            app.logger.info(f"✅ Successfully assigned {assigned_count} product(s)")
-            app.logger.info("="*60)
-            
-            return jsonify({
-                "success": True,
-                "message": f"Successfully assigned {assigned_count} products"
-            }), 200
-            
+            assigned_count += 1
+        
+        # No explicit commit needed for Supabase client as operations are atomic
+        app.logger.info(f"✅ Successfully assigned {assigned_count} product(s). Product stock was NOT modified.")
+        app.logger.info("="*60)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Successfully assigned {assigned_count} products (Product stock untouched)"
+        }), 200
+        
     except Exception as e:
-        app.logger.error(f"❌ ERROR: {e}", exc_info=True)
+        app.logger.error(f"❌ ERROR in bulk_assign_products: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/stores/<store_id>/inventory-calendar", methods=["GET"])
-def get_store_inventory_calendar(store_id):
+@app.route('/api/stores/<storeid>/inventory-calendar', methods=['GET'])
+def get_store_inventory_calendar(storeid):
+    """Get calendar data showing which dates have inventory data for a store"""
     try:
-        days = _safe_int(request.args.get("days"), 90)
+        days = _safe_int(request.args.get('days'), 90)
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days - 1)
         
-        with DatabaseConnection.get_connection_ctx() as conn:
-            cursor = conn.cursor(dictionary=True)
-            
-            # Get store inventory with assignedAt dates
-            query = """
-                SELECT si.productId, si.quantity as initialquantity, 
-                       si.assignedAt, si.updatedAt,
-                       p.name as productName, p.barcode, 
-                       p.selling_price as price, p.category
-                FROM StoreInventory si
-                JOIN Products p ON si.productId = p.id
-                WHERE si.storeId = %s
-            """
-            cursor.execute(query, (store_id,))
-            store_products = cursor.fetchall()
-            
-            app.logger.info(f"Found {len(store_products)} products for store {store_id}")
-            
-            if not store_products:
-                return jsonify({"success": True, "storeId": store_id, "calendar": []}), 200
-            
-            # Build product map with assignment dates
-            product_map = {}
-            for p in store_products:
-                # Handle both datetime and date objects
-                if p["assignedAt"]:
-                    assigned_date = p["assignedAt"].date() if hasattr(p["assignedAt"], 'date') else p["assignedAt"]
-                else:
+        client = db.client
+        
+        # Get store inventory with assignment dates
+        query_response = client.table('storeinventory').select(
+            'productid, quantity, assignedat, updatedat, products(name, barcode, selling_price, category)'
+        ).eq('storeid', storeid).execute()
+        
+        store_products = query_response.data
+        app.logger.info(f"Found {len(store_products)} products for store {storeid}")
+        
+        if not store_products:
+            return jsonify({'success': True, 'storeId': storeid, 'calendar': []}), 200
+        
+        # Build product map with assignment dates
+        product_map = {}
+        for p in store_products:
+            product_info = p.get('products', {})
+            if not product_info:
+                continue
+                
+            # Handle assignedat date
+            if p.get('assignedat'):
+                try:
+                    assigned_date = datetime.fromisoformat(p['assignedat'].replace('Z', '+00:00')).date()
+                except:
                     assigned_date = start_date
-                
-                app.logger.info(f"Product {p['productName']} assigned on {assigned_date}")
-                
-                product_map[p["productId"]] = {
-                    **p,
-                    "assignedDate": assigned_date
-                }
+            else:
+                assigned_date = start_date
             
-            # Fetch bill items
-            product_ids = list(product_map.keys())
-            bill_items_query = f"""
-                SELECT bi.productId, bi.quantity, b.timestamp as billDate
-                FROM BillItems bi
-                JOIN Bills b ON bi.billId = b.id
-                WHERE b.storeId = %s
-                  AND bi.productId IN ({','.join(['%s'] * len(product_ids))})
-                  AND b.timestamp BETWEEN %s AND %s
-                ORDER BY b.timestamp
-            """
-            cursor.execute(bill_items_query, (store_id, *product_ids, start_date, end_date + timedelta(days=1)))
-            bill_items = cursor.fetchall()
+            product_map[p['productid']] = {
+                **p,
+                'productName': product_info.get('name', 'Unknown'),
+                'barcode': product_info.get('barcode', ''),
+                'price': float(product_info.get('selling_price', 0)),
+                'category': product_info.get('category', ''),
+                'assignedDate': assigned_date,
+                'initialquantity': p.get('quantity', 0)
+            }
+        
+        product_ids = list(product_map.keys())
+        
+        # Fetch bill items for these products in the date range
+        bill_items_response = client.table('billitems').select(
+            'productid, quantity, bills(timestamp, storeid)'
+        ).in_('productid', product_ids).execute()
+        
+        bill_items = []
+        for item in bill_items_response.data:
+            bill_info = item.get('bills')
+            if not bill_info:
+                continue
             
-            # Initialize calendar data
-            calendar_data = {}
-            for prod_id, prod_info in product_map.items():
-                calendar_data[prod_id] = {
-                    "productId": prod_id,
-                    "productName": prod_info["productName"],
-                    "barcode": prod_info["barcode"],
-                    "price": float(prod_info["price"]) if prod_info["price"] else 0.0,
-                    "category": prod_info["category"],
-                    "dailyStock": {},
-                    "assignedDate": prod_info["assignedDate"]
-                }
-            
-            # Populate initial stock ONLY from assignedDate onwards
-            for current_day in [start_date + timedelta(n) for n in range(days)]:
-                day_str = current_day.isoformat()
-                for prod_id, prod_data in calendar_data.items():
-                    # Only add stock if product was assigned by this date (inclusive)
-                    if current_day >= prod_data["assignedDate"]:
-                        calendar_data[prod_id]["dailyStock"][day_str] = int(product_map[prod_id]["initialquantity"])
-                        app.logger.debug(f"Added stock for {prod_data['productName']} on {day_str}")
-            
-            # Deduct sales
-            for item in bill_items:
-                prod_id = item["productId"]
-                bill_date = item["billDate"].date() if hasattr(item["billDate"], 'date') else item["billDate"]
-                quantity_sold = item["quantity"]
+            # Filter by storeid and date range
+            if bill_info.get('storeid') != storeid:
+                continue
                 
-                # Deduct from bill date onwards
-                for current_day in [bill_date + timedelta(n) for n in range((end_date - bill_date).days + 1)]:
-                    day_str = current_day.isoformat()
-                    if day_str in calendar_data[prod_id]["dailyStock"]:
-                        calendar_data[prod_id]["dailyStock"][day_str] -= int(quantity_sold)
-            
-            # Aggregate by date
-            aggregated_calendar_data = []
-            for current_day in [start_date + timedelta(n) for n in range(days)]:
-                day_str = current_day.isoformat()
-                daily_product_count = 0
-                daily_total_stock = 0
-                daily_total_value = 0
-                
-                for prod_id, prod_data in calendar_data.items():
-                    current_stock_for_day = prod_data["dailyStock"].get(day_str, 0)
-                    if current_stock_for_day > 0:
-                        daily_product_count += 1
-                        daily_total_stock += current_stock_for_day
-                        daily_total_value += current_stock_for_day * prod_data["price"]
-                
-                # Only include days with actual inventory
-                if daily_product_count > 0:
-                    aggregated_calendar_data.append({
-                        "date": day_str,
-                        "count": daily_product_count,
-                        "totalStock": daily_total_stock,
-                        "totalValue": round(daily_total_value, 2)
+            try:
+                bill_date = datetime.fromisoformat(bill_info['timestamp'].replace('Z', '+00:00')).date()
+                if start_date <= bill_date <= end_date:
+                    bill_items.append({
+                        'productid': item['productid'],
+                        'quantity': item['quantity'],
+                        'billDate': bill_date
                     })
-                    app.logger.info(f"Date {day_str}: {daily_product_count} products, stock {daily_total_stock}")
+            except:
+                continue
+        
+        # Initialize calendar data
+        calendar_data = {}
+        for prod_id, prod_info in product_map.items():
+            calendar_data[prod_id] = {
+                'productId': prod_id,
+                'productName': prod_info['productName'],
+                'barcode': prod_info['barcode'],
+                'price': prod_info['price'],
+                'category': prod_info['category'],
+                'dailyStock': {},
+                'assignedDate': prod_info['assignedDate']
+            }
+        
+        # Populate initial stock ONLY from assignedDate onwards
+        for current_day in (start_date + timedelta(n) for n in range(days)):
+            day_str = current_day.isoformat()
+            for prod_id, prod_data in calendar_data.items():
+                if current_day >= prod_data['assignedDate']:
+                    calendar_data[prod_id]['dailyStock'][day_str] = int(product_map[prod_id]['initialquantity'])
+        
+        # Deduct sales from bill items
+        for item in bill_items:
+            prod_id = item['productid']
+            bill_date = item['billDate']
+            quantity_sold = item['quantity']
             
-            app.logger.info(f"Returning {len(aggregated_calendar_data)} calendar days")
+            # Deduct from bill date onwards
+            for current_day in (bill_date + timedelta(n) for n in range((end_date - bill_date).days + 1)):
+                day_str = current_day.isoformat()
+                if day_str in calendar_data[prod_id]['dailyStock']:
+                    calendar_data[prod_id]['dailyStock'][day_str] -= int(quantity_sold)
+        
+        # Aggregate by date
+        aggregated_calendar_data = []
+        for current_day in (start_date + timedelta(n) for n in range(days)):
+            day_str = current_day.isoformat()
+            daily_product_count = 0
+            daily_total_stock = 0
+            daily_total_value = 0
             
-            return jsonify({
-                "success": True,
-                "storeId": store_id,
-                "calendar": aggregated_calendar_data
-            }), 200
+            for prod_id, prod_data in calendar_data.items():
+                current_stock_for_day = prod_data['dailyStock'].get(day_str, 0)
+                if current_stock_for_day > 0:
+                    daily_product_count += 1
+                    daily_total_stock += current_stock_for_day
+                    daily_total_value += current_stock_for_day * prod_data['price']
             
+            # Only include days with actual inventory
+            if daily_product_count > 0:
+                aggregated_calendar_data.append({
+                    'date': day_str,
+                    'count': daily_product_count,
+                    'totalStock': daily_total_stock,
+                    'totalValue': round(daily_total_value, 2)
+                })
+        
+        app.logger.info(f"Returning {len(aggregated_calendar_data)} calendar days")
+        return jsonify({
+            'success': True,
+            'storeId': storeid,
+            'calendar': aggregated_calendar_data
+        }), 200
+        
     except Exception as e:
         app.logger.error(f"Error getting store inventory calendar: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/stores/<store_id>/inventory-by-date/<date_str>', methods=['GET'])
-def get_store_inventory_by_date(store_id, date_str):
-    """
-    Get products and their quantities for a specific store on a given date.
-    """
+@app.route('/api/stores/<storeid>/inventory-by-date/<datestr>', methods=['GET'])
+def get_store_inventory_by_date(storeid, datestr):
+    """Get products and their quantities for a specific store on a given date."""
     try:
-        target_date = datetime.fromisoformat(date_str).date()
-        app.logger.info(f"Fetching inventory for store {store_id} on {target_date.isoformat()}")
-
-        with DatabaseConnection.get_connection_ctx() as conn:
-            cursor = conn.cursor(dictionary=True)
-
-            # Get all products initially assigned to the store
-            query = """
-                SELECT 
-                    si.productId,
-                    si.quantity as initial_quantity,
-                    p.name as productName,
-                    p.barcode,
-                    p.selling_price as price,
-                    p.category
-                FROM StoreInventory si
-                JOIN Products p ON si.productId = p.id
-                WHERE si.storeId = %s
-            """
-            cursor.execute(query, (store_id,))
-            store_products_initial = cursor.fetchall()
-
-            if not store_products_initial:
-                # Return the specified format even if no products
-                result = {
-                    "rows": [],
-                    "totalStock": 0,
-                    "totalValue": 0.00
-                }
-                app.logger.info(f"Returning 0 rows, stock: 0, value: 0.00 for store {store_id} on {target_date.isoformat()}")
-                return jsonify(result), 200
-
-            product_map = {p['productId']: p for p in store_products_initial}
-            current_stock_levels = {p['productId']: int(p['initial_quantity']) for p in store_products_initial}
-
-            # Fetch relevant bill items up to the target_date for the store and its products
-            bill_items_query = f"""
-                SELECT 
-                    bi.productId,
-                    bi.quantity,
-                    b.timestamp as billDate
-                FROM BillItems bi
-                JOIN Bills b ON bi.billId = b.id
-                WHERE b.storeId = %s
-                AND bi.productId IN ({','.join(['%s'] * len(product_map))})
-                AND b.timestamp < %s
-                ORDER BY b.timestamp
-            """
-            cursor.execute(bill_items_query, (store_id, *product_map.keys(), target_date + timedelta(days=1)))
-            bill_items_before_date = cursor.fetchall()
-
-            # Adjust stock levels based on sales (bill items) up to the target_date
-            for item in bill_items_before_date:
-                prod_id = item['productId']
-                bill_date = item['billDate'].date()
-                quantity_sold = item['quantity']
-
-                if prod_id in current_stock_levels and bill_date <= target_date:
-                    current_stock_levels[prod_id] -= int(quantity_sold)
-            
-            # Format results for the target date and calculate totals
-            rows = []
-            total_stock = 0
-            total_value = 0.00
-            for prod_id, stock in current_stock_levels.items():
-                if stock > 0: # Only include products with positive stock
-                    product_info = product_map[prod_id]
-                    row_price = float(product_info['price'])
-                    row_value = round(stock * row_price, 2)
-                    rows.append({
-                        'id': prod_id, # Changed from productId to id as per frontend expectation
-                        'barcode': product_info['barcode'],
-                        'name': product_info['productName'], # Changed from productName to name
-                        'price': row_price,
-                        'stock': stock,
-                        'rowValue': row_value
-                    })
-                    total_stock += stock
-                    total_value += row_value
-            
-            # Prepare the final result as per frontend expectation
+        target_date = datetime.fromisoformat(datestr).date()
+        app.logger.info(f"Fetching inventory for store {storeid} on {target_date.isoformat()}")
+        
+        client = db.client
+        
+        # Get all products initially assigned to the store
+        store_products_response = client.table('storeinventory').select(
+            'productid, quantity, assignedat, products(name, barcode, selling_price, category)'
+        ).eq('storeid', storeid).execute()
+        
+        store_products_initial = store_products_response.data
+        
+        if not store_products_initial:
             result = {
-                "rows": rows,
-                "totalStock": total_stock,
-                "totalValue": round(total_value, 2)
+                'rows': [],
+                'totalStock': 0,
+                'totalValue': 0.00
             }
-            
-            app.logger.info(f"Returning {len(rows)} rows, stock: {total_stock}, value: {round(total_value, 2)}")
+            app.logger.info(f"Returning 0 rows, stock=0, value=0.00 for store {storeid} on {target_date.isoformat()}")
             return jsonify(result), 200
-
+        
+        # Build product map and initial stock levels
+        product_map = {}
+        current_stock_levels = {}
+        
+        for p in store_products_initial:
+            product_info = p.get('products', {})
+            if not product_info:
+                continue
+            
+            prod_id = p['productid']
+            product_map[prod_id] = {
+                'productName': product_info.get('name', 'Unknown'),
+                'barcode': product_info.get('barcode', ''),
+                'price': float(product_info.get('selling_price', 0)),
+                'category': product_info.get('category', '')
+            }
+            current_stock_levels[prod_id] = int(p.get('quantity', 0))
+        
+        # Fetch relevant bill items up to the target date
+        bill_items_response = client.table('billitems').select(
+            'productid, quantity, bills(timestamp, storeid)'
+        ).in_('productid', list(product_map.keys())).execute()
+        
+        bills_before_date = []
+        for item in bill_items_response.data:
+            bill_info = item.get('bills')
+            if not bill_info:
+                continue
+            
+            # Filter by storeid
+            if bill_info.get('storeid') != storeid:
+                continue
+            
+            try:
+                bill_date = datetime.fromisoformat(bill_info['timestamp'].replace('Z', '+00:00')).date()
+                # Only include bills up to and including target date
+                if bill_date <= target_date:
+                    bills_before_date.append({
+                        'productid': item['productid'],
+                        'quantity': item['quantity'],
+                        'billDate': bill_date
+                    })
+            except:
+                continue
+        
+        # Adjust stock levels based on sales
+        for item in bills_before_date:
+            prod_id = item['productid']
+            quantity_sold = item['quantity']
+            if prod_id in current_stock_levels:
+                current_stock_levels[prod_id] -= int(quantity_sold)
+        
+        # Format results for the target date and calculate totals
+        rows = []
+        total_stock = 0
+        total_value = 0.00
+        
+        for prod_id, stock in current_stock_levels.items():
+            if stock > 0:  # Only include products with positive stock
+                product_info = product_map[prod_id]
+                row_price = product_info['price']
+                row_value = round(stock * row_price, 2)
+                
+                rows.append({
+                    'id': prod_id,
+                    'barcode': product_info['barcode'],
+                    'name': product_info['productName'],
+                    'price': row_price,
+                    'stock': stock,
+                    'rowValue': row_value
+                })
+                
+                total_stock += stock
+                total_value += row_value
+        
+        result = {
+            'rows': rows,
+            'totalStock': total_stock,
+            'totalValue': round(total_value, 2)
+        }
+        
+        app.logger.info(f"Returning {len(rows)} rows, stock={total_stock}, value={round(total_value, 2)}")
+        return jsonify(result), 200
+        
     except ValueError:
-        app.logger.error(f"Invalid date format in get_store_inventory_by_date: {date_str}", exc_info=True)
-        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
+        app.logger.error(f"Invalid date format in get_store_inventory_by_date: {datestr}", exc_info=True)
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD.'}), 400
     except Exception as e:
         app.logger.error(f"Error in get_store_inventory_by_date: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
 
 # ---------------------------
@@ -1626,11 +2130,41 @@ def api_print_label():
 # Users - ENHANCED WITH SYNC LOGGING
 # ---------------------------
 
-@app.route('/api/users', methods=['GET'])
+@app.route("/api/users", methods=["GET"])
 def get_users():
-    users = get_users_data()
-    users_safe = [{k: v for k, v in user.items() if k != 'password'} for user in users]
-    return jsonify(users_safe)
+    try:
+        client = db.client
+
+        # Fetch users from Supabase
+        try:
+            result = client.table('users').select("*, stores!inner(name)").execute()
+            supabase_users = result.data or []
+        except Exception as sup_err:
+            app.logger.warning(f"Could not fetch users from Supabase: {sup_err}")
+            supabase_users = []
+
+        # Load local JSON users (offline/local entries such as initial super admins)
+        try:
+            local_users = get_users_data() or []
+        except Exception as local_err:
+            app.logger.warning(f"Could not load local users JSON: {local_err}")
+            local_users = []
+
+        # Merge: prefer local_users for same id (local overrides remote)
+        merged = {u.get('id'): u for u in supabase_users if u.get('id')}
+        for lu in local_users:
+            if lu and lu.get('id'):
+                merged[lu.get('id')] = lu
+
+        users_list = list(merged.values())
+
+        # Ensure we don't return passwords to frontend
+        users_safe = [{k: v for k, v in user.items() if k != 'password'} for user in users_list]
+        return jsonify(users_safe), 200
+    except Exception as e:
+        app.logger.error(f"Error getting users: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/users', methods=['POST'])
 def add_user():
@@ -1641,15 +2175,65 @@ def add_user():
     if 'password' not in new_user_data or not new_user_data['password']:
         return jsonify({"message": "Password is required"}), 400
 
+    # Check for existing email (case-insensitive) in local JSON
+    new_email = (new_user_data.get('email') or '').strip().lower()
+    if not new_email:
+        return jsonify({"message": "Email is required"}), 400
+
+    if any((u.get('email') or '').strip().lower() == new_email for u in users):
+        return jsonify({"message": "Email already present"}), 400
+
+    # Also check Supabase for existing email
+    try:
+        client = db.client
+        resp = client.table('users').select('id').eq('email', new_user_data.get('email')).execute()
+        if resp.data:
+            return jsonify({"message": "Email already present"}), 400
+    except Exception:
+        # If Supabase check fails, log and continue relying on local check
+        app.logger.debug("Supabase email-check failed; proceeding with local-only validation")
+
     new_user_data['id'] = str(uuid.uuid4())
     new_user_data['createdAt'] = datetime.now().isoformat()
     new_user_data['updatedAt'] = datetime.now().isoformat()
+
+    # Retain assignedStores in new_user_data for local JSON storage
+    assigned_stores_ids = new_user_data.get('assignedStores', [])
+    if not isinstance(assigned_stores_ids, list):
+        assigned_stores_ids = []
+    
+    # Ensure assignedStores is always a list in the user data for local JSON
+    new_user_data['assignedStores'] = assigned_stores_ids 
+
     users.append(new_user_data)
     save_users_data(users)
-    
-    # ENHANCED: Log CRUD operation to sync system
-    log_crud_operation('users', 'CREATE', new_user_data['id'], new_user_data)
-    
+
+    # ENHANCED: Log CRUD operation to sync system for the user record
+    try:
+        db_user_data = convert_camel_to_snake(new_user_data)
+    except Exception:
+        db_user_data = new_user_data
+    log_crud_operation('users', 'CREATE', new_user_data['id'], db_user_data) # Log user creation
+
+    # Now, handle assigned stores for the user using direct Supabase methods
+    for store_id in assigned_stores_ids:
+        try:
+            # Use the direct Supabase method to add the user-store association
+            result = db.add_user_store(new_user_data['id'], store_id)
+            if result:
+                app.logger.info(f"✅ User {new_user_data['id']} assigned to store {store_id} in Supabase.")
+                # Log this specific assignment to sync_table for audit/replication
+                log_crud_operation('userstores', 'CREATE', f"{new_user_data['id']}-{store_id}", {'userid': new_user_data['id'], 'storeid': store_id})
+            else:
+                app.logger.error(f"❌ Failed to assign user {new_user_data['id']} to store {store_id} in Supabase (no data returned).")
+        except Exception as e:
+            app.logger.error(f"❌ Error assigning user {new_user_data['id']} to store {store_id} in Supabase: {e}", exc_info=True)
+            # Log the failure for potential retry or investigation
+            log_crud_operation('userstores', 'CREATE_FAILED', f"{new_user_data['id']}-{store_id}", {'userid': new_user_data['id'], 'storeid': store_id, 'error': str(e)})
+
+    # Re-add assignedStores to new_user_data for the response to frontend
+    new_user_data['assignedStores'] = assigned_stores_ids
+
     # Return user data without the hashed password
     user_safe = {k: v for k, v in new_user_data.items() if k != 'password'}
     return jsonify(user_safe), 201
@@ -1663,6 +2247,36 @@ def update_user(user_id):
     
     for i, user in enumerate(users):
         if user['id'] == user_id:
+            # If email is being updated, ensure it doesn't already exist elsewhere
+            if 'email' in updated_data:
+                new_email = (updated_data.get('email') or '').strip().lower()
+                if not new_email:
+                    return jsonify({"message": "Email is required"}), 400
+
+                # Check local users for duplicates excluding current user
+                if any((u.get('email') or '').strip().lower() == new_email and u.get('id') != user_id for u in users):
+                    return jsonify({"message": "Email already present"}), 400
+
+                # Check Supabase for existing email (other than this user)
+                try:
+                    client = db.client
+                    resp = client.table('users').select('id').eq('email', updated_data.get('email')).execute()
+                    if resp.data:
+                        # If any returned record is not this user, reject
+                        other_ids = [r.get('id') for r in resp.data if r.get('id')]
+                        if any(oid != user_id for oid in other_ids):
+                            return jsonify({"message": "Email already present"}), 400
+                except Exception:
+                    app.logger.debug("Supabase email-check failed during update; proceeding with local-only validation")
+
+            # Retain assignedStores in updated_data for local JSON storage
+            assigned_stores_ids = updated_data.get('assignedStores', [])
+            if not isinstance(assigned_stores_ids, list):
+                assigned_stores_ids = []
+            
+            # Ensure assignedStores is always a list in the user data for local JSON
+            updated_data['assignedStores'] = assigned_stores_ids 
+
             # Store password in plain text as requested (WARNING: This is a severe security risk)
             if 'password' in updated_data:
                 users[i]['password'] = updated_data['password']
@@ -1680,8 +2294,46 @@ def update_user(user_id):
     if user_found:
         save_users_data(users)
         
-        # ENHANCED: Log CRUD operation to sync system
-        log_crud_operation('users', 'UPDATE', user_id, users[idx])
+        # ENHANCED: Log CRUD operation to sync system for the user record
+        try:
+            db_update_data = convert_camel_to_snake(users[idx])
+        except Exception:
+            db_update_data = users[idx]
+        log_crud_operation('users', 'UPDATE', user_id, db_update_data) # Log user update
+
+        # Handle assigned stores: delete existing and re-insert new ones using direct Supabase methods
+        
+        # 1. Delete existing userstore entries for this user
+        try:
+            # Use the direct Supabase method to remove all associations
+            # Note: The SupabaseDB.remove_user_store method currently requires both user_id and store_id.
+            # We need to fetch existing associations first to delete them one by one, or update the SupabaseDB method.
+            # For now, we will use a direct client call which can delete all with one query.
+            SupabaseDBClient_instance.client.table('userstores').delete().eq('userid', user_id).execute()
+            app.logger.info(f"✅ Deleted existing userstores for user {user_id} from Supabase.")
+            # Log this deletion to sync, specifying the user ID and that all stores were removed
+            log_crud_operation('userstores', 'DELETE_ALL_FOR_USER', user_id, {'userid': user_id})
+        except Exception as e:
+            app.logger.error(f"❌ Error deleting existing userstores for user {user_id} from Supabase: {e}", exc_info=True)
+
+        # 2. Insert new userstore entries
+        for store_id in assigned_stores_ids:
+            try:
+                # Use the direct Supabase method to add the user-store association
+                result = db.add_user_store(user_id, store_id)
+                if result:
+                    app.logger.info(f"✅ User {user_id} assigned to store {store_id} in Supabase.")
+                    # Log this specific assignment to sync_table for audit/replication
+                    log_crud_operation('userstores', 'CREATE', f"{user_id}-{store_id}", {'userid': user_id, 'storeid': store_id})
+                else:
+                    app.logger.error(f"❌ Failed to assign user {user_id} to store {store_id} in Supabase (no data returned).")
+            except Exception as e:
+                app.logger.error(f"❌ Error assigning user {user_id} to store {store_id} in Supabase: {e}", exc_info=True)
+                # Log the failure for potential retry or investigation
+                log_crud_operation('userstores', 'CREATE_FAILED', f"{user_id}-{store_id}", {'userid': user_id, 'storeid': store_id, 'error': str(e)})
+
+        # Re-add assignedStores to users[idx] for the response to frontend
+        users[idx]['assignedStores'] = assigned_stores_ids
         
         # Return user data without the hashed password
         user_safe = {k: v for k, v in users[idx].items() if k != 'password'}
@@ -1691,27 +2343,61 @@ def update_user(user_id):
 
 @app.route('/api/users/<user_id>', methods=['DELETE'])
 def delete_user(user_id):
+    # Delete UserStores associations first
+    userstores = get_user_stores_data()
+    
+    # Identify userstores to be deleted
+    userstores_to_delete = [us for us in userstores if us.get('userId') == user_id or us.get('userid') == user_id]
+    
+    # Remove from local JSON
+    userstores = [us for us in userstores if us.get('userId') != user_id and us.get('userid') != user_id]
+    save_user_stores_data(userstores)
+    
+    # Log UserStores deletions
+    for us in userstores_to_delete:
+        record_id = f"{user_id}-{us['storeId']}" if us.get('storeId') else f"{user_id}-{us['storeid']}"
+        log_crud_operation('userstores', 'DELETE', record_id, us) # Log each individual deletion
+    
+    # Then delete the user from local JSON
     users = get_users_data()
-    initial_len = len(users)
+    user_index = next((i for i, u in enumerate(users) if u.get('id') == user_id), -1)
     
-    # Find user before deletion
     deleted_user = None
-    for user in users:
-        if user['id'] == user_id:
-            deleted_user = user
-            break
-    
-    users = [user for user in users if user['id'] != user_id]
-    
-    if len(users) < initial_len:
+    if user_index != -1:
+        deleted_user = users.pop(user_index)
         save_users_data(users)
-        
-        # ENHANCED: Log CRUD operation to sync system
-        log_crud_operation('users', 'DELETE', user_id, deleted_user or {})
-        
-        return jsonify({"message": "User deleted"}), 200
+        app.logger.info(f"User {user_id} deleted from local JSON.")
+    else:
+        app.logger.info(f"User {user_id} not found in local JSON.")
     
-    return jsonify({"message": "User not found"}), 404
+    # Perform direct deletion from Supabase
+    try:
+        client = db.client
+        
+        # 1. Delete associated userstores in Supabase
+        # Using SupabaseDBClient_instance for direct deletion due to current `remove_user_store` signature.
+        SupabaseDBClient_instance.client.table('userstores').delete().eq('userid', user_id).execute()
+        app.logger.info(f"Deleted userstores for user {user_id} from Supabase.")
+
+        # 2. Update `Bills` where `createdby` is this user to NULL
+        client.table('bills').update({'createdby': None}).eq('createdby', user_id).execute()
+        app.logger.info(f"Set createdby to NULL for bills created by user {user_id} in Supabase.")
+
+        # 3. Delete the user from Supabase
+        client.table('users').delete().eq('id', user_id).execute()
+        app.logger.info(f"User {user_id} deleted from Supabase.")
+        
+        # Log User deletion to sync system (for audit trail)
+        log_crud_operation('users', 'DELETE', user_id, deleted_user or {'id': user_id})
+        
+        return jsonify({"message": "User deleted successfully"}), 200
+    except Exception as e:
+        app.logger.error(f"Error deleting user {user_id} from Supabase: {e}", exc_info=True)
+        # Revert local changes if Supabase deletion fails (optional, but good practice)
+        if deleted_user and user_index == -1: # if user was found locally but not in Supabase, and error occurred
+             users.append(deleted_user)
+             save_users_data(users)
+        return jsonify({"error": str(e), "message": "Failed to delete user from database"}), 500
 
 # NEW: Endpoint to retrieve (hashed) password for editing purposes
 # ---------------------------
@@ -1802,7 +2488,7 @@ def flush_data():
     Flush data by category WITHOUT touching ANY billing tables (Bills, BillItems)
     
     Categories:
-    - products: Delete Products & ProductBarcodes, set BillItems.productId to NULL
+    - products: Delete Products, set BillItems.productId to NULL
     - stores: Delete Stores & UserStores, set Bills.storeId to NULL
     - users: Delete non-admin Users, set Bills.createdBy to NULL
     - customers: Delete Customers, set Bills.customerId to NULL
@@ -1816,7 +2502,7 @@ def flush_data():
         return jsonify(status="error", message="Category to flush is required"), 400
     
     try:
-        with DatabaseConnection.get_connection_ctx() as conn:
+        with MySQLDatabaseConnection.get_connection_ctx() as conn:
             cursor = conn.cursor()
             
             # ====== PRODUCTS FLUSH ======
@@ -1831,27 +2517,39 @@ def flush_data():
                 affected_bill_items = cursor.rowcount
                 app.logger.info(f"Set productId to NULL for {affected_bill_items} BillItems records")
                 
-                cursor.execute("DELETE FROM `ProductBarcodes`")
-                deleted_barcodes = cursor.rowcount
+                cursor.execute("""
+                    UPDATE `ProductBarcodes` 
+                    SET `productId` = NULL 
+                    WHERE `productId` IS NOT NULL
+                """)
+                affected_product_barcodes = cursor.rowcount
+                app.logger.info(f"Set productId to NULL for {affected_product_barcodes} ProductBarcodes records")
                 
+                cursor.execute("""
+                    UPDATE `Returns` 
+                    SET `product_id` = NULL 
+                    WHERE `product_id` IS NOT NULL
+                """)
+                affected_returns = cursor.rowcount
+                app.logger.info(f"Set product_id to NULL for {affected_returns} Returns records")
+
                 cursor.execute("DELETE FROM `Products`")
                 deleted_products = cursor.rowcount
                 
                 conn.commit()
                 
-                log_crud_operation('products', 'FLUSH', 'all', {
-                    'deleted_products': deleted_products,
-                    'deleted_barcodes': deleted_barcodes,
-                    'preserved_bill_items': affected_bill_items
-                })
+                # The 'FLUSH' operation is handled by direct DB commands;
+                # no need to log a 'FLUSH' operation to the sync system as it's not a standard CRUD type.
+                # If granular logging is needed, individual DELETE operations should be logged.
                 
                 return jsonify(
                     status="success", 
-                    message=f"Flushed {deleted_products} products. Billing history preserved.",
+                    message=f"Flushed {deleted_products} products. Billing history preserved (BillItems, ProductBarcodes, and Returns updated).",
                     details={
                         'products_deleted': deleted_products,
-                        'barcodes_deleted': deleted_barcodes,
-                        'bill_items_preserved': affected_bill_items
+                        'bill_items_preserved': affected_bill_items,
+                        'product_barcodes_preserved': affected_product_barcodes,
+                        'returns_preserved': affected_returns
                     }
                 ), 200
             
@@ -1866,12 +2564,6 @@ def flush_data():
                 """)
                 affected_bills = cursor.rowcount
                 
-                cursor.execute("""
-                    UPDATE `Products` 
-                    SET `assignedStoreId` = NULL 
-                    WHERE `assignedStoreId` IS NOT NULL
-                """)
-                affected_products = cursor.rowcount
                 
                 cursor.execute("DELETE FROM `UserStores`")
                 deleted_user_stores = cursor.rowcount
@@ -1881,18 +2573,15 @@ def flush_data():
                 
                 conn.commit()
                 
-                log_crud_operation('stores', 'FLUSH', 'all', {
-                    'deleted_stores': deleted_stores,
-                    'preserved_bills': affected_bills
-                })
+                # The 'FLUSH' operation is handled by direct DB commands;
+                # no need to log a 'FLUSH' operation to the sync system as it's not a standard CRUD type.
                 
                 return jsonify(
                     status="success", 
                     message=f"Flushed {deleted_stores} stores. Billing history preserved.",
                     details={
                         'stores_deleted': deleted_stores,
-                        'bills_preserved': affected_bills,
-                        'products_updated': affected_products
+                        'bills_preserved': affected_bills
                     }
                 ), 200
             
@@ -1944,8 +2633,7 @@ def flush_data():
                 
                 conn.commit()
                 
-                for user_id in deleted_user_ids:
-                    log_crud_operation('users', 'DELETE', user_id, {'reason': 'flushed'})
+                # Individual DELETE operations are already logged for users; no need for a 'FLUSH' operation.
                 
                 return jsonify(
                     status="success",
@@ -1972,10 +2660,8 @@ def flush_data():
                 
                 conn.commit()
                 
-                log_crud_operation('customers', 'FLUSH', 'all', {
-                    'deleted_customers': deleted_customers,
-                    'preserved_bills': affected_bills
-                })
+                # The 'FLUSH' operation is handled by direct DB commands;
+                # no need to log a 'FLUSH' operation to the sync system as it's not a standard CRUD type.
                 
                 return jsonify(
                     status="success",
@@ -2002,10 +2688,8 @@ def flush_data():
                 
                 conn.commit()
                 
-                log_crud_operation('batches', 'FLUSH', 'all', {
-                    'deleted_batches': deleted_batches,
-                    'preserved_products': affected_products
-                })
+                # The 'FLUSH' operation is handled by direct DB commands;
+                # no need to log a 'FLUSH' operation to the sync system as it's not a standard CRUD type.
                 
                 return jsonify(
                     status="success",
@@ -2023,160 +2707,321 @@ def flush_data():
         app.logger.error(f"Error flushing {category} data: {e}", exc_info=True)
         return jsonify(status="error", message=f"Failed to flush {category} data: {str(e)}"), 500
 
-# ---------------------------
-# Bills - ENHANCED WITH SYNC LOGGING
-# ---------------------------
+# ============================================
+# BILLS API - OFFLINE FIRST (LOCAL JSON)
+# ============================================
 
+@app.route("/api/local/bills", methods=["GET"])
+def get_local_bills():
+    """Get bills from LOCAL JSON"""
+    try:
+        bills = get_bills_data()
+        transformed_bills = []
+        for bill in bills:
+            bill_dict = {}
+            for key, value in bill.items():
+                if isinstance(value, Decimal):
+                    bill_dict[key] = float(value)
+                elif isinstance(value, (datetime, date)):
+                    bill_dict[key] = value.isoformat()
+                else:
+                    bill_dict[key] = value
+            bill_dict = convert_snake_to_camel(bill_dict) # Ensure camelCase for frontend
+            transformed_bills.append(bill_dict)
+        app.logger.debug(f"Returning {len(transformed_bills)} bills from local JSON.")
+        return jsonify(transformed_bills), 200
+    except Exception as e:
+        app.logger.error(f"Error getting local bills: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/local/bills/update", methods=["POST"])
+def update_local_bills():
+    """Update local JSON bills with new data"""
+    try:
+        bills_data = request.json
+        if not isinstance(bills_data, list):
+            return jsonify({"error": "Expected a list of bills"}), 400
+        
+        snake_case_bills = []
+        for bill in bills_data:
+            snake_case_bill = convert_camel_to_snake(bill)
+            snake_case_bills.append(snake_case_bill)
+        
+        save_bills_data(snake_case_bills)
+        app.logger.info(f"Updated local JSON with {len(bills_data)} bills.")
+        return jsonify({"message": f"Local bills updated with {len(bills_data)} records."}), 200
+    except Exception as e:
+        app.logger.error(f"Error updating local bills: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/supabase/bills", methods=["GET"])
+def get_supabase_bills():
+    """Get bills directly from Supabase"""
+    try:
+        client = db.client
+        
+        # Query Bills with BillItems from Supabase
+        response = client.table('bills').select("*, billitems(*)").order("timestamp", desc=True).execute()
+        bills_raw = response.data or []
+        
+        supabase_bills = []
+        for bill in bills_raw:
+            bill_dict = {}
+            for key, value in bill.items():
+                if isinstance(value, Decimal):
+                    bill_dict[key] = float(value)
+                elif isinstance(value, (datetime, date)):
+                    bill_dict[key] = value.isoformat()
+                else:
+                    bill_dict[key] = value
+            
+            # Supabase returns nested items, convert them too
+            if 'billitems' in bill_dict and isinstance(bill_dict['billitems'], list):
+                bill_dict['items'] = [convert_snake_to_camel(item) for item in bill_dict['billitems']]
+                bill_dict.pop('billitems') # Remove original snake_case items
+            else:
+                bill_dict['items'] = []
+            
+            # Convert the main bill object to camelCase
+            bill_dict = convert_snake_to_camel(bill_dict)
+            supabase_bills.append(bill_dict)
+        
+        app.logger.debug(f"Returning {len(supabase_bills)} bills from Supabase.")
+        return jsonify(supabase_bills), 200
+    except Exception as e:
+        app.logger.error(f"Error getting Supabase bills: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/supabase/bills-with-details', methods=['GET'])
+def get_bills_with_details():
+    """
+    Get all bills with joined bill_items and customers data from Supabase
+    """
+    try:
+        client = db.client
+        
+        # Query bills with related bill_items and customers using Supabase joins
+        response = client.table('bills') \
+            .select('''
+                *,
+                bill_items:billitems(
+                    id,
+                    productid,
+                    productname,
+                    quantity,
+                    price,
+                    total,
+                    tax,
+                    gstrate,
+                    barcodes
+                ),
+                customer:customers(
+                    id,
+                    name,
+                    phone,
+                    email,
+                    address
+                )
+            ''') \
+            .order('timestamp', desc=True) \
+            .execute()
+        
+        bills_data = response.data or []
+        
+        # Transform the data for frontend consumption
+        transformed_bills = []
+        for bill in bills_data:
+            bill_dict = {
+                'id': bill.get('id'),
+                'storeId': bill.get('storeid'),
+                'storeName': bill.get('storename'),
+                'storeAddress': bill.get('storeaddress'),
+                'customerId': bill.get('customerid'),
+                'customerName': bill.get('customername'),
+                'customerPhone': bill.get('customerphone'),
+                'customerEmail': bill.get('customeremail'),
+                'customerAddress': bill.get('customeraddress'),
+                'subtotal': float(bill.get('subtotal', 0)),
+                'taxPercentage': float(bill.get('taxpercentage', 0)),
+                'taxAmount': float(bill.get('taxamount', 0)),
+                'discountPercentage': float(bill.get('discountpercentage', 0)),
+                'discountAmount': float(bill.get('discountamount', 0)),
+                'total': float(bill.get('total', 0)),
+                'paymentMethod': bill.get('paymentmethod'),
+                'timestamp': bill.get('timestamp'),
+                'notes': bill.get('notes'),
+                'gstin': bill.get('gstin'),
+                'companyName': bill.get('companyname'),
+                'companyAddress': bill.get('companyaddress'),
+                'companyPhone': bill.get('companyphone'),
+                'companyEmail': bill.get('companyemail'),
+                'billFormat': bill.get('billformat'),
+                'status': 'Paid',  # Default status
+                'items': [],
+                'customer': None
+            }
+            
+            # Add bill items
+            if bill.get('bill_items'):
+                bill_dict['items'] = [
+                    {
+                        'id': item.get('id'),
+                        'productId': item.get('productid'),
+                        'productName': item.get('productname'),
+                        'quantity': item.get('quantity'),
+                        'price': float(item.get('price', 0)),
+                        'total': float(item.get('total', 0)),
+                        'tax': float(item.get('tax', 0)),
+                        'gstRate': float(item.get('gstrate', 0)),
+                        'barcodes': item.get('barcodes')
+                    }
+                    for item in bill.get('bill_items', [])
+                ]
+            
+            # Add customer details
+            if bill.get('customer'):
+                customer = bill['customer']
+                bill_dict['customer'] = {
+                    'id': customer.get('id'),
+                    'name': customer.get('name'),
+                    'phone': customer.get('phone'),
+                    'email': customer.get('email'),
+                    'address': customer.get('address')
+                }
+            
+            transformed_bills.append(bill_dict)
+        
+        app.logger.info(f"Returning {len(transformed_bills)} bills with full details from Supabase")
+        return jsonify(transformed_bills), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching bills with details from Supabase: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+# Original /api/bills endpoint (can keep if other parts of the app still rely on its merging logic)
 @app.route('/api/bills', methods=['GET'])
 def get_bills():
     """
-    Get all bills - pulls from MySQL via sync_table first,
-    then returns combined data from MySQL and local JSON
+    Get all bills - pulls from MySQL via sync_table first (if enhanced sync is on),
+    then returns combined data from Supabase and local JSON, prioritizing Supabase.
     """
     try:
-        # Step 1: Pull latest bills from MySQL using sync_table
-        if ENHANCED_SYNC_AVAILABLE and sync_manager:
-            app.logger.info("Pulling latest bills from MySQL via sync_table")
-            pull_result = sync_manager.pull_from_mysql_sync_table()
-            
-            if pull_result.get('status') == 'success':
-                app.logger.info(f"Successfully pulled {pull_result.get('applied', 0)} bills from MySQL")
-            else:
-                app.logger.warning(f"Sync pull failed: {pull_result.get('message')}")
-        
-        # Step 2: Get bills from MySQL database directly
-        mysql_bills = []
+        # This endpoint now primarily relies on merged data from local JSON and Supabase.
+        # Background sync (run by EnhancedSyncManager) is responsible for keeping local JSONs updated.
+        # A synchronous pull from Supabase sync_table is no longer performed here
+        # to improve responsiveness of the GET /api/bills endpoint.
+
+        # Step 1: Fetch from Supabase (this is now the preferred source)
+        supabase_bills = []
         try:
-            with DatabaseConnection.get_connection_ctx() as conn:
-                cursor = conn.cursor(dictionary=True)
-                
-                # Query Bills with BillItems
-                cursor.execute("""
-                    SELECT 
-                        b.*,
-                        c.name as customerName,
-                        c.phone as customerPhone,
-                        c.email as customerEmail,
-                        s.name as storeName,
-                        u.name as createdByName
-                    FROM Bills b
-                    LEFT JOIN Customers c ON b.customerId = c.id
-                    LEFT JOIN Stores s ON b.storeId = s.id
-                    LEFT JOIN Users u ON b.createdBy = u.id
-                    ORDER BY b.timestamp DESC
-                """)
-                
-                bills_raw = cursor.fetchall()
-                
-                # Get bill items for each bill
-                for bill in bills_raw:
-                    bill_id = bill['id']
-                    
-                    cursor.execute("""
-                        SELECT * FROM BillItems 
-                        WHERE billId = %s
-                    """, (bill_id,))
-                    
-                    items = cursor.fetchall()
-                    
-                    # Convert Decimal to float for JSON serialization
-                    bill_dict = {}
-                    for key, value in bill.items():
-                        if isinstance(value, Decimal):
-                            bill_dict[key] = float(value)
-                        elif isinstance(value, (datetime, date)):
-                            bill_dict[key] = value.isoformat()
-                        else:
-                            bill_dict[key] = value
-                    
-                    # Convert items
-                    items_list = []
-                    for item in items:
-                        item_dict = {}
-                        for key, value in item.items():
-                            if isinstance(value, Decimal):
-                                item_dict[key] = float(value)
-                            elif isinstance(value, (datetime, date)):
-                                item_dict[key] = value.isoformat()
-                            else:
-                                item_dict[key] = value
-                        items_list.append(item_dict)
-                    
-                    bill_dict['items'] = items_list
-                    mysql_bills.append(bill_dict)
-                
-                app.logger.info(f"Fetched {len(mysql_bills)} bills from MySQL")
+            supabase_bills_response, status_code = get_supabase_bills()
+            if status_code == 200:
+                # Ensure response.data is bytes before trying to decode and load
+                if isinstance(supabase_bills_response.data, bytes):
+                    supabase_bills = json.loads(supabase_bills_response.data.decode('utf-8'))
+                else: # Fallback for string data (should not happen if jsonify is used correctly)
+                    supabase_bills = json.loads(supabase_bills_response.data)
+            else:
+                # Corrected error message extraction for Flask Response object
+                error_details = 'N/A'
+                if isinstance(supabase_bills_response.data, bytes):
+                    try:
+                        error_json = json.loads(supabase_bills_response.data.decode('utf-8'))
+                        error_details = error_json.get('error', 'Unknown error structure')
+                    except json.JSONDecodeError:
+                        error_details = supabase_bills_response.data.decode('utf-8')
+                app.logger.warning(f"Failed to fetch bills from Supabase (Status: {status_code}), falling back to local. Details: {error_details}")
+        except Exception as e:
+            app.logger.error(f"Error fetching/loading Supabase bills: {e}", exc_info=True)
+            app.logger.warning("Continuing get_bills without Supabase data due to error.")
         
-        except Exception as db_error:
-            app.logger.error(f"Error fetching bills from MySQL: {db_error}")
-            # Fallback to local JSON if MySQL fails
-            mysql_bills = []
-        
-        # Step 3: Get local JSON bills as fallback
-        local_bills = get_bills_data()
-        
-        # Step 4: Merge and deduplicate (MySQL takes precedence)
+        # Step 3: Fetch from local JSON (as fallback or additional source)
+        local_bills = []
+        try:
+            local_bills_response, status_code = get_local_bills()
+            if status_code == 200:
+                if isinstance(local_bills_response.data, bytes):
+                    local_bills = json.loads(local_bills_response.data.decode('utf-8'))
+                else:
+                    local_bills = json.loads(local_bills_response.data)
+            else:
+                # Corrected error message extraction for Flask Response object
+                error_details = 'N/A'
+                if isinstance(local_bills_response.data, bytes):
+                    try:
+                        error_json = json.loads(local_bills_response.data.decode('utf-8'))
+                        error_details = error_json.get('error', 'Unknown error structure')
+                    except json.JSONDecodeError:
+                        error_details = local_bills_response.data.decode('utf-8')
+                app.logger.warning(f"Failed to fetch bills from local JSON (Status: {status_code}). Details: {error_details}")
+        except Exception as e:
+            app.logger.error(f"Error fetching/loading local bills: {e}", exc_info=True)
+            app.logger.warning("Continuing get_bills without local JSON data due to error.")
+
+        # Step 4: Merge and deduplicate (Supabase takes precedence over local JSON)
         bills_map = {}
-        
-        # Add MySQL bills first (higher priority)
-        for bill in mysql_bills:
-            bills_map[bill['id']] = bill
-        
-        # Add local bills that aren't in MySQL
+        # Add local bills first (lower priority)
         for bill in local_bills:
-            if bill['id'] not in bills_map:
+            if bill.get('id'):
                 bills_map[bill['id']] = bill
         
-        # Convert to list and sort by timestamp
-        final_bills = list(bills_map.values())
-        final_bills.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        # Add Supabase bills (higher priority), overwriting local if IDs match
+        for bill in supabase_bills:
+            if bill.get('id'):
+                bills_map[bill['id']] = bill
         
-        app.logger.info(f"Returning {len(final_bills)} total bills (MySQL: {len(mysql_bills)}, Local: {len(local_bills)})")
+        final_bills = list(bills_map.values())
+        final_bills.sort(key=lambda x: x.get('date', x.get('createdAt', '')), reverse=True) # Use 'date' or 'createdAt'
+        
+        app.logger.info(f"Returning {len(final_bills)} total bills (Supabase: {len(supabase_bills)}, Local JSON: {len(local_bills)})")
         
         return jsonify(final_bills), 200
     
     except Exception as e:
-        app.logger.error(f"Error getting bills: {e}", exc_info=True)
+        app.logger.error(f"Error getting merged bills: {e}", exc_info=True)
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
-@app.route('/api/bills', methods=['POST'])
-def add_bill():
-    new_bill = request.json or {}
-    bills = get_bills_data()
-    products = get_products_data()
-    
-    # Ensure bill has an ID
-    if 'id' not in new_bill:
-        new_bill['id'] = str(uuid.uuid4())
-    
-    bills.append(new_bill)
-    save_bills_data(bills)
-    
-    # Handle stock updates
-    updated_products = []
-    for item in new_bill.get('items', []):
-        product_id = item.get('productId')
-        quantity = item.get('quantity')
+@app.route("/api/bills", methods=["POST"])
+def create_bill():
+    try:
+        bill_data = request.json
+        if not bill_data:
+            return jsonify({"error": "No bill data provided"}), 400
         
-        if product_id and quantity is not None:
-            for product in products:
-                if product['id'] == product_id:
-                    product['stock'] = int(product.get('stock') or 0) - int(quantity or 0)
-                    product['updatedAt'] = datetime.now().isoformat()
-                    updated_products.append(product)
-                    app.logger.info(f"ACTION: STOCK_UPDATE - Stock updated for product {product_id}: new stock {product['stock']}")
-                    break
-    
-    save_products_data(products)
-    
-    # ENHANCED: Log product stock updates
-    for product in updated_products:
-        log_crud_operation('products', 'UPDATE', product['id'], product)
-    
-    # ENHANCED: Log CRUD operation to sync system
-    log_crud_operation('bills', 'CREATE', new_bill['id'], new_bill)
-    
-    return jsonify(new_bill), 201
+        # Generate ID
+        if 'id' not in bill_data:
+            bill_data['id'] = str(uuid.uuid4())
+        
+        # Add timestamps
+        # Convert to naive datetime (without timezone) to match Supabase's 'timestamp without time zone'
+        now_naive = datetime.now().isoformat()
+        bill_data['createdat'] = now_naive
+        bill_data['updatedat'] = now_naive
+        
+        # Save to local JSON first
+        bills = get_bills_data()
+        bills.append(bill_data)
+        save_bills_data(bills)
+        
+        # Write to Supabase
+        client = db.client
+        
+        # Insert bill
+        result = client.table('bills').insert(bill_data).execute()
+        
+        # Insert bill items if present
+        if 'items' in bill_data:
+            for item in bill_data['items']:
+                item['billid'] = bill_data['id']
+                client.table('billitems').insert(item).execute()
+        
+        # Log to sync
+        log_crud_operation('bills', 'CREATE', bill_data['id'], bill_data)
+        
+        return jsonify({"message": "Bill created", "id": bill_data['id']}), 201
+    except Exception as e:
+        app.logger.error(f"Error creating bill: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/bills/<bill_id>', methods=['DELETE'])
 def delete_bill(bill_id):
@@ -2189,7 +3034,11 @@ def delete_bill(bill_id):
     
     # Restore stock
     updated_products = []
-    for item in bill_to_delete.get('items', []):
+    bill_items = bill_to_delete.get('items')
+    if bill_items is None:
+        bill_items = []
+    
+    for item in bill_items:
         product_id = item.get('productId')
         quantity = item.get('quantity')
         
@@ -2197,6 +3046,7 @@ def delete_bill(bill_id):
             for product in products:
                 if product['id'] == product_id:
                     product['stock'] = int(product.get('stock') or 0) + int(quantity or 0)
+                    # Convert to naive datetime (without timezone) to match Supabase's 'timestamp without time zone'
                     product['updatedAt'] = datetime.now().isoformat()
                     updated_products.append(product)
                     app.logger.info(f"ACTION: STOCK_RESTORE - Stock restored for product {product_id}: new stock {product['stock']}")
@@ -2234,7 +3084,7 @@ def get_bills_from_sync_table():
         
         bills_from_sync = []
         
-        with DatabaseConnection.get_connection_ctx() as conn:
+        with MySQLDatabaseConnection.get_connection_ctx() as conn:
             cursor = conn.cursor(dictionary=True)
             
             # Query sync_table for Bills and BillItems changes
@@ -2532,7 +3382,7 @@ def update_settings():
         # Try to find an existing systemSettings ID if not in incoming data
         for k, v in existing_settings.items():
             if isinstance(v, dict) and "gstin" in v: # Heuristic to find systemSettings
-                setting_id = k
+                setting_id = str(k) # Ensure the retrieved key is a string
                 break
 
     if "systemSettings" in data:
@@ -2550,76 +3400,123 @@ def update_settings():
     # Retrieve the system_settings object using the determined setting_id for DB update
     system_settings = existing_settings.get(setting_id, {})
     
-    # DIRECTLY UPDATE MySQL DATABASE
+    # Prepare system_settings for Supabase with snake_case column names
+    # and convert Decimal/int to float/int if needed, and handle None for empty strings
+    system_settings_for_supabase = {
+        "id": setting_id,
+        "gstin": system_settings.get("gstin", None) or None,
+        "taxpercentage": float(system_settings.get("taxPercentage", 0)),
+        "companyname": system_settings.get("companyName", None) or None,
+        "companyaddress": system_settings.get("companyAddress", None) or None,
+        "companyphone": system_settings.get("companyPhone", None) or None,
+        "companyemail": system_settings.get("companyEmail", None) or None,
+        # "updatedat": datetime.now().isoformat() # Removed, as systemsettings table does not have this column
+    }
+    
+    # Remove 'id' if it's not a valid UUID or existing primary key for Supabase insert
+    # Supabase typically expects ID to be handled by the database for inserts unless specified
+    # However, we're using a fixed '1' or existing ID, so it should be fine.
+    
+    # DIRECTLY UPDATE Supabase DATABASE
     try:
-        with DatabaseConnection.get_connection() as conn:
-            cursor = conn.cursor(dictionary=True)
+        client = db.client
+        
+        # Check if record exists in Supabase
+        response = client.table("systemsettings").select("*").eq("id", setting_id).execute()
+        existing_record_supabase = response.data
+        
+        if existing_record_supabase:
+            # UPDATE existing record
+            update_data_supabase = {k: v for k, v in system_settings_for_supabase.items() if k != "id"} # Don't update ID
+            update_response = client.table("systemsettings").update(update_data_supabase).eq("id", setting_id).execute()
             
-            # Check if record exists
-            cursor.execute("SELECT * FROM SystemSettings WHERE id = %s", (setting_id,))
-            existing_record = cursor.fetchone()
-            
-            if existing_record:
-                # UPDATE existing record
-                update_query = """
-                    UPDATE SystemSettings 
-                    SET gstin = %s, taxPercentage = %s, companyName = %s, 
-                        companyAddress = %s, companyPhone = %s, companyEmail = %s
-                    WHERE id = %s
-                """
-                cursor.execute(update_query, (
-                    system_settings.get("gstin", ""),
-                    system_settings.get("taxPercentage", 0),
-                    system_settings.get("companyName", ""),
-                    system_settings.get("companyAddress", ""),
-                    system_settings.get("companyPhone", ""),
-                    system_settings.get("companyEmail", ""),
-                    setting_id
-                ))
-            else:
-                # INSERT new record
-                insert_query = """
-                    INSERT INTO SystemSettings 
-                    (id, gstin, taxPercentage, companyName, companyAddress, companyPhone, companyEmail)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """
-                cursor.execute(insert_query, (
-                    setting_id,
-                    system_settings.get("gstin", ""),
-                    system_settings.get("taxPercentage", 0),
-                    system_settings.get("companyName", ""),
-                    system_settings.get("companyAddress", ""),
-                    system_settings.get("companyPhone", ""),
-                    system_settings.get("companyEmail", "")
-                ))
-            
-            conn.commit()
-            app.logger.info("SystemSettings updated in database")
+            if update_response.data is None or len(update_response.data) == 0:
+                app.logger.error(f"Supabase update failed for SystemSettings {setting_id}: {update_response.error}")
+                raise Exception(f"Supabase update failed: {update_response.error}")
+        else:
+            # INSERT new record
+            insert_response = client.table("systemsettings").insert(system_settings_for_supabase).execute()
+            if insert_response.data is None or len(insert_response.data) == 0:
+                app.logger.error(f"Supabase insert failed for SystemSettings {setting_id}: {insert_response.error}")
+                raise Exception(f"Supabase insert failed: {insert_response.error}")
+        
+        app.logger.info(f"SystemSettings updated in Supabase (ID: {setting_id})")
             
     except Exception as e:
-        app.logger.error(f"Error updating SystemSettings in database: {e}", exc_info=True)
-        return jsonify({"error": "Failed to update database", "message": str(e)}), 500
+        app.logger.error(f"Error updating SystemSettings in Supabase: {e}", exc_info=True)
+        return jsonify({"error": "Failed to update Supabase database", "message": str(e)}), 500
     
-    # Log to sync system for audit trail
-    log_crud_operation("settings", "UPDATE", setting_id, existing_settings)
+    # Ensure all keys in existing_settings are strings to avoid jsonify sorting errors
+    existing_settings_str_keys = {str(k): v for k, v in existing_settings.items()}
     
-    return jsonify(existing_settings), 200
+    # Prepare system_settings for sync with snake_case column names.
+    # Exclude 'updatedat' here as well, since the Supabase table doesn't have it.
+    system_settings_for_sync = {k: v for k, v in system_settings_for_supabase.items() if k != "updatedat"}
+    
+    # Log to sync system for audit trail (only system settings, not entire dict)
+    log_crud_operation("SystemSettings", "UPDATE", setting_id, system_settings_for_sync)
+    
+    return jsonify(existing_settings_str_keys), 200
 
 # ---------------------------
 # Stores - ENHANCED WITH SYNC LOGGING
 # ---------------------------
 
+@app.route("/api/supabase/stores", methods=["GET"])
+def get_supabase_stores():
+    """Get stores directly from Supabase"""
+    try:
+        client = db.client
+        response = client.table("stores").select("*").execute()
+        stores = response.data or []
+        
+        # Convert to camelCase for frontend
+        transformed_stores = [convert_snake_to_camel(store) for store in stores]
+        
+        app.logger.debug(f"Returning {len(transformed_stores)} stores from Supabase.")
+        return jsonify(transformed_stores), 200
+    except Exception as e:
+        app.logger.error(f"Error getting Supabase stores: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/stores', methods=['GET'])
 def get_stores():
-    stores = get_stores_data()
-    return jsonify(stores)
+    """Get stores by merging local and Supabase, prioritizing Supabase."""
+    try:
+        supabase_stores_response, supabase_status_code = get_supabase_stores()
+        if supabase_status_code == 200:
+            if isinstance(supabase_stores_response.data, bytes):
+                supabase_stores = json.loads(supabase_stores_response.data.decode('utf-8'))
+            else:
+                supabase_stores = json.loads(supabase_stores_response.data)
+        else:
+            app.logger.warning(f"Failed to fetch stores from Supabase (Status: {supabase_status_code}), falling back to local. Details: {supabase_stores_response.data}")
+            supabase_stores = []
+
+        local_stores = get_stores_data() # Returns already camelCase converted data
+        
+        merged_stores_map = {s.get('id'): s for s in local_stores if s.get('id')}
+        for ss in supabase_stores:
+            if ss.get('id'):
+                merged_stores_map[ss['id']] = ss
+        
+        final_stores = list(merged_stores_map.values())
+        
+        app.logger.debug(f"Returning {len(final_stores)} merged stores for frontend.")
+        return jsonify(final_stores), 200
+    except Exception as e:
+        app.logger.error(f"Error getting merged stores: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/stores', methods=['POST'])
 def add_store():
     new_store_data = request.json or {}
     stores = get_stores_data()
     new_store_data['id'] = f"STR-{int(datetime.now().timestamp() * 1000)}"
-    new_store_data['createdAt'] = datetime.now().isoformat()
+    now_iso = datetime.now().isoformat()
+    new_store_data['createdAt'] = now_iso
+    # Ensure updatedAt is set on creation as well so frontend and sync have both timestamps
+    new_store_data['updatedAt'] = now_iso
     stores.append(new_store_data)
     save_stores_data(stores)
     
@@ -2663,27 +3560,96 @@ def update_store(store_id):
 
 @app.route('/api/stores/<store_id>', methods=['DELETE'])
 def delete_store(store_id):
-    stores = get_stores_data()
-    initial_len = len(stores)
-    
-    # Find store before deletion
-    deleted_store = None
-    for store in stores:
-        if store['id'] == store_id:
-            deleted_store = store
-            break
-    
-    stores = [s for s in stores if s['id'] != store_id]
-    
-    if len(stores) == initial_len:
-        return jsonify({"message": "Store not found"}), 404
-    
-    save_stores_data(stores)
-    
-    # ENHANCED: Log CRUD operation to sync system
-    log_crud_operation('stores', 'DELETE', store_id, deleted_store or {})
-    
-    return '', 204
+    """Delete a store and all its associated inventory records from Supabase and local JSON."""
+    try:
+        client = db.client
+        deleted_store_for_log = None # To capture store data for logging if found locally
+
+        # STEP 1: Attempt to fetch store locally before deletion for logging purposes
+        local_stores = get_stores_data()
+        local_store_index = next((i for i, s in enumerate(local_stores) if s.get('id') == store_id), -1)
+        if local_store_index != -1:
+            deleted_store_for_log = local_stores[local_store_index]
+            app.logger.debug(f"Store {store_id} found in local JSON.")
+        else:
+            app.logger.debug(f"Store {store_id} not found in local JSON initially.")
+
+        # --- Supabase Deletion Flow ---
+        # Fetch inventory records from Supabase for this store to restock products
+        app.logger.info(f"Attempting to fetch store inventory for store {store_id} from Supabase for restocking.")
+        inventory_records_response = client.table('storeinventory').select('productid, quantity').eq('storeid', store_id).execute()
+        inventory_to_restock = inventory_records_response.data or []
+        
+        products_data = get_products_data() # Get current local products data
+        products_map = {p['id']: p for p in products_data} # Map for easy lookup
+
+        # Restock products in local JSON based on deleted inventory
+        for inv_item in inventory_to_restock:
+            product_id = inv_item['productid']
+            assigned_quantity = int(inv_item['quantity'])
+            
+            if product_id in products_map:
+                product_to_update = products_map[product_id]
+                old_stock = int(product_to_update.get('stock', 0))
+                new_stock = old_stock + assigned_quantity
+                
+                product_to_update['stock'] = new_stock
+                product_to_update['updatedAt'] = datetime.now().isoformat()
+                
+                app.logger.info(f"Restocked product {product_id}: {old_stock} -> {new_stock} (added {assigned_quantity} from store {store_id})")
+                
+                # Log product update for sync (assuming this triggers update to Supabase via sync manager)
+                log_crud_operation('products', 'UPDATE', product_id, product_to_update)
+            else:
+                app.logger.warning(f"Product {product_id} not found in local products data for restocking. This may indicate a data discrepancy.")
+        
+        save_products_data(list(products_map.values())) # Save updated products data back to local JSON
+
+        # Delete store inventory from Supabase
+        app.logger.info(f"Deleting store inventory records for store {store_id} from Supabase.")
+        inventory_delete_response = client.table('storeinventory').delete().eq('storeid', store_id).execute()
+        deleted_inventory_count = len(inventory_delete_response.data) if inventory_delete_response.data else 0
+        app.logger.info(f"Deleted {deleted_inventory_count} inventory records for store {store_id} from Supabase.")
+        
+        # Delete from userstores mapping in Supabase
+        app.logger.info(f"Deleting userstores mapping for store {store_id} from Supabase.")
+        client.table('userstores').delete().eq('storeId', store_id).execute()
+        app.logger.info(f"Deleted userstores mapping for store {store_id} from Supabase.")
+
+        # Finally, delete the store from the 'stores' table in Supabase
+        app.logger.info(f"Deleting store {store_id} from Supabase 'stores' table.")
+        store_delete_response = client.table('stores').delete().eq('id', store_id).execute()
+        supabase_store_deleted_count = len(store_delete_response.data) if store_delete_response.data else 0
+        app.logger.info(f"Store {store_id} deleted from Supabase 'stores' table. Count: {supabase_store_deleted_count}")
+
+        # --- Local JSON Deletion Flow ---
+        # If store was found locally, remove it from local JSON
+        if local_store_index != -1:
+            local_stores.pop(local_store_index)
+            save_stores_data(local_stores)
+            app.logger.info(f"Store {store_id} deleted from local JSON.")
+
+        # Determine response status
+        if supabase_store_deleted_count == 0 and local_store_index == -1:
+            # Store not found in Supabase and not found in local JSON
+            app.logger.warning(f"Store {store_id} not found in Supabase or local JSON. Returning 404.")
+            return jsonify({"message": f"Store '{store_id}' not found. Cannot delete."}), 404
+        
+        # Log the deletion operation (using data retrieved from local JSON if available, otherwise just ID)
+        log_crud_operation('stores', 'DELETE', store_id, {
+            **(deleted_store_for_log or {}),
+            'associated_inventory_deleted_supabase': deleted_inventory_count,
+            'products_restocked_count': len(inventory_to_restock)
+        })
+
+        app.logger.info(f"Store {store_id} deletion process completed.")
+        return '', 204 # Return 204 No Content for successful deletion
+        
+    except Exception as e:
+        app.logger.error(f"Error deleting store {store_id}: {e}", exc_info=True)
+        # Log the error for the sync system
+        log_crud_operation('stores', 'DELETE_FAILED', store_id, {'id': store_id, 'error': str(e)})
+        return jsonify({"error": str(e), "message": "Failed to delete store from database"}), 500
 
 
 
@@ -2983,7 +3949,7 @@ def get_top_products():
             results.append({
                 'productId': product_id,
                 'productName': product.get('name', 'Unknown Product'),
-                'barcode': get_primary_barcode(product),
+                'barcode': get_primary_barcode(product), # Use the helper
                 'category': product.get('category', 'Uncategorized'),
                 'revenue': round(stats['revenue'], 2),
                 'quantitySold': stats['quantity'],
@@ -3051,7 +4017,7 @@ def get_inventory_health():
             product_data = {
                 'productId': product_id,
                 'productName': product.get('name', 'Unknown'),
-                'barcode': get_primary_barcode(product),
+                'barcode': get_primary_barcode(product), # Use the helper
                 'currentStock': current_stock,
                 'stockValue': round(current_stock * price, 2),
                 'soldQuantity': sold,
@@ -3581,6 +4547,9 @@ if __name__ == '__main__':
         initialize_full_data_pull()
     else:
         app.logger.debug("Data files already populated, skipping full pull.")
+    
+    # Clean up old log files on startup
+    cleanup_old_log_files(LOGS_DIR, 30)
 
     def merge_pulled_data(pulled_data: dict):
         """Merge pulled MySQL data into local JSON files with conflict resolution"""
@@ -3645,7 +4614,6 @@ def cleanup():
         if ENHANCED_SYNC_AVAILABLE and sync_manager:
             sync_manager.stop_background_sync()
             app.logger.info("Enhanced sync manager stopped gracefully")
-    except Exception as e:
-        app.logger.error(f"Error stopping sync manager: {e}")
-
-atexit.register(cleanup)
+    finally:
+        # Ensure cleanup attempts regardless of errors
+        app.logger.info("Application cleanup initiated.")

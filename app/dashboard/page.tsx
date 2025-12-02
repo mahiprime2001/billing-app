@@ -146,18 +146,20 @@ export default function DashboardPage() {
       const productSales: Record<string, ProductSale> = {};
       
       bills.forEach(bill => {
-        bill.items.forEach(item => {
-          if (productSales[item.productId]) {
-            productSales[item.productId].quantity += item.quantity;
-            productSales[item.productId].revenue += item.total;
-          } else {
-            productSales[item.productId] = {
-              name: item.productName,
-              quantity: item.quantity,
-              revenue: item.total,
-            };
-          }
-        });
+        if (bill.items) { // Add null check here
+          bill.items.forEach(item => {
+            if (productSales[item.productId]) {
+              productSales[item.productId].quantity += item.quantity;
+              productSales[item.productId].revenue += item.total;
+            } else {
+              productSales[item.productId] = {
+                name: item.productName,
+                quantity: item.quantity,
+                revenue: item.total,
+              };
+            }
+          });
+        }
       });
 
       const topProducts = Object.values(productSales)
@@ -300,7 +302,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="text-right">
                         <p className="font-bold">₹{bill.total.toFixed(2)}</p>
-                        <Badge variant="secondary">{bill.items.length} items</Badge>
+                        <Badge variant="secondary">{bill.items ? bill.items.length : 0} items</Badge>
                       </div>
                     </div>
                   ))}

@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { getBarcode } from "@/app/utils/getBarcode";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import type { Product, Batch } from "@/lib/types";
+import type { Product as ProductType, Batch } from "@/lib/types";
 import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -86,26 +86,31 @@ const fetcher = async (url: string) => {
 
 export default function ProductsPage() {
   const router = useRouter();
-  const { data: products = [], error: productsError, isLoading: productsLoading, mutate } = useSWR<Product[]>("/api/products", fetcher);
+  // Extend ProductType to include a 'barcodes' array for UI display purposes only
+  interface Product extends ProductType {
+    barcodes: string[];
+  }
+
+  const { data: productsData = [], error: productsError, isLoading: productsLoading, mutate } = useSWR<ProductType[]>("/api/products", fetcher);
   const { data: batches = [], error: batchesError, isLoading: batchesLoading, mutate: mutateBatches } = useSWR<Batch[]>("/api/batches", fetcher);
 
-  // Normalize data on fetch
-  const normalizedProducts = useMemo(() => {
-    if (!products) return [];
+  // Normalize data on fetch to create a 'barcodes' array from the 'barcode' string for UI
+  const products: Product[] = useMemo(() => {
+    if (!productsData) return [];
 
-    return products.map(p => ({
+    return productsData.map(p => ({
       ...p,
-      barcodes: Array.isArray(p.barcodes) ? p.barcodes : ((p as any).barcode ? [(p as any).barcode] : []), // Handle both old 'barcode' and new 'barcodes'
-      // keep original price field; do NOT overwrite price with sellingPrice
+      barcodes: typeof p.barcode === 'string' && p.barcode.trim() !== ''
+        ? p.barcode.split(',')
+        : [],
       price: typeof p.price === 'number' ? p.price : Number((p as any).price ?? 0),
-      // expose a computed displayPrice (selling price preferred) for places that want it
       displayPrice: (p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).price ?? 0,
     }));
-  }, [products]);
+  }, [productsData]);
 
   // Debugging logs for SWR data
   useEffect(() => {
-    console.log("SWR Products Data:", normalizedProducts);
+    console.log("SWR Products Data:", products);
     if (productsError) {
       console.error("SWR Products Error:", productsError);
     }
@@ -113,7 +118,7 @@ export default function ProductsPage() {
     if (batchesError) {
       console.error("SWR Batches Error:", batchesError);
     }
-  }, [normalizedProducts, productsError, batches, batchesError]);
+  }, [products, productsError, batches, batchesError]);
   const scrollableDivRef = useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [assignedStores, setAssignedStores] = useState<SystemStore[]>([])
@@ -141,9 +146,11 @@ export default function ProductsPage() {
   const [isBatchInputOpen, setIsBatchInputOpen] = useState(false);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [batchesForSelectedDate, setBatchesForSelectedDate] = useState<Batch[]>([]);
+  const [unbatchedProductsForSelectedDate, setUnbatchedProductsForSelectedDate] = useState<Product[]>([]); // NEW STATE
   const [isBatchesForDayDialogOpen, setIsBatchesForDayDialogOpen] = useState(false);
   const [selectedBatchForProducts, setSelectedBatchForProducts] = useState<Batch | null>(null);
   const [isViewProductsForBatchDialogOpen, setIsViewProductsForBatchDialogOpen] = useState(false);
+  const [productsToDisplayInByDateDialog, setProductsToDisplayInByDateDialog] = useState<Product[]>([]); // NEW STATE
 
   useEffect(() => {
     if (calendarOpen) {
@@ -155,15 +162,29 @@ export default function ProductsPage() {
     setSelectedDate(date);
     const dateKey = toKey(date);
     const productsOnDate = productsByDate[dateKey] || [];
-    const batchIdsOnDate = [...new Set(productsOnDate.map(p => p.batchId).filter(Boolean))];
-    const filteredBatches = batches.filter(batch => batchIdsOnDate.includes(batch.id));
-    setBatchesForSelectedDate(filteredBatches);
 
-    if (filteredBatches.length === 0 && productsOnDate.length > 0) {
-      // If no batches but products are present, show products directly
+    const batchedProductsOnDate = productsOnDate.filter(p => p.batchId);
+    const currentUnbatchedProductsOnDate = productsOnDate.filter(p => !p.batchId);
+
+    const batchIdsOnDate = [...new Set(batchedProductsOnDate.map(p => p.batchId).filter(Boolean))];
+    const filteredBatches = batches.filter(batch => batchIdsOnDate.includes(batch.id));
+
+    setBatchesForSelectedDate(filteredBatches);
+    setUnbatchedProductsForSelectedDate(currentUnbatchedProductsOnDate); // Set unbatched products state
+
+    if (filteredBatches.length === 0 && currentUnbatchedProductsOnDate.length > 0) {
+      // If no batches but un-batched products are present, show un-batched products directly
+      setProductsToDisplayInByDateDialog(currentUnbatchedProductsOnDate);
       setIsByDateDialogOpen(true);
-    } else {
+    } else if (filteredBatches.length > 0 || currentUnbatchedProductsOnDate.length > 0) {
+      // If there are any products (batched or unbatched), open the batches/unbatched dialog
       setIsBatchesForDayDialogOpen(true);
+    } else {
+      // No products at all for this date
+      setIsBatchesForDayDialogOpen(false);
+      setIsByDateDialogOpen(false);
+      setSelectedDate(null);
+      setProductsToDisplayInByDateDialog([]);
     }
   };
 
@@ -266,19 +287,19 @@ export default function ProductsPage() {
         alert(`Please enter a valid barcode (1-80 characters) for: ${barcode}`);
         return;
       }
-      const existingBarcode = normalizedProducts.find((p) => p.barcodes?.includes(barcode));
+      const existingBarcode = products.find((p) => p.barcodes?.includes(barcode)); // Use `products` for finding existing barcodes
       if (existingBarcode) {
         alert(`Barcode already exists: ${barcode} (Product: ${existingBarcode.name})`);
         return;
       }
     }
 
-    const newProduct: Omit<Product, "id" | "createdAt" | "updatedAt" | "barcode"> = { // Exclude 'barcode'
+    const newProduct: Omit<ProductType, "id" | "createdAt" | "updatedAt"> = {
       name: formData.name,
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
       sellingPrice: Number.parseFloat(formData.sellingPrice),
-      barcodes: validBarcodes, // Use the array of barcodes
+      barcode: validBarcodes.join(","), // Join array into a comma-separated string for 'barcode' field
       batchId: formData.batchId,
     };
 
@@ -319,20 +340,20 @@ export default function ProductsPage() {
         alert(`Please enter a valid barcode (1-80 characters) for: ${barcode}`);
         return;
       }
-      const otherProducts = normalizedProducts.filter((p) => p.id !== editingProduct.id);
-      const existingBarcode = otherProducts.find((p) => p.barcodes?.includes(barcode));
+      const otherProducts = products.filter((p) => p.id !== editingProduct.id); // Use `products` for filtering
+      const existingBarcode = otherProducts.find((p) => p.barcodes?.includes(barcode)); // Use `barcodes` property
       if (existingBarcode) {
         alert(`Barcode already exists: ${barcode} (Product: ${existingBarcode.name})`);
         return;
         }
     }
 
-    const updatedProduct: Partial<Omit<Product, "barcode">> = { // Exclude 'barcode' from partial update
+    const updatedProduct: Partial<ProductType> = {
       name: formData.name,
       price: Number.parseFloat(formData.price),
       stock: Number.parseInt(formData.stock),
       sellingPrice: Number.parseFloat(formData.sellingPrice),
-      barcodes: validBarcodes, // Use the array of barcodes
+      barcode: validBarcodes.join(","), // Join array into a comma-separated string for 'barcode' field
       batchId: formData.batchId === "" ? undefined : formData.batchId, // Send undefined if batchId is empty
     };
 
@@ -358,6 +379,14 @@ export default function ProductsPage() {
   };
 
   const handleDeleteProduct = async (productId: string) => {
+    // Optimistic update
+    const previousProducts = products;
+    const updatedProducts = previousProducts.filter((p) => p.id !== productId);
+
+    // Update local SWR cache immediately
+    // The `false` here tells SWR not to revalidate immediately after this local mutation
+    mutate(updatedProducts, false);
+
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`, {
         method: "DELETE",
@@ -367,10 +396,15 @@ export default function ProductsPage() {
         throw new Error("Failed to delete product");
       }
 
-      mutate();
+      // If backend call succeeds, trigger a revalidation in the background to ensure consistency
+      // This will refetch products and update the cache again, but doesn't block the UI.
+      mutate(); 
+
     } catch (error) {
       console.error("Error deleting product:", error);
       alert("Failed to delete product.");
+      // If the API call fails, revert the optimistic update by re-fetching the data
+      mutate(); 
     }
   };
 
@@ -381,7 +415,9 @@ export default function ProductsPage() {
       price: product.price.toString(),
       stock: product.stock.toString(),
       sellingPrice: (product as any).sellingPrice != null ? (product as any).sellingPrice.toString() : "",
-      barcodes: Array.isArray(product.barcodes) && product.barcodes.length > 0 ? product.barcodes : [""], // Initialize with existing barcodes or one empty field
+      barcodes: typeof product.barcode === 'string' && product.barcode.trim() !== ''
+        ? product.barcode.split(',')
+        : [""], // Initialize with existing barcode string parsed to array, or one empty field
       batchId: product.batchId || "",
     })
     setIsEditDialogOpen(true)
@@ -392,7 +428,9 @@ export default function ProductsPage() {
       .filter(p => productIds.includes(p.id))
       .map(p => ({
         ...p,
-        barcodes: p.barcodes || [], // Ensure barcodes is always an array
+        barcodes: typeof p.barcode === 'string' && p.barcode.trim() !== ''
+          ? p.barcode.split(',')
+          : [], // Ensure barcodes is always an array derived from barcode string
       }));
     setProductsToPrint(productsToPrint);
     setIsPrintDialogOpen(true);
@@ -556,11 +594,9 @@ export default function ProductsPage() {
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const productsAny = products as Array<Product & { createdAt?: string }>;
-
   const productsByDate = useMemo(() => {
-    const map: Record<string, (Product & { createdAt?: string })[]> = {};
-    for (const p of productsAny) {
+    const map: Record<string, (Product & { createdAt?: string })[]> = {}; // Use local Product interface
+    for (const p of products) { // Use 'products' (which has barcodes) directly
       if (!p?.createdAt) continue;
       const d = new Date(p.createdAt);
       if (Number.isNaN(d.getTime())) continue;
@@ -568,7 +604,7 @@ export default function ProductsPage() {
       (map[key] ||= []).push(p);
     }
     return map;
-  }, [productsAny]);
+  }, [products]); // Depend on 'products' (the extended type)
 
   const dateCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -578,7 +614,7 @@ export default function ProductsPage() {
 
   const selectedKey = selectedDate ? toKey(selectedDate) : "";
 
-  const generatePrintHtml = (list: Product[], titleDate: Date, storeName?: string) => {
+  const generatePrintHtml = (list: Product[], titleDate: Date, storeName?: string) => { // Keep type as Product[]
     let totalStock = 0;
     let totalValue = 0;
 
@@ -592,9 +628,13 @@ export default function ProductsPage() {
         totalStock += stock;
         totalValue += value;
 
+        const allBarcodes = (p.barcode && p.barcode.trim() !== '')
+          ? p.barcode.split(',').map(b => `<span style="display:block;">${b}</span>`).join("")
+          : "N/A";
+
         return `
         <tr>
-          <td style="padding:6px;border:1px solid #ddd;">${(p.barcodes && p.barcodes.length > 0) ? p.barcodes[0] : "N/A"}</td>
+          <td style="padding:6px;border:1px solid #ddd;">${allBarcodes}</td>
           <td style="padding:6px;border:1px solid #ddd;">${p.name}</td>
           <td style="padding:6px;border:1px solid #ddd;">${productBatch?.batchNumber || "N/A"} (${productBatch?.place || "N/A"})</td>
           <td style="padding:6px;border:1px solid #ddd; text-align:right;">${stock}</td>
@@ -904,16 +944,16 @@ export default function ProductsPage() {
                     <Select
                       value={formData.batchId || ""}
                       onValueChange={(value) => {
-                        setFormData({ ...formData, batchId: value });
+                        setFormData({ ...formData, batchId: value === "no-batch-selected" ? "" : value });
                       }}
                     >
                       <SelectTrigger id="batch">
                         <SelectValue placeholder="Select a batch" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="no-batch">No Batch</SelectItem> {/* Option for no batch */}
-                        {batches.map((batch) => (
-                          <SelectItem key={batch.id} value={batch.id}>
+                        <SelectItem value="no-batch-selected">No Batch</SelectItem> {/* Option for no batch */}
+                        {batches.map((batch, index) => (
+                          <SelectItem key={`${batch.id}-${index}`} value={batch.id}>
                             <div className="flex flex-col">
                               <span>{batch.place}</span>
                               <span className="text-xs text-muted-foreground">{batch.batchNumber}</span>
@@ -1151,6 +1191,8 @@ export default function ProductsPage() {
                     const stockStatus = getStockStatus(product.stock)
                     const StatusIcon = stockStatus.icon
                     const productBatch = batches.find(batch => batch.id === product.batchId);
+                    console.log(`Product: ${product.name}, BatchId: ${product.batchId}, ProductBatch:`, productBatch); // Debugging line
+                    console.log(`Product: ${product.name}, BatchId: ${product.batchId}, ProductBatch:`, productBatch); // Debugging line
                     return (
                       <tr key={product.id} className="border-b hover:bg-gray-50">
                         <td className="p-4">
@@ -1168,8 +1210,8 @@ export default function ProductsPage() {
                         </td>
                         <td className="p-4">
                           <div>
-                            <div className="font-medium">{productBatch?.batchNumber || "N/A"}</div>
-                            <div className="text-xs text-muted-foreground">{productBatch?.place || ""}</div>
+                            <div className="font-medium">Batch: {productBatch?.batchNumber || "N/A"}</div>
+                            <div className="text-xs text-muted-foreground">Place: {productBatch?.place || "N/A"}</div>
                           </div>
                         </td>
                        
@@ -1193,12 +1235,15 @@ export default function ProductsPage() {
                         </td>
                         <td className="p-4">
                           <div className="space-y-1">
-                            {(() => {
-                              const barcode = getBarcode(product);
-                              return barcode ? (
-                                <code className="text-xs bg-gray-100 px-2 py-1 rounded block">{barcode}</code>
-                              ) : null;
-                            })()}
+                            {product.barcodes && product.barcodes.length > 0 ? (
+                              product.barcodes.map((barcodeItem, idx) => (
+                                <code key={idx} className="text-xs bg-gray-100 px-2 py-1 rounded block">
+                                  {barcodeItem}
+                                </code>
+                              ))
+                            ) : (
+                              <code className="text-xs text-muted-foreground px-2 py-1 rounded block">N/A</code>
+                            )}
                           </div>
                         </td>
                         <td className="p-4">
@@ -1264,7 +1309,7 @@ export default function ProductsPage() {
                       : "Get started by adding your first product"}
                   </p>
                   {!searchTerm && categoryFilter === "all" && stockFilter === "all" && (
-                    <Button onClick={() => setIsAddDialogOpen(true)}>
+                    <Button onClick={() => setIsAddDialogOpen(true)} type="button">
                       <Plus className="h-4 w-4 mr-2" />
                       Add Your First Product
                     </Button>
@@ -1383,20 +1428,41 @@ export default function ProductsPage() {
               <DialogDescription>Select a batch to view its products.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              {batchesForSelectedDate.length > 0 ? (
-                batchesForSelectedDate.map((batch) => (
-                  <Card key={batch.id} className="cursor-pointer hover:bg-gray-50" onClick={() => handleBatchCardClick(batch)}>
-                    <CardHeader>
-                      <CardTitle>{batch.batchNumber}</CardTitle>
-                      <CardDescription>{batch.place}</CardDescription>
-                    </CardHeader>
-                  </Card>
-                ))
-              ) : (
-                <p className="text-center text-muted-foreground">No batches found for this date.</p>
+              {unbatchedProductsForSelectedDate.length > 0 && (
+                <Card
+                  className="cursor-pointer hover:bg-gray-50"
+                  onClick={() => {
+                    setProductsToDisplayInByDateDialog(unbatchedProductsForSelectedDate);
+                    setIsBatchesForDayDialogOpen(false);
+                    setIsByDateDialogOpen(true);
+                  }}
+                >
+                  <CardHeader>
+                    <CardTitle>Un-Batched Products</CardTitle>
+                    <CardDescription>{unbatchedProductsForSelectedDate.length} products not assigned to a batch</CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+
+              {batchesForSelectedDate.length > 0 && (
+                <>
+                  {unbatchedProductsForSelectedDate.length > 0 && <Separator className="my-2" />}
+                  {batchesForSelectedDate.map((batch) => (
+                    <Card key={batch.id} className="cursor-pointer hover:bg-gray-50" onClick={() => handleBatchCardClick(batch)}>
+                      <CardHeader>
+                        <CardTitle>{batch.batchNumber}</CardTitle>
+                        <CardDescription>{batch.place}</CardDescription>
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </>
+              )}
+
+              {batchesForSelectedDate.length === 0 && unbatchedProductsForSelectedDate.length === 0 && (
+                <p className="text-center text-muted-foreground">No products found for this date.</p>
               )}
             </div>
-            <DialogFooter>
+            <DialogFooter className="mt-4 flex justify-end items-center space-x-2">
               <Button variant="outline" onClick={() => setIsBatchesForDayDialogOpen(false)}>
                 Close
               </Button>
@@ -1433,9 +1499,13 @@ export default function ProductsPage() {
                 totalStock += stock;
                 totalValue += value;
 
+                const allBarcodes = (p.barcode && p.barcode.trim() !== '')
+                  ? p.barcode.split(',').map(b => `<span style="display:block;">${b}</span>`).join("")
+                  : "N/A";
+
                 return (
                   <tr key={(p as any).id} className="border-b hover:bg-gray-50">
-                    <td className="p-2">{(p.barcodes && p.barcodes.length > 0) ? p.barcodes[0] : "N/A"}</td>
+                    <td className="p-2">{allBarcodes}</td>
                     <td className="p-2">{(p as any).name}</td>
                     <td className="p-2">{productBatch?.batchNumber || "N/A"} ({productBatch?.place || "N/A"})</td>
                     <td className="p-2 text-right">{stock}</td>
@@ -1518,25 +1588,29 @@ export default function ProductsPage() {
             {(() => {
               let totalStock = 0;
               let totalValue = 0;
-              const productsForSelectedDate = productsByDate[selectedKey] || [];
+              const productsForCurrentDisplay = productsToDisplayInByDateDialog; // Use the new state variable
 
-              const rows = productsForSelectedDate.map((p) => {
+              const rows = productsForCurrentDisplay.map((p) => {
                 const productBatch = batches.find(batch => batch.id === p.batchId);
-                const stock = Number((p as any).stock) || 0; // Ensure stock is a number, default to 0
-                const price = Number((p as any).price) || 0; // Ensure price is a number, default to 0
+                const stock = Number((p as any).stock) || 0;
+                const price = Number((p as any).price) || 0;
                 const value = stock * price;
 
                 totalStock += stock;
                 totalValue += value;
 
+                const allBarcodes = (p.barcode && p.barcode.trim() !== '')
+                  ? p.barcode.split(',').map(b => `<span style="display:block;">${b}</span>`).join("")
+                  : "N/A";
+
                 return (
                   <tr key={(p as any).id} className="border-b hover:bg-gray-50">
-                    <td className="p-2">{(p.barcodes && p.barcodes.length > 0) ? p.barcodes[0] : "N/A"}</td>
+                    <td className="p-2">{allBarcodes}</td>
                     <td className="p-2">{(p as any).name}</td>
                     <td className="p-2">{productBatch?.batchNumber || "N/A"} ({productBatch?.place || "N/A"})</td>
                     <td className="p-2 text-right">{stock}</td>
-                    <td className="p-2 text-right">₹{price.toFixed(2)}</td>
-                    <td className="p-2 text-right">₹{value.toFixed(2)}</td>
+<td className="p-2 text-right">₹{price.toFixed(2)}</td>
+<td className="p-2 text-right">₹{value.toFixed(2)}</td>
                   </tr>
                 );
               });
@@ -1560,7 +1634,7 @@ export default function ProductsPage() {
                         <td colSpan={3} className="p-2 text-right">Total:</td>
                         <td className="p-2 text-right">{totalStock}</td>
                         <td className="p-2 text-right"></td>
-                        <td className="p-2 text-right">₹{totalValue.toFixed(2)}</td>
+                        <td className="p-2 text-right">₹${totalValue.toFixed(2)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -1575,10 +1649,10 @@ export default function ProductsPage() {
               <Button
                 onClick={() => {
                   if (!selectedDate) return;
-                  const productsToPrint = productsByDate[selectedKey] || [];
+                  const productsToPrint = productsToDisplayInByDateDialog; // Use the products currently displayed in the dialog
                   const productIdsToPrint = productsToPrint.map(p => p.id);
                   const htmlContent = generatePrintHtml(
-                    productsToPrint as Product[],
+                    productsToPrint,
                     selectedDate,
                     assignedStores?.[0]?.name || "Siri Art Jewellers"
                   );
@@ -1691,17 +1765,17 @@ export default function ProductsPage() {
                 <Label htmlFor="edit-batch">Batch (Optional)</Label>
                 <Select
                   value={formData.batchId || ""}
-                  onValueChange={(value) => {
-                    setFormData({ ...formData, batchId: value });
-                  }}
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, batchId: value === "no-batch-selected" ? "" : value });
+                      }}
                 >
                   <SelectTrigger id="edit-batch">
                     <SelectValue placeholder="Select a batch" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="no-batch">No Batch</SelectItem> {/* Option for no batch */}
-                    {batches.map((batch) => (
-                      <SelectItem key={batch.id} value={batch.id}>
+                    <SelectItem value="no-batch-selected">No Batch</SelectItem> {/* Option for no batch */}
+                    {batches.map((batch, index) => (
+                      <SelectItem key={`${batch.id}-${index}`} value={batch.id}>
                         <div className="flex flex-col">
                           <span>{batch.place}</span>
                           <span className="text-xs text-muted-foreground">{batch.batchNumber}</span>

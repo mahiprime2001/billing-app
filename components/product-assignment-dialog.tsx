@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils'
 const API = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:8080'
 
 export type AssignedProduct = {
-  id?: string
+  id: string // Changed to be a required string to match backend Product type
   barcode: string
   name: string
   price: number
@@ -120,87 +120,77 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
   }
 
   const handleAssign = async () => {
-    const selectedProducts = products.filter(p => selected[p.id || p.barcode])
-    
+const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
+
     if (selectedProducts.length === 0) {
-      alert('Please select at least one product')
-      return
+      alert('Please select at least one product');
+      return;
     }
 
-    // Build payload using quantityMap
-    const payload = selectedProducts.map(p => {
-      const key = p.id || p.barcode
-      const qty = quantityMap[key] || 0
-      return {
+    const assignments: { productId: string; quantity: number }[] = [];
+    selectedProducts.forEach(p => {
+      const key = p.id || p.barcode;
+      const qty = quantityMap[key] || 0;
+      assignments.push({
         productId: p.id,
         quantity: Number(qty)
-      }
-    })
+      });
+    });
 
-    console.log('🔍 Selected Products:', selectedProducts.map(p => ({ id: p.id, name: p.name })))
-    console.log('🔍 Quantity Map:', quantityMap)
-    console.log('🔍 Final Payload:', payload)
-
-    const hasZeroQuantity = payload.some(p => p.quantity === 0)
+    const hasZeroQuantity = assignments.some(a => a.quantity === 0);
 
     if (hasZeroQuantity) {
       if (!confirm('⚠️ Some products have 0 quantity. Continue anyway?')) {
-        return
+        return;
       }
     }
 
-    setAssigning(true)
+    setAssigning(true);
+    const successfulAssignments: AssignedProduct[] = [];
+    const failedAssignments: { productId: string; error: string }[] = [];
+
     try {
+      // Use the new dedicated assignment API
       const res = await fetch(`${API}/api/stores/${storeId}/assign-products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ products: payload }),
-      })
-
-      const responseText = await res.text()
-      console.log('📥 Server response:', responseText)
+        body: JSON.stringify({
+          products: assignments // Send all assignments in one go
+        }),
+      });
 
       if (!res.ok) {
-        let errorMsg = res.statusText
+        let errorMsg = res.statusText;
         try {
-          const err = JSON.parse(responseText)
-          errorMsg = err.message || err.error || errorMsg
+          const err = await res.json();
+          errorMsg = err.message || err.error || errorMsg;
         } catch {}
-        alert(`❌ Failed: ${errorMsg}`)
-        setAssigning(false)
-        return
+        alert(`❌ Failed to assign products: ${errorMsg}`);
+        // Log individual failures if the backend provided them in a structured way
+        // For simplicity, we assume the backend will return a general error or specific if implemented.
+      } else {
+        alert(`✅ Successfully assigned ${assignments.length} product(s) to ${storeName || storeId}`);
+        // Assuming all sent assignments were successful if the overall API call was OK.
+        // In a real-world scenario, the backend might return which ones succeeded/failed.
+        successfulAssignments.push(...selectedProducts);
       }
-
-      let result
-      try {
-        result = JSON.parse(responseText)
-      } catch {
-        result = { success: true }
-      }
-
-      console.log('✅ Assignment successful:', result)
-
-      alert(`✅ Successfully assigned ${selectedProducts.length} product(s) to ${storeName || storeId}`)
       
-      // Call parent callback
       if (onAssign) {
-        await Promise.resolve(onAssign(storeId, selectedProducts))
+        await Promise.resolve(onAssign(storeId, successfulAssignments));
       }
       
-      // Close dialog and reset
-      setOpen(false)
-      setSelected({})
-      setQuantityMap({})
-      setSearch('')
+      setOpen(false);
+      setSelected({});
+      setQuantityMap({});
+      setSearch('');
       
-      // Refresh products
-      setTimeout(() => fetchProducts(), 500)
+      setTimeout(() => fetchProducts(), 500);
       
     } catch (e) {
-      console.error('❌ Assign error:', e)
-      alert('❌ An error occurred while assigning products')
+      console.error('❌ Assign error (general):', e);
+      alert('❌ An error occurred during the assignment process');
     } finally {
-      setAssigning(false)
+      setAssigning(false);
     }
   }
 

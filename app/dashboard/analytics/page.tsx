@@ -541,7 +541,8 @@ export default function AnalyticsPage() {
     return filtered;
   }, [selectedDate]);
 
-  const normalizeStoreId = (id: string): string => {
+  const normalizeStoreId = (id: string | undefined | null): string => {
+    if (!id) return '' // Handle undefined or null IDs
     if (id === 'store_1') return 'STR-1722255700000'
     if (id.startsWith('STR-')) return id
     if (id.startsWith('store_')) {
@@ -840,19 +841,26 @@ export default function AnalyticsPage() {
     setProductAdditionAnalytics(productAdditionData);
   }, [bills, selectedDate, returns, filterReturnsByDate]);
 
-  const refreshAnalytics = useCallback(() => {
+  // Trigger calculateAnalytics when its dependencies change
+  useEffect(() => {
     if (bills.length > 0 && stores.length > 0 && products.length > 0) {
       calculateAnalytics();
+    }
+  }, [bills, stores, products, selectedDate, returns, calculateAnalytics]);
+
+  // Trigger calculateProductAdditionAnalytics when its dependencies change
+  useEffect(() => {
+    if (bills.length > 0 && returns.length > 0) {
       calculateProductAdditionAnalytics();
     }
+  }, [bills, selectedDate, returns, filterReturnsByDate, calculateProductAdditionAnalytics]);
+
+  // Trigger calculateUserSessionAnalytics when its dependencies change
+  useEffect(() => {
     if (users.length > 0) {
       calculateUserSessionAnalytics();
     }
-  }, [bills, stores, products, users, returns, selectedDate, calculateAnalytics, calculateProductAdditionAnalytics, calculateUserSessionAnalytics]);
-
-  useEffect(() => {
-    refreshAnalytics();
-  }, [selectedDays, selectedStore, selectedProduct, selectedDate, bills, stores, products, users, returns, refreshAnalytics]);
+  }, [users, selectedDate, calculateUserSessionAnalytics]);
 
   const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0)
   const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59)
@@ -2449,7 +2457,11 @@ const exportAnalytics = async (options?: { sheets?: string[] }) => {
               {exporting ? "Exporting..." : "Export Report"}
             </Button>
             <Button 
-              onClick={refreshAnalytics} 
+              onClick={() => {
+                calculateAnalytics();
+                calculateProductAdditionAnalytics();
+                calculateUserSessionAnalytics();
+              }} 
               variant="outline" 
               className="bg-blue-50 hover:bg-blue-100"
               disabled={loading}
@@ -2651,8 +2663,8 @@ const exportAnalytics = async (options?: { sheets?: string[] }) => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Stores</SelectItem>
-                    {stores.map((store) => (
-                      <SelectItem key={store.id} value={store.id}>
+                    {stores.map((store, index) => (
+                      <SelectItem key={`${store.id}-${index}`} value={store.id}>
                         {store.name}
                       </SelectItem>
                     ))}

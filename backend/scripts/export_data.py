@@ -65,26 +65,18 @@ def export_formatted_data():
         # Export Products (includes assignedStoreId if present)
         cursor.execute('SELECT * FROM Products')
         products = cursor.fetchall()
-        cursor.execute('SELECT productId, barcode FROM ProductBarcodes')
-        product_barcodes = cursor.fetchall()
-
-        # Build a mapping productId -> list of barcodes
-        pb_map = {}
-        for pb in product_barcodes:
-            pid = pb.get('productId')
-            code = pb.get('barcode')
-            if pid is None:
-                continue
-            pb_map.setdefault(pid, []).append(code)
 
         formatted_products = []
         for product in products:
-            codes = pb_map.get(product.get('id'), [])
-            # store single canonical barcode (first one) if available
-            product['barcode'] = codes[0] if codes else product.get('barcode')
-            # remove any barcodes list if present; we only use single `barcode`
-            if 'barcodes' in product:
-                product.pop('barcodes', None)
+            # The 'barcodes' field is already part of the product record as a comma-separated string
+            # We can extract the first barcode to maintain a 'barcode' field for compatibility if needed.
+            barcodes_str = product.get('barcodes')
+            if isinstance(barcodes_str, str) and barcodes_str.strip():
+                codes = [b.strip() for b in barcodes_str.split(',') if b.strip()]
+                if codes:
+                    product['barcode'] = codes[0]  # Attach the first barcode as a primary barcode
+            else:
+                product.pop('barcode', None)  # Remove if no barcodes are present
 
             for key, value in product.items():
                 if isinstance(value, datetime):

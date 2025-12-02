@@ -1,16 +1,11 @@
 [
   {
-    "id": "6f69b01f-afa8-457d-b475-8402450ec9f4",
-    "batchnumber": "",
+    "batchNumber": "btch-tp4ruj",
     "place": "Nellore",
-    "createdat": "2025-10-21T06:52:16",
-    "updatedat": "2025-11-19T12:07:35"
-  },
-  {
-    "id": "7fc3ebb4-1548-44c9-b563-e5ab65bf35d1",
-    "batchnumber": "btch-13trqw",
-    "place": "hyd",
-    "createdat": "2025-11-19T17:57:01",
-    "updatedat": "2025-11-19T17:57:01"
+    "id": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+    "createdat": "2025-11-30T14:45:25.749988",
+    "updatedat": "2025-11-30T14:45:25.749988",
+    "createdAt": "2025-11-30T14:45:25.749988",
+    "updatedAt": "2025-11-30T14:45:25.749988"
   }
 ]

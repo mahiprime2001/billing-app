@@ -147,48 +147,13 @@ class SupabaseDB:
             return self.update_product_stock(product_id, new_stock)
         return None
     
-    # ==========================================
-    # PRODUCT BARCODES
-    # ==========================================
-    
-    def get_product_barcodes(self, product_id: str) -> List[str]:
-        """Get all barcodes for a product"""
-        try:
-            response = self.client.table("productbarcodes").select("barcode").eq("productid", product_id).execute()
-            return [row["barcode"] for row in response.data] if response.data else []
-        except Exception as e:
-            logger.error(f"Error getting barcodes for product {product_id}: {e}")
-            return []
-    
-    def add_product_barcode(self, product_id: str, barcode: str) -> Optional[Dict]:
-        """Add barcode to product"""
-        try:
-            response = self.client.table("productbarcodes").insert({
-                "productid": product_id,
-                "barcode": barcode
-            }).execute()
-            return response.data[0] if response.data else None
-        except Exception as e:
-            logger.error(f"Error adding barcode {barcode} to product {product_id}: {e}")
-            return None
-    
-    def delete_product_barcode(self, product_id: str, barcode: str) -> bool:
-        """Delete product barcode"""
-        try:
-            self.client.table("productbarcodes").delete().eq("productid", product_id).eq("barcode", barcode).execute()
-            return True
-        except Exception as e:
-            logger.error(f"Error deleting barcode {barcode}: {e}")
-            return False
-    
     def get_product_by_barcode(self, barcode: str) -> Optional[Dict]:
-        """Find product by barcode"""
+        """Find product by barcode in the 'barcodes' text field"""
         try:
-            response = self.client.table("productbarcodes").select("productid").eq("barcode", barcode).execute()
-            if response.data:
-                product_id = response.data[0]["productid"]
-                return self.get_product(product_id)
-            return None
+            # Assuming 'barcodes' column stores a comma-separated string of barcodes
+            # Use 'ilike' for case-insensitive partial match
+            response = self.client.table("products").select("*").ilike("barcodes", f"%{barcode}%").execute()
+            return response.data[0] if response.data else None
         except Exception as e:
             logger.error(f"Error finding product by barcode {barcode}: {e}")
             return None

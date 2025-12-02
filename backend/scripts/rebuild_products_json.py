@@ -52,17 +52,6 @@ def rebuild_and_write_all():
                 cursor.execute('SELECT * FROM Products')
                 products = cursor.fetchall()
 
-                cursor.execute('SELECT productId, barcode FROM ProductBarcodes')
-                pbs = cursor.fetchall()
-
-                pb_map = {}
-                for r in pbs:
-                    pid = r.get('productId')
-                    code = r.get('barcode')
-                    if pid is None:
-                        continue
-                    pb_map.setdefault(pid, []).append(code)
-
                 canonical = []
                 for p in products:
                     item = {}
@@ -74,15 +63,15 @@ def rebuild_and_write_all():
                         else:
                             item[k] = v
 
-                    # Attach single primary barcode (first barcode) and drop barcodes list
-                    barcodes = pb_map.get(item.get('id'), [])
-                    if barcodes:
-                        item['barcode'] = barcodes[0]
+                    # The 'barcodes' field is already part of the product record as a comma-separated string
+                    # We might want to expose a single 'barcode' for backward compatibility or UI display
+                    barcodes_str = item.get('barcodes')
+                    if isinstance(barcodes_str, str) and barcodes_str.strip():
+                        codes = [b.strip() for b in barcodes_str.split(',') if b.strip()]
+                        if codes:
+                            item['barcode'] = codes[0] # Attach the first barcode as a primary barcode
                     else:
-                        item.pop('barcode', None)
-
-                    if 'barcodes' in item:
-                        item.pop('barcodes', None)
+                        item.pop('barcode', None) # Remove if no barcodes are present
 
                     canonical.append(item)
 

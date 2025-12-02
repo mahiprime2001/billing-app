@@ -88,12 +88,6 @@ export default function UsersPage() {
     const user = JSON.parse(userData)
     setCurrentUser(user)
 
-    // Only super admins can access user management
-    if (user.role !== "super_admin") {
-      router.push("/dashboard")
-      return
-    }
-
     loadUsers()
     loadStores()
   }, [router])
@@ -257,7 +251,7 @@ export default function UsersPage() {
   const openEditDialog = (user: AdminUser) => {
     setEditingUser(user)
     setIsEditDialogOpen(true)
-    setShowPassword(true) // Show password in plain text when editing
+    setShowPassword(true)
 
     console.log("User object in openEditDialog:", user)
     console.log("User password in openEditDialog:", user.password)
@@ -265,7 +259,7 @@ export default function UsersPage() {
     setFormData({
       name: user.name,
       email: user.email,
-      password: user.password || "", // Ensure password is always a string
+      password: user.password || "",
       role: user.role,
       assignedStores: user.assignedStores || [],
       sessionDuration: user.sessionDuration || 24,
@@ -409,7 +403,7 @@ export default function UsersPage() {
                     >
                       <SelectTrigger>
                         <SelectValue />
-                      </SelectTrigger>
+                    </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="active">Active</SelectItem>
                         <SelectItem value="inactive">Inactive</SelectItem>
@@ -753,6 +747,7 @@ export default function UsersPage() {
                     Generate
                   </Button>
                 </div>
+                {/* If passwords are stored in plain text they will appear here; use Generate to replace */}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

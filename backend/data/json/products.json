@@ -1,47 +1,32 @@
 [
   {
-    "id": "2e5788c4-5cab-4357-96fe-219ef7a7833d",
-    "name": "A. Haram set",
-    "price": 123.0,
-    "stock": 17,
-    "batchId": "6f69b01f-afa8-457d-b475-8402450ec9f4",
-    "selling_price": 657.0,
-    "createdAt": "2025-11-03T09:01:55",
-    "updatedAt": "2025-11-20T13:28:57",
-    "barcode": "1762160513558784",
-    "description": null,
-    "category": null,
-    "supplier": null,
-    "imageUrl": null
+    "barcode": "1764494128776082",
+    "barcodes": [
+      "1764494128776082"
+    ],
+    "batchid": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+    "createdat": "2025-11-30T14:45:30.108395",
+    "displayPrice": 600,
+    "id": "4051d7e6-6dcd-4ffb-ac89-dd9089f1a8ba",
+    "name": "V. Tops",
+    "price": 150,
+    "selling_price": 600,
+    "stock": 16,
+    "updatedat": "2025-11-30T22:43:30.973012"
   },
   {
-    "id": "5f409f0b-1035-463b-bd4c-14f67f0916a8",
-    "name": "A.NECKLACE",
-    "price": 321.0,
-    "stock": 8,
-    "batchId": "6f69b01f-afa8-457d-b475-8402450ec9f4",
-    "selling_price": null,
-    "createdAt": "2025-10-27T17:35:39",
-    "updatedAt": "2025-11-20T11:25:03",
-    "barcode": "1761586538188978",
-    "description": null,
-    "category": null,
-    "supplier": null,
-    "imageUrl": null
-  },
-  {
-    "id": "c119a802-d484-4242-823f-2cabac974a46",
-    "name": "testing",
-    "price": 234.0,
-    "stock": 2343,
-    "batchId": "6f69b01f-afa8-457d-b475-8402450ec9f4",
-    "selling_price": 650.1,
-    "createdAt": "2025-10-27T17:28:15",
-    "updatedAt": "2025-11-17T00:10:05",
-    "barcode": "1761586094406468",
-    "description": null,
-    "category": null,
-    "supplier": null,
-    "imageUrl": null
+    "barcode": "1764574406050113",
+    "barcodes": [
+      "1764574406050113"
+    ],
+    "batchid": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+    "createdat": "2025-12-01T13:03:27.26499",
+    "displayPrice": 900,
+    "id": "d289e3cd-2269-43f0-b334-b0c1e3aff705",
+    "name": "A. Tops",
+    "price": 500,
+    "selling_price": 900,
+    "stock": 12,
+    "updatedat": "2025-12-01T13:03:27.26499"
   }
 ]

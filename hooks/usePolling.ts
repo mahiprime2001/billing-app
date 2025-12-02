@@ -48,7 +48,25 @@ const usePolling = <T>(
     return () => clearInterval(intervalId); // Cleanup on unmount or dependency change
   }, [interval, enabled]);
 
-  return { data, loading, error };
+  const refetch = () => {
+    // Manually trigger a fetch
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const result = await fetcherRef.current();
+        setData(result);
+        setError(undefined);
+      } catch (err: any) {
+        setError(err);
+        setData(undefined);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  };
+
+  return { data, loading, error, refetch };
 };
 
 export default usePolling;

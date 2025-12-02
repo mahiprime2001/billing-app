@@ -18,30 +18,23 @@ def main():
     base = os.environ.get('APP_BASE_DIR', os.getcwd())
     print(f"APP_BASE_DIR: {base}")
 
-    # 1) Count ProductBarcodes rows and show a sample
+    # 1) Inspect barcodes in the Products table
     try:
         with DatabaseConnection.get_connection_ctx() as conn:
             with DatabaseConnection.get_cursor_ctx(conn, dictionary=True) as cursor:
                 try:
-                    cursor.execute("SELECT COUNT(*) AS cnt FROM ProductBarcodes")
-                    cnt_row = cursor.fetchone()
-                    print("ProductBarcodes count:", cnt_row.get('cnt') if cnt_row else 'unknown')
-                except Exception as e:
-                    print("Error counting ProductBarcodes:", e)
-
-                try:
-                    cursor.execute("SELECT id, productId, barcode FROM ProductBarcodes LIMIT 50")
+                    cursor.execute("SELECT id, name, barcodes FROM Products WHERE barcodes IS NOT NULL AND barcodes != '' LIMIT 50")
                     rows = cursor.fetchall()
-                    print(f"Sample ProductBarcodes rows ({len(rows)}):")
+                    print(f"Sample Products with barcodes ({len(rows)}):")
                     for r in rows:
-                        print(r)
+                        print(f"  ID: {r.get('id')}, Name: {r.get('name')}, Barcodes: {r.get('barcodes')}")
                 except Exception as e:
-                    print("Error selecting ProductBarcodes rows:", e)
+                    print("Error selecting products with barcodes:", e)
     except Exception as e:
-        print("Error connecting to DB to inspect ProductBarcodes:")
+        print("Error connecting to DB to inspect Products table for barcodes:")
         traceback.print_exc()
 
-    # 2) For each product in products.json, call get_product_barcodes
+    # 2) For each product in products.json, display its barcodes
     products_path = os.path.join(base, 'data', 'json', 'products.json')
     if not os.path.exists(products_path):
         print(f"Products JSON not found at {products_path}")
@@ -54,15 +47,15 @@ def main():
         print("Failed to load products.json:", e)
         return
 
-    print(f"Loaded {len(products)} products from products.json")
+    print(f"\nLoaded {len(products)} products from products.json. Displaying barcodes:")
     for p in products:
         pid = p.get('id')
-        try:
-            b = DatabaseConnection.get_product_barcodes(pid)
-            print(f"Product id={pid} -> barcodes={b}")
-        except Exception as e:
-            print(f"Error calling get_product_barcodes for {pid}: {e}")
-            traceback.print_exc()
+        pname = p.get('name', 'N/A')
+        barcodes_str = p.get('barcodes')
+        if barcodes_str:
+            print(f"  Product ID: {pid}, Name: {pname}, Barcodes: {barcodes_str}")
+        else:
+            print(f"  Product ID: {pid}, Name: {pname}, Barcodes: (None)")
 
 
 if __name__ == '__main__':

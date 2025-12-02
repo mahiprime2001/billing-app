@@ -1,122 +1,296 @@
 [
   {
-    "id": 1,
-    "timestamp": "2025-11-20T19:52:25.000103",
-    "eventType": "scheduled_sync",
-    "status": "completed",
+    "timestamp": "2025-12-01T14:16:39.787979",
+    "eventType": "pull_sync_success",
+    "status": "success",
     "details": {
-      "push": {
-        "status": "success",
-        "message": "No pending logs",
-        "processed": 0,
-        "failed": 0
-      },
-      "pull": {
-        "status": "success",
-        "message": "No new entries",
-        "pulled": 0
-      },
-      "timestamp": "2025-11-20T19:52:25.000103"
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
     }
   },
   {
-    "id": 2,
-    "timestamp": "2025-11-20T19:52:27.149622",
-    "eventType": "scheduled_sync",
-    "status": "completed",
+    "timestamp": "2025-12-01T14:16:40.224674",
+    "eventType": "pull_sync_success",
+    "status": "success",
     "details": {
-      "push": {
-        "status": "success",
-        "message": "No pending logs",
-        "processed": 0,
-        "failed": 0
-      },
-      "pull": {
-        "status": "success",
-        "message": "No new entries",
-        "pulled": 0
-      },
-      "timestamp": "2025-11-20T19:52:27.135228"
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
     }
   },
   {
-    "id": 3,
-    "timestamp": "2025-11-20T19:59:50.922318",
-    "eventType": "scheduled_sync",
-    "status": "completed",
+    "timestamp": "2025-12-01T14:17:42.925164",
+    "eventType": "pull_sync_success",
+    "status": "success",
     "details": {
-      "push": {
-        "status": "success",
-        "message": "No pending logs",
-        "processed": 0,
-        "failed": 0
-      },
-      "pull": {
-        "status": "success",
-        "message": "No new entries",
-        "pulled": 0
-      },
-      "timestamp": "2025-11-20T19:59:50.899178"
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
     }
   },
   {
-    "id": 4,
-    "timestamp": "2025-11-20T19:59:51.596433",
-    "eventType": "scheduled_sync",
-    "status": "completed",
+    "timestamp": "2025-12-01T14:17:43.251767",
+    "eventType": "pull_sync_success",
+    "status": "success",
     "details": {
-      "push": {
-        "status": "success",
-        "message": "No pending logs",
-        "processed": 0,
-        "failed": 0
-      },
-      "pull": {
-        "status": "success",
-        "message": "No new entries",
-        "pulled": 0
-      },
-      "timestamp": "2025-11-20T19:59:51.578860"
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
     }
   },
   {
-    "id": 5,
-    "timestamp": "2025-11-20T20:14:51.597506",
-    "eventType": "scheduled_sync",
-    "status": "completed",
+    "timestamp": "2025-12-01T14:18:46.071346",
+    "eventType": "pull_sync_success",
+    "status": "success",
     "details": {
-      "push": {
-        "status": "success",
-        "message": "No pending logs",
-        "processed": 0,
-        "failed": 0
-      },
-      "pull": {
-        "status": "success",
-        "message": "No new entries",
-        "pulled": 0
-      },
-      "timestamp": "2025-11-20T20:14:51.562941"
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
     }
   },
   {
-    "id": 6,
-    "timestamp": "2025-11-20T20:14:52.247763",
-    "eventType": "scheduled_sync",
-    "status": "completed",
+    "timestamp": "2025-12-01T14:18:46.152177",
+    "eventType": "pull_sync_success",
+    "status": "success",
     "details": {
-      "push": {
-        "status": "success",
-        "message": "No pending logs",
-        "processed": 0,
-        "failed": 0
-      },
-      "pull": {
-        "status": "success",
-        "message": "No new entries",
-        "pulled": 0
-      },
-      "timestamp": "2025-11-20T20:14:52.247763"
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
+    }
+  },
+  {
+    "timestamp": "2025-12-01T14:19:49.169482",
+    "eventType": "pull_sync_success",
+    "status": "success",
+    "details": {
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
+    }
+  },
+  {
+    "timestamp": "2025-12-01T14:19:49.224885",
+    "eventType": "pull_sync_success",
+    "status": "success",
+    "details": {
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
+    }
+  },
+  {
+    "timestamp": "2025-12-01T14:20:53.179093",
+    "eventType": "pull_sync_success",
+    "status": "success",
+    "details": {
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
+    }
+  },
+  {
+    "timestamp": "2025-12-01T14:20:53.650533",
+    "eventType": "pull_sync_success",
+    "status": "success",
+    "details": {
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
+    }
+  },
+  {
+    "timestamp": "2025-12-01T14:21:56.415414",
+    "eventType": "pull_sync_success",
+    "status": "success",
+    "details": {
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
+    }
+  },
+  {
+    "timestamp": "2025-12-01T14:21:56.704965",
+    "eventType": "pull_sync_success",
+    "status": "success",
+    "details": {
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
+    }
+  },
+  {
+    "timestamp": "2025-12-01T14:22:59.511337",
+    "eventType": "pull_sync_success",
+    "status": "success",
+    "details": {
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
+    }
+  },
+  {
+    "timestamp": "2025-12-01T14:23:00.023825",
+    "eventType": "pull_sync_success",
+    "status": "success",
+    "details": {
+      "last_sync_timestamp": "2025-11-29T22:56:41.031834",
+      "pulled_tables": [
+        "stores",
+        "products",
+        "customers",
+        "users",
+        "bills",
+        "batch",
+        "sync_table",
+        "storeinventory",
+        "userstores",
+        "systemsettings"
+      ],
+      "total_tables_pulled": 10
     }
   }
 ]

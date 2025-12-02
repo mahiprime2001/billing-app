@@ -4,7 +4,8 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 // Helper function to normalize store IDs
-const normalizeStoreId = (id: string): string => {
+const normalizeStoreId = (id: string | undefined | null): string | undefined | null => {
+  if (id === undefined || id === null) return id; // Handle undefined or null gracefully
   // If the ID is in the format 'store_1', convert it to 'STR-1722255700000'
   if (id === 'store_1') return 'STR-1722255700000';
   // If the ID is in the format 'STR-1722255700000', keep it as is
@@ -62,7 +63,7 @@ interface StoreType {
   email: string
   manager: string
   status: "active" | "inactive"
-  createdDate: string
+  createdAt: string
   totalRevenue: number
   totalBills: number
   lastBillDate: string
@@ -502,15 +503,19 @@ export default function StoresPage() {
     }
 
     const user = JSON.parse(userData)
-    if (user.role !== "super_admin") {
+    let assignedStoreId: string | undefined | null;
+
+    if (user.role === "admin") {
+      assignedStoreId = normalizeStoreId(user.assignedStoreId);
+    } else if (user.role !== "super_admin") {
       router.push("/billing")
       return
     }
 
-    loadData()
+    loadData(assignedStoreId)
   }, [router])
 
-  const loadData = async () => {
+  const loadData = async (assignedStoreId?: string | null) => {
     try {
       // Load stores from API
       const [storesResponse, billsResponse] = await Promise.all([
@@ -520,8 +525,26 @@ export default function StoresPage() {
 
       if (storesResponse.ok) {
         let storesData: StoreType[] = await storesResponse.json();
-        // Temporarily add a placeholder for numberOfProducts as backend doesn't provide it yet
-        setStores(storesData);
+        const seenIds = new Set<string>();
+        const uniqueStores = storesData.map((store: any) => {
+          let uniqueId = store.id || store.ID || store._id;
+          if (!uniqueId || seenIds.has(uniqueId)) {
+            uniqueId = typeof window !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+            while (seenIds.has(uniqueId)) {
+              uniqueId = typeof window !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+            }
+          }
+          seenIds.add(uniqueId);
+          return { ...store, id: uniqueId } as StoreType;
+        });
+
+        // Filter stores if assignedStoreId is present
+        if (assignedStoreId) {
+          const filtered = uniqueStores.filter(store => normalizeStoreId(store.id) === assignedStoreId);
+          setStores(filtered);
+        } else {
+          setStores(uniqueStores);
+        }
       } else {
         console.error("Failed to fetch stores");
       }
@@ -920,7 +943,23 @@ export default function StoresPage() {
                               <span className="line-clamp-2">{store.address}</span>
                             </div>
                             <div className="text-xs text-gray-400">
-                              Created: {new Date(store.createdDate).toLocaleDateString()}
+                              Created: {(() => {
+                                if (!store.createdAt) return "Date Missing";
+                                
+                                let dateValue: string | number = store.createdAt;
+                                
+                                if (typeof store.createdAt === 'string' && /^\d+$/.test(store.createdAt)) {
+                                  const numDate = parseInt(store.createdAt, 10);
+                                  if (store.createdAt.length === 10 && numDate > 946684800) {
+                                    dateValue = numDate * 1000;
+                                  } else {
+                                    dateValue = numDate;
+                                  }
+                                }
+                                
+                                const date = new Date(dateValue);
+                                return isNaN(date.getTime()) ? "Invalid Date Format" : date.toLocaleDateString();
+                              })()}
                             </div>
                           </div>
                         </TableCell>

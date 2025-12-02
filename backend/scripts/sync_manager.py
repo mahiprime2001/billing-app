@@ -1,4 +1,4 @@
-# sync_manager.py - Enhanced with MySQL sync_table Integration
+# sync_manager.py - Enhanced with Supabase sync_table Integration
 
 import os
 import sys
@@ -42,16 +42,17 @@ if not logger.handlers:
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from utils.db import DatabaseConnection
+from backend.utils.supabase_db import SupabaseDB
 
 class EnhancedSyncManager:
     """
-    Enhanced Sync Manager with MySQL sync_table integration
+    Enhanced Sync Manager with Supabase sync_table Integration
     """
     MAX_RETRY_ATTEMPTS = 3
 
     def __init__(self, base_dir: str):
         self.base_dir = base_dir
+        self.supabase_db = SupabaseDB()
         self.local_sync_table_file = os.path.join(base_dir, 'data', 'json', 'local_sync_table.json')
         self.sync_logs_file = os.path.join(base_dir, 'data', 'json', 'sync_logs.json')
         self.settings_file = os.path.join(base_dir, 'data', 'json', 'settings.json')
@@ -129,8 +130,35 @@ class EnhancedSyncManager:
         """
         Log CRUD operation to local sync table
         """
+        product_data = data.copy() # Work on a copy to avoid modifying original 'data' dict
         sync_table = self.get_local_sync_table()
         
+        if table_name.lower() == 'products':
+            barcodes_list = []
+            
+            # Check for 'barcodes' field (array or comma-separated string)
+            if 'barcodes' in product_data:
+                barcodes_value = product_data.get('barcodes')
+                if isinstance(barcodes_value, list):
+                    barcodes_list.extend([str(b).strip() for b in barcodes_value if str(b).strip()])
+                elif isinstance(barcodes_value, str) and barcodes_value.strip():
+                    barcodes_list.extend([b.strip() for b in barcodes_value.split(',') if b.strip()])
+            
+            # Check for old 'barcode' field
+            if 'barcode' in product_data:
+                barcode_value = product_data.get('barcode')
+                if isinstance(barcode_value, str) and barcode_value.strip():
+                    barcodes_list.append(barcode_value.strip())
+            
+            # Remove duplicates and store as comma-separated string
+            if barcodes_list:
+                product_data['barcodes'] = ','.join(sorted(list(set(barcodes_list))))
+            else:
+                product_data['barcodes'] = None # Ensure it's explicitly None if no barcodes
+            
+            # Remove the old 'barcode' field if it exists
+            product_data.pop('barcode', None)
+
         # Deduplicate pending changes
         sync_table = [
             entry for entry in sync_table
@@ -146,7 +174,7 @@ class EnhancedSyncManager:
             "table_name": table_name,
             "change_type": operation_type,
             "record_id": record_id,
-            "change_data": data,
+            "change_data": product_data, # Use product_data (which includes normalized barcodes)
             "status": "pending",
             "retry_count": 0,
             "last_retry": None,
@@ -222,141 +250,112 @@ class EnhancedSyncManager:
 
         return normalized
 
-    def pull_from_mysql_sync_table(self, table_name: Optional[str] = None, force_full_pull: bool = False) -> Dict:
+    def pull_from_supabase_sync_table(self, table_name: Optional[str] = None, force_full_pull: bool = False) -> Dict:
         """
-        Pull changes from MySQL sync_table and apply to local JSON.
+        Pull changes from Supabase sync_table and apply to local JSON.
         Can be optionally filtered by table_name and forced for a full pull.
         """
         try:
-            with DatabaseConnection.get_connection_ctx() as conn:
-                cursor = conn.cursor(dictionary=True)
-                
-                last_sync = self.get_last_sync_timestamp()
-                logger.info(f"Pulling from MySQL sync_table. Last sync: {last_sync or 'Never'}. Table: {table_name or 'All'}, Full Pull: {force_full_pull}")
-                
-                query_parts = []
-                query_params = []
+            last_sync = self.get_last_sync_timestamp()
+            logger.info(f"Pulling from Supabase sync_table. Last sync: {last_sync or 'Never'}. Table: {table_name or 'All'}, Full Pull: {force_full_pull}")
+            
+            # Fetch entries from Supabase
+            query = self.supabase_db.client.table("sync_table").select("*")
+            
+            # Conditions for fetching:
+            # 1. Remote pending changes: (source == 'remote' AND status == 'pending')
+            # 2. Local synced changes after last_sync: (source == 'local' AND status == 'synced' AND created_at >= last_sync)
+            
+            # Determine the timestamp for the 'created_at' filter
+            timestamp_filter = last_sync if last_sync and not force_full_pull else (datetime.now() - timedelta(days=1)).isoformat()
 
-                # Condition for remote pending changes
-                remote_pending_condition = "(`source` = 'remote' AND `status` = 'pending')"
-                if table_name:
-                    remote_pending_condition += " AND `table_name` = %s"
-                    query_params.append(table_name)
-                query_parts.append(remote_pending_condition)
-
-                # Condition for local synced changes
-                local_synced_condition = "(`source` = 'local' AND `status` = 'synced')"
-                if table_name:
-                    local_synced_condition += " AND `table_name` = %s"
-                    query_params.append(table_name)
-
-                if not force_full_pull and last_sync:
-                    local_synced_condition += " AND `created_at` > %s"
-                    query_params.append(last_sync)
-                elif not force_full_pull and not last_sync:
-                    local_synced_condition += " AND `created_at` >= DATE_SUB(NOW(), INTERVAL 1 DAY)"
-
-                query_parts.append(local_synced_condition)
-
-                base_query = "SELECT * FROM `sync_table` WHERE " + " OR ".join(query_parts)
-                base_query += " ORDER BY `created_at` ASC"
-                
-                cursor.execute(base_query, tuple(query_params))
-                
-                new_entries = cursor.fetchall()
-                
-                if not new_entries:
-                    logger.info("No new changes to pull")
-                    return {"status": "success", "message": "No new entries", "pulled": 0}
-                
-                logger.info(f"Found {len(new_entries)} changes to apply")
-                
-                applied = 0
-                failed_ids = []
-                
-                for entry in new_entries:
-                    try:
-                        sync_id = entry['id']
-                        entry_table_name = entry['table_name']
-                        operation = entry['operation_type']
-                        record_id = entry['record_id']
-                        
-                        # Parse change data with robust error handling
-                        change_data_raw = entry['change_data']
-                        change_data = {}
-                        if isinstance(change_data_raw, (str, bytes)):
-                            try:
-                                change_data = json.loads(change_data_raw)
-                            except json.JSONDecodeError as json_err:
-                                logger.error(f"JSONDecodeError for entry {sync_id} ({entry_table_name} {record_id}): {json_err}")
-                                cursor.execute("""
-                                    UPDATE `sync_table`
-                                    SET `status` = 'failed', `error_message` = %s, `sync_attempts` = `sync_attempts` + 1
-                                    WHERE `id` = %s
-                                """, (f"JSONDecodeError: {json_err}", sync_id))
-                                failed_ids.append(sync_id)
-                                continue
-                        elif isinstance(change_data_raw, dict):
-                            change_data = change_data_raw
-                        else:
-                            logger.warning(f"Unexpected change_data type for entry {sync_id}: {type(change_data_raw)}")
-                            cursor.execute("""
-                                UPDATE `sync_table`
-                                SET `status` = 'failed', `error_message` = %s, `sync_attempts` = `sync_attempts` + 1
-                                WHERE `id` = %s
-                            """, (f"Unexpected change_data type: {type(change_data_raw)}", sync_id))
+            # Construct the OR conditions using the 'filter' method with a raw PostgREST 'or' string.
+            # This directly creates the URL query parameter 'or=(and(condition1),and(condition2))'.
+            filter_string = (
+                f"(source.eq.remote,status.eq.pending),"
+                f"(source.eq.local,status.eq.synced,created_at.gte.{timestamp_filter})"
+            )
+            query = query.or_(filter_string)
+            if table_name:
+                query = query.eq("table_name", table_name)
+            
+            # Order by created_at
+            query = query.order("created_at", desc=False)
+            
+            response = query.execute()
+            new_entries = response.data
+            
+            if not new_entries:
+                logger.info("No new changes to pull")
+                return {"status": "success", "message": "No new entries", "pulled": 0}
+            
+            logger.info(f"Found {len(new_entries)} changes to apply")
+            
+            applied = 0
+            failed_ids = []
+            
+            for entry in new_entries:
+                try:
+                    sync_id = entry['id']
+                    entry_table_name = entry['table_name']
+                    operation = entry['operation_type']
+                    record_id = entry['record_id']
+                    
+                    # Parse change data with robust error handling
+                    change_data_raw = entry['change_data']
+                    change_data = {}
+                    if isinstance(change_data_raw, (str, bytes)):
+                        try:
+                            change_data = json.loads(change_data_raw)
+                        except json.JSONDecodeError as json_err:
+                            logger.error(f"JSONDecodeError for entry {sync_id} ({entry_table_name} {record_id}): {json_err}")
+                            self.supabase_db.update_sync_status(sync_id, "failed", error_message=f"JSONDecodeError: {json_err}", increment_attempts=True)
                             failed_ids.append(sync_id)
                             continue
-                        
-                        logger.debug(f"Applying: {entry_table_name} - {operation} - {record_id}")
-                        
-                        # Apply to local JSON files
-                        self._apply_to_local_json(entry_table_name, operation, change_data)
-                        
-                        # Mark as synced in MySQL
-                        cursor.execute("""
-                            UPDATE `sync_table` 
-                            SET `status` = 'synced', `synced_at` = NOW()
-                            WHERE `id` = %s
-                        """, (sync_id,))
-                        
-                        applied += 1
-                        
-                    except Exception as e:
-                        logger.error(f"Failed to apply entry {entry.get('id')}: {e}", exc_info=True)
-                        failed_ids.append(entry.get('id'))
-                        
-                        cursor.execute("""
-                            UPDATE `sync_table`
-                            SET `sync_attempts` = `sync_attempts` + 1,
-                                `status` = CASE 
-                                    WHEN `sync_attempts` >= %s THEN 'failed'
-                                    ELSE 'pending'
-                                END,
-                                `error_message` = %s
-                            WHERE `id` = %s
-                        """, (self.MAX_RETRY_ATTEMPTS, str(e), entry.get('id'),))
-                
-                conn.commit()
-                
-                # Update last sync timestamp
-                if new_entries:
-                    latest = max(e['created_at'] for e in new_entries if e.get('created_at'))
-                    if latest:
-                        self.set_last_sync_timestamp(latest.isoformat())
-                
-                logger.info(f"Pull complete: {applied} applied, {len(failed_ids)} failed")
-                
-                return {
-                    "status": "success",
-                    "message": f"Applied {applied}/{len(new_entries)} changes",
-                    "pulled": len(new_entries),
-                    "applied": applied,
-                    "failed": len(failed_ids)
-                }
-                
+                    elif isinstance(change_data_raw, dict):
+                        change_data = change_data_raw
+                    else:
+                        logger.warning(f"Unexpected change_data type for entry {sync_id}: {type(change_data_raw)}")
+                        self.supabase_db.update_sync_status(sync_id, "failed", error_message=f"Unexpected change_data type: {type(change_data_raw)}", increment_attempts=True)
+                        failed_ids.append(sync_id)
+                        continue
+                    
+                    logger.debug(f"Applying: {entry_table_name} - {operation} - {record_id}")
+                    
+                    # Apply to local JSON files
+                    self._apply_to_local_json(entry_table_name, operation, change_data)
+                    
+                    # Mark as synced in Supabase
+                    self.supabase_db.update_sync_status(sync_id, "synced", synced_at=datetime.now().isoformat())
+                    
+                    applied += 1
+                    
+                except Exception as e:
+                    logger.error(f"Failed to apply entry {entry.get('id')}: {e}", exc_info=True)
+                    failed_ids.append(entry.get('id'))
+                    
+                    # Update status and retry count in Supabase
+                    # Assuming update_sync_status can handle retry logic or it's handled here.
+                    self.supabase_db.update_sync_status(entry.get('id'), "failed", error_message=str(e), increment_attempts=True, max_attempts=self.MAX_RETRY_ATTEMPTS)
+            
+            # Update last sync timestamp
+            if new_entries:
+                latest = max(e['created_at'] for e in new_entries if e.get('created_at'))
+                if latest:
+                    self.set_last_sync_timestamp(latest) # Supabase returns ISO format string
+            
+            logger.info(f"Pull complete: {applied} applied, {len(failed_ids)} failed")
+            
+            return {
+                "status": "success",
+                "message": f"Applied {applied}/{len(new_entries)} changes",
+                "pulled": len(new_entries),
+                "applied": applied,
+                "failed": len(failed_ids)
+            }
+            
         except Exception as e:
-            logger.error(f"Error pulling from MySQL sync_table: {e}", exc_info=True)
+            logger.error(f"Error pulling from Supabase sync_table: {e}", exc_info=True)
             return {"status": "error", "message": str(e)}
 
     def _apply_to_local_json(self, table_name: str, operation: str, change_data: Dict) -> None:
@@ -366,88 +365,27 @@ class EnhancedSyncManager:
             'Products': 'products.json',
             'Users': 'users.json',
             'Bills': 'bills.json',
+            'BillItems': 'billitems.json',  # NEW: Added BillItems mapping
             'Customers': 'customers.json',
             'Stores': 'stores.json',
             'SystemSettings': 'settings.json',
             'Notifications': 'notifications.json',
             'batch': 'batches.json',
-            'StoreInventory': 'storeinventory.json',  # ADD THIS LINE
+            'StoreInventory': 'storeinventory.json',
+            'UserStores': 'userstores.json',  # NEW: Added UserStores mapping
         }
-
+        
         # Normalize table_name for case-insensitive matching
         tn_normalized = (table_name or '').strip()
-
-        # ✅ Special handling for ProductBarcodes: update products.json barcodes list
-        if tn_normalized.lower() in ('productbarcodes', 'product_barcodes'):
-            # Accept multiple common key variants for product id
-            pid = (
-                change_data.get('productId') or change_data.get('product_id') or
-                change_data.get('productID') or change_data.get('productid') or
-                change_data.get('id')
-            )
-            barcode_val = change_data.get('barcode') or change_data.get('code')
-
-            if not pid:
-                logger.warning(f"ProductBarcodes entry missing productId (keys tried: productId, product_id, productID, productid, id): {change_data}")
-                return
-
-            # Update all discovered products.json files to keep copies in sync
-            updated_any = False
-            prod_json_paths = self._find_all_products_json()
-            for products_path in prod_json_paths:
-                products = self._safe_json_load(products_path, [])
-                
-                # Find product
-                found = False
-                for i, p in enumerate(products):
-                    if str(p.get('id')) == str(pid):
-                        found = True
-
-                        # Always fetch and update barcodes from the database, but store only a single `barcode` string
-                        try:
-                            product_barcodes = DatabaseConnection.get_product_barcodes(pid)
-                            if product_barcodes:
-                                products[i]['barcode'] = product_barcodes[0]
-                            else:
-                                # If no barcode found, remove any existing `barcode` key to avoid `null` values
-                                products[i].pop('barcode', None)
-                                logger.debug(f"No barcodes returned from DB for product {pid}; change_data barcode value: {barcode_val}")
-                        except Exception as e:
-                            logger.error(f"Error fetching barcodes for product {pid}: {e}", exc_info=True)
-
-                        # Ensure we don't leave an old `barcodes` list behind
-                        if 'barcodes' in products[i]:
-                            products[i].pop('barcodes', None)
-
-                        products[i]['updatedAt'] = datetime.now().isoformat()
-                        updated_any = True
-                        break
-
-                if not found:
-                    logger.debug(f"Product for barcode update not found in {products_path}: productId={pid}")
-
-                # Persist changes to this file
-                try:
-                    self._safe_json_dump(products_path, products)
-                except Exception as e:
-                    logger.error(f"Failed to write products.json at {products_path}: {e}")
-
-            if updated_any:
-                logger.info(f"Applied ProductBarcodes {operation} to {len(prod_json_paths)} products.json files for product {pid}")
-            else:
-                logger.warning(f"Product for barcode update not found in any products.json: productId={pid}")
-
-            return  # Early return after handling ProductBarcodes
-
-        # ✅ Continue with regular table handling
+        
         json_file = json_file_mapping.get(tn_normalized)
         if not json_file:
             logger.warning(f"No local JSON file mapping found for table name: {table_name}")
             return
-
+        
         file_path = os.path.join(self.base_dir, 'data', 'json', json_file)
         logger.debug(f"Applying {operation} operation to local JSON file: {file_path}")
-
+        
         # Special handling for settings.json
         if json_file == 'settings.json':
             settings = self._safe_json_load(file_path, {})
@@ -456,58 +394,27 @@ class EnhancedSyncManager:
             self._safe_json_dump(file_path, settings)
             logger.info(f"Applied {operation} to {json_file}")
             return
-
+        
         # Get record_id from change_data
         record_id = change_data.get('id')
-
-        # ✅ If this is products.json, update all discovered copies
+        
+        # If this is products.json, update all discovered copies
         if json_file == 'products.json':
             prod_paths = self._find_all_products_json()
             updated_any = False
             for products_path in prod_paths:
                 data = self._safe_json_load(products_path, [])
-
                 if operation in ['CREATE', 'UPDATE']:
                     found = False
                     for i, item in enumerate(data):
                         if item.get('id') == record_id:
                             merged = dict(item)
                             merged.update(change_data)
-                            # Always fetch and update barcodes from the database for products, store single `barcode`
-                            try:
-                                product_barcodes = DatabaseConnection.get_product_barcodes(record_id)
-                                if product_barcodes:
-                                    merged['barcode'] = product_barcodes[0]
-                                else:
-                                    merged.pop('barcode', None)
-                                    logger.debug(f"No barcodes for product {record_id} when updating products.json")
-                            except Exception as e:
-                                logger.error(f"Error fetching barcodes for product {record_id}: {e}", exc_info=True)
-
-                            # Remove any `barcodes` list to keep canonical shape
-                            if 'barcodes' in merged:
-                                merged.pop('barcodes', None)
-
                             data[i] = merged
                             found = True
                             updated_any = True
                             break
                     if not found:
-                        # Fetch barcode for new product and store single `barcode`
-                        if record_id:
-                            try:
-                                product_barcodes = DatabaseConnection.get_product_barcodes(record_id)
-                                if product_barcodes:
-                                    change_data['barcode'] = product_barcodes[0]
-                                else:
-                                    change_data.pop('barcode', None)
-                            except Exception as e:
-                                logger.error(f"Error fetching barcodes for new product {record_id}: {e}", exc_info=True)
-
-                        # Remove any 'barcodes' list if present
-                        if 'barcodes' in change_data:
-                            change_data.pop('barcodes', None)
-
                         data.append(change_data)
                         updated_any = True
                 elif operation == 'DELETE':
@@ -515,22 +422,18 @@ class EnhancedSyncManager:
                     if len(new_data) != len(data):
                         data = new_data
                         updated_any = True
-
                 try:
                     self._safe_json_dump(products_path, data)
                 except Exception as e:
                     logger.error(f"Failed to write products.json at {products_path}: {e}")
-
             if updated_any:
                 logger.info(f"Applied {operation} to products.json in {len(prod_paths)} locations for record {record_id}")
             else:
                 logger.warning(f"No products.json copy updated for {operation} record {record_id}")
-
             return
-
-        # Non-products JSON (single file)
+        
+        # Non-products JSON (single file) - including billitems.json and userstores.json
         data = self._safe_json_load(file_path, [])
-
         if operation in ['CREATE', 'UPDATE']:
             found = False
             for i, item in enumerate(data):
@@ -544,7 +447,7 @@ class EnhancedSyncManager:
                 data.append(change_data)
         elif operation == 'DELETE':
             data = [item for item in data if item.get('id') != record_id]
-
+        
         self._safe_json_dump(file_path, data)
         logger.info(f"Applied {operation} to {json_file} for record {record_id}")
 
@@ -573,8 +476,8 @@ class EnhancedSyncManager:
             
             logger.info(f"Processing log ID {log_id}: {table_name} - {change_type} - {record_id}")
             
-            # Apply change to MySQL database
-            success = self.apply_change_to_mysql_db(table_name, change_type, record_id, change_data)
+            # Apply change to Supabase database
+            success = self.apply_change_to_supabase_db(table_name, change_type, record_id, change_data)
             
             if success:
                 for entry in sync_table:
@@ -605,67 +508,62 @@ class EnhancedSyncManager:
             "failed": failed
         }
 
-    def apply_change_to_mysql_db(self, table_name: str, change_type: str, record_id: str, change_data: Dict) -> bool:
-        """
-        Apply change to MySQL database
-        """
+    def apply_change_to_supabase_db(self, table_name: str, change_type: str, record_id: str, change_data: Dict) -> bool:
+        """Apply change to Supabase database"""
         try:
-            with DatabaseConnection.get_connection_ctx() as conn:
-                cursor = conn.cursor(dictionary=True)
-                conn.start_transaction()
+            # Convert barcodes array to string for products table
+            if table_name.lower() == 'products' and 'barcodes' in change_data:
+                if isinstance(change_data['barcodes'], list):
+                    change_data['barcodes'] = ','.join(str(b).strip() for b in change_data['barcodes'] if str(b).strip())
+            
+            # Map table names to Supabase functions
+            supabase_table_mapping = {
+                'Products': self.supabase_db.client.table("products"),
+                'Users': self.supabase_db.client.table("users"),
+                'Bills': self.supabase_db.client.table("bills"),
+                'Customers': self.supabase_db.client.table("customers"),
+                'Stores': self.supabase_db.client.table("stores"),
+                'SystemSettings': self.supabase_db.client.table("systemsettings"),
+                'Notifications': self.supabase_db.client.table("notifications"),
+                'batch': self.supabase_db.client.table("batch"),
+                'BillItems': self.supabase_db.client.table("billitems"),
+                'Returns': self.supabase_db.client.table("returns"),
+                'UserStores': self.supabase_db.client.table("userstores"),
+                'StoreInventory': self.supabase_db.client.table("storeinventory"),
+            }
+
+            table_client = supabase_table_mapping.get(table_name)
+            if not table_client:
+                logger.error(f"Supabase table client not found for table: {table_name}")
+                return False
+
+            if change_type == 'DELETE':
+                # Handle foreign keys first
+                if table_name == 'Bills':
+                    self.supabase_db.client.table("billitems").delete().eq("billid", record_id).execute()
+
+                response = table_client.delete().eq("id", record_id).execute()
+                logger.info(f"DELETE operation on {table_name} for {record_id} successful")
+                return True
+
+            elif change_type in ['CREATE', 'UPDATE']:
+                # For Supabase, we can directly use insert/update and let it handle columns
+                if change_type == 'CREATE':
+                    response = table_client.insert(change_data).execute()
+                elif change_type == 'UPDATE':
+                    response = table_client.update(change_data).eq("id", record_id).execute()
                 
-                try:
-                    if change_type == 'DELETE':
-                        # Handle foreign keys first
-                        if table_name == 'Bills':
-                            cursor.execute("DELETE FROM `BillItems` WHERE `billId` = %s", (record_id,))
-                        elif table_name == 'Products':
-                            cursor.execute("DELETE FROM `ProductBarcodes` WHERE `productId` = %s", (record_id,))
-                        
-                        cursor.execute(f"DELETE FROM `{table_name}` WHERE `id` = %s", (record_id,))
-                        logger.info(f"DELETE operation on {table_name} for {record_id} successful")
-                        
-                    elif change_type in ['CREATE', 'UPDATE']:
-                        # Get table columns
-                        cursor.execute(f"DESCRIBE `{table_name}`")
-                        table_columns = [row['Field'] for row in cursor.fetchall()]
-                        
-                        # Filter data by valid columns
-                        filtered_data = {k: v for k, v in change_data.items() if k in table_columns}
-                        
-                        if 'id' not in filtered_data and record_id:
-                            filtered_data['id'] = record_id
-                        
-                        if not filtered_data:
-                            logger.warning(f"No valid columns found for {table_name}")
-                            conn.rollback()
-                            return False
-                        
-                        # Build upsert query
-                        columns = ', '.join([f"`{key}`" for key in filtered_data.keys()])
-                        placeholders = ', '.join(['%s'] * len(filtered_data))
-                        update_placeholders = ', '.join([f"`{col}` = VALUES(`{col}`)" for col in filtered_data.keys()])
-                        
-                        query = f"""
-                            INSERT INTO `{table_name}` ({columns})
-                            VALUES ({placeholders})
-                            ON DUPLICATE KEY UPDATE {update_placeholders}
-                        """
-                        
-                        values = list(filtered_data.values())
-                        cursor.execute(query, values)
-                        logger.info(f"{change_type} operation on {table_name} for {record_id} successful")
-                    
-                    conn.commit()
+                if response.data:
+                    logger.info(f"{change_type} operation on {table_name} for {record_id} successful")
                     return True
-                    
-                except Exception as e:
-                    conn.rollback()
-                    logger.error(f"Error in database operation for {table_name} (ID: {record_id}): {e}", exc_info=True)
+                else:
+                    logger.error(f"{change_type} operation on {table_name} for {record_id} failed: {response.error}")
                     return False
+
+            return False
                     
         except Exception as e:
-            logger.error(f"Error connecting to database for {table_name} (ID: {record_id}): {e}", exc_info=True)
+            logger.error(f"Error applying change to Supabase for {table_name} (ID: {record_id}): {e}", exc_info=True)
             return False
 
     def retry_failed_logs(self) -> Dict:
@@ -728,22 +626,20 @@ class EnhancedSyncManager:
         local_cleaned = original_count - len(sync_table)
         self.save_local_sync_table(sync_table)
         
-        # MySQL sync_table
-        mysql_cleaned = 0
+        # Supabase sync_table
+        supabase_cleaned = 0
         try:
-            with DatabaseConnection.get_connection_ctx() as conn:
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM `sync_table` WHERE `created_at` < %s", (cutoff_date,))
-                mysql_cleaned = cursor.rowcount
-                conn.commit()
-                logger.info(f"MySQL sync_table cleanup: {mysql_cleaned} entries removed")
+            response = self.supabase_db.client.table("sync_table").delete().lt("created_at", cutoff_date.isoformat()).execute()
+            if response.data:
+                supabase_cleaned = len(response.data)
+            logger.info(f"Supabase sync_table cleanup: {supabase_cleaned} entries removed")
         except Exception as e:
-            logger.error(f"Error cleaning MySQL sync_table: {e}", exc_info=True)
+            logger.error(f"Error cleaning Supabase sync_table: {e}", exc_info=True)
         
         return {
             "status": "success",
             "local_cleaned": local_cleaned,
-            "mysql_cleaned": mysql_cleaned
+            "supabase_cleaned": supabase_cleaned
         }
 
     def start_background_sync(self) -> None:
@@ -786,14 +682,14 @@ class EnhancedSyncManager:
         logger.info("=== Starting scheduled sync cycle ===")
         
         try:
-            # Step 1: Push local pending logs to MySQL
-            logger.info("Step 1: Pushing pending logs to MySQL")
+            # Step 1: Push local pending logs to Supabase
+            logger.info("Step 1: Pushing pending logs to Supabase")
             push_result = self.process_pending_logs()
             logger.info(f"Push result: {push_result}")
             
-            # Step 2: Pull remote changes from MySQL sync_table
-            logger.info("Step 2: Pulling remote changes from MySQL")
-            pull_result = self.pull_from_mysql_sync_table()
+            # Step 2: Pull remote changes from Supabase sync_table
+            logger.info("Step 2: Pulling remote changes from Supabase")
+            pull_result = self.pull_from_supabase_sync_table()
             logger.info(f"Pull result: {pull_result}")
             
             # Log the sync event
@@ -856,7 +752,7 @@ def log_json_crud_operation(json_type: str, operation: str, record_id: str, data
         'notifications': 'Notifications',
         'settings': 'SystemSettings',
         'batches': 'batch',
-        'storeinventory': 'StoreInventory' # ADDED THIS LINE
+        'storeinventory': 'StoreInventory'
     }
     
     table_name = json_to_table_mapping.get(json_type)

@@ -1,0 +1,671 @@
+[
+  {
+    "sync_time": "2025-11-29T23:16:52.233036",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "bb000455-504b-45a9-be64-9059124d5ad6",
+    "change_data": {
+      "name": "A. Tops",
+      "price": 230,
+      "stock": 32,
+      "selling_price": 500,
+      "batchid": "",
+      "id": "bb000455-504b-45a9-be64-9059124d5ad6",
+      "createdat": "2025-11-29T23:16:52.232038",
+      "updatedat": "2025-11-29T23:16:52.232038",
+      "barcode": "1764438411664389"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-29T23:22:22.093701",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "10affb06-933f-4551-9e81-4bff91f372ed",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "price": 599,
+      "stock": 8,
+      "selling_price": 300,
+      "batchid": null,
+      "id": "10affb06-933f-4551-9e81-4bff91f372ed",
+      "createdat": "2025-11-29T23:22:21.903995",
+      "updatedat": "2025-11-29T23:22:21.903995",
+      "barcode": "1764438632479407"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-29T23:22:41.202673",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "bb000455-504b-45a9-be64-9059124d5ad6",
+    "change_data": {
+      "name": "A. Tops",
+      "price": 230,
+      "stock": 35,
+      "selling_price": 500,
+      "batchid": "",
+      "id": "bb000455-504b-45a9-be64-9059124d5ad6",
+      "createdat": "2025-11-29T23:16:52.232038",
+      "updatedat": "2025-11-29T23:22:41.183297",
+      "barcode": "1764438411664389"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-29T23:23:12.316726",
+    "table_name": "StoreInventory",
+    "change_type": "CREATE",
+    "record_id": "INV-cceea6fc-8cf4-49aa-bf94-6ec24306a519",
+    "change_data": {
+      "id": "INV-cceea6fc-8cf4-49aa-bf94-6ec24306a519",
+      "storeid": "STR-1761569064837",
+      "productid": "bb000455-504b-45a9-be64-9059124d5ad6",
+      "quantity": 11,
+      "assignedat": "2025-11-29T23:23:11.804109",
+      "updatedat": "2025-11-29T23:23:11.804109"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-29T23:23:12.520091",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "bb000455-504b-45a9-be64-9059124d5ad6",
+    "change_data": {
+      "id": "bb000455-504b-45a9-be64-9059124d5ad6",
+      "stock": 24
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-29T23:23:13.582797",
+    "table_name": "StoreInventory",
+    "change_type": "CREATE",
+    "record_id": "INV-aeaffa89-e040-4a17-bfad-77f8ddb5e774",
+    "change_data": {
+      "id": "INV-aeaffa89-e040-4a17-bfad-77f8ddb5e774",
+      "storeid": "STR-1761569064837",
+      "productid": "10affb06-933f-4551-9e81-4bff91f372ed",
+      "quantity": 1,
+      "assignedat": "2025-11-29T23:23:13.175250",
+      "updatedat": "2025-11-29T23:23:13.175250"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-29T23:23:13.810326",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "10affb06-933f-4551-9e81-4bff91f372ed",
+    "change_data": {
+      "id": "10affb06-933f-4551-9e81-4bff91f372ed",
+      "stock": 7
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-29T23:24:14.929017",
+    "table_name": "Stores",
+    "change_type": "CREATE",
+    "record_id": "STR-1764438854928",
+    "change_data": {
+      "name": "testing",
+      "address": "testing testing ",
+      "phone": "",
+      "email": "",
+      "manager": "",
+      "status": "active",
+      "id": "STR-1764438854928",
+      "createdAt": "2025-11-29T23:24:14.928058",
+      "updatedAt": "2025-11-29T23:24:14.928058"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-29T23:26:42.041929",
+    "table_name": "Systemsettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "id": 1,
+      "gstin": "27AAFCV2449G1Z7",
+      "taxpercentage": 10.4,
+      "companyname": "SIRI ART JEWELLERY",
+      "companyaddress": "4th mile, nation nellore",
+      "companyphone": "+91 889771771",
+      "companyemail": "info@siri.ifleon.com"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-29T23:41:46.075640",
+    "table_name": "Systemsettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "id": 1,
+      "gstin": "27AAFCV2449G1Z7",
+      "taxpercentage": 10.8,
+      "companyname": "SIRI ART JEWELLERY",
+      "companyaddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+      "companyphone": "+91 889771771",
+      "companyemail": "info@siri.ifleon.com"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-29T23:44:20.841136",
+    "table_name": "batch",
+    "change_type": "DELETE",
+    "record_id": "069a80d8-3025-4aa2-99c5-04be9511500b",
+    "change_data": {
+      "id": "069a80d8-3025-4aa2-99c5-04be9511500b",
+      "batchnumber": "btch-qd92kv",
+      "place": "Nellore",
+      "createdAt": "2025-11-29T12:56:39.69294",
+      "updatedAt": "2025-11-29T12:56:39.69294"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T00:04:36.453550",
+    "table_name": "batch",
+    "change_type": "DELETE",
+    "record_id": "5d4dc4e7-e630-4ef8-8851-3ee0bb077e3d",
+    "change_data": {
+      "batchNumber": "btch-a44g7y",
+      "place": "hyd",
+      "id": "5d4dc4e7-e630-4ef8-8851-3ee0bb077e3d",
+      "createdat": "2025-11-30T00:04:25.862983",
+      "updatedat": "2025-11-30T00:04:25.862983",
+      "createdAt": "2025-11-30T00:04:25.862983",
+      "updatedAt": "2025-11-30T00:04:25.862983"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T12:09:57.820981",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "bb000455-504b-45a9-be64-9059124d5ad6",
+    "change_data": {
+      "assignedstoreid": null,
+      "barcode": "",
+      "barcodes": [],
+      "batchid": null,
+      "category": null,
+      "createdat": "2025-11-29T23:16:52.232038",
+      "description": null,
+      "displayPrice": 500,
+      "id": "bb000455-504b-45a9-be64-9059124d5ad6",
+      "imageurl": null,
+      "name": "A. Tops",
+      "price": 230,
+      "selling_price": 500,
+      "stock": 24,
+      "supplier": null,
+      "updatedat": "2025-11-29T23:23:11.804109"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T12:30:24.974637",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "f46b3c94-4a73-4bbd-ba7b-63e2419bc8bb",
+    "change_data": {
+      "name": "A. Haram set",
+      "price": 660,
+      "stock": 10,
+      "selling_price": 900,
+      "barcode": "1764486022608203",
+      "batchid": null,
+      "id": "f46b3c94-4a73-4bbd-ba7b-63e2419bc8bb",
+      "createdat": "2025-11-30T12:30:24.392261",
+      "updatedat": "2025-11-30T12:30:24.392261"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T12:31:30.838562",
+    "table_name": "StoreInventory",
+    "change_type": "CREATE",
+    "record_id": "INV-edd7e712-cd9f-45d1-8494-7bcc5b72c953",
+    "change_data": {
+      "id": "INV-edd7e712-cd9f-45d1-8494-7bcc5b72c953",
+      "storeid": "STR-1764438854928",
+      "productid": "f46b3c94-4a73-4bbd-ba7b-63e2419bc8bb",
+      "quantity": 5,
+      "assignedat": "2025-11-30T12:31:30.389108",
+      "updatedat": "2025-11-30T12:31:30.389108"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T12:31:31.056474",
+    "table_name": "Products",
+    "change_type": "UPDATE",
+    "record_id": "f46b3c94-4a73-4bbd-ba7b-63e2419bc8bb",
+    "change_data": {
+      "id": "f46b3c94-4a73-4bbd-ba7b-63e2419bc8bb",
+      "stock": 5
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T14:45:25.958584",
+    "table_name": "batch",
+    "change_type": "CREATE",
+    "record_id": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+    "change_data": {
+      "batchnumber": "btch-tp4ruj",
+      "place": "Nellore",
+      "id": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+      "createdat": "2025-11-30T14:45:25.749988",
+      "updatedat": "2025-11-30T14:45:25.749988"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T14:45:30.345705",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "4051d7e6-6dcd-4ffb-ac89-dd9089f1a8ba",
+    "change_data": {
+      "name": "V. Tops",
+      "price": 150,
+      "stock": 34,
+      "selling_price": 600,
+      "barcode": "1764494128776082",
+      "batchid": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+      "id": "4051d7e6-6dcd-4ffb-ac89-dd9089f1a8ba",
+      "createdat": "2025-11-30T14:45:30.108395",
+      "updatedat": "2025-11-30T14:45:30.108395"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T15:00:07.570473",
+    "table_name": "StoreInventory",
+    "change_type": "CREATE",
+    "record_id": "INV-481d220a-78c7-4b03-8b70-2d008e6d8147",
+    "change_data": {
+      "id": "INV-481d220a-78c7-4b03-8b70-2d008e6d8147",
+      "storeid": "STR-1764438854928",
+      "productid": "4051d7e6-6dcd-4ffb-ac89-dd9089f1a8ba",
+      "quantity": 15,
+      "assignedat": "2025-11-30T15:00:07.118037",
+      "updatedat": "2025-11-30T15:00:07.118037"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T15:01:50.836431",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "10affb06-933f-4551-9e81-4bff91f372ed",
+    "change_data": {
+      "assignedstoreid": null,
+      "barcode": "",
+      "barcodes": [],
+      "batchid": null,
+      "category": null,
+      "createdat": "2025-11-29T23:22:21.903995",
+      "description": null,
+      "displayPrice": 300,
+      "id": "10affb06-933f-4551-9e81-4bff91f372ed",
+      "imageurl": null,
+      "name": "A.NECKLACE",
+      "price": 599,
+      "selling_price": 300,
+      "stock": 7,
+      "supplier": null,
+      "updatedat": "2025-11-29T23:23:13.17525"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T15:02:10.396198",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "f46b3c94-4a73-4bbd-ba7b-63e2419bc8bb",
+    "change_data": {
+      "name": "A. Haram set",
+      "price": 660,
+      "stock": 5,
+      "selling_price": 900,
+      "barcode": "1764486022608203",
+      "batchid": null,
+      "id": "f46b3c94-4a73-4bbd-ba7b-63e2419bc8bb",
+      "createdat": "2025-11-30T12:30:24.392261",
+      "updatedat": "2025-11-30T12:30:24.392261",
+      "updatedAt": "2025-11-30T12:31:31.246430"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T15:53:20.382602",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "94a85a5d-422b-4d6f-892a-754c7b0e00ad",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "price": 350,
+      "stock": 11,
+      "selling_price": 900,
+      "barcode": "1764498199476969",
+      "batchid": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+      "id": "94a85a5d-422b-4d6f-892a-754c7b0e00ad",
+      "createdat": "2025-11-30T15:53:20.122333",
+      "updatedat": "2025-11-30T15:53:20.122333"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T15:58:47.997386",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "94a85a5d-422b-4d6f-892a-754c7b0e00ad",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "price": 350,
+      "stock": 11,
+      "selling_price": 900,
+      "barcode": "1764498199476969",
+      "batchid": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+      "id": "94a85a5d-422b-4d6f-892a-754c7b0e00ad",
+      "createdat": "2025-11-30T15:53:20.122333",
+      "updatedat": "2025-11-30T15:53:20.122333"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T17:30:20.997967",
+    "table_name": "Users",
+    "change_type": "CREATE",
+    "record_id": "9efa1a02-1b61-43ca-9660-fb5f4a1a0bb5",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "email": "mailbox2249@gmail.com",
+      "password": "I1t0%Ga@",
+      "role": "billing_user",
+      "status": "active",
+      "id": "9efa1a02-1b61-43ca-9660-fb5f4a1a0bb5",
+      "createdat": "2025-11-30T17:30:20.991119",
+      "updatedat": "2025-11-30T17:30:20.991119"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T17:30:21.229926",
+    "table_name": "UserStores",
+    "change_type": "CREATE",
+    "record_id": "9efa1a02-1b61-43ca-9660-fb5f4a1a0bb5-STR-1764438854928",
+    "change_data": {
+      "userid": "9efa1a02-1b61-43ca-9660-fb5f4a1a0bb5",
+      "storeid": "STR-1764438854928"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T17:39:23.036593",
+    "table_name": "Users",
+    "change_type": "DELETE",
+    "record_id": "7fba41b9-968f-44c4-9d12-2d53b35e133b",
+    "change_data": {
+      "id": "7fba41b9-968f-44c4-9d12-2d53b35e133b",
+      "name": "A.NECKLACE",
+      "email": "MAHENDRAREDDY965@GMAIL.COM",
+      "password": "($JWdP)Y",
+      "role": "billing_user",
+      "status": "active",
+      "sessionduration": null,
+      "createdAt": "2025-11-23T15:16:14.752381",
+      "updatedAt": "2025-11-23T15:16:14.752381",
+      "lastlogin": null,
+      "lastlogout": null,
+      "totalsessionduration": 0
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T17:39:30.848484",
+    "table_name": "Users",
+    "change_type": "DELETE",
+    "record_id": "9efa1a02-1b61-43ca-9660-fb5f4a1a0bb5",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "email": "mailbox2249@gmail.com",
+      "password": "I1t0%Ga@",
+      "role": "billing_user",
+      "status": "active",
+      "id": "9efa1a02-1b61-43ca-9660-fb5f4a1a0bb5",
+      "createdAt": "2025-11-30T17:30:20.991119",
+      "updatedAt": "2025-11-30T17:30:20.991119"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T17:39:43.997051",
+    "table_name": "Users",
+    "change_type": "CREATE",
+    "record_id": "eb083ade-4188-47c2-a7e2-a88b78fb68b2",
+    "change_data": {
+      "name": "A. Haram set",
+      "email": "19jn1a0596@gmail.com",
+      "password": "Cd?rNXbU",
+      "role": "billing_user",
+      "assignedStores": [
+        "STR-1761569064837"
+      ],
+      "status": "active",
+      "id": "eb083ade-4188-47c2-a7e2-a88b78fb68b2",
+      "createdat": "2025-11-30T17:39:43.950128",
+      "updatedat": "2025-11-30T17:39:43.950128"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-11-30T17:39:44.186584",
+    "table_name": "UserStores",
+    "change_type": "CREATE",
+    "record_id": "eb083ade-4188-47c2-a7e2-a88b78fb68b2-STR-1761569064837",
+    "change_data": {
+      "userid": "eb083ade-4188-47c2-a7e2-a88b78fb68b2",
+      "storeid": "STR-1761569064837"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-12-01T12:30:17.900051",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "2e5788c4-5cab-4357-96fe-219ef7a7833d",
+    "change_data": {
+      "id": "2e5788c4-5cab-4357-96fe-219ef7a7833d"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-12-01T12:32:58.871616",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "c119a802-d484-4242-823f-2cabac974a46",
+    "change_data": {
+      "id": "c119a802-d484-4242-823f-2cabac974a46"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-12-01T12:33:07.713556",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "5f409f0b-1035-463b-bd4c-14f67f0916a8",
+    "change_data": {
+      "id": "5f409f0b-1035-463b-bd4c-14f67f0916a8"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-12-01T12:40:13.428137",
+    "table_name": "Stores",
+    "change_type": "DELETE",
+    "record_id": "store3",
+    "change_data": {
+      "associated_inventory_deleted_supabase": 0,
+      "products_restocked_count": 0
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-12-01T12:40:18.734483",
+    "table_name": "Stores",
+    "change_type": "DELETE",
+    "record_id": "store_1",
+    "change_data": {
+      "associated_inventory_deleted_supabase": 0,
+      "products_restocked_count": 0
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-12-01T12:40:26.020212",
+    "table_name": "Stores",
+    "change_type": "DELETE",
+    "record_id": "STR-1758042415183",
+    "change_data": {
+      "associated_inventory_deleted_supabase": 0,
+      "products_restocked_count": 0
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-12-01T12:51:15.723530",
+    "table_name": "Stores",
+    "change_type": "DELETE",
+    "record_id": "STR-1762160885710",
+    "change_data": {
+      "associated_inventory_deleted_supabase": 0,
+      "products_restocked_count": 0
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-12-01T12:51:41.290508",
+    "table_name": "Systemsettings",
+    "change_type": "UPDATE",
+    "record_id": 1,
+    "change_data": {
+      "id": 1,
+      "gstin": "27AAFCV2449G1Z7",
+      "taxpercentage": 12.1,
+      "companyname": "SIRI ART JEWELLERY",
+      "companyaddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+      "companyphone": "+91 889771771",
+      "companyemail": "info@siri.ifleon.com"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-12-01T12:55:50.780372",
+    "table_name": "Bills",
+    "change_type": "DELETE",
+    "record_id": "INV-958511",
+    "change_data": {
+      "billFormat": "Thermal 80mm",
+      "companyAddress": "",
+      "companyEmail": "",
+      "companyName": "",
+      "companyPhone": "",
+      "customer": {
+        "address": "",
+        "email": "",
+        "id": "CUST-8d2ed34b0eaa",
+        "name": "Walk-in Customer",
+        "phone": ""
+      },
+      "customerAddress": "",
+      "customerEmail": "",
+      "customerId": "CUST-8d2ed34b0eaa",
+      "customerName": "Walk-in Customer",
+      "customerPhone": "",
+      "discountAmount": 90,
+      "discountPercentage": 5,
+      "gstin": "27AAFCV2449G1Z7",
+      "id": "INV-958511",
+      "items": [],
+      "notes": "",
+      "paymentMethod": "Cash",
+      "status": "Paid",
+      "storeAddress": "something",
+      "storeId": "STR-1761569064837",
+      "storeName": "dress cricle ",
+      "subtotal": 1800,
+      "taxAmount": 0,
+      "taxPercentage": 0,
+      "timestamp": "2025-11-30T16:25:58.511",
+      "total": 1710,
+      "date": "2025-11-30T16:25:58.511",
+      "tax": 0
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-12-01T13:03:27.574971",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "d289e3cd-2269-43f0-b334-b0c1e3aff705",
+    "change_data": {
+      "name": "A. Tops",
+      "price": 500,
+      "stock": 12,
+      "selling_price": 900,
+      "barcode": "1764574406050113",
+      "batchid": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+      "id": "d289e3cd-2269-43f0-b334-b0c1e3aff705",
+      "createdat": "2025-12-01T13:03:27.264990",
+      "updatedat": "2025-12-01T13:03:27.264990"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-12-01T13:04:05.578149",
+    "table_name": "Users",
+    "change_type": "CREATE",
+    "record_id": "0497138a-918d-4859-9fda-56f413f1f97e",
+    "change_data": {
+      "name": "V.NECKLECE",
+      "email": "mailbox2249@gmail.com",
+      "password": "bME$F4T!",
+      "role": "billing_user",
+      "assignedStores": [
+        "STR-1761569064837"
+      ],
+      "status": "active",
+      "id": "0497138a-918d-4859-9fda-56f413f1f97e",
+      "createdat": "2025-12-01T13:04:05.560272",
+      "updatedat": "2025-12-01T13:04:05.560272"
+    },
+    "status": "completed"
+  },
+  {
+    "sync_time": "2025-12-01T13:05:07.865382",
+    "table_name": "Stores",
+    "change_type": "CREATE",
+    "record_id": "STR-1764574507863",
+    "change_data": {
+      "name": "dress cricle ",
+      "address": "this is a testing store ",
+      "phone": "",
+      "email": "",
+      "manager": "",
+      "status": "active",
+      "id": "STR-1764574507863",
+      "createdAt": "2025-12-01T13:05:07.863375",
+      "updatedAt": "2025-12-01T13:05:07.863375"
+    },
+    "status": "completed"
+  }
+]

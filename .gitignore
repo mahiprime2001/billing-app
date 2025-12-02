@@ -6,3 +6,4 @@ backend/__pycache__/
 backend/dist/
 backend/*.spec
 backend/build/
+GEMINI.md
