@@ -39,7 +39,9 @@ class SchemaChecker:
                 # Get all table names
                 cursor.execute("SHOW TABLES")
                 tables = [row[f"Tables_in_{conn.database}"] for row in cursor.fetchall()]
-
+                
+                logger.info(f"Tables found in database '{conn.database}': {tables}")
+                
                 for table_name in tables:
                     # Get column details for each table
                     cursor.execute(f"DESCRIBE `{table_name}`")

@@ -100,10 +100,11 @@ export default function SettingsPage() {
   const [selectedFormat, setSelectedFormat] = useState("A4")
   const [showPreview, setShowPreview] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [selectedFlushCategory, setSelectedFlushCategory] = useState<"products" | "stores" | "users" | "">("")
+  const [selectedFlushCategory, setSelectedFlushCategory] = useState<"products" | "stores" | "users" | "bills" | "">("")
   const [isFirstConfirmOpen, setIsFirstConfirmOpen] = useState(false)
   const [isSecondConfirmOpen, setIsSecondConfirmOpen] = useState(false)
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
+  const [flushedBillData, setFlushedBillData] = useState<any[]>([]) // State to hold flushed bill data
   const [adminUsersToKeep, setAdminUsersToKeep] = useState<string[]>([])
 
   const defaultSystemSettings: SystemSettings = {
@@ -139,7 +140,32 @@ export default function SettingsPage() {
 
     loadSettings()
     fetchAdminUsers()
+    fetchFlushedBillData() // Fetch flushed bill data on component mount
   }, [router])
+
+  const fetchFlushedBillData = async () => {
+    try {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/flushed-bills")
+      if (response.ok) {
+        const data = await response.json()
+        setFlushedBillData(data.flushedBills)
+      } else {
+        console.error("Failed to fetch flushed bill data:", response.statusText)
+        toast({
+          title: "Error",
+          description: "Failed to load flushed bill data.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Failed to fetch flushed bill data:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load flushed bill data.",
+        variant: "destructive",
+      })
+    }
+  }
 
   const fetchAdminUsers = async () => {
     try {
@@ -1007,7 +1033,7 @@ export default function SettingsPage() {
                       <Label htmlFor="flush-category">Select Data Category to Flush</Label>
                       <Select
                         value={selectedFlushCategory}
-                        onValueChange={(value: "products" | "stores" | "users" | "") =>
+                        onValueChange={(value: "products" | "stores" | "users" | "bills" | "") =>
                           setSelectedFlushCategory(value)
                         }
                       >
@@ -1018,6 +1044,7 @@ export default function SettingsPage() {
                           <SelectItem value="products">Products</SelectItem>
                           <SelectItem value="stores">Stores</SelectItem>
                           <SelectItem value="users">Users</SelectItem>
+                          <SelectItem value="bills">Bills</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1099,17 +1126,39 @@ export default function SettingsPage() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={handleFlushData}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            I Understand, Erase Data
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </CardContent>
-                </Card>
+          <AlertDialogAction
+            onClick={handleFlushData}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            I Understand, Erase Data
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {selectedFlushCategory === "bills" && flushedBillData.length > 0 && (
+      <Card>
+        <CardHeader>
+          <CardTitle>Flushed Bill Data</CardTitle>
+          <CardDescription>
+            These are bills that have been successfully flushed from the system.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="max-h-60 overflow-y-auto space-y-2">
+            {flushedBillData.map((bill, index) => (
+              <div key={index} className="border p-2 rounded-md text-sm">
+                <strong>Bill ID:</strong> {bill.recordid} <br />
+                <strong>Operation:</strong> {bill.operationtype} <br />
+                <strong>Synced At:</strong> {new Date(bill.syncedat).toLocaleString()}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    )}
+  </CardContent>
+</Card>
               </TabsContent>
             </Tabs>
           </CardContent>

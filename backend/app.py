@@ -245,7 +245,7 @@ def initialize_full_data_pull():
     app.logger.info("Starting initial full data pull from Supabase...")
     
     try:
-        client = db.client # Get Supabase client
+        client = SupabaseDBClient.client # Get Supabase client
             
         # Define table-to-file mappings
         table_mappings = {
@@ -297,7 +297,7 @@ def initialize_full_data_pull():
                     else:
                         _safe_json_dump(json_file, serialized_records)
                         
-                    app.logger.info(f"Pulled {len(records)} records from {table_name} → {json_file}")
+                    app.logger.info(f"Pulled {len(records)} records from {table_name} â†’ {json_file}")
                 else:
                     app.logger.debug(f"No records found in {table_name}, using empty default. Initializing empty list for {json_file}")
                     _safe_json_dump(json_file, []) # Ensure an empty list is saved if no records are found.
@@ -361,7 +361,7 @@ def update_product_stock(product_id, delta, context=""):
     """
     if context == "assignment":
         raise Exception(
-            f"❌ Stock updates for product {product_id} not allowed during store assignment. "
+            f"âŒ Stock updates for product {product_id} not allowed during store assignment. "
             "Only store inventory quantity should be modified."
         )
     # If other contexts need to update product stock, implement logic here.
@@ -399,35 +399,6 @@ def get_notifications_data():
 def save_notifications_data(notifications):
     """Save notifications to local JSON (PRIMARY storage)"""
     _safe_json_dump(NOTIFICATIONS_FILE, notifications)
-
-def add_notification(notification_data: dict):
-    """Adds a new notification to the system."""
-    notifications = get_notifications_data()
-    
-    # Generate ID if not present
-    if 'id' not in notification_data:
-        notification_data['id'] = str(uuid.uuid4())
-
-    # Add timestamps (Supabase schema uses camelCase for created_at, updated_at in local JSON)
-    now_iso = datetime.now().isoformat()
-    if 'createdAt' not in notification_data:
-        notification_data['createdAt'] = now_iso
-    if 'updatedAt' not in notification_data:
-        notification_data['updatedAt'] = now_iso
-    
-    # Default values for new notifications
-    notification_data.setdefault('isRead', False)
-    notification_data.setdefault('syncLogId', 0) # Placeholder or actual ID if relevant
-
-    notifications.insert(0, notification_data) # Add to the beginning of the list
-    save_notifications_data(notifications)
-    
-    # Log for sync to Supabase (using snake_case for DB)
-    db_notification_data = convert_camel_to_snake(notification_data)
-    log_crud_operation('notifications', 'CREATE', notification_data['id'], db_notification_data)
-    app.logger.info(f"Notification created: {notification_data['title']} ({notification_data['id']})")
-    return notification_data
-
 
 # NEW: Returns file path and helpers
 def get_returns_data():
@@ -520,7 +491,7 @@ def log_to_sync_table_only(table_name: str, record_data: dict, operation_type: s
     This now logs to Supabase.
     """
     try:
-        client = db.client # Get Supabase client
+        client = SupabaseDBClient.client # Get Supabase client
             
         change_data_json = json.dumps(record_data, default=str, ensure_ascii=False)
             
@@ -600,7 +571,7 @@ def _log_to_supabase_sync_table(table_name: str, operation: str, record_id: str,
     Log changes to Supabase sync_table for tracking (audit trail).
     """
     try:
-        client = db.client # Get Supabase client
+        client = SupabaseDBClient.client # Get Supabase client
             
         # Serialize change data to JSON
         change_data_json = json.dumps(data, default=str, ensure_ascii=False)
@@ -712,7 +683,7 @@ def update_local_customers():
 def get_supabase_customers():
     """Get customers directly from Supabase"""
     try:
-        client = db.client
+        client = SupabaseDBClient.client
         response = client.table("customers").select("*").execute()
         customers = response.data or []
         
@@ -846,7 +817,7 @@ def update_local_products():
 def get_supabase_products():
     """Get products directly from Supabase"""
     try:
-        client = db.client
+        client = SupabaseDBClient.client
         response = client.table("products").select("*").execute()
         products = response.data or []
         
@@ -1007,7 +978,7 @@ def create_product():
             product_data['batchid'] = None
         
         # STEP 1: Insert product directly into Supabase (for immediate visibility)
-        client = db.client
+        client = SupabaseDBClient.client
         app.logger.info(f"Attempting to insert product {product_data['id']} into Supabase...")
         supabase_response = client.table('products').insert(product_data).execute()
         
@@ -1109,48 +1080,26 @@ def update_product(product_id):
 
 @app.route("/api/products/<product_id>", methods=["DELETE"])
 def delete_product(product_id):
-    """Delete product - OFFLINE FIRST approach, prioritizing Supabase deletion."""
+    """Delete product - OFFLINE FIRST approach"""
     try:
-        # STEP 1: Attempt to get product data from local JSON for logging (if found)
+        # STEP 1: Delete from LOCAL JSON FIRST
         products = get_products_data()
         product_index = next((i for i, p in enumerate(products) if p.get('id') == product_id), -1)
         
-        deleted_product_for_log = None
-        if product_index != -1:
-            deleted_product_for_log = products[product_index] # Keep a copy for logging
-
-        # STEP 2: Delete from Supabase first
-        client = db.client
-        app.logger.info(f"Attempting to delete product {product_id} from Supabase...")
-        supabase_delete_response = client.table('products').delete().eq('id', product_id).execute()
-        
-        supabase_deleted_count = 0
-        if supabase_delete_response.data:
-            supabase_deleted_count = len(supabase_delete_response.data)
-            app.logger.info(f"Product {product_id} deleted from Supabase. Count: {supabase_deleted_count}")
-        elif supabase_delete_response.error:
-            # Log error but don't necessarily fail if the error means "not found"
-            app.logger.warning(f"Supabase deletion for product {product_id} returned an error: {supabase_delete_response.error}")
-        
-        # STEP 3: Delete from LOCAL JSON (if it was found there)
-        if product_index != -1:
-            products.pop(product_index)
-            save_products_data(products)
-            app.logger.info(f"Product {product_id} deleted from local JSON.")
-        
-        # If product wasn't found in either Supabase or local JSON
-        if supabase_deleted_count == 0 and product_index == -1:
-            app.logger.warning(f"Product {product_id} not found in Supabase or local JSON. Returning 404.")
+        if product_index == -1:
             return jsonify({"error": "Product not found"}), 404
         
-        # STEP 4: Log the deletion operation (using data retrieved from local JSON if available)
-        log_crud_operation('products', 'DELETE', product_id, deleted_product_for_log or {'id': product_id})
+        deleted_product = products.pop(product_index)
+        save_products_data(products)
         
-        app.logger.info(f"Product {product_id} deletion process completed.")
+        # STEP 2: Write to MySQL IMMEDIATELY
+        log_crud_operation('products', 'DELETE', product_id, deleted_product)
+        
+        app.logger.info(f"Product deleted: {product_id} (local JSON + MySQL)")
         return jsonify({"message": "Product deleted"}), 200
         
     except Exception as e:
-        app.logger.error(f"Error deleting product {product_id}: {e}", exc_info=True)
+        app.logger.error(f"Error deleting product: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 # ---------------------------
@@ -1296,67 +1245,8 @@ def get_returns():
         returns = get_returns_data()
         return jsonify(returns), 200
     except Exception as e:
-        app.logger.error(f"Error getting returns: {e}", exc_info=True)
+        app.logger.error(f"Error getting returns: {e}")
         return jsonify({"error": str(e)}), 500
-
-@app.route('/api/returns', methods=['POST'])
-def create_return_request():
-    """Create a new return request - OFFLINE FIRST approach"""
-    try:
-        return_data = request.json
-        if not return_data:
-            return jsonify({"error": "No return data provided"}), 400
-
-        # Generate ID
-        if 'returnId' not in return_data:
-            return_data['returnId'] = str(uuid.uuid4())
-
-        # Add timestamps (Supabase schema uses camelCase for created_at, updated_at in local JSON)
-        now_iso = datetime.now().isoformat()
-        return_data['createdAt'] = now_iso
-        return_data['updatedAt'] = now_iso
-        
-        # Default status to pending
-        return_data.setdefault('status', 'pending')
-
-        # Convert to snake_case for internal storage and DB logging
-        snake_case_return_data = convert_camel_to_snake(return_data)
-
-        # Save to local JSON first
-        returns = get_returns_data()
-        returns.append(snake_case_return_data)
-        save_returns_data(returns)
-
-        # Log to sync
-        log_crud_operation('returns', 'CREATE', return_data['returnId'], snake_case_return_data)
-        
-        # Create a notification for the new return request
-        notification_title = f"New Return Request: {return_data['returnId']}"
-        notification_message = f"Customer {return_data.get('customerName', 'N/A')} has requested a return for {return_data.get('productName', 'N/A')}."
-        
-        # Link to the returns page, potentially with a filter for this return ID if a deep link exists
-        notification_link = f"/dashboard/returns?returnId={return_data['returnId']}"
-
-        add_notification({
-            "id": str(uuid.uuid4()),
-            "type": "RETURN_REQUEST",
-            "title": notification_title,
-            "message": notification_message,
-            "userId": "system", # Or actual user submitting the request if available
-            "userName": "System",
-            "userEmail": "system@example.com",
-            "isRead": False,
-            "createdAt": now_iso,
-            "link": notification_link # Add the link for redirection
-        })
-
-        app.logger.info(f"Return request created: {return_data['returnId']}")
-        return jsonify({"message": "Return request created", "returnId": return_data['returnId']}), 201
-
-    except Exception as e:
-        app.logger.error(f"Error creating return request: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-
 
 @app.route('/api/returns/<return_id>/status', methods=['PUT'])
 def update_return_status(return_id):
@@ -1390,29 +1280,6 @@ def update_return_status(return_id):
         converted_return_data = convert_camel_to_snake(returns[return_index])
         log_crud_operation('returns', 'UPDATE', return_id, converted_return_data)
         
-        # Clear the corresponding notification
-        # Find the notification for this return_id
-        notifications = get_notifications_data()
-        notification_found = False
-        notification_to_clear_id = None
-
-        # Iterate in reverse to find and process the newest notification first (if multiple)
-        for i in range(len(notifications) - 1, -1, -1):
-            n = notifications[i]
-            if n.get('type') == 'RETURN_REQUEST' and f"New Return Request: {return_id}" in n.get('title', ''):
-                # Mark as read
-                n['isRead'] = True
-                notification_to_clear_id = n['id']
-                notification_found = True
-                app.logger.info(f"Notification {n['id']} for return {return_id} marked as read due to status update.")
-                # We could also delete it: notifications.pop(i)
-                # For now, mark as read. If we want to delete, need to update save_notifications_data and log
-                break # Assuming one relevant notification per return ID
-
-        if notification_found:
-            save_notifications_data(notifications)
-            log_crud_operation('notifications', 'UPDATE', notification_to_clear_id, notifications[i]) # Log the update
-
         app.logger.info(f"Return request {return_id} status updated to {new_status} (local JSON + Supabase sync)")
         return jsonify({"message": f"Return request status updated to {new_status}", "return_id": return_id}), 200
         
@@ -1429,7 +1296,7 @@ def get_store_inventory(store_id):
     """Get all products assigned to a specific store"""
     try:
         # Use Supabase client directly
-        response = db.client.table("storeinventory").select(
+        response = SupabaseDBClient.client.table("storeinventory").select(
             "id:id, storeid:storeId, productid:productId, quantity:quantity, assignedat:assignedAt, updatedat:updatedAt, products(id, name, barcodes, price, selling_price, category, description, stock)"
         ).eq("storeid", store_id).order("products.name").execute()
 
@@ -1474,7 +1341,7 @@ def update_product_to_store_inventory():
         return jsonify({"error": "storeId and productId are required"}), 400
     
     try:
-        client = db.client
+        client = SupabaseDBClient.client
         
         # Check if already assigned
         response = client.table("storeinventory").select("id, quantity, assignedat").eq("storeid", store_id).eq("productid", product_id).execute()
@@ -1595,15 +1462,15 @@ def bulk_assign_products(store_id):
     products_to_assign = data.get('products', [])
     
     app.logger.info("="*60)
-    app.logger.info(f"📦 BULK ASSIGN REQUEST")
-    app.logger.info(f"📦 Store ID: {store_id}")
-    app.logger.info(f"📦 Products count: {len(products_to_assign)}")
+    app.logger.info(f"ðŸ“¦ BULK ASSIGN REQUEST")
+    app.logger.info(f"ðŸ“¦ Store ID: {store_id}")
+    app.logger.info(f"ðŸ“¦ Products count: {len(products_to_assign)}")
     
     if not products_to_assign:
         return jsonify({"error": "No products provided"}), 400
     
     try:
-        client = db.client
+        client = SupabaseDBClient.client
         assigned_count = 0
         
         for idx, product_data_in_request in enumerate(products_to_assign, 1):
@@ -1614,10 +1481,10 @@ def bulk_assign_products(store_id):
             )
             quantity = int(product_data_in_request.get('quantity', 0))
             
-            app.logger.info(f"📦 Product {idx}: ID={product_id}, Quantity={quantity}")
+            app.logger.info(f"ðŸ“¦ Product {idx}: ID={product_id}, Quantity={quantity}")
             
             if not product_id:
-                app.logger.error(f"❌ Product {idx} missing ID")
+                app.logger.error(f"âŒ Product {idx} missing ID")
                 continue
             
             # Get current product info from Supabase
@@ -1630,7 +1497,7 @@ def bulk_assign_products(store_id):
                 product_info = product_response.data
             
             if not product_info:
-                app.logger.error(f"❌ Product {product_id} not found in Supabase. Skipping assignment.")
+                app.logger.error(f"âŒ Product {product_id} not found in Supabase. Skipping assignment.")
                 continue
             
             current_total_stock = product_info['stock'] or 0
@@ -1656,8 +1523,8 @@ def bulk_assign_products(store_id):
                 app.logger.debug(f"SUPABASE UPDATE storeinventory payload: {update_inventory_data}, id={existing_inventory['id']}")
                 client.table("storeinventory").update(update_inventory_data).eq("id", existing_inventory['id']).execute()
                 
-                # ❌ No product stock deduction on assignment, only update storeinventory
-                app.logger.info(f"   ✅ Updated - Store qty: {quantity} (Product stock untouched)")
+                # âŒ No product stock deduction on assignment, only update storeinventory
+                app.logger.info(f"   âœ… Updated - Store qty: {quantity} (Product stock untouched)")
                 
                 # Log for sync system (storeinventory only)
                 log_crud_operation('storeinventory', 'UPDATE', existing_inventory['id'], {
@@ -1685,8 +1552,8 @@ def bulk_assign_products(store_id):
                 app.logger.debug(f"SUPABASE INSERT storeinventory payload: {insert_inventory_data}")
                 client.table("storeinventory").insert(insert_inventory_data).execute()
                 
-                # ❌ No product stock deduction on assignment, only insert storeinventory
-                app.logger.info(f"   ✅ Created - Store qty: {quantity} (Product stock untouched)")
+                # âŒ No product stock deduction on assignment, only insert storeinventory
+                app.logger.info(f"   âœ… Created - Store qty: {quantity} (Product stock untouched)")
                 
                 # Log for sync system (storeinventory only)
                 log_crud_operation('storeinventory', 'CREATE', inv_id, {
@@ -1721,15 +1588,15 @@ def bulk_assign_products(store_id):
                     })
                 
                 save_store_inventory_data(inventory_data)
-                app.logger.info(f"   ✅ Updated storeinventory.json (products.json untouched)")
+                app.logger.info(f"   âœ… Updated storeinventory.json (products.json untouched)")
                 
             except Exception as json_error:
-                app.logger.error(f"   ⚠️ JSON update failed for storeinventory: {json_error}", exc_info=True)
+                app.logger.error(f"   âš ï¸ JSON update failed for storeinventory: {json_error}", exc_info=True)
             
             assigned_count += 1
         
         # No explicit commit needed for Supabase client as operations are atomic
-        app.logger.info(f"✅ Successfully assigned {assigned_count} product(s). Product stock was NOT modified.")
+        app.logger.info(f"âœ… Successfully assigned {assigned_count} product(s). Product stock was NOT modified.")
         app.logger.info("="*60)
         
         return jsonify({
@@ -1738,7 +1605,7 @@ def bulk_assign_products(store_id):
         }), 200
         
     except Exception as e:
-        app.logger.error(f"❌ ERROR in bulk_assign_products: {e}", exc_info=True)
+        app.logger.error(f"âŒ ERROR in bulk_assign_products: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/stores/<storeid>/inventory-calendar', methods=['GET'])
@@ -1749,7 +1616,7 @@ def get_store_inventory_calendar(storeid):
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days - 1)
         
-        client = db.client
+        client = SupabaseDBClient.client
         
         # Get store inventory with assignment dates
         query_response = client.table('storeinventory').select(
@@ -1890,7 +1757,7 @@ def get_store_inventory_by_date(storeid, datestr):
         target_date = datetime.fromisoformat(datestr).date()
         app.logger.info(f"Fetching inventory for store {storeid} on {target_date.isoformat()}")
         
-        client = db.client
+        client = SupabaseDBClient.client
         
         # Get all products initially assigned to the store
         store_products_response = client.table('storeinventory').select(
@@ -2069,42 +1936,42 @@ def api_print_label():
         store_name = data.get('storeName', 'Company Name')
         
         # ===== DEBUG: Log incoming request =====
-        app.logger.info("\n" + "🔵"*30)
-        app.logger.info("📨 INCOMING PRINT REQUEST")
+        app.logger.info("\n" + "ðŸ”µ"*30)
+        app.logger.info("ðŸ“¨ INCOMING PRINT REQUEST")
         app.logger.info(f"Product IDs: {product_ids}")
         app.logger.info(f"Copies Requested: {copies}")
         app.logger.info(f"Printer Name: {printer_name}")
         app.logger.info(f"Store Name: {store_name}")
-        app.logger.info("🔵"*30 + "\n")
+        app.logger.info("ðŸ”µ"*30 + "\n")
         
         products = get_products_data()
         selected_products = [p for p in products if p.get('id') in product_ids]
         
         if not selected_products:
-            app.logger.error("❌ No valid products found for print request.")
+            app.logger.error("âŒ No valid products found for print request.")
             return {"status": "error", "message": "No valid products found"}, 400
         
-        app.logger.info(f"✅ Found {len(selected_products)} products to print")
+        app.logger.info(f"âœ… Found {len(selected_products)} products to print")
         for idx, prod in enumerate(selected_products):
             app.logger.info(f"  {idx+1}. {prod.get('name')} (ID: {prod.get('id')})")
         
         # Generate TSPL
-        app.logger.info("\n🔧 Generating TSPL commands...")
+        app.logger.info("\nðŸ”§ Generating TSPL commands...")
         tspl_commands = generate_tspl(selected_products, copies, store_name, app.logger)
         
         # Try sending to printer
-        app.logger.info("\n📤 Attempting to send to printer...")
+        app.logger.info("\nðŸ“¤ Attempting to send to printer...")
         
         if win32print is None:
-            app.logger.error("❌ win32print is not available for direct printing.")
+            app.logger.error("âŒ win32print is not available for direct printing.")
             return {"status": "error", "message": "win32print not available"}, 500
         
         try:
             send_raw_to_printer(printer_name, tspl_commands, app.logger)
             
-            app.logger.info("\n" + "🟢"*30)
-            app.logger.info("✅ PRINT REQUEST COMPLETED SUCCESSFULLY")
-            app.logger.info("🟢"*30 + "\n")
+            app.logger.info("\n" + "ðŸŸ¢"*30)
+            app.logger.info("âœ… PRINT REQUEST COMPLETED SUCCESSFULLY")
+            app.logger.info("ðŸŸ¢"*30 + "\n")
             
             return jsonify({
                 "status": "success",
@@ -2117,12 +1984,12 @@ def api_print_label():
             }), 200
             
         except Exception as direct_print_e:
-            app.logger.error(f"❌ Direct printing failed: {direct_print_e}")
+            app.logger.error(f"âŒ Direct printing failed: {direct_print_e}")
             app.logger.error(traceback.format_exc())
             return {"status": "error", "message": f"Direct printing failed: {direct_print_e}"}, 500
         
     except Exception as e:
-        app.logger.error(f"❌ Exception in print-label endpoint: {e}")
+        app.logger.error(f"âŒ Exception in print-label endpoint: {e}")
         app.logger.error(traceback.format_exc())
         return {"status": "error", "message": f"Printing failed: {e}"}, 500
 
@@ -2133,7 +2000,7 @@ def api_print_label():
 @app.route("/api/users", methods=["GET"])
 def get_users():
     try:
-        client = db.client
+        client = SupabaseDBClient.client
 
         # Fetch users from Supabase
         try:
@@ -2185,7 +2052,7 @@ def add_user():
 
     # Also check Supabase for existing email
     try:
-        client = db.client
+        client = SupabaseDBClient.client
         resp = client.table('users').select('id').eq('email', new_user_data.get('email')).execute()
         if resp.data:
             return jsonify({"message": "Email already present"}), 400
@@ -2221,13 +2088,13 @@ def add_user():
             # Use the direct Supabase method to add the user-store association
             result = db.add_user_store(new_user_data['id'], store_id)
             if result:
-                app.logger.info(f"✅ User {new_user_data['id']} assigned to store {store_id} in Supabase.")
+                app.logger.info(f"âœ… User {new_user_data['id']} assigned to store {store_id} in Supabase.")
                 # Log this specific assignment to sync_table for audit/replication
                 log_crud_operation('userstores', 'CREATE', f"{new_user_data['id']}-{store_id}", {'userid': new_user_data['id'], 'storeid': store_id})
             else:
-                app.logger.error(f"❌ Failed to assign user {new_user_data['id']} to store {store_id} in Supabase (no data returned).")
+                app.logger.error(f"âŒ Failed to assign user {new_user_data['id']} to store {store_id} in Supabase (no data returned).")
         except Exception as e:
-            app.logger.error(f"❌ Error assigning user {new_user_data['id']} to store {store_id} in Supabase: {e}", exc_info=True)
+            app.logger.error(f"âŒ Error assigning user {new_user_data['id']} to store {store_id} in Supabase: {e}", exc_info=True)
             # Log the failure for potential retry or investigation
             log_crud_operation('userstores', 'CREATE_FAILED', f"{new_user_data['id']}-{store_id}", {'userid': new_user_data['id'], 'storeid': store_id, 'error': str(e)})
 
@@ -2259,7 +2126,7 @@ def update_user(user_id):
 
                 # Check Supabase for existing email (other than this user)
                 try:
-                    client = db.client
+                    client = SupabaseDBClient.client
                     resp = client.table('users').select('id').eq('email', updated_data.get('email')).execute()
                     if resp.data:
                         # If any returned record is not this user, reject
@@ -2310,11 +2177,11 @@ def update_user(user_id):
             # We need to fetch existing associations first to delete them one by one, or update the SupabaseDB method.
             # For now, we will use a direct client call which can delete all with one query.
             SupabaseDBClient_instance.client.table('userstores').delete().eq('userid', user_id).execute()
-            app.logger.info(f"✅ Deleted existing userstores for user {user_id} from Supabase.")
+            app.logger.info(f"âœ… Deleted existing userstores for user {user_id} from Supabase.")
             # Log this deletion to sync, specifying the user ID and that all stores were removed
             log_crud_operation('userstores', 'DELETE_ALL_FOR_USER', user_id, {'userid': user_id})
         except Exception as e:
-            app.logger.error(f"❌ Error deleting existing userstores for user {user_id} from Supabase: {e}", exc_info=True)
+            app.logger.error(f"âŒ Error deleting existing userstores for user {user_id} from Supabase: {e}", exc_info=True)
 
         # 2. Insert new userstore entries
         for store_id in assigned_stores_ids:
@@ -2322,13 +2189,13 @@ def update_user(user_id):
                 # Use the direct Supabase method to add the user-store association
                 result = db.add_user_store(user_id, store_id)
                 if result:
-                    app.logger.info(f"✅ User {user_id} assigned to store {store_id} in Supabase.")
+                    app.logger.info(f"âœ… User {user_id} assigned to store {store_id} in Supabase.")
                     # Log this specific assignment to sync_table for audit/replication
                     log_crud_operation('userstores', 'CREATE', f"{user_id}-{store_id}", {'userid': user_id, 'storeid': store_id})
                 else:
-                    app.logger.error(f"❌ Failed to assign user {user_id} to store {store_id} in Supabase (no data returned).")
+                    app.logger.error(f"âŒ Failed to assign user {user_id} to store {store_id} in Supabase (no data returned).")
             except Exception as e:
-                app.logger.error(f"❌ Error assigning user {user_id} to store {store_id} in Supabase: {e}", exc_info=True)
+                app.logger.error(f"âŒ Error assigning user {user_id} to store {store_id} in Supabase: {e}", exc_info=True)
                 # Log the failure for potential retry or investigation
                 log_crud_operation('userstores', 'CREATE_FAILED', f"{user_id}-{store_id}", {'userid': user_id, 'storeid': store_id, 'error': str(e)})
 
@@ -2372,7 +2239,7 @@ def delete_user(user_id):
     
     # Perform direct deletion from Supabase
     try:
-        client = db.client
+        client = SupabaseDBClient.client
         
         # 1. Delete associated userstores in Supabase
         # Using SupabaseDBClient_instance for direct deletion due to current `remove_user_store` signature.
@@ -2758,7 +2625,7 @@ def update_local_bills():
 def get_supabase_bills():
     """Get bills directly from Supabase"""
     try:
-        client = db.client
+        client = SupabaseDBClient.client
         
         # Query Bills with BillItems from Supabase
         response = client.table('bills').select("*, billitems(*)").order("timestamp", desc=True).execute()
@@ -2798,7 +2665,7 @@ def get_bills_with_details():
     Get all bills with joined bill_items and customers data from Supabase
     """
     try:
-        client = db.client
+        client = SupabaseDBClient.client
         
         # Query bills with related bill_items and customers using Supabase joins
         response = client.table('bills') \
@@ -3004,7 +2871,7 @@ def create_bill():
         save_bills_data(bills)
         
         # Write to Supabase
-        client = db.client
+        client = SupabaseDBClient.client
         
         # Insert bill
         result = client.table('bills').insert(bill_data).execute()
@@ -3419,7 +3286,7 @@ def update_settings():
     
     # DIRECTLY UPDATE Supabase DATABASE
     try:
-        client = db.client
+        client = SupabaseDBClient.client
         
         # Check if record exists in Supabase
         response = client.table("systemsettings").select("*").eq("id", setting_id).execute()
@@ -3466,7 +3333,7 @@ def update_settings():
 def get_supabase_stores():
     """Get stores directly from Supabase"""
     try:
-        client = db.client
+        client = SupabaseDBClient.client
         response = client.table("stores").select("*").execute()
         stores = response.data or []
         
@@ -3560,96 +3427,96 @@ def update_store(store_id):
 
 @app.route('/api/stores/<store_id>', methods=['DELETE'])
 def delete_store(store_id):
-    """Delete a store and all its associated inventory records from Supabase and local JSON."""
+    """Delete a store and all its associated inventory records"""
     try:
-        client = db.client
-        deleted_store_for_log = None # To capture store data for logging if found locally
+        stores = get_stores_data()
+        initial_len = len(stores)
 
-        # STEP 1: Attempt to fetch store locally before deletion for logging purposes
-        local_stores = get_stores_data()
-        local_store_index = next((i for i, s in enumerate(local_stores) if s.get('id') == store_id), -1)
-        if local_store_index != -1:
-            deleted_store_for_log = local_stores[local_store_index]
-            app.logger.debug(f"Store {store_id} found in local JSON.")
-        else:
-            app.logger.debug(f"Store {store_id} not found in local JSON initially.")
+        # Find store before deletion
+        deleted_store = None
+        for store in stores:
+            if store['id'] == store_id:
+                deleted_store = store
+                break
 
-        # --- Supabase Deletion Flow ---
-        # Fetch inventory records from Supabase for this store to restock products
-        app.logger.info(f"Attempting to fetch store inventory for store {store_id} from Supabase for restocking.")
-        inventory_records_response = client.table('storeinventory').select('productid, quantity').eq('storeid', store_id).execute()
-        inventory_to_restock = inventory_records_response.data or []
-        
-        products_data = get_products_data() # Get current local products data
-        products_map = {p['id']: p for p in products_data} # Map for easy lookup
+        stores = [s for s in stores if s['id'] != store_id]
 
-        # Restock products in local JSON based on deleted inventory
-        for inv_item in inventory_to_restock:
-            product_id = inv_item['productid']
-            assigned_quantity = int(inv_item['quantity'])
+        if len(stores) == initial_len:
+            return jsonify({"message": "Store not found"}), 404
+
+        # STEP 1: Delete from LOCAL JSON FIRST
+        save_stores_data(stores)
+
+        # STEP 2: Restock products from the store's inventory before deletion
+        try:
+            client = SupabaseDBClient.client
+
+            # Fetch all storeinventory records for this store
+            app.logger.info(f"Fetching store inventory for store {store_id} to restock products.")
+            inventory_records_response = client.table('storeinventory').select('productid, quantity').eq('storeid', store_id).execute()
+            inventory_to_restock = inventory_records_response.data or []
             
-            if product_id in products_map:
-                product_to_update = products_map[product_id]
-                old_stock = int(product_to_update.get('stock', 0))
-                new_stock = old_stock + assigned_quantity
+            products_data = get_products_data() # Get current local products data
+            products_map = {p['id']: p for p in products_data} # Map for easy lookup
+
+            for inv_item in inventory_to_restock:
+                product_id = inv_item['productid']
+                assigned_quantity = int(inv_item['quantity'])
                 
-                product_to_update['stock'] = new_stock
-                product_to_update['updatedAt'] = datetime.now().isoformat()
-                
-                app.logger.info(f"Restocked product {product_id}: {old_stock} -> {new_stock} (added {assigned_quantity} from store {store_id})")
-                
-                # Log product update for sync (assuming this triggers update to Supabase via sync manager)
-                log_crud_operation('products', 'UPDATE', product_id, product_to_update)
-            else:
-                app.logger.warning(f"Product {product_id} not found in local products data for restocking. This may indicate a data discrepancy.")
-        
-        save_products_data(list(products_map.values())) # Save updated products data back to local JSON
+                if product_id in products_map:
+                    product_to_update = products_map[product_id]
+                    old_stock = int(product_to_update.get('stock', 0))
+                    new_stock = old_stock + assigned_quantity
+                    
+                    product_to_update['stock'] = new_stock
+                    product_to_update['updatedAt'] = datetime.now().isoformat()
+                    
+                    app.logger.info(f"Restocked product {product_id}: {old_stock} -> {new_stock} (added {assigned_quantity} from store {store_id})")
+                    
+                    # Log product update for sync
+                    log_crud_operation('products', 'UPDATE', product_id, product_to_update)
+                else:
+                    app.logger.warning(f"Product {product_id} not found in local products data for restocking.")
+            
+            save_products_data(list(products_map.values())) # Save updated products data back to local JSON
 
-        # Delete store inventory from Supabase
-        app.logger.info(f"Deleting store inventory records for store {store_id} from Supabase.")
-        inventory_delete_response = client.table('storeinventory').delete().eq('storeid', store_id).execute()
-        deleted_inventory_count = len(inventory_delete_response.data) if inventory_delete_response.data else 0
-        app.logger.info(f"Deleted {deleted_inventory_count} inventory records for store {store_id} from Supabase.")
-        
-        # Delete from userstores mapping in Supabase
-        app.logger.info(f"Deleting userstores mapping for store {store_id} from Supabase.")
-        client.table('userstores').delete().eq('storeId', store_id).execute()
-        app.logger.info(f"Deleted userstores mapping for store {store_id} from Supabase.")
+            # Now, delete store inventory from Supabase
+            app.logger.info(f"Deleting store inventory records for store {store_id}")
+            inventory_delete_response = client.table('storeinventory').delete().eq('storeid', store_id).execute()
+            
+            deleted_inventory_count = len(inventory_delete_response.data) if inventory_delete_response.data else 0
+            app.logger.info(f"Deleted {deleted_inventory_count} inventory records for store {store_id}")
+            
+            # Also delete from userstores mapping (if using multi-store per user)
+            app.logger.info(f"Deleting userstores mapping for store {store_id}")
+            client.table('userstores').delete().eq('storeId', store_id).execute()
+            app.logger.info(f"Deleted userstores mapping for store {store_id}")
 
-        # Finally, delete the store from the 'stores' table in Supabase
-        app.logger.info(f"Deleting store {store_id} from Supabase 'stores' table.")
-        store_delete_response = client.table('stores').delete().eq('id', store_id).execute()
-        supabase_store_deleted_count = len(store_delete_response.data) if store_delete_response.data else 0
-        app.logger.info(f"Store {store_id} deleted from Supabase 'stores' table. Count: {supabase_store_deleted_count}")
+            # Finally, delete the store from the 'stores' table in Supabase
+            app.logger.info(f"Deleting store {store_id} from Supabase 'stores' table.")
+            client.table('stores').delete().eq('id', store_id).execute()
+            app.logger.info(f"Store {store_id} deleted from Supabase 'stores' table.")
+            
+            # Log the store deletion for sync, including info about restocked items
+            log_crud_operation('stores', 'DELETE', store_id, {
+                **(deleted_store or {}),
+                'associated_inventory_deleted': deleted_inventory_count,
+                'products_restocked_count': len(inventory_to_restock)
+            })
+            
+        except Exception as supabase_err:
+            app.logger.error(f"Error during store deletion and restocking process for store {store_id}: {supabase_err}", exc_info=True)
+            log_data_on_error = deleted_store or {}
+            log_data_on_error['error_during_deletion'] = str(supabase_err)
+            log_crud_operation('stores', 'DELETE', store_id, log_data_on_error) # Log with error info
+            return jsonify({"error": str(supabase_err)}), 500 # Return error to frontend
 
-        # --- Local JSON Deletion Flow ---
-        # If store was found locally, remove it from local JSON
-        if local_store_index != -1:
-            local_stores.pop(local_store_index)
-            save_stores_data(local_stores)
-            app.logger.info(f"Store {store_id} deleted from local JSON.")
+        app.logger.info(f"Store {store_id} deleted successfully along with all inventory")
+        return '', 204
 
-        # Determine response status
-        if supabase_store_deleted_count == 0 and local_store_index == -1:
-            # Store not found in Supabase and not found in local JSON
-            app.logger.warning(f"Store {store_id} not found in Supabase or local JSON. Returning 404.")
-            return jsonify({"message": f"Store '{store_id}' not found. Cannot delete."}), 404
-        
-        # Log the deletion operation (using data retrieved from local JSON if available, otherwise just ID)
-        log_crud_operation('stores', 'DELETE', store_id, {
-            **(deleted_store_for_log or {}),
-            'associated_inventory_deleted_supabase': deleted_inventory_count,
-            'products_restocked_count': len(inventory_to_restock)
-        })
-
-        app.logger.info(f"Store {store_id} deletion process completed.")
-        return '', 204 # Return 204 No Content for successful deletion
-        
     except Exception as e:
         app.logger.error(f"Error deleting store {store_id}: {e}", exc_info=True)
-        # Log the error for the sync system
-        log_crud_operation('stores', 'DELETE_FAILED', store_id, {'id': store_id, 'error': str(e)})
-        return jsonify({"error": str(e), "message": "Failed to delete store from database"}), 500
+        return jsonify({"error": str(e)}), 500
 
 
 

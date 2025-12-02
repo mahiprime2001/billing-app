@@ -23,6 +23,8 @@ export interface Batch {
   id: string;
   batchNumber: string;
   place: string;
+  createdAt?: string; // Added createdAt to Batch interface
+  updatedAt?: string; // Added updatedAt to Batch interface
 }
 
 export interface BillItem {

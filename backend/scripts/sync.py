@@ -107,6 +107,7 @@ def apply_change_to_db(
             # DELETE operation
             logger_instance.debug(f"Deleting from {table_name_lower} where id={record_id}")
             try:
+<<<<<<< HEAD
                 # Handle some known dependency relationships to avoid FK violations.
                 # 1) When deleting a product, remove any BillItems referencing it first.
                 if table_name_lower == 'products':
@@ -178,6 +179,58 @@ def apply_change_to_db(
                                 logger_instance.warning(f"Failed to delete product {pid} during batch cleanup: {pe}")
 
                     # end for pid in prod_ids
+=======
+                # === HANDLE EACH OPERATION TYPE ===
+                
+                if change_type == "DELETE":
+                    if table_name == "Bills":
+                        # Delete in order: deepest children first, then parent
+                        
+                        # 1. Delete Returns records (references Bills)
+                        cursor.execute("DELETE FROM Returns WHERE bill_id = %s", (record_id,))
+                        deleted_returns = cursor.rowcount
+                        logger_instance.debug(f"Deleted {deleted_returns} Returns for bill {record_id}")
+                        
+                        # 2. Delete BillItems (references Bills)
+                        cursor.execute("DELETE FROM BillItems WHERE billId = %s", (record_id,))
+                        deleted_items = cursor.rowcount
+                        logger_instance.debug(f"Deleted {deleted_items} BillItems for bill {record_id}")
+                        
+                        # 3. Now delete the Bill itself
+                        delete_query = f"DELETE FROM {table_name} WHERE id = %s"
+                        logger_instance.debug(f"Executing: {delete_query} with id={record_id}")
+                        cursor.execute(delete_query, (record_id,))
+                        
+                    elif table_name == "Products":
+                        # Delete in order: deepest children first, then parent
+                        
+                        # 1. Delete ProductBarcodes (references Products)
+                        cursor.execute("DELETE FROM ProductBarcodes WHERE productId = %s", (record_id,))
+                        logger_instance.debug(f"Deleted {cursor.rowcount} ProductBarcodes for product {record_id}")
+                        
+                        # 2. Update BillItems (set productId to NULL to preserve billing history)
+                        cursor.execute("UPDATE BillItems SET productId = NULL WHERE productId = %s", (record_id,))
+                        logger_instance.debug(f"Set productId to NULL for {cursor.rowcount} BillItems for product {record_id}")
+                        
+                        # 3. Update Returns (set product_id to NULL to preserve history)
+                        cursor.execute("UPDATE Returns SET product_id = NULL WHERE product_id = %s", (record_id,))
+                        logger_instance.debug(f"Set product_id to NULL for {cursor.rowcount} Returns for product {record_id}")
+                        
+                        # 4. Delete StoreInventory (references Products)
+                        cursor.execute("DELETE FROM StoreInventory WHERE productId = %s", (record_id,))
+                        logger_instance.debug(f"Deleted {cursor.rowcount} StoreInventory for product {record_id}")
+                        
+                        # 5. Now delete the Product itself
+                        delete_query = f"DELETE FROM {table_name} WHERE id = %s"
+                        logger_instance.debug(f"Executing: {delete_query} with id={record_id}")
+                        cursor.execute(delete_query, (record_id,))
+                        
+                    else:
+                        # Standard delete for tables without children
+                        delete_query = f"DELETE FROM {table_name} WHERE id = %s"
+                        logger_instance.debug(f"Executing: {delete_query} with id={record_id}")
+                        cursor.execute(delete_query, (record_id,))
+>>>>>>> 9921f14cbf125d4dd0708344f061d716a0cdb120
                     
                     # If anything in the batch cleanup outer try fails, catch and log it
                     except Exception as batch_exc:
