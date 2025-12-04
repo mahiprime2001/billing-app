@@ -449,21 +449,31 @@ def get_pull_sync_data(last_sync_timestamp: str, logger_instance: logging.Logger
             ("systemsettings", "updated_at")  # UPDATED: Now using updated_at instead of fetching all
         ]
         
-        # Sync tables with timestamps
         for table_name, timestamp_column in tables_to_sync:
             logger_instance.debug(f"Fetching updated records from Supabase table: {table_name} since {last_sync_timestamp} using column '{timestamp_column}'")
             try:
+                # Fetch updated records
                 response = SupabaseDBInstance.client.table(table_name).select("*").gte(timestamp_column, last_sync_timestamp).execute()
+                
                 if response.data:
-                    changes[table_name] = response.data
-                    logger_instance.info(f"Pulled {len(response.data)} updated records from {table_name}.")
-                else:
+                    # Filter out soft-deleted products
+                    if table_name.lower() == 'products':
+                        filtered_data = [record for record in response.data if not record.get('_deleted', False)]
+                        if filtered_data:
+                            changes[table_name] = filtered_data
+                            logger_instance.info(f"Pulled {len(filtered_data)} updated records from {table_name} (filtered {len(response.data) - len(filtered_data)} deleted).")
+                        else:
+                            logger_instance.debug(f"No non-deleted records found for {table_name} since {last_sync_timestamp}.")
+                    else:
+                        changes[table_name] = response.data
+                        logger_instance.info(f"Pulled {len(response.data)} updated records from {table_name}.")
+                else: # This else is for the inner try's response.data check
                     logger_instance.debug(f"No updated records found for {table_name} since {last_sync_timestamp}.")
-            except Exception as e:
+            except Exception as e: # This except is for the inner try
                 logger_instance.error(f"Error fetching data from Supabase table '{table_name}' using column '{timestamp_column}': {e}")
                 continue
                 
-    except Exception as e:
+    except Exception as e: # This except is for the outer try
         logger_instance.error(f"Error during pull sync: {e}", exc_info=True)
         log_sync_event(
             eventType="pull_sync_failed",

@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime
 from decimal import Decimal
 import os
@@ -100,46 +101,30 @@ class AssignedProductManager:
             return True, "Product unassigned successfully."
         return False, "Assignment not found."
 
+def _camel_to_snake_case(name):
+    """Converts a camelCase string to snake_case."""
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+def _snake_to_camel_case(name):
+    """Converts a snake_case string to camelCase."""
+    return ''.join(word.capitalize() if i > 0 else word for i, word in enumerate(name.split('_')))
+
+def convert_keys(data, convert_func):
+    """
+    Recursively converts keys in a dictionary or list using the provided conversion function.
+    """
+    if isinstance(data, dict):
+        return {convert_func(k): convert_keys(v, convert_func) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_keys(elem, convert_func) for elem in data]
+    else:
+        return data
+
 def convert_camel_to_snake(data):
     """Convert camelCase keys to snake_case for database compatibility"""
-    converted = {}
-    for key, value in data.items():
-        if key == 'sellingPrice':
-            converted['selling_price'] = value
-        elif key == 'batchId':
-            converted['batchid'] = value
-        elif key == 'assignedStoreId':
-            converted['assignedstoreid'] = value
-        elif key == 'productId':
-            converted['productid'] = value
-        elif key == 'assignedAt':
-            converted['assignedat'] = value
-        elif key == 'updatedAt':
-            converted['updatedat'] = value
-        elif key == 'createdAt':
-            converted['createdat'] = value
-        elif key == 'batchNumber':
-            converted['batchnumber'] = value
-        elif key == 'userId':
-            converted['userid'] = value
-        else:
-            converted[key] = value
-    return converted
+    return convert_keys(data, _camel_to_snake_case)
 
 def convert_snake_to_camel(data):
     """Convert snake_case keys to camelCase for frontend compatibility"""
-    converted = {}
-    for key, value in data.items():
-        if key == 'selling_price':
-            converted['sellingPrice'] = value
-        elif key == 'batchid':
-            converted['batchId'] = value
-        elif key == 'assignedstoreid':
-            converted['assignedStoreId'] = value
-        elif key == 'createdat':
-            converted['createdAt'] = value
-        elif key == 'updatedat':
-            converted['updatedAt'] = value
-        else:
-            converted[key] = value
-    return converted
+    return convert_keys(data, _snake_to_camel_case)

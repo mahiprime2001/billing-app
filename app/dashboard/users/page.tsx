@@ -183,8 +183,8 @@ export default function UsersPage() {
   }
 
   const handleEditUser = async () => {
-    if (!editingUser || !formData.name || !formData.email || !formData.password) {
-      alert("Please fill in all required fields")
+    if (!editingUser || !formData.name || !formData.email) {
+      alert("Please fill in all required fields (Name, Email)")
       return
     }
 
@@ -194,19 +194,25 @@ export default function UsersPage() {
       return
     }
 
+    const payload: Partial<AdminUser> = {
+      name: formData.name,
+      email: formData.email,
+      role: formData.role,
+      assignedStores: formData.role === "billing_user" ? formData.assignedStores : undefined,
+      sessionDuration: formData.role === "temporary_user" ? formData.sessionDuration : undefined,
+      status: formData.status,
+    };
+
+    // Only include password in payload if it's not empty
+    if (formData.password) {
+      payload.password = formData.password;
+    }
+
     try {
       const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/users/${editingUser.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          role: formData.role,
-          assignedStores: formData.role === "billing_user" ? formData.assignedStores : undefined,
-          sessionDuration: formData.role === "temporary_user" ? formData.sessionDuration : undefined,
-          status: formData.status,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (response.ok) {
@@ -248,24 +254,60 @@ export default function UsersPage() {
     }
   }
 
-  const openEditDialog = (user: AdminUser) => {
-    setEditingUser(user)
-    setIsEditDialogOpen(true)
-    setShowPassword(true)
+  // This function is no longer used, replaced by handleOpenEditDialog for better password handling
+  // const openEditDialog = (user: AdminUser) => {
+  //   setEditingUser(user)
+  //   setIsEditDialogOpen(true)
+  //   setShowPassword(true)
 
-    console.log("User object in openEditDialog:", user)
-    console.log("User password in openEditDialog:", user.password)
+  //   console.log("User object in openEditDialog:", user);
+  //   console.log("User password in openEditDialog:", user.password);
 
-    setFormData({
+  //   setFormData({
+  //     name: user.name,
+  //     email: user.email,
+  //     password: user.password || "",
+  //     role: user.role,
+  //     // Ensure assignedStores are correctly initialized for editing
+  //     assignedStores: user.assignedStores || [],
+  //     sessionDuration: user.sessionDuration || 24,
+  //     status: user.status,
+  //   });
+  // };
+
+  // Function to handle opening the edit dialog and setting form data
+const handleOpenEditDialog = (user: AdminUser) => {
+  setEditingUser(user);
+  setIsEditDialogOpen(true);
+  setShowPassword(false);
+  
+  console.log("--- Opening Edit Dialog ---");
+  console.log("User being edited:", {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    assignedStores: user.assignedStores,
+    status: user.status,
+    password: user.password,
+  });
+  console.log("All available stores (for context):", stores.map(s => ({ id: s.id, name: s.name, status: s.status })));
+
+  setFormData((prevFormData) => {
+    const newFormData = {
+      ...prevFormData,
       name: user.name,
       email: user.email,
-      password: user.password || "",
+      password: user.password || '', // ✅ FIXED: Show existing password
       role: user.role,
-      assignedStores: user.assignedStores || [],
+      assignedStores: user.assignedStores || [], // ✅ FIXED: Ensure it's an array
       sessionDuration: user.sessionDuration || 24,
       status: user.status,
-    })
-  }
+    };
+    console.log("FormData after setting:", newFormData);
+    return newFormData;
+  });
+};
 
   const toggleStoreAssignment = (storeId: string) => {
     setFormData((prev) => ({
@@ -633,7 +675,7 @@ export default function UsersPage() {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => openEditDialog(user)}>
+                            <Button variant="outline" size="sm" onClick={() => handleOpenEditDialog(user)}>
                               <Edit className="h-3 w-3" />
                             </Button>
                             {currentUser?.email !== user.email && (
@@ -727,7 +769,7 @@ export default function UsersPage() {
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder="Enter password"
+                      placeholder="Leave blank to keep existing password, or enter new password"
                     />
                     <Button
                       type="button"
@@ -747,7 +789,9 @@ export default function UsersPage() {
                     Generate
                   </Button>
                 </div>
-                {/* If passwords are stored in plain text they will appear here; use Generate to replace */}
+                <p className="text-xs text-gray-500">
+                  Leave the password field blank to keep the current password. Enter a new password to change it.
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

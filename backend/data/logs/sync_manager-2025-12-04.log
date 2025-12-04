@@ -1,0 +1,3 @@
+2025-12-04 20:20:29,982 - scripts.sync_manager - INFO - Logged CRUD operation: batch - CREATE - abe662ea-3547-4237-b356-b001d923bc0d
+2025-12-04 20:20:33,389 - scripts.sync_manager - INFO - Logged CRUD operation: batch - UPDATE - d05f9ea1-7bf5-4cb4-ab9d-41550923d86a
+2025-12-04 21:46:47,854 - scripts.sync_manager - INFO - Logged CRUD operation: batch - UPDATE - d05f9ea1-7bf5-4cb4-ab9d-41550923d86a

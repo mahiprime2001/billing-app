@@ -91,21 +91,41 @@ export default function ProductsPage() {
     barcodes: string[];
   }
 
-  const { data: productsData = [], error: productsError, isLoading: productsLoading, mutate } = useSWR<ProductType[]>("/api/products", fetcher);
-  const { data: batches = [], error: batchesError, isLoading: batchesLoading, mutate: mutateBatches } = useSWR<Batch[]>("/api/batches", fetcher);
+  const { data: productsData = [], error: productsError, isLoading: productsLoading, mutate } = useSWR<ProductType[]>(
+    "/api/products",
+    fetcher,
+    {
+      revalidateOnFocus: false,    // Don't revalidate when window gains focus
+      revalidateOnReconnect: false, // Don't revalidate on reconnect  
+      dedupingInterval: 5000,       // Dedupe requests within 5 seconds
+      refreshInterval: 0,           // Disable auto-refresh
+    }
+  );
+  const { data: batches = [], error: batchesError, isLoading: batchesLoading, mutate: mutateBatches } = useSWR<Batch[]>(
+    "/api/batches",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 5000,
+      refreshInterval: 0,
+    }
+  );
 
   // Normalize data on fetch to create a 'barcodes' array from the 'barcode' string for UI
   const products: Product[] = useMemo(() => {
-    if (!productsData) return [];
+    if (!productsData || productsData.length === 0) return [];
 
-    return productsData.map(p => ({
-      ...p,
-      barcodes: typeof p.barcode === 'string' && p.barcode.trim() !== ''
-        ? p.barcode.split(',')
-        : [],
-      price: typeof p.price === 'number' ? p.price : Number((p as any).price ?? 0),
-      displayPrice: (p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).price ?? 0,
-    }));
+    return productsData
+      .map(p => ({
+        ...p,
+        barcodes: typeof p.barcode === 'string' && p.barcode.trim() !== ''
+          ? p.barcode.split(',')
+          : [],
+        price: typeof p.price === 'number' ? p.price : Number((p as any).price ?? 0),
+        displayPrice: (p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).price ?? 0,
+      }))
+      .filter(p => !(p as any)._deleted); // Re-added: Filter out _deleted products
   }, [productsData]);
 
   // Debugging logs for SWR data
@@ -378,35 +398,36 @@ export default function ProductsPage() {
     }
   };
 
-  const handleDeleteProduct = async (productId: string) => {
-    // Optimistic update
-    const previousProducts = products;
-    const updatedProducts = previousProducts.filter((p) => p.id !== productId);
+const handleDeleteProduct = async (productId: string) => {
+  // Optimistic update - remove from UI immediately
+  mutate(
+    productsData.filter((p) => p.id !== productId),
+    false
+  );
 
-    // Update local SWR cache immediately
-    // The `false` here tells SWR not to revalidate immediately after this local mutation
-    mutate(updatedProducts, false);
-
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete product");
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _deleted: true }), // Use _deleted instead of deleted
       }
+    );
 
-      // If backend call succeeds, trigger a revalidation in the background to ensure consistency
-      // This will refetch products and update the cache again, but doesn't block the UI.
-      mutate(); 
-
-    } catch (error) {
-      console.error("Error deleting product:", error);
-      alert("Failed to delete product.");
-      // If the API call fails, revert the optimistic update by re-fetching the data
-      mutate(); 
+    if (!response.ok) {
+      throw new Error("Failed to mark product for deletion");
     }
-  };
+
+    // Force revalidation after successful delete
+    await mutate();
+  } catch (error) {
+    console.error("Error marking product for deletion:", error);
+    alert("Failed to mark product for deletion.");
+    // Revert optimistic update on error
+    mutate();
+  }
+};
 
   const openEditDialog = (product: Product) => {
     setEditingProduct(product)
@@ -497,7 +518,7 @@ export default function ProductsPage() {
 
   // Extended filtered products logic
   const filteredProducts = useMemo(() => {
-    console.log("Filtering products. Current products array:", products);
+    // console.log("Filtering products. Current products array:", products);
     const typedProducts: Product[] = products;
     const filtered = typedProducts.filter((product) => {
     const q = searchTerm.toLowerCase();
@@ -551,9 +572,25 @@ export default function ProductsPage() {
     // console.log(`Product ${product.name} (ID: ${product.id}) - Matches: ${match}`); // Too verbose, enable if needed
     return match;
   });
-  console.log("Filtered Products:", filtered);
+  // console.log("Filtered Products:", filtered);
   return filtered;
 }, [products, searchTerm, stockFilter, categoryFilter, priceRange, batchFilter, sellingPriceRange, dateAddedFilter]);
+
+  // Memoized total inventory value calculation
+  const totalInventoryValue = useMemo(() => {
+    const totalValue = products.reduce((sum, p) => {
+      const stock = Number(p.stock ?? 0);
+      const price = Number((p as any).sellingPrice ?? (p as any).price ?? 0);
+      if (isNaN(stock) || isNaN(price)) {
+        console.warn(`Invalid stock or price for product ${p.id}: stock=${p.stock}, price=${price}`);
+        return sum;
+      }
+      return sum + (stock * price);
+    }, 0);
+    
+    console.log("Calculated Total Inventory Value:", totalValue.toFixed(2));
+    return totalValue.toFixed(2);
+  }, [products]);
 
   const getStockStatus = (stock: number) => {
     if (stock === 0) return { label: "Out of Stock", variant: "destructive" as const, icon: XCircle }
@@ -636,7 +673,7 @@ export default function ProductsPage() {
         <tr>
           <td style="padding:6px;border:1px solid #ddd;">${allBarcodes}</td>
           <td style="padding:6px;border:1px solid #ddd;">${p.name}</td>
-          <td style="padding:6px;border:1px solid #ddd;">${productBatch?.batchNumber || "N/A"} (${productBatch?.place || "N/A"})</td>
+          <td style="padding:6px;border:1px solid #ddd;">${productBatch?.batchnumber || "N/A"} (${productBatch?.place || "N/A"})</td>
           <td style="padding:6px;border:1px solid #ddd; text-align:right;">${stock}</td>
           <td style="padding:6px;border:1px solid #ddd; text-align:right;">₹${price.toFixed(2)}</td>
           <td style="padding:6px;border:1px solid #ddd; text-align:right;">₹${value.toFixed(2)}</td>
@@ -956,7 +993,7 @@ export default function ProductsPage() {
                           <SelectItem key={`${batch.id}-${index}`} value={batch.id}>
                             <div className="flex flex-col">
                               <span>{batch.place}</span>
-                              <span className="text-xs text-muted-foreground">{batch.batchNumber}</span>
+                              <span className="text-xs text-muted-foreground">{batch.batchnumber}</span>
                             </div>
                           </SelectItem>
                         ))}
@@ -1067,21 +1104,9 @@ export default function ProductsPage() {
                 <AlertCircle className="h-8 w-8 text-yellow-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Value of Inventory</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {(() => {
-                      const totalValue = products.reduce((sum, p) => {
-                        const stock = Number(p.stock ?? 0);
-                        const price = Number((p as any).sellingPrice ?? (p as any).price ?? 0); // Try sellingPrice first
-                        if (isNaN(stock) || isNaN(price)) {
-                          console.warn(`Invalid stock or price for product ${p.id}: stock=${p.stock}, price=${price}`);
-                          return sum;
-                        }
-                        return sum + (stock * price);
-                      }, 0);
-                      console.log("Calculated Total Inventory Value:", totalValue.toFixed(2));
-                      return `₹${totalValue.toFixed(2)}`;
-                    })()}
-                  </p>
+<p className="text-2xl font-bold text-gray-900">
+  ₹{totalInventoryValue}
+</p>
                 </div>
               </div>
             </CardContent>
@@ -1191,8 +1216,7 @@ export default function ProductsPage() {
                     const stockStatus = getStockStatus(product.stock)
                     const StatusIcon = stockStatus.icon
                     const productBatch = batches.find(batch => batch.id === product.batchId);
-                    console.log(`Product: ${product.name}, BatchId: ${product.batchId}, ProductBatch:`, productBatch); // Debugging line
-                    console.log(`Product: ${product.name}, BatchId: ${product.batchId}, ProductBatch:`, productBatch); // Debugging line
+                    // console.log(`Product: ${product.name}, BatchId: ${product.batchId}, ProductBatch:`, productBatch); // Debugging line
                     return (
                       <tr key={product.id} className="border-b hover:bg-gray-50">
                         <td className="p-4">
@@ -1210,7 +1234,7 @@ export default function ProductsPage() {
                         </td>
                         <td className="p-4">
                           <div>
-                            <div className="font-medium">Batch: {productBatch?.batchNumber || "N/A"}</div>
+                            <div className="font-medium">Batch: {productBatch?.batchnumber || "N/A"}</div>
                             <div className="text-xs text-muted-foreground">Place: {productBatch?.place || "N/A"}</div>
                           </div>
                         </td>
@@ -1364,7 +1388,7 @@ export default function ProductsPage() {
                     <SelectItem value="all">All Batches</SelectItem>
                     {batches.map((batch) => (
                       <SelectItem key={batch.id} value={batch.id}>
-                        {batch.batchNumber} ({batch.place})
+                        {batch.batchnumber} ({batch.place})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1450,7 +1474,7 @@ export default function ProductsPage() {
                   {batchesForSelectedDate.map((batch) => (
                     <Card key={batch.id} className="cursor-pointer hover:bg-gray-50" onClick={() => handleBatchCardClick(batch)}>
                       <CardHeader>
-                        <CardTitle>{batch.batchNumber}</CardTitle>
+                        <CardTitle>{batch.batchnumber}</CardTitle>
                         <CardDescription>{batch.place}</CardDescription>
                       </CardHeader>
                     </Card>
@@ -1475,7 +1499,7 @@ export default function ProductsPage() {
           <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                Products in Batch {selectedBatchForProducts?.batchNumber} on {selectedDate ? selectedDate.toDateString() : ""}
+                Products in Batch {selectedBatchForProducts?.batchnumber} on {selectedDate ? selectedDate.toDateString() : ""}
               </DialogTitle>
               <DialogDescription>
                 Listed by product id, name, stock, and price.
@@ -1507,7 +1531,7 @@ export default function ProductsPage() {
                   <tr key={(p as any).id} className="border-b hover:bg-gray-50">
                     <td className="p-2">{allBarcodes}</td>
                     <td className="p-2">{(p as any).name}</td>
-                    <td className="p-2">{productBatch?.batchNumber || "N/A"} ({productBatch?.place || "N/A"})</td>
+                    <td className="p-2">{productBatch?.batchnumber || "N/A"} ({productBatch?.place || "N/A"})</td>
                     <td className="p-2 text-right">{stock}</td>
                     <td className="p-2 text-right">₹{price.toFixed(2)}</td>
                     <td className="p-2 text-right">₹{value.toFixed(2)}</td>
@@ -1522,7 +1546,7 @@ export default function ProductsPage() {
                       <tr className="border-b">
                         <th className="text-left p-2">Product Barcode Number</th>
                         <th className="text-left p-2">Product Name</th>
-                        <th className="text-left p-2">Product Batch</th>
+                        <th className="text-left p-2">Product Batch Number</th>
                         <th className="text-right p-2">Stock</th>
                         <th className="text-right p-2">Price</th>
                         <th className="text-right p-2">Value (Total Value)</th>
@@ -1607,7 +1631,7 @@ export default function ProductsPage() {
                   <tr key={(p as any).id} className="border-b hover:bg-gray-50">
                     <td className="p-2">{allBarcodes}</td>
                     <td className="p-2">{(p as any).name}</td>
-                    <td className="p-2">{productBatch?.batchNumber || "N/A"} ({productBatch?.place || "N/A"})</td>
+                    <td className="p-2">{productBatch?.batchnumber || "N/A"} ({productBatch?.place || "N/A"})</td>
                     <td className="p-2 text-right">{stock}</td>
 <td className="p-2 text-right">₹{price.toFixed(2)}</td>
 <td className="p-2 text-right">₹{value.toFixed(2)}</td>
@@ -1778,7 +1802,7 @@ export default function ProductsPage() {
                       <SelectItem key={`${batch.id}-${index}`} value={batch.id}>
                         <div className="flex flex-col">
                           <span>{batch.place}</span>
-                          <span className="text-xs text-muted-foreground">{batch.batchNumber}</span>
+                          <span className="text-xs text-muted-foreground">{batch.batchnumber}</span>
                         </div>
                       </SelectItem>
                     ))}

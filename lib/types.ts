@@ -8,6 +8,7 @@
   batchId?: string; // NEW
   createdAt: string;
   updatedAt: string;
+  _deleted?: boolean; // Soft delete flag for products
 }
 
 export interface StoreInventory {
@@ -21,7 +22,7 @@ export interface StoreInventory {
 
 export interface Batch {
   id: string;
-  batchNumber: string;
+  batchnumber: string; // Corrected to lowercase 'n' to match backend
   place: string;
   createdAt?: string; // Added createdAt to Batch interface
   updatedAt?: string; // Added updatedAt to Batch interface

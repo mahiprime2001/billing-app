@@ -1,158 +1,130 @@
+# export_data.py – Pull all data from Supabase → JSON
+
 import os
 import json
+import logging
 from datetime import datetime
-from decimal import Decimal # Import Decimal
-from utils.db import DatabaseConnection
+from typing import Any
 
-JSON_DIR = os.path.join(os.environ.get('APP_BASE_DIR', os.getcwd()), 'data', 'json')
+# Adjust imports to your structure
+from utils.supabase_db import db as SupabaseDBInstance
+from config import Config
 
-class CustomJsonEncoder(json.JSONEncoder):
-    """Custom JSON encoder to handle Decimal and datetime objects."""
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            return float(obj)  # Convert Decimal to float
-        if isinstance(obj, datetime):
-            return obj.isoformat() # Convert datetime to ISO format string
-        return json.JSONEncoder.default(self, obj)
+logger = logging.getLogger(__name__)
 
-def ensure_output_dir():
-    """Ensures the output directory for JSON files exists."""
-    os.makedirs(JSON_DIR, exist_ok=True)
+def ensure_directories():
+    """Create data/, data/json/, data/logs/ if missing."""
+    os.makedirs(Config.JSON_DIR, exist_ok=True)
+    os.makedirs(Config.LOGS_DIR, exist_ok=True)
+    logger.info(f"Ensured directories: {Config.JSON_DIR}, {Config.LOGS_DIR}")
 
-def get_tables_from_db():
-    """Fetches all table names from the database."""
-    conn = None
+def custom_json_serializer(obj: Any) -> Any:
+    """JSON serializer for datetime objects."""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
+
+def save_json(filename: str, data: Any):
+    """Write data to data/json/<filename>."""
+    filepath = os.path.join(Config.JSON_DIR, filename)
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False, default=custom_json_serializer)
+    logger.info(f"Exported {filepath} ({len(data) if isinstance(data, list) else 'N/A'} records)")
+
+def export_all_data_from_supabase():
+    """
+    Pull all tables from Supabase and write them to JSON files in data/json/.
+    Also ensures data/json/ and data/logs/ exist.
+    """
+    ensure_directories()
+
+    logger.info("Starting full data export from Supabase...")
+
     try:
-        conn = DatabaseConnection.get_connection()
-        cursor = conn.cursor()
-        cursor.execute('SHOW TABLES')
-        tables = [row[0] for row in cursor.fetchall()]
-        return tables
-    except Exception as e:
-        print(f"Error fetching table names: {e}")
-        return []
-    finally:
-        if conn:
-            cursor.close()
-            conn.close()
+        # 1. Stores
+        stores = SupabaseDBInstance.get_stores()
+        save_json("stores.json", stores)
 
-def export_formatted_data():
-    """Exports formatted data from MySQL to JSON files."""
-    ensure_output_dir()
-    conn = None
-    try:
-        conn = DatabaseConnection.get_connection()
-        cursor = conn.cursor(dictionary=True)  # Return rows as dictionaries
-        tables = get_tables_from_db()
+        # 2. Users
+        users = SupabaseDBInstance.get_users()
+        save_json("users.json", users)
 
-        # Export Bills
-        cursor.execute('SELECT * FROM Bills')
-        bills = cursor.fetchall()
-        cursor.execute('SELECT * FROM BillItems')
-        bill_items = cursor.fetchall()
+        # 3. UserStores (many-to-many)
+        # We need a method to fetch all – if you don't have one, add it:
+        try:
+            response = SupabaseDBInstance.client.table("userstores").select("*").execute()
+            userstores = response.data or []
+        except Exception as e:
+            logger.warning(f"Could not fetch userstores: {e}")
+            userstores = []
+        save_json("userstores.json", userstores)
 
-        formatted_bills = []
-        for bill in bills:
-            bill['items'] = [item for item in bill_items if item['billId'] == bill['id']]
-            # Convert datetime objects to ISO format strings
-            for key, value in bill.items():
-                if isinstance(value, datetime):
-                    bill[key] = value.isoformat()
-            formatted_bills.append(bill)
-        save_json_data('bills.json', formatted_bills)
-        print('Successfully exported formatted data to bills.json')
+        # 4. Products
+        products = SupabaseDBInstance.get_products()
+        save_json("products.json", products)
 
-        # Export Products (includes assignedStoreId if present)
-        cursor.execute('SELECT * FROM Products')
-        products = cursor.fetchall()
+        # 5. Customers
+        customers = SupabaseDBInstance.get_customers()
+        save_json("customers.json", customers)
 
-        formatted_products = []
-        for product in products:
-            # The 'barcodes' field is already part of the product record as a comma-separated string
-            # We can extract the first barcode to maintain a 'barcode' field for compatibility if needed.
-            barcodes_str = product.get('barcodes')
-            if isinstance(barcodes_str, str) and barcodes_str.strip():
-                codes = [b.strip() for b in barcodes_str.split(',') if b.strip()]
-                if codes:
-                    product['barcode'] = codes[0]  # Attach the first barcode as a primary barcode
-            else:
-                product.pop('barcode', None)  # Remove if no barcodes are present
+        # 6. Bills
+        bills = SupabaseDBInstance.get_bills(limit=10000)  # Adjust limit as needed
+        save_json("bills.json", bills)
 
-            for key, value in product.items():
-                if isinstance(value, datetime):
-                    product[key] = value.isoformat()
-            formatted_products.append(product)
-        save_json_data('products.json', formatted_products)
-        print('Successfully exported data to products.json')
+        # 7. BillItems
+        try:
+            response = SupabaseDBInstance.client.table("billitems").select("*").execute()
+            billitems = response.data or []
+        except Exception as e:
+            logger.warning(f"Could not fetch billitems: {e}")
+            billitems = []
+        save_json("billitems.json", billitems)
 
-        # Export Stores
-        cursor.execute('SELECT * FROM Stores')
-        stores = cursor.fetchall()
-        for store in stores:
-            for key, value in store.items():
-                if isinstance(value, datetime):
-                    store[key] = value.isoformat()
-        save_json_data('stores.json', stores)
-        print('Successfully exported data to stores.json')
+        # 8. Batches
+        batches = SupabaseDBInstance.get_batches()
+        save_json("batches.json", batches)
 
-        # Export Users
-        cursor.execute('SELECT * FROM Users')
-        users = cursor.fetchall()
-        cursor.execute('SELECT userId, storeId FROM UserStores')
-        user_stores = cursor.fetchall()
+        # 9. Returns
+        returns = SupabaseDBInstance.get_returns(limit=10000)
+        save_json("returns.json", returns)
 
-        formatted_users = []
-        for user in users:
-            user['assignedStores'] = [us['storeId'] for us in user_stores if us['userId'] == user['id']]
-            for key, value in user.items():
-                if isinstance(value, datetime):
-                    user[key] = value.isoformat()
-            formatted_users.append(user)
-        save_json_data('users.json', formatted_users)
-        print('Successfully exported data to users.json')
+        # 10. Notifications
+        notifications = SupabaseDBInstance.get_notifications(limit=10000)
+        save_json("notifications.json", notifications)
 
-        # Export Settings (SystemSettings and BillFormats combined)
-        cursor.execute('SELECT * FROM SystemSettings')
-        system_settings = cursor.fetchone()  # Assuming single row for system settings
-        cursor.execute('SELECT name, format FROM BillFormats')
-        bill_formats_rows = cursor.fetchall()
-        bill_formats = {row['name']: json.loads(row['format']) for row in bill_formats_rows}
+        # 11. StoreInventory
+        try:
+            response = SupabaseDBInstance.client.table("storeinventory").select("*").execute()
+            storeinventory = response.data or []
+        except Exception as e:
+            logger.warning(f"Could not fetch storeinventory: {e}")
+            storeinventory = []
+        save_json("storeinventory.json", storeinventory)
 
+        # 12. SystemSettings
+        system_settings = SupabaseDBInstance.get_system_settings() or {}
+        # Wrap in dict for consistency with your structure
         settings_data = {
-            'systemSettings': system_settings,
-            'billFormats': bill_formats
+            "systemSettings": system_settings,
+            # If you have billFormats in a separate table, fetch them here:
+            # "billFormats": ...
         }
-        # Convert datetime objects in system_settings to ISO format strings
-        if system_settings:
-            for key, value in system_settings.items():
-                if isinstance(value, datetime):
-                    system_settings[key] = value.isoformat()
-        save_json_data('settings.json', settings_data)
-        print('Successfully exported data to settings.json')
+        save_json("settings.json", settings_data)
 
-        # Export Notifications (if exists)
-        if 'notifications' in tables:
-            cursor.execute('SELECT * FROM notifications')
-            notifications = cursor.fetchall()
-            for notification in notifications:
-                for key, value in notification.items():
-                    if isinstance(value, datetime):
-                        notification[key] = value.isoformat()
-            save_json_data('notifications.json', notifications)
-            print('Successfully exported data to notifications.json')
+        # 13. Optional: synctable if you want a local backup
+        try:
+            response = SupabaseDBInstance.client.table("sync_table").select("*").execute()
+            synctable = response.data or []
+            save_json("synctable.json", synctable)
+        except Exception as e:
+            logger.warning(f"Could not fetch sync_table: {e}")
+
+        logger.info("✅ Full Supabase export complete.")
 
     except Exception as e:
-        print(f'Error exporting formatted data: {e}')
-    finally:
-        if conn:
-            cursor.close()
-            conn.close()
-
-def save_json_data(filename: str, data):
-    """Helper function to save data to a JSON file."""
-    filepath = os.path.join(JSON_DIR, filename)
-    with open(filepath, 'w') as f:
-        json.dump(data, f, indent=2, cls=CustomJsonEncoder) # Use custom encoder
+        logger.error(f"Error during export_all_data_from_supabase: {e}", exc_info=True)
+        raise
 
 if __name__ == "__main__":
-    export_formatted_data()
+    logging.basicConfig(level=logging.INFO)
+    export_all_data_from_supabase()

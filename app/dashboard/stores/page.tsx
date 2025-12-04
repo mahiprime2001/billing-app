@@ -60,7 +60,6 @@ interface StoreType {
   name: string
   address: string
   phone: string
-  email: string
   manager: string
   status: "active" | "inactive"
   createdAt: string
@@ -484,7 +483,6 @@ export default function StoresPage() {
     name: "",
     address: "",
     phone: "",
-    email: "",
     manager: "",
     status: "active" as "active" | "inactive",
   })
@@ -584,7 +582,6 @@ export default function StoresPage() {
       name: formData.name,
       address: formData.address,
       phone: formData.phone,
-      email: formData.email,
       manager: formData.manager,
       status: formData.status,
     }
@@ -625,7 +622,6 @@ export default function StoresPage() {
       name: store.name,
       address: store.address,
       phone: store.phone,
-      email: store.email,
       manager: store.manager,
       status: store.status,
     })
@@ -646,6 +642,18 @@ export default function StoresPage() {
         const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/stores/${id}`, { method: "DELETE" })
         if (response.ok) {
           await loadData()
+          // After successful deletion from Supabase, check if the deleted store was assigned to the admin user
+          const userData = localStorage.getItem("adminUser")
+          if (userData) {
+            const user = JSON.parse(userData)
+            if (normalizeStoreId(user.assignedStoreId) === normalizeStoreId(id)) {
+              // If the deleted store was assigned, clear the assignedStoreId
+              user.assignedStoreId = null
+              localStorage.setItem("adminUser", JSON.stringify(user))
+              // Optionally, if the admin user's assigned store is deleted, redirect them to the home page or dashboard
+              // router.push("/") 
+            }
+          }
         } else {
           const errorData = await response.json()
           alert(`Failed to delete store: ${errorData.message}`)
@@ -699,7 +707,6 @@ export default function StoresPage() {
       name: "",
       address: "",
       phone: "",
-      email: "",
       manager: "",
       status: "active",
     })
@@ -789,7 +796,7 @@ export default function StoresPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
                       <Input
@@ -797,16 +804,6 @@ export default function StoresPage() {
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         placeholder="Enter phone number"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email Address</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="Enter email address"
                       />
                     </div>
                   </div>
@@ -969,12 +966,6 @@ export default function StoresPage() {
                               <div className="text-sm flex items-center">
                                 <Phone className="h-3 w-3 mr-1 text-gray-400" />
                                 {store.phone}
-                              </div>
-                            )}
-                            {store.email && (
-                              <div className="text-sm flex items-center">
-                                <Mail className="h-3 w-3 mr-1 text-gray-400" />
-                                {store.email}
                               </div>
                             )}
                             {store.manager && (

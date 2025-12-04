@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "sync_time": "2025-12-04T20:20:29.978846",
+    "table_name": "batch",
+    "change_type": "CREATE",
+    "record_id": "abe662ea-3547-4237-b356-b001d923bc0d",
+    "change_data": {
+      "batchNumber": "btch-byj1tq",
+      "place": "hyd"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-12-04T20:20:29.978846"
+  },
+  {
+    "id": 2,
+    "sync_time": "2025-12-04T21:46:47.854046",
+    "table_name": "batch",
+    "change_type": "UPDATE",
+    "record_id": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+    "change_data": {
+      "batchNumber": "btch-tp4ruj",
+      "place": "Nlr"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-12-04T21:46:47.854046"
+  }
+]

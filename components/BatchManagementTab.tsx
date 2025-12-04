@@ -15,19 +15,18 @@ interface Batch {
   batchNumber: string
   place: string
   createdAt: string
-  updatedAt: string
 }
 
 const fetcher = (url: string) => fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`).then((res) => res.json());
 
 export const BatchManagementTab: React.FC = () => {
-  const { data: rawBatches, error, isLoading: isLoadingBatches } = useSWR<Batch[]>("/api/batches", fetcher);
+  const { data: rawBatches, error, isLoading: isLoadingBatches } = useSWR("/api/batches", fetcher);
+
   // Normalize batch fields from backend (handle createdat/createdAt, batch_number/batchNumber variations)
   const batches: Batch[] | undefined = (() => {
-    const seenIds = new Set<string>();
+    const seenIds = new Set();
     return rawBatches?.map((b: any) => {
       let uniqueId = b.id || b.ID || b._id;
-
       if (!uniqueId || seenIds.has(uniqueId)) {
         uniqueId = typeof window !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
         // Ensure the newly generated ID is also unique within this mapping session
@@ -36,17 +35,16 @@ export const BatchManagementTab: React.FC = () => {
         }
       }
       seenIds.add(uniqueId);
-
       const normalized: any = {
         id: uniqueId, // Use the guaranteed unique ID
         batchNumber: b.batchNumber || b.batch_number || b.batchnumber || b.batch || "",
         place: b.place || b.location || b.placeName || "",
         createdAt: b.createdAt || b.createdat || b.created_at || b.created || b.createdAt || null,
-        updatedAt: b.updatedAt || b.updatedat || b.updated_at || b.updated || null,
       }
       return normalized as Batch
     });
   })();
+
   const [newBatchNumber, setNewBatchNumber] = useState("");
   const [newPlace, setNewPlace] = useState("");
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
@@ -178,18 +176,13 @@ export const BatchManagementTab: React.FC = () => {
 
   if (isLoadingBatches) {
     return (
-      <div className="flex items-center justify-center h-48">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-        <span className="ml-2 text-gray-600">Loading batches...</span>
-      </div>
+      <div>Loading batches...</div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-red-500">
-        Error loading batches: {error.message}
-      </div>
+      <div>Error loading batches: {error.message}</div>
     );
   }
 
@@ -201,52 +194,52 @@ export const BatchManagementTab: React.FC = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Add New Batch Section */}
-        <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
-          <h3 className="text-lg font-semibold">Add New Batch</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="new-batch-number">Batch Number</Label>
-              <div className="flex space-x-2">
+        <div>
+          <h3 className="text-lg font-medium mb-4">Add New Batch</h3>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="batchNumber">Batch Number</Label>
                 <Input
-                  id="new-batch-number"
+                  id="batchNumber"
                   value={newBatchNumber}
                   onChange={(e) => setNewBatchNumber(e.target.value)}
                   placeholder="e.g., btch-12dhei"
                   className="flex-1"
                   disabled={isAdding}
                 />
-                <Button type="button" variant="outline" onClick={generateBatchNumber} disabled={isAdding}>
-                  Generate
-                </Button>
               </div>
+              <Button onClick={generateBatchNumber} variant="outline" className="mt-8" disabled={isAdding}>
+                Generate
+              </Button>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="new-place">Place</Label>
+              <Label htmlFor="place">Place</Label>
               <Input
-                id="new-place"
+                id="place"
                 value={newPlace}
                 onChange={(e) => setNewPlace(e.target.value)}
                 placeholder="e.g., Warehouse A"
                 disabled={isAdding}
               />
             </div>
-          </div>
-          <Button onClick={handleAddBatch} disabled={isAdding}>
             {isAdding ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Adding...
-              </>
+              <Button disabled className="w-full">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adding...
+              </Button>
             ) : (
-              <>
-                <PlusCircle className="h-4 w-4 mr-2" /> Add Batch
-              </>
+              <Button onClick={handleAddBatch} className="w-full">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Batch
+              </Button>
             )}
-          </Button>
+          </div>
         </div>
 
         {/* Existing Batches Table */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Existing Batches</h3>
+        <div>
+          <h3 className="text-lg font-medium mb-4">Existing Batches</h3>
           {batches && batches.length > 0 ? (
             <div className="rounded-md border">
               <Table>
@@ -255,13 +248,13 @@ export const BatchManagementTab: React.FC = () => {
                     <TableHead>Batch Number</TableHead>
                     <TableHead>Place</TableHead>
                     <TableHead>Created At</TableHead>
-                    <TableHead>Updated At</TableHead> {/* NEW: Added Updated At column */}
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {batches.map((batch) => (
-                    <TableRow key={batch.id}><TableCell className="font-medium">
+                    <TableRow key={batch.id}>
+                      <TableCell>
                         {editingBatchId === batch.id ? (
                           <Input
                             value={editedBatchNumber}
@@ -271,7 +264,8 @@ export const BatchManagementTab: React.FC = () => {
                         ) : (
                           batch.batchNumber || batch.id
                         )}
-                      </TableCell><TableCell>
+                      </TableCell>
+                      <TableCell>
                         {editingBatchId === batch.id ? (
                           <Input
                             value={editedPlace}
@@ -282,13 +276,14 @@ export const BatchManagementTab: React.FC = () => {
                           batch.place
                         )}
                       </TableCell>
-                      <TableCell>{batch.createdAt ? new Date(batch.createdAt).toLocaleDateString() : "-"}</TableCell>
                       <TableCell>
+                        {batch.createdAt ? new Date(batch.createdAt).toLocaleDateString() : "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
                         {editingBatchId === batch.id ? (
-                          <div className="flex space-x-2">
+                          <div className="flex justify-end gap-2">
                             <Button
-                              variant="ghost"
-                              size="icon"
+                              size="sm"
                               onClick={() => handleSaveEdit(batch.id)}
                               disabled={isSaving}
                             >
@@ -299,8 +294,8 @@ export const BatchManagementTab: React.FC = () => {
                               )}
                             </Button>
                             <Button
-                              variant="ghost"
-                              size="icon"
+                              size="sm"
+                              variant="outline"
                               onClick={() => setEditingBatchId(null)}
                               disabled={isSaving}
                             >
@@ -308,22 +303,23 @@ export const BatchManagementTab: React.FC = () => {
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex space-x-2">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(batch)}>
+                          <div className="flex justify-end gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleEditClick(batch)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteBatch(batch.id)}>
+                            <Button size="sm" variant="destructive" onClick={() => handleDeleteBatch(batch.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         )}
-                      </TableCell></TableRow>
+                      </TableCell>
+                    </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
           ) : (
-            <p className="text-gray-500">No batches found. Add a new batch above.</p>
+            <p className="text-center text-gray-500 py-8">No batches found. Add a new batch above.</p>
           )}
         </div>
       </CardContent>

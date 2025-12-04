@@ -1,0 +1,24 @@
+[
+  {
+    "id": "8585f16f-d4c0-4221-b892-701a01b8f023",
+    "name": "A.NECKLACE",
+    "price": 450.0,
+    "stock": 69,
+    "batchid": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+    "selling_price": 900.0,
+    "createdat": "2025-12-02T19:18:24.815896",
+    "updatedat": "2025-12-02T19:47:37.203753",
+    "barcode": "1764683303864842"
+  },
+  {
+    "id": "d1cbae3f-b8c3-45a5-88d4-e173ff3571c1",
+    "name": "A. Haram set",
+    "price": 1200.0,
+    "stock": 12,
+    "batchid": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+    "selling_price": 2300.0,
+    "createdat": "2025-12-02T21:31:48.46021",
+    "updatedat": "2025-12-02T21:32:05.580344",
+    "barcode": "1764691307333818"
+  }
+]

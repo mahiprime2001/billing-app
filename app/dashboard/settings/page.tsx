@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Settings, Building, Receipt, Save, User, Shield, FileText, Eye, Check, RefreshCw } from "lucide-react"
+import { Settings, Building, Receipt, Save, User, Shield, RefreshCw } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
@@ -55,25 +55,7 @@ interface AdminUser {
   assignedStores?: string[]
 }
 
-interface BillFormat {
-  width: number
-  height: number | "auto"
-  margins: {
-    top: number
-    bottom: number
-    left: number
-    right: number
-  }
-  unit: string
-}
 
-interface SystemStore {
-  id: string
-  name: string
-  address: string
-  phone?: string
-  status: string
-}
 
 interface UpdateStatus {
   available: boolean
@@ -95,16 +77,11 @@ export default function SettingsPage() {
     last_sync_id: undefined,
     last_sync_time: undefined,
   })
-  const [billFormats, setBillFormats] = useState<Record<string, BillFormat>>({})
-  const [storeFormats, setStoreFormats] = useState<Record<string, string>>({})
-  const [selectedFormat, setSelectedFormat] = useState("A4")
-  const [showPreview, setShowPreview] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [selectedFlushCategory, setSelectedFlushCategory] = useState<"products" | "stores" | "users" | "bills" | "">("")
   const [isFirstConfirmOpen, setIsFirstConfirmOpen] = useState(false)
   const [isSecondConfirmOpen, setIsSecondConfirmOpen] = useState(false)
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
-  const [flushedBillData, setFlushedBillData] = useState<any[]>([]) // State to hold flushed bill data
   const [adminUsersToKeep, setAdminUsersToKeep] = useState<string[]>([])
 
   const defaultSystemSettings: SystemSettings = {
@@ -140,39 +117,19 @@ export default function SettingsPage() {
 
     loadSettings()
     fetchAdminUsers()
-    fetchFlushedBillData() // Fetch flushed bill data on component mount
   }, [router])
 
-  const fetchFlushedBillData = async () => {
-    try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/flushed-bills")
-      if (response.ok) {
-        const data = await response.json()
-        setFlushedBillData(data.flushedBills)
-      } else {
-        console.error("Failed to fetch flushed bill data:", response.statusText)
-        toast({
-          title: "Error",
-          description: "Failed to load flushed bill data.",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Failed to fetch flushed bill data:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load flushed bill data.",
-        variant: "destructive",
-      })
+  useEffect(() => {
+    if (settings.companyName) { // Only log if settings have been loaded, to avoid initial empty state log
+      console.log("Current settings state in component:", JSON.stringify(settings, null, 2));
     }
-  }
+  }, [settings]); // Depend on settings to log when it changes
 
   const fetchAdminUsers = async () => {
     try {
       const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/admin-users")
       if (response.ok) {
         const data = await response.json()
-        // console.log("Admin Users API response data:", JSON.stringify(data, null, 2)) // Removed console log
         setAdminUsers(data.adminUsers)
       } else {
         console.error("Failed to fetch admin users:", response.statusText)
@@ -185,131 +142,41 @@ export default function SettingsPage() {
     } catch (error) {
       console.error("Failed to fetch admin users:", error)
       toast({
-        title: "Error",
-        description: "Failed to load admin users for flush option.",
-        variant: "destructive",
+          title: "Error",
+          description: "Failed to load admin users for flush option.",
+          variant: "destructive",
       })
     }
   }
 
   const loadSettings = async () => {
-    // --- TEMPORARY MOCK DATA FROM settings.json for debugging ---
-    const mockData: {
-      systemSettings: SystemSettings;
-      billFormats: Record<string, BillFormat>;
-      storeFormats: Record<string, string>;
-    } = {
-      "systemSettings": {
-        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
-        "companyEmail": "info@siri.ifleon.com",
-        "companyName": "SIRI ART JEWELLERY",
-        "companyPhone": "+91 889771771",
-        "gstin": "27AAFCV2449G1Z7",
-        "id": 1,
-        "last_sync_id": 1035,
-        "last_sync_time": "2025-11-03T09:44:24",
-        "taxPercentage": 10.4
-      },
-      "billFormats": {
-        "A4": {
-          "height": 297,
-          "margins": {
-            "bottom": 20,
-            "left": 20,
-            "right": 20,
-            "top": 20
-          },
-          "unit": "mm",
-          "width": 210
-        },
-        "A5": {
-          "height": 210,
-          "margins": {
-            "bottom": 15,
-            "left": 15,
-            "right": 15,
-            "top": 15
-          },
-          "unit": "mm",
-          "width": 148
-        },
-        "Custom": {
-          "height": 297,
-          "margins": {
-            "bottom": 20,
-            "left": 20,
-            "right": 20,
-            "top": 20
-          },
-          "unit": "mm",
-          "width": 210
-        },
-        "Thermal_58mm": {
-          "height": "auto",
-          "margins": {
-            "bottom": 3,
-            "left": 3,
-            "right": 3,
-            "top": 3
-          },
-          "unit": "mm",
-          "width": 58
-        },
-        "Thermal_80mm": {
-          "height": "auto",
-          "margins": {
-            "bottom": 5,
-            "left": 5,
-            "right": 5,
-            "top": 5
-          },
-          "unit": "mm",
-          "width": 80
-        }
-      },
-      "storeFormats": {}
-    };
-
-    setSettings({
-      gstin: mockData.systemSettings.gstin || defaultSystemSettings.gstin,
-      taxPercentage: mockData.systemSettings.taxPercentage ?? defaultSystemSettings.taxPercentage,
-      companyName: mockData.systemSettings.companyName || defaultSystemSettings.companyName,
-      companyAddress: mockData.systemSettings.companyAddress || defaultSystemSettings.companyAddress,
-      companyPhone: mockData.systemSettings.companyPhone || defaultSystemSettings.companyPhone,
-      companyEmail: mockData.systemSettings.companyEmail || defaultSystemSettings.companyEmail,
-      id: mockData.systemSettings.id,
-      last_sync_id: mockData.systemSettings.last_sync_id,
-      last_sync_time: mockData.systemSettings.last_sync_time,
-    });
-
-    setBillFormats(mockData.billFormats);
-    setStoreFormats(mockData.storeFormats);
-    // --- END TEMPORARY MOCK DATA ---
-
-    // Original API fetch logic - uncomment this when the backend is configured to serve settings.json correctly
     try {
       const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/settings")
       if (response.ok) {
-        const data = await response.json()
+        const fullData = await response.json();
+        console.log("Incoming settings data to frontend:", JSON.stringify(fullData, null, 2)); // Debug log
         
-        const receivedSystemSettings = data.systemSettings || {};
+        const fetchedSystemSettings = fullData.systemSettings || {};
         setSettings({
-          gstin: receivedSystemSettings.gstin || defaultSystemSettings.gstin,
-          taxPercentage: receivedSystemSettings.taxPercentage ?? defaultSystemSettings.taxPercentage,
-          companyName: receivedSystemSettings.companyName || defaultSystemSettings.companyName,
-          companyAddress: receivedSystemSettings.companyAddress || defaultSystemSettings.companyAddress,
-          companyPhone: receivedSystemSettings.companyPhone || defaultSystemSettings.companyPhone,
-          companyEmail: receivedSystemSettings.companyEmail || defaultSystemSettings.companyEmail,
-          id: receivedSystemSettings.id,
-          last_sync_id: receivedSystemSettings.last_sync_id,
-          last_sync_time: receivedSystemSettings.last_sync_time,
+          gstin: fetchedSystemSettings.gstin || defaultSystemSettings.gstin,
+          taxPercentage: fetchedSystemSettings.taxpercentage ?? defaultSystemSettings.taxPercentage,
+          companyName: fetchedSystemSettings.companyname || defaultSystemSettings.companyName,
+          companyAddress: fetchedSystemSettings.companyaddress || defaultSystemSettings.companyAddress,
+          companyPhone: fetchedSystemSettings.companyphone || defaultSystemSettings.companyPhone,
+          companyEmail: fetchedSystemSettings.companyemail || defaultSystemSettings.companyEmail,
+          id: fetchedSystemSettings.id,
+          last_sync_id: fetchedSystemSettings.last_sync_id,
+          last_sync_time: fetchedSystemSettings.last_sync_time,
         });
-
-        if (data.billFormats) setBillFormats(data.billFormats)
-        if (data.storeFormats) setStoreFormats(data.storeFormats)
+      } else {
+        // Fallback to default settings if API call fails
+        setSettings(defaultSystemSettings);
+        console.error("Failed to load settings from API, falling back to defaults:", response.statusText);
       }
     } catch (error) {
-      console.error("Failed to load settings:", error)
+      // Fallback to default settings if API call fails
+      setSettings(defaultSystemSettings);
+      console.error("Failed to load settings:", error);
     }
   }
 
@@ -320,9 +187,7 @@ export default function SettingsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemSettings: settings,
-          billFormats,
-          storeFormats,
+          systemSettings: settings, // `settings` already holds the systemSettings object
         }),
       })
 
@@ -432,33 +297,6 @@ export default function SettingsPage() {
     }))
   }
 
-  const updateBillFormat = (formatName: string, updates: Partial<BillFormat>) => {
-    setBillFormats((prev) => ({
-      ...prev,
-      [formatName]: { ...prev[formatName], ...updates },
-    }))
-  }
-
-  const updateFormatMargins = (formatName: string, margin: string, value: number) => {
-    setBillFormats((prev) => ({
-      ...prev,
-      [formatName]: {
-        ...prev[formatName],
-        margins: {
-          ...prev[formatName].margins,
-          [margin]: value,
-        },
-      },
-    }))
-  }
-
-  const assignFormatToStore = (storeId: string, formatName: string) => {
-    setStoreFormats((prev) => ({
-      ...prev,
-      [storeId]: formatName,
-    }))
-  }
-
   const handleFlushData = async () => {
     setIsLoading(true)
     try {
@@ -495,83 +333,6 @@ export default function SettingsPage() {
     }
   }
 
-  const generatePreview = (formatName: string) => {
-    const format = billFormats[formatName]
-    const scale = formatName.includes("Thermal") ? 2 : 0.5
-
-    return (
-      <div className="border rounded-lg p-4 bg-white shadow-sm">
-        <div className="text-center mb-4">
-          <h4 className="font-semibold text-lg">{formatName} Preview</h4>
-          <p className="text-sm text-gray-500">
-            {format.width}mm × {format.height === "auto" ? "Auto" : `${format.height}mm`}
-          </p>
-        </div>
-
-        <div
-          className="border border-gray-300 bg-white mx-auto relative"
-          style={{
-            width: `${format.width * scale}px`,
-            minHeight: formatName.includes("Thermal")
-              ? "200px"
-              : `${typeof format.height === "number" ? format.height * scale : 200}px`,
-            padding: `${format.margins.top * scale}px ${format.margins.right * scale}px ${format.margins.bottom * scale}px ${format.margins.left * scale}px`,
-          }}
-        >
-          <div className="text-center mb-2">
-            <div className="font-bold text-xs">{settings.companyName}</div>
-            <div className="text-xs">Sample Store</div>
-            <div className="text-xs">Sample Address</div>
-            <div className="text-xs">GSTIN: {settings.gstin}</div>
-          </div>
-
-          <div className="flex justify-between text-xs mb-2">
-            <span>Bill: #SAMPLE</span>
-            <span>Date: {new Date().toLocaleDateString()}</span>
-          </div>
-
-          <div className="text-xs mb-2">
-            <div>Phone: +91 98765 43210</div>
-            <div>Customer: Sample Customer</div>
-          </div>
-
-          <div className="border-t border-b py-1 mb-2">
-            <div className="flex justify-between text-xs font-semibold">
-              <span>Item</span>
-              <span>Qty</span>
-              <span>Price</span>
-              <span>Total</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span>Sample Product</span>
-              <span>2</span>
-              <span>₹500</span>
-              <span>₹1000</span>
-            </div>
-          </div>
-
-          <div className="text-xs space-y-1">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
-              <span>₹1000.00</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Tax ({settings.taxPercentage}%):</span>
-              <span>₹{((1000 * settings.taxPercentage) / 100).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between font-bold border-t pt-1">
-              <span>Total:</span>
-              <span>₹{(1000 + (1000 * settings.taxPercentage) / 100).toFixed(2)}</span>
-            </div>
-          </div>
-
-          <div className="text-center text-xs mt-2">
-            <div>Thank you for your business!</div>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   if (!currentUser) {
     return <div>Loading...</div>
@@ -840,21 +601,18 @@ export default function SettingsPage() {
           </Card>
         </div>
 
-        {/* Bill Format Settings */}
+        {/* Batch Management and Flush Data */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <FileText className="h-5 w-5 mr-2" />
-              Bill Format Settings
+              <Package className="h-5 w-5 mr-2" />
+              Batch Management & Data Utilities
             </CardTitle>
-            <CardDescription>Configure bill printing dimensions and formats for different stores</CardDescription>
+            <CardDescription>Manage product batches and advanced data operations.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="formats" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="formats">Bill Formats</TabsTrigger>
-                <TabsTrigger value="stores">Store Assignment</TabsTrigger>
-                <TabsTrigger value="preview">Preview</TabsTrigger>
+            <Tabs defaultValue="batches" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="batches">
                   <Package className="h-4 w-4 mr-2" />
                   Batch Management
@@ -864,157 +622,6 @@ export default function SettingsPage() {
                   Flush Data
                 </TabsTrigger>
               </TabsList>
-
-              <TabsContent value="formats" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {Object.entries(billFormats).map(([formatName, format]) => (
-                    <Card key={formatName}>
-                      <CardHeader>
-                        <CardTitle className="text-lg">{formatName.replace("_", " ")}</CardTitle>
-                        <CardDescription>
-                          {format.width}mm × {format.height === "auto" ? "Auto Height" : `${format.height}mm`}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>Width (mm)</Label>
-                            <Input
-                              type="number"
-                              value={format.width}
-                              onChange={(e) => updateBillFormat(formatName, { width: Number(e.target.value) })}
-                              disabled={formatName !== "Custom"}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Height (mm)</Label>
-                            <Input
-                              type="number"
-                              value={format.height === "auto" ? "" : format.height}
-                              onChange={(e) =>
-                                updateBillFormat(formatName, { height: Number(e.target.value) || "auto" })
-                              }
-                              placeholder="Auto"
-                              disabled={formatName !== "Custom" && formatName.includes("Thermal")}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium">Margins (mm)</Label>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-2">
-                              <Label className="text-xs">Top</Label>
-                              <Input
-                                type="number"
-                                value={format.margins.top}
-                                onChange={(e) => updateFormatMargins(formatName, "top", Number(e.target.value))}
-                                className="h-8"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-xs">Bottom</Label>
-                              <Input
-                                type="number"
-                                value={format.margins.bottom}
-                                onChange={(e) => updateFormatMargins(formatName, "bottom", Number(e.target.value))}
-                                className="h-8"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-xs">Left</Label>
-                              <Input
-                                type="number"
-                                value={format.margins.left}
-                                onChange={(e) => updateFormatMargins(formatName, "left", Number(e.target.value))}
-                                className="h-8"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-xs">Right</Label>
-                              <Input
-                                type="number"
-                                value={format.margins.right}
-                                onChange={(e) => updateFormatMargins(formatName, "right", Number(e.target.value))}
-                                className="h-8"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" className="w-full bg-transparent">
-                              <Eye className="h-4 w-4 mr-2" />
-                              Preview Format
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>{formatName.replace("_", " ")} Preview</DialogTitle>
-                              <DialogDescription>Preview of how bills will appear in this format</DialogDescription>
-                            </DialogHeader>
-                            <div className="max-h-96 overflow-auto">{generatePreview(formatName)}</div>
-                          </DialogContent>
-                        </Dialog>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="stores" className="space-y-6">
-                <div className="space-y-4">
-                  <div className="text-sm text-gray-600">
-                    Assign specific bill formats to different stores. Each store can have its own printing format.
-                  </div>
-
-                  {Object.keys(storeFormats).length > 0 ? (
-                    Object.keys(storeFormats).map((storeId) => (
-                      <Card key={storeId}>
-                        <CardContent className="pt-6">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium">{storeId}</h4>
-                            </div>
-                            <div className="w-48">
-                              <Select
-                                value={storeFormats[storeId] || "A4"}
-                                onValueChange={(value) => assignFormatToStore(storeId, value)}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select format" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Object.keys(billFormats).map((formatName) => (
-                                    <SelectItem key={formatName} value={formatName}>
-                                      {formatName.replace("_", " ")}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  ) : (
-                    <div className="text-center text-gray-500 py-8">
-                      <p className="mb-2">No stores configured yet.</p>
-                      <p className="text-sm">Add stores in the "Stores" section of the dashboard to assign bill formats.</p>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="preview" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {Object.keys(billFormats).map((formatName) => (
-                    <div key={formatName}>{generatePreview(formatName)}</div>
-                  ))}
-                </div>
-              </TabsContent>
-
               <TabsContent value="batches" className="space-y-6">
                 <BatchManagementTab />
               </TabsContent>
@@ -1136,27 +743,6 @@ export default function SettingsPage() {
       </AlertDialogContent>
     </AlertDialog>
 
-    {selectedFlushCategory === "bills" && flushedBillData.length > 0 && (
-      <Card>
-        <CardHeader>
-          <CardTitle>Flushed Bill Data</CardTitle>
-          <CardDescription>
-            These are bills that have been successfully flushed from the system.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="max-h-60 overflow-y-auto space-y-2">
-            {flushedBillData.map((bill, index) => (
-              <div key={index} className="border p-2 rounded-md text-sm">
-                <strong>Bill ID:</strong> {bill.recordid} <br />
-                <strong>Operation:</strong> {bill.operationtype} <br />
-                <strong>Synced At:</strong> {new Date(bill.syncedat).toLocaleString()}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    )}
   </CardContent>
 </Card>
               </TabsContent>

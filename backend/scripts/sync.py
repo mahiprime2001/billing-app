@@ -5,6 +5,7 @@ import json
 import re
 from datetime import datetime
 from typing import Dict, Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Resolve project root for imports (supports both development and PyInstaller bundle)
 if getattr(sys, 'frozen', False):
@@ -107,201 +108,193 @@ def apply_change_to_db(
             # DELETE operation
             logger_instance.debug(f"Deleting from {table_name_lower} where id={record_id}")
             try:
-<<<<<<< HEAD
                 # Handle some known dependency relationships to avoid FK violations.
                 # 1) When deleting a product, remove any BillItems referencing it first.
                 if table_name_lower == 'products':
-                    try:
-                        logger_instance.debug(f"Cleaning up dependent billitems for product {record_id}")
-                        client.table('billitems').delete().eq('productid', record_id).execute()
-                        logger_instance.debug(f"Deleted billitems referencing product {record_id}")
-                    except Exception as cleanup_exc:
-                        # Log but continue to attempt delete; the following delete will still surface FK errors
-                        logger_instance.warning(f"Could not delete dependent billitems for product {record_id}: {cleanup_exc}")
-                    # Also clean up returns and storeinventory entries that reference this product
-                    try:
-                        logger_instance.debug(f"Cleaning up returns for product {record_id}")
-                        client.table('returns').delete().eq('product_id', record_id).execute()
-                        logger_instance.debug(f"Deleted returns referencing product {record_id}")
-                    except Exception as ret_exc:
-                        logger_instance.warning(f"Could not delete dependent returns for product {record_id}: {ret_exc}")
-                    try:
-                        logger_instance.debug(f"Cleaning up storeinventory for product {record_id}")
-                        client.table('storeinventory').delete().eq('productid', record_id).execute()
-                        logger_instance.debug(f"Deleted storeinventory entries for product {record_id}")
-                    except Exception as si_exc:
-                        logger_instance.warning(f"Could not delete storeinventory for product {record_id}: {si_exc}")
+                    def delete_dependent_table(table, column, record_id):
+                        """Helper function to delete dependent records from a single table."""
+                        try:
+                            logger_instance.debug(f"Cleaning up {table} for product {record_id}")
+                            result = client.table(table).delete().eq(column, record_id).execute()
+                            deleted_count = len(result.data) if result.data else 0
+                            logger_instance.debug(f"Deleted {deleted_count} {table} records referencing product {record_id}")
+                            return (table, True, deleted_count)
+                        except Exception as cleanup_exc:
+                            logger_instance.warning(f"Could not delete {table} for product {record_id}: {cleanup_exc}")
+                            return (table, False, 0)
+                    
+                    # Parallel cleanup of all dependent tables
+                    logger_instance.info(f"Starting parallel cleanup for product {record_id}")
+                    
+                    with ThreadPoolExecutor(max_workers=3) as executor:
+                        # Submit all cleanup tasks simultaneously
+                        future_to_table = {
+                            executor.submit(delete_dependent_table, 'billitems', 'productid', record_id): 'billitems',
+                            executor.submit(delete_dependent_table, 'returns', 'product_id', record_id): 'returns',
+                            executor.submit(delete_dependent_table, 'storeinventory', 'productid', record_id): 'storeinventory'
+                        }
+                        
+                        # Wait for all deletions to complete
+                        cleanup_results = {}
+                        for future in as_completed(future_to_table):
+                            table_name_dep = future_to_table[future]
+                            try:
+                                table, success, count = future.result()
+                                cleanup_results[table] = {'success': success, 'count': count}
+                            except Exception as e:
+                                logger_instance.error(f"Exception during parallel cleanup of {table_name_dep}: {e}")
+                                cleanup_results[table_name_dep] = {'success': False, 'count': 0}
+                    
+                    logger_instance.info(f"Parallel cleanup completed for product {record_id}: {cleanup_results}")
 
-                # 2) When deleting a batch, first delete or clean up products that reference the batch
                 if table_name_lower == 'batch':
+                    def cleanup_product_for_batch(pid, record_id):
+                        """Helper to clean up a single product when batch is deleted."""
+                        results = {'product_id': pid, 'success': True}
+                        try:
+                            # Delete billitems
+                            client.table('billitems').delete().eq('productid', pid).execute()
+                            results['billitems'] = 'deleted'
+                        except Exception as be:
+                            logger_instance.warning(f"Failed to delete billitems for product {pid}: {be}")
+                            results['billitems'] = 'failed'
+                        
+                        try:
+                            # Delete returns
+                            client.table('returns').delete().eq('product_id', pid).execute()
+                            results['returns'] = 'deleted'
+                        except Exception as rexc:
+                            logger_instance.warning(f"Failed to delete returns for product {pid}: {rexc}")
+                            results['returns'] = 'failed'
+                        
+                        try:
+                            # Delete storeinventory
+                            client.table('storeinventory').delete().eq('productid', pid).execute()
+                            results['storeinventory'] = 'deleted'
+                        except Exception as siexc:
+                            logger_instance.warning(f"Failed to delete storeinventory for product {pid}: {siexc}")
+                            results['storeinventory'] = 'failed'
+                        
+                        try:
+                            # Delete product
+                            client.table('products').delete().eq('id', pid).execute()
+                            results['product'] = 'deleted'
+                        except Exception as pe:
+                            logger_instance.warning(f"Failed to delete product {pid}: {pe}")
+                            results['product'] = 'failed'
+                            results['success'] = False
+                        
+                        return results
+                    
                     try:
-                        # Try common batch column names on products table
-                        logger_instance.debug(f"Looking up products for batch {record_id} to clean dependencies")
+                        logger_instance.debug(f"Looking up products for batch {record_id}")
                         prod_ids = []
-                        # try 'batch' column
+                        
+                        # Try 'batch' column
                         try:
                             resp = client.table('products').select('id').eq('batch', record_id).execute()
                             if resp.data:
                                 prod_ids = [r.get('id') for r in resp.data if r.get('id')]
                         except Exception:
                             prod_ids = []
-
-                        # fallback to 'batchid' if nothing found
+                        
+                        # Fallback to 'batchid'
                         if not prod_ids:
                             try:
                                 resp = client.table('products').select('id').eq('batchid', record_id).execute()
                                 if resp.data:
                                     prod_ids = [r.get('id') for r in resp.data if r.get('id')]
                             except Exception:
-                                prod_ids = prod_ids or []
-
-                        # For each product in this batch, delete dependent billitems then the product
-                        for pid in prod_ids:
-                            try:
-                                logger_instance.debug(f"Cleaning billitems for product {pid} (batch cleanup)")
-                                client.table('billitems').delete().eq('productid', pid).execute()
-                            except Exception as be:
-                                logger_instance.warning(f"Failed to delete billitems for product {pid}: {be}")
-                            try:
-                                logger_instance.debug(f"Cleaning returns for product {pid} (batch cleanup)")
-                                client.table('returns').delete().eq('product_id', pid).execute()
-                            except Exception as rexc:
-                                logger_instance.warning(f"Failed to delete returns for product {pid}: {rexc}")
-                            try:
-                                logger_instance.debug(f"Cleaning storeinventory for product {pid} (batch cleanup)")
-                                client.table('storeinventory').delete().eq('productid', pid).execute()
-                            except Exception as siexc:
-                                logger_instance.warning(f"Failed to delete storeinventory for product {pid}: {siexc}")
-                            try:
-                                logger_instance.debug(f"Deleting product {pid} as part of batch {record_id} cleanup")
-                                client.table('products').delete().eq('id', pid).execute()
-                            except Exception as pe:
-                                logger_instance.warning(f"Failed to delete product {pid} during batch cleanup: {pe}")
-
-                    # end for pid in prod_ids
-=======
-                # === HANDLE EACH OPERATION TYPE ===
-                
-                if change_type == "DELETE":
-                    if table_name == "Bills":
-                        # Delete in order: deepest children first, then parent
+                                prod_ids = []
                         
-                        # 1. Delete Returns records (references Bills)
-                        cursor.execute("DELETE FROM Returns WHERE bill_id = %s", (record_id,))
-                        deleted_returns = cursor.rowcount
-                        logger_instance.debug(f"Deleted {deleted_returns} Returns for bill {record_id}")
-                        
-                        # 2. Delete BillItems (references Bills)
-                        cursor.execute("DELETE FROM BillItems WHERE billId = %s", (record_id,))
-                        deleted_items = cursor.rowcount
-                        logger_instance.debug(f"Deleted {deleted_items} BillItems for bill {record_id}")
-                        
-                        # 3. Now delete the Bill itself
-                        delete_query = f"DELETE FROM {table_name} WHERE id = %s"
-                        logger_instance.debug(f"Executing: {delete_query} with id={record_id}")
-                        cursor.execute(delete_query, (record_id,))
-                        
-                    elif table_name == "Products":
-                        # Delete in order: deepest children first, then parent
-                        
-                        # 1. Delete ProductBarcodes (references Products)
-                        cursor.execute("DELETE FROM ProductBarcodes WHERE productId = %s", (record_id,))
-                        logger_instance.debug(f"Deleted {cursor.rowcount} ProductBarcodes for product {record_id}")
-                        
-                        # 2. Update BillItems (set productId to NULL to preserve billing history)
-                        cursor.execute("UPDATE BillItems SET productId = NULL WHERE productId = %s", (record_id,))
-                        logger_instance.debug(f"Set productId to NULL for {cursor.rowcount} BillItems for product {record_id}")
-                        
-                        # 3. Update Returns (set product_id to NULL to preserve history)
-                        cursor.execute("UPDATE Returns SET product_id = NULL WHERE product_id = %s", (record_id,))
-                        logger_instance.debug(f"Set product_id to NULL for {cursor.rowcount} Returns for product {record_id}")
-                        
-                        # 4. Delete StoreInventory (references Products)
-                        cursor.execute("DELETE FROM StoreInventory WHERE productId = %s", (record_id,))
-                        logger_instance.debug(f"Deleted {cursor.rowcount} StoreInventory for product {record_id}")
-                        
-                        # 5. Now delete the Product itself
-                        delete_query = f"DELETE FROM {table_name} WHERE id = %s"
-                        logger_instance.debug(f"Executing: {delete_query} with id={record_id}")
-                        cursor.execute(delete_query, (record_id,))
-                        
-                    else:
-                        # Standard delete for tables without children
-                        delete_query = f"DELETE FROM {table_name} WHERE id = %s"
-                        logger_instance.debug(f"Executing: {delete_query} with id={record_id}")
-                        cursor.execute(delete_query, (record_id,))
->>>>>>> 9921f14cbf125d4dd0708344f061d716a0cdb120
+                        if prod_ids:
+                            logger_instance.info(f"Found {len(prod_ids)} products for batch {record_id}. Starting parallel cleanup.")
+                            
+                            # Clean up all products in parallel
+                            with ThreadPoolExecutor(max_workers=5) as executor:
+                                futures = {executor.submit(cleanup_product_for_batch, pid, record_id): pid for pid in prod_ids}
+                                
+                                for future in as_completed(futures):
+                                    pid = futures[future]
+                                    try:
+                                        result = future.result()
+                                        logger_instance.debug(f"Cleanup result for product {pid}: {result}")
+                                    except Exception as e:
+                                        logger_instance.error(f"Exception during product cleanup {pid}: {e}")
+                        else:
+                            logger_instance.info(f"No products found for batch {record_id}")
                     
-                    # If anything in the batch cleanup outer try fails, catch and log it
                     except Exception as batch_exc:
                         logger_instance.warning(f"Failed during batch cleanup for batch {record_id}: {batch_exc}")
 
-                # 3) When deleting a user, clean up user-related dependencies to avoid FK violations
                 if table_name_lower == 'users':
-                    # Helper: try to delete rows from a dependent table using any matching candidate column names
-                    def _delete_by_candidate_columns(dep_table: str, candidates: list):
+                    def delete_user_dependent_table(dep_table, candidates, record_id):
+                        """Helper to delete from a user-dependent table."""
                         try:
                             cols = get_table_columns(dep_table, logger_instance)
-                        except Exception as gexc:
-                            logger_instance.debug(f"Could not get columns for {dep_table}: {gexc}")
+                        except Exception:
                             cols = []
-
-                        # Use exact column names from the table if they match our known candidates
-                        used = False
+                        
+                        deleted = False
                         for c in cols:
                             if c.lower() in (cc.lower() for cc in candidates):
                                 try:
-                                    logger_instance.debug(f"Cleaning {dep_table} where {c}={record_id}")
-                                    client.table(dep_table).delete().eq(c, record_id).execute()
-                                    logger_instance.debug(f"Deleted {dep_table} entries matching {c} for user {record_id}")
-                                    used = True
+                                    result = client.table(dep_table).delete().eq(c, record_id).execute()
+                                    count = len(result.data) if result.data else 0
+                                    logger_instance.debug(f"Deleted {count} {dep_table} entries matching {c} for user {record_id}")
+                                    deleted = True
+                                    break
                                 except Exception as de:
                                     logger_instance.warning(f"Failed to delete from {dep_table} where {c}={record_id}: {de}")
-
-                        # If no matching columns found from introspection, fall back to trying common names
-                        if not used:
+                        
+                        if not deleted:
                             for c in candidates:
                                 try:
-                                    logger_instance.debug(f"Fallback cleaning {dep_table} where {c}={record_id}")
-                                    client.table(dep_table).delete().eq(c, record_id).execute()
-                                    logger_instance.debug(f"Deleted {dep_table} entries using fallback column {c} for user {record_id}")
-                                    used = True
-                                except Exception as de:
-                                    logger_instance.warning(f"Fallback delete failed for {dep_table} on column {c}: {de}")
-
-                        return used
-
-                    # userstores may have 'user_id', 'userid', or 'userId'
-                    try:
-                        _delete_by_candidate_columns('userstores', ['user_id', 'userid', 'userId'])
-                    except Exception as us_exc:
-                        logger_instance.warning(f"Could not delete userstores for user {record_id}: {us_exc}")
-
-                    # password reset tokens
-                    try:
-                        # Corrected: only use 'user_id' as the candidate column
-                        _delete_by_candidate_columns('password_reset_tokens', ['user_id'])
-                    except Exception as prt_exc:
-                        logger_instance.warning(f"Could not delete password reset tokens for user {record_id}: {prt_exc}")
-
-                    # password change log
-                    try:
-                        # Corrected: only use 'user_id' as the candidate column
-                        _delete_by_candidate_columns('password_change_log', ['user_id'])
-                    except Exception as pcl_exc:
-                        logger_instance.warning(f"Could not delete password change logs for user {record_id}: {pcl_exc}")
-
-                    try:
-                        logger_instance.debug(f"Nulling createdby on bills for user {record_id}")
-                        # set createdby to null to preserve bills while allowing user deletion
-                        client.table('bills').update({'createdby': None}).eq('createdby', record_id).execute()
-                        logger_instance.debug(f"Nullified bills.createdby for user {record_id}")
-                    except Exception as b_exc:
-                        logger_instance.warning(f"Could not update bills.createdby for user {record_id}: {b_exc}")
+                                    result = client.table(dep_table).delete().eq(c, record_id).execute()
+                                    count = len(result.data) if result.data else 0
+                                    logger_instance.debug(f"Deleted {count} {dep_table} entries using fallback {c} for user {record_id}")
+                                    deleted = True
+                                    break
+                                except Exception:
+                                    pass
+                        
+                        return (dep_table, deleted)
+                    
+                    def update_bills_createdby(record_id):
+                        """Helper to null out bills.createdby."""
+                        try:
+                            result = client.table('bills').update({'createdby': None}).eq('createdby', record_id).execute()
+                            count = len(result.data) if result.data else 0
+                            logger_instance.debug(f"Nullified bills.createdby for {count} bills")
+                            return ('bills_update', True)
+                        except Exception as b_exc:
+                            logger_instance.warning(f"Could not update bills.createdby for user {record_id}: {b_exc}")
+                            return ('bills_update', False)
+                    
+                    # Parallel cleanup of all user-related tables
+                    logger_instance.info(f"Starting parallel cleanup for user {record_id}")
+                    
+                    with ThreadPoolExecutor(max_workers=4) as executor:
+                        futures = {
+                            executor.submit(delete_user_dependent_table, 'userstores', ['user_id', 'userid', 'userId'], record_id): 'userstores',
+                            executor.submit(delete_user_dependent_table, 'password_reset_tokens', ['user_id'], record_id): 'password_reset_tokens',
+                            executor.submit(delete_user_dependent_table, 'password_change_log', ['user_id'], record_id): 'password_change_log',
+                            executor.submit(update_bills_createdby, record_id): 'bills_update'
+                        }
+                        
+                        for future in as_completed(futures):
+                            table_name_dep = futures[future]
+                            try:
+                                result = future.result()
+                                logger_instance.debug(f"User cleanup result for {table_name_dep}: {result}")
+                            except Exception as e:
+                                logger_instance.error(f"Exception during user cleanup of {table_name_dep}: {e}")
+                    
+                    logger_instance.info(f"Parallel cleanup completed for user {record_id}")
 
                 # Proceed with the intended DELETE
                 result = client.table(table_name_lower).delete().eq('id', record_id).execute()
-                logger_instance.info(f"✓ DELETE completed for {table_name_lower}:{record_id}")
+                logger_instance.info(f"âœ“ DELETE completed for {table_name_lower}:{record_id}")
                 return True # Indicate success
             except Exception as e:
                 # Catch specific foreign key violation error (Postgres code '23503')
@@ -329,7 +322,7 @@ def apply_change_to_db(
             
             logger_instance.debug(f"Deleting all userstores for userId={user_id_to_delete_stores_for}")
             result = client.table(table_name_lower).delete().eq('userId', user_id_to_delete_stores_for).execute() # Use 'userId' (camelCase)
-            logger_instance.info(f"✓ DELETE_ALL_FOR_USER completed for userstores: deleted {len(result.data)} records for user {user_id_to_delete_stores_for}")
+            logger_instance.info(f"âœ“ DELETE_ALL_FOR_USER completed for userstores: deleted {len(result.data)} records for user {user_id_to_delete_stores_for}")
             
             # Ensure the log for this specific operation correctly reflects the action
             # Reconstruct a meaningful record_id for sync_table for this operation
@@ -352,6 +345,40 @@ def apply_change_to_db(
             return True # Successfully handled this special delete
 
         elif change_type == "CREATE" or change_type == "UPDATE":
+            # Handle soft-delete flag for products within an UPDATE operation
+            should_hard_delete_product = False
+            if table_name_lower == 'products' and change_type == 'UPDATE' and snake_cased_data.get('_deleted') is True:
+                logger_instance.info(f"Product {record_id} has _deleted=true in UPDATE. Treating as hard delete.")
+                should_hard_delete_product = True
+                # Remove _deleted flag from change_data before proceeding to actual DB operation
+                snake_cased_data.pop('_deleted', None)
+
+            if should_hard_delete_product:
+                # Perform the same cleanup as a direct DELETE operation for products
+                try:
+                    logger_instance.debug(f"Cleaning up dependent billitems for product {record_id} due to soft delete")
+                    client.table('billitems').delete().eq('productid', record_id).execute()
+                    logger_instance.debug(f"Deleted billitems referencing product {record_id}")
+                except Exception as cleanup_exc:
+                    logger_instance.warning(f"Could not delete dependent billitems for product {record_id}: {cleanup_exc}")
+                try:
+                    logger_instance.debug(f"Cleaning up returns for product {record_id} due to soft delete")
+                    client.table('returns').delete().eq('product_id', record_id).execute()
+                    logger_instance.debug(f"Deleted returns referencing product {record_id}")
+                except Exception as ret_exc:
+                    logger_instance.warning(f"Could not delete dependent returns for product {record_id}: {ret_exc}")
+                try:
+                    logger_instance.debug(f"Cleaning up storeinventory for product {record_id} due to soft delete")
+                    client.table('storeinventory').delete().eq('productid', record_id).execute()
+                    logger_instance.debug(f"Deleted storeinventory entries for product {record_id}")
+                except Exception as si_exc:
+                    logger_instance.warning(f"Could not delete storeinventory for product {record_id}: {si_exc}")
+
+                # Finally, perform the actual hard delete of the product
+                result = client.table(table_name_lower).delete().eq('id', record_id).execute()
+                logger_instance.info(f"✓ Hard DELETE completed for {table_name_lower}:{record_id} after soft delete flag detection.")
+                return True # Indicate success for this "soft-delete-turned-hard-delete" operation
+
             # UPSERT operation for both CREATE and UPDATE to handle potential conflicts
             filtered_data: Dict[str, Any] = {} # Initialize empty filtered_data
 
@@ -420,7 +447,7 @@ def apply_change_to_db(
 
             try:
                 result = client.table(table_name_lower).upsert(filtered_data, on_conflict=on_conflict_value).execute()
-                logger_instance.info(f"✓ {change_type} (UPSERT) completed for {table_name_lower}:{composite_record_id_for_sync}")
+                logger_instance.info(f"âœ“ {change_type} (UPSERT) completed for {table_name_lower}:{composite_record_id_for_sync}")
             except Exception as e:
                 # Try to detect Postgres foreign key violation
                 code = None
@@ -530,7 +557,7 @@ def apply_change_to_db(
                                 logger_instance.info(f"Successfully pushed parent {parent_table_lower}:{missing_val} to Supabase. Retrying child upsert.")
                                 # Retry child upsert
                                 result = client.table(table_name_lower).upsert(filtered_data, on_conflict=on_conflict_value).execute()
-                                logger_instance.info(f"✓ {change_type} (UPSERT) completed for {table_name_lower}:{composite_record_id_for_sync} after parent push")
+                                logger_instance.info(f"âœ“ {change_type} (UPSERT) completed for {table_name_lower}:{composite_record_id_for_sync} after parent push")
                             except Exception as retry_exc:
                                 logger_instance.error(f"Retry after pushing parent failed for {table_name_lower}:{composite_record_id_for_sync}: {retry_exc}", exc_info=True)
                                 raise
@@ -552,7 +579,7 @@ def apply_change_to_db(
                                     client.table(parent_table_lower).upsert(placeholder, on_conflict=parent_on_conflict).execute()
                                     logger_instance.info(f"Inserted placeholder parent {parent_table_lower}:{missing_val}; retrying child upsert.")
                                     result = client.table(table_name_lower).upsert(filtered_data, on_conflict=on_conflict_value).execute()
-                                    logger_instance.info(f"✓ {change_type} (UPSERT) completed for {table_name_lower}:{composite_record_id_for_sync} after placeholder parent creation")
+                                    logger_instance.info(f"âœ“ {change_type} (UPSERT) completed for {table_name_lower}:{composite_record_id_for_sync} after placeholder parent creation")
                                 except Exception as ph_exc:
                                     logger_instance.error(f"Failed to insert placeholder parent {parent_table_lower}:{missing_val}: {ph_exc}", exc_info=True)
                                     raise

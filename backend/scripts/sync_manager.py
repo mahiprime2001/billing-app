@@ -42,7 +42,8 @@ if not logger.handlers:
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from backend.utils.supabase_db import SupabaseDB
+from utils.supabase_db import SupabaseDB
+from scripts.sync import apply_change_to_db
 
 class EnhancedSyncManager:
     """
@@ -266,27 +267,36 @@ class EnhancedSyncManager:
             # 1. Remote pending changes: (source == 'remote' AND status == 'pending')
             # 2. Local synced changes after last_sync: (source == 'local' AND status == 'synced' AND created_at >= last_sync)
             
-            # Determine the timestamp for the 'created_at' filter
-            timestamp_filter = last_sync if last_sync and not force_full_pull else (datetime.now() - timedelta(days=1)).isoformat()
+            # Determine the timestamp for the 'created_at' filter. Using a fallback of 30 days for initial wider pull.
+            # This ensures we don't miss recent changes if last_sync was not set or too old.
+            timestamp_filter = last_sync if last_sync and not force_full_pull else (datetime.now() - timedelta(days=30)).isoformat()
 
             # Construct the OR conditions using the 'filter' method with a raw PostgREST 'or' string.
             # This directly creates the URL query parameter 'or=(and(condition1),and(condition2))'.
+            # We want to pull:
+            # 1. Any remote changes (source='remote') regardless of their status for initial broad pull.
+            # 2. Local changes that are still 'pending' or 'failed' and should be retried or confirmed.
+            # 3. Local changes that are 'synced' and created after the last_sync timestamp.
             filter_string = (
-                f"(source.eq.remote,status.eq.pending),"
-                f"(source.eq.local,status.eq.synced,created_at.gte.{timestamp_filter})"
+                f"(source.eq.remote)," # Pull all remote changes
+                f"(source.eq.local,status.eq.pending)," # Local pending changes (not yet pushed)
+                f"(source.eq.local,status.eq.failed)," # Local failed changes (for retry)
+                f"(source.eq.local,status.eq.synced,created_at.gte.{timestamp_filter})" # Local synced changes after last sync
             )
+            # Combine filters using 'or' for the query. Each part of the filter_string is already an 'and' implicitly.
             query = query.or_(filter_string)
             if table_name:
                 query = query.eq("table_name", table_name)
             
-            # Order by created_at
+            # Order by created_at to ensure changes are applied in chronological order
             query = query.order("created_at", desc=False)
             
+            logger.debug(f"Executing Supabase pull query with filter: {filter_string}")
             response = query.execute()
             new_entries = response.data
             
             if not new_entries:
-                logger.info("No new changes to pull")
+                logger.info("No new changes to pull from Supabase")
                 return {"status": "success", "message": "No new entries", "pulled": 0}
             
             logger.info(f"Found {len(new_entries)} changes to apply")
@@ -538,16 +548,40 @@ class EnhancedSyncManager:
                 return False
 
             if change_type == 'DELETE':
-                # Handle foreign keys first
-                if table_name == 'Bills':
-                    self.supabase_db.client.table("billitems").delete().eq("billid", record_id).execute()
+                logger.debug(f"Executing DELETE operation on Supabase for {table_name} with ID: {record_id}")
+                # For 'products' table, the deeper foreign key cleanup is handled by apply_change_to_db in sync.py
+                # This ensures consistency, even if the _deleted flag originated from a frontend.
+                
+                # Check if this is a product deletion
+                if table_name.lower() == 'products':
+                    # Call apply_change_to_db from sync.py to handle product-specific FK cleanups
+                    # This relies on sync.apply_change_to_db to manage billitems, returns, storeinventory.
+                    # We pass an empty dict for change_data as it's not relevant for DELETE.
+                    success = apply_change_to_db(table_name, change_type, record_id, {}, logger)
+                    if not success:
+                        logger.error(f"Specific DELETE cleanup for product {record_id} failed via sync.apply_change_to_db.")
+                        return False
+                    logger.info(f"Specific DELETE cleanup for product {record_id} successful via sync.apply_change_to_db.")
+                    return True # apply_change_to_db already performed the actual deletion
 
+                # General DELETE for other tables:
                 response = table_client.delete().eq("id", record_id).execute()
-                logger.info(f"DELETE operation on {table_name} for {record_id} successful")
-                return True
+                if response.data:
+                    logger.info(f"DELETE operation on {table_name} for {record_id} successful")
+                    return True
+                else:
+                    logger.error(f"DELETE operation on {table_name} for {record_id} failed: {response.error}")
+                    return False
 
             elif change_type in ['CREATE', 'UPDATE']:
-                # For Supabase, we can directly use insert/update and let it handle columns
+                logger.debug(f"Executing {change_type} operation on Supabase for {table_name} with ID: {record_id}, Data: {change_data}")
+                
+                # For products, ensure barcodes are handled as a string for Supabase
+                if table_name.lower() == 'products' and 'barcodes' in change_data:
+                    # change_data['barcodes'] is already a comma-separated string from log_crud_operation
+                    # We need to map 'barcodes' key to 'barcode' key for Supabase
+                    change_data['barcode'] = change_data.pop('barcodes')
+                
                 if change_type == 'CREATE':
                     response = table_client.insert(change_data).execute()
                 elif change_type == 'UPDATE':
@@ -558,12 +592,16 @@ class EnhancedSyncManager:
                     return True
                 else:
                     logger.error(f"{change_type} operation on {table_name} for {record_id} failed: {response.error}")
+                    # Log specific Supabase error if available
+                    if response.error:
+                        logger.error(f"Supabase error details: {response.error}")
                     return False
 
+            logger.warning(f"Unknown change_type '{change_type}' for table {table_name} with ID {record_id}. No action taken.")
             return False
                     
         except Exception as e:
-            logger.error(f"Error applying change to Supabase for {table_name} (ID: {record_id}): {e}", exc_info=True)
+            logger.error(f"Error applying change to Supabase for {table_name} (ID: {record_id}, Type: {change_type}): {e}", exc_info=True)
             return False
 
     def retry_failed_logs(self) -> Dict:
