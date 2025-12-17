@@ -2,6 +2,7 @@
 Customers Service
 Handles all customer-related business logic and database operations
 """
+
 import logging
 import uuid
 from datetime import datetime
@@ -13,7 +14,6 @@ from utils.json_helpers import get_customers_data, save_customers_data, get_bill
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
 logger = logging.getLogger(__name__)
-
 
 # ============================================
 # LOCAL JSON OPERATIONS
@@ -30,7 +30,6 @@ def get_local_customers() -> List[Dict]:
         logger.error(f"Error getting local customers: {e}", exc_info=True)
         return []
 
-
 def update_local_customers(customers_data: List[Dict]) -> bool:
     """Update local JSON customers with new data"""
     try:
@@ -41,13 +40,11 @@ def update_local_customers(customers_data: List[Dict]) -> bool:
         # Convert from camelCase to snake_case before saving
         snake_case_customers = [convert_camel_to_snake(customer) for customer in customers_data]
         save_customers_data(snake_case_customers)
-        
         logger.info(f"Updated local JSON with {len(customers_data)} customers.")
         return True
     except Exception as e:
         logger.error(f"Error updating local customers: {e}", exc_info=True)
         return False
-
 
 # ============================================
 # SUPABASE OPERATIONS
@@ -59,14 +56,12 @@ def get_supabase_customers() -> List[Dict]:
         client = db.client
         response = client.table("customers").select("*").execute()
         customers = response.data or []
-        
         transformed_customers = [convert_snake_to_camel(customer) for customer in customers]
         logger.debug(f"Returning {len(transformed_customers)} customers from Supabase.")
         return transformed_customers
     except Exception as e:
         logger.error(f"Error getting Supabase customers: {e}", exc_info=True)
         return []
-
 
 # ============================================
 # MERGED OPERATIONS
@@ -100,30 +95,27 @@ def get_merged_customers() -> Tuple[List[Dict], int]:
         
         final_customers = list(customers_map.values())
         
-        # Calculate bill statistics
+        # Calculate bill statistics - FIX: Match by customer_id
         bills = get_bills_data()
         customer_bills_map = defaultdict(lambda: {'totalBills': 0, 'totalSpent': 0.0})
         
         for bill in bills:
-            customer_email = bill.get('customer_email')
-            customer_phone = bill.get('customer_phone')
+            # FIX: Match by customer_id instead of email/phone
+            customer_id = bill.get('customerid') or bill.get('customer_id')
             total = float(bill.get('total', 0))
             
-            if customer_email:
-                customer_bills_map[customer_email]['totalBills'] += 1
-                customer_bills_map[customer_email]['totalSpent'] += total
-            
-            if customer_phone and customer_phone != customer_email:
-                customer_bills_map[customer_phone]['totalBills'] += 1
-                customer_bills_map[customer_phone]['totalSpent'] += total
+            if customer_id:
+                customer_bills_map[customer_id]['totalBills'] += 1
+                customer_bills_map[customer_id]['totalSpent'] += total
         
         # Add statistics to customers
         final_customers_with_stats = []
         for customer in final_customers:
-            identifier = customer.get('email') or customer.get('phone')
-            if identifier and identifier in customer_bills_map:
-                customer['totalBills'] = customer_bills_map[identifier]['totalBills']
-                customer['totalSpent'] = round(customer_bills_map[identifier]['totalSpent'], 2)
+            customer_id = customer.get('id')
+            
+            if customer_id and customer_id in customer_bills_map:
+                customer['totalBills'] = customer_bills_map[customer_id]['totalBills']
+                customer['totalSpent'] = round(customer_bills_map[customer_id]['totalSpent'], 2)
             else:
                 customer['totalBills'] = 0
                 customer['totalSpent'] = 0.0
@@ -136,7 +128,6 @@ def get_merged_customers() -> Tuple[List[Dict], int]:
     except Exception as e:
         logger.error(f"Error getting merged customers: {e}", exc_info=True)
         return [], 500
-
 
 # ============================================
 # BUSINESS LOGIC
@@ -182,7 +173,6 @@ def create_customer(customer_data: dict) -> Tuple[Optional[str], str, int]:
     except Exception as e:
         logger.error(f"Error creating customer: {e}", exc_info=True)
         return None, str(e), 500
-
 
 def update_customer(customer_id: str, update_data: dict) -> Tuple[bool, str, int]:
     """

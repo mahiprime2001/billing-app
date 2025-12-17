@@ -229,5 +229,43 @@
     "last_retry": null,
     "error_message": null,
     "created_at": "2025-12-16T19:41:44.302066"
+  },
+  {
+    "id": 17,
+    "sync_time": "2025-12-17T22:51:25.988925",
+    "table_name": "SystemSettings",
+    "change_type": "UPDATE",
+    "record_id": "system",
+    "change_data": {
+      "systemSettings": {
+        "gstin": "27AAFCV2449G1Z7",
+        "taxPercentage": 12.3,
+        "companyName": "SIRI ART JEWELLERY",
+        "companyAddress": "123 Jewelry Street, Mumbai, Maharashtra 400001",
+        "companyPhone": "+91 889771771",
+        "companyEmail": "info@siri.ifleon.com",
+        "id": 1
+      }
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-12-17T22:51:25.988925"
+  },
+  {
+    "id": 18,
+    "sync_time": "2025-12-17T22:51:56.767512",
+    "table_name": "batch",
+    "change_type": "DELETE",
+    "record_id": "f5dcba57-b1f2-453e-971e-f8a93e8c38bd",
+    "change_data": {
+      "id": "f5dcba57-b1f2-453e-971e-f8a93e8c38bd"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2025-12-17T22:51:56.767512"
   }
 ]

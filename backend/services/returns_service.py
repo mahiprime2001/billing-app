@@ -2,17 +2,16 @@
 Returns Service
 Handles all return-related business logic and database operations
 """
+
 import logging
 import uuid
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
-
 from utils.supabase_db import db
 from utils.json_helpers import get_returns_data, save_returns_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
 logger = logging.getLogger(__name__)
-
 
 # ============================================
 # LOCAL JSON OPERATIONS
@@ -29,7 +28,6 @@ def get_local_returns() -> List[Dict]:
         logger.error(f"Error getting local returns: {e}", exc_info=True)
         return []
 
-
 # ============================================
 # SUPABASE OPERATIONS
 # ============================================
@@ -40,14 +38,12 @@ def get_supabase_returns() -> List[Dict]:
         client = db.client
         response = client.table("returns").select("*").execute()
         returns = response.data or []
-        
         transformed_returns = [convert_snake_to_camel(ret) for ret in returns]
         logger.debug(f"Returning {len(transformed_returns)} returns from Supabase.")
         return transformed_returns
     except Exception as e:
         logger.error(f"Error getting Supabase returns: {e}", exc_info=True)
         return []
-
 
 # ============================================
 # MERGED OPERATIONS
@@ -70,16 +66,20 @@ def get_merged_returns() -> Tuple[List[Dict], int]:
         
         # Add local returns first (lower priority)
         for ret in local_returns:
-            if ret.get('id'):
-                returns_map[ret['id']] = ret
+            # Use returnId (camelCase) or return_id (snake_case)
+            ret_id = ret.get('returnId') or ret.get('return_id')
+            if ret_id:
+                returns_map[ret_id] = ret
         
         # Add Supabase returns (higher priority)
         for ret in supabase_returns:
-            if ret.get('id'):
-                returns_map[ret['id']] = ret
+            # Use returnId (camelCase) or return_id (snake_case)
+            ret_id = ret.get('returnId') or ret.get('return_id')
+            if ret_id:
+                returns_map[ret_id] = ret
         
         final_returns = list(returns_map.values())
-        final_returns.sort(key=lambda x: x.get('createdAt', ''), reverse=True)
+        final_returns.sort(key=lambda x: x.get('createdAt') or x.get('created_at', ''), reverse=True)
         
         logger.debug(f"Returning {len(final_returns)} merged returns")
         return final_returns, 200
@@ -87,7 +87,6 @@ def get_merged_returns() -> Tuple[List[Dict], int]:
     except Exception as e:
         logger.error(f"Error getting merged returns: {e}", exc_info=True)
         return [], 500
-
 
 # ============================================
 # BUSINESS LOGIC
@@ -105,15 +104,15 @@ def create_return(return_data: dict) -> Tuple[Optional[str], str, int]:
         # Convert field names
         return_data = convert_camel_to_snake(return_data)
         
-        # Generate ID if not present
-        if 'id' not in return_data:
-            return_data['id'] = str(uuid.uuid4())
+        # Generate return_id if not present
+        if 'return_id' not in return_data:
+            return_data['return_id'] = f"RET-{uuid.uuid4().hex[:12].upper()}"
         
         # Add timestamps
         now_naive = datetime.now().isoformat()
-        if 'createdat' not in return_data:
-            return_data['createdat'] = now_naive
-        return_data['updatedat'] = now_naive
+        if 'created_at' not in return_data:
+            return_data['created_at'] = now_naive
+        return_data['updated_at'] = now_naive
         
         # Set default status if not provided
         if 'status' not in return_data:
@@ -131,13 +130,12 @@ def create_return(return_data: dict) -> Tuple[Optional[str], str, int]:
         returns.append(return_data)
         save_returns_data(returns)
         
-        logger.info(f"Return created {return_data['id']}")
-        return return_data['id'], "Return created", 201
+        logger.info(f"Return created {return_data['return_id']}")
+        return return_data['return_id'], "Return created", 201
         
     except Exception as e:
         logger.error(f"Error creating return: {e}", exc_info=True)
         return None, str(e), 500
-
 
 def update_return_status(return_id: str, status: str) -> Tuple[bool, str, int]:
     """
@@ -150,15 +148,16 @@ def update_return_status(return_id: str, status: str) -> Tuple[bool, str, int]:
         
         # Find return in local storage
         returns = get_returns_data()
-        return_index = next((i for i, r in enumerate(returns) if r.get('id') == return_id), -1)
+        return_index = next((i for i, r in enumerate(returns) if r.get('return_id') == return_id), -1)
         
         if return_index == -1:
+            logger.warning(f"Return {return_id} not found in local storage")
             return False, "Return not found", 404
         
         # Update status
         update_data = {
             'status': status,
-            'updatedat': datetime.now().isoformat()
+            'updated_at': datetime.now().isoformat()
         }
         
         # Update in local JSON
@@ -166,8 +165,15 @@ def update_return_status(return_id: str, status: str) -> Tuple[bool, str, int]:
         save_returns_data(returns)
         
         # Update in Supabase
-        client = db.client
-        client.table('returns').update(update_data).eq('id', return_id).execute()
+        try:
+            client = db.client
+            supabase_response = client.table('returns').update(update_data).eq('return_id', return_id).execute()
+            
+            if not supabase_response.data:
+                logger.warning(f"No rows updated in Supabase for return_id {return_id}")
+        except Exception as supabase_error:
+            logger.error(f"Error updating Supabase for return {return_id}: {supabase_error}")
+            # Continue anyway since local update succeeded
         
         logger.info(f"Return {return_id} status updated to {status}")
         return True, "Return status updated", 200

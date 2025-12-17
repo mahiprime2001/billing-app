@@ -9,21 +9,43 @@ import { CheckCircle, XCircle, Clock, Package, User, Phone, MessageSquare, Dolla
 import DashboardLayout from "@/components/dashboard-layout"
 
 interface ReturnItem {
-  s_no: number;
-  return_id: string;
-  product_name: string;
-  product_id: string;
-  customer_name: string;
-  customer_phone_number: string;
-  message: string;
-  refund_method: "cash" | "upi";
-  bill_id: string;
-  item_index: number;
-  return_amount: number;
-  status: "pending" | "approved" | "rejected" | "completed";
-  created_by: string;
-  created_at: string;
-  updated_at: string;
+  // Snake case fields (from JSON)
+  s_no?: number;
+  return_id?: string;
+  product_name?: string;
+  product_id?: string;
+  customer_name?: string;
+  customer_phone_number?: string;
+  message?: string;
+  refund_method?: "cash" | "upi";
+  bill_id?: string;
+  item_index?: number;
+  return_amount?: number;
+  status?: "pending" | "approved" | "rejected" | "completed";
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+  return_quantity?: number;
+  original_quantity?: number;
+  customer_id?: string;
+  
+  // Camel case fields (from backend conversion)
+  sNo?: number;
+  returnId?: string;
+  productName?: string;
+  productId?: string;
+  customerName?: string;
+  customerPhoneNumber?: string;
+  refundMethod?: "cash" | "upi";
+  billId?: string;
+  itemIndex?: number;
+  returnAmount?: number;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  returnQuantity?: number;
+  originalQuantity?: number;
+  customerId?: string;
 }
 
 export default function ReturnsPage() {
@@ -46,6 +68,7 @@ export default function ReturnsPage() {
       }
       const data: ReturnItem[] = await response.json()
       
+      // Filter based on status (check both naming conventions)
       setPendingReturns(data.filter(item => item.status === "pending"))
       setOtherReturns(data.filter(item => item.status !== "pending"))
     } catch (err) {
@@ -67,11 +90,9 @@ export default function ReturnsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       })
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-
       alert(`Return request ${status} successfully!`)
       loadReturnsData() // Reload data to update the lists
     } catch (err) {
@@ -80,11 +101,23 @@ export default function ReturnsPage() {
     }
   }
 
+  // Helper functions to get field values (supports both naming conventions)
+  const getReturnId = (item: ReturnItem) => item.returnId || item.return_id || ''
+  const getProductName = (item: ReturnItem) => item.productName || item.product_name || 'N/A'
+  const getCustomerName = (item: ReturnItem) => item.customerName || item.customer_name || 'N/A'
+  const getCustomerPhone = (item: ReturnItem) => item.customerPhoneNumber || item.customer_phone_number || 'N/A'
+  const getReturnAmount = (item: ReturnItem) => item.returnAmount || item.return_amount || 0
+  const getCreatedAt = (item: ReturnItem) => item.createdAt || item.created_at || new Date().toISOString()
+  const getUpdatedAt = (item: ReturnItem) => item.updatedAt || item.updated_at || new Date().toISOString()
+
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <Clock className="h-12 w-12 animate-spin mx-auto mb-4 text-gray-400" />
+            <p className="text-gray-600">Loading returns data...</p>
+          </div>
         </div>
       </DashboardLayout>
     )
@@ -93,98 +126,119 @@ export default function ReturnsPage() {
   if (error) {
     return (
       <DashboardLayout>
-        <div className="text-red-500 text-center py-8">{error}</div>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <XCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
+            <p className="text-red-600">{error}</p>
+            <Button onClick={loadReturnsData} className="mt-4">
+              Retry
+            </Button>
+          </div>
+        </div>
       </DashboardLayout>
     )
   }
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <h1 className="text-4xl font-bold text-gray-900">Returns Management</h1>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Returns Management</h1>
+          <p className="text-muted-foreground">Manage product returns and refund requests</p>
+        </div>
 
         {/* Pending Returns Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Clock className="h-5 w-5 mr-2 text-yellow-600" />
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-yellow-600" />
               Pending Return Requests
-              <Badge variant="outline" className="ml-2 bg-yellow-100 text-yellow-800">
+              <Badge variant="secondary" className="ml-2">
                 {pendingReturns.length}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {pendingReturns.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Return ID</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Requested On</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pendingReturns.map((item) => (
-                    <TableRow key={item.return_id}>
-                      <TableCell className="font-medium">{item.return_id}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <Package className="h-4 w-4 mr-1 text-gray-500" />
-                          {item.product_name}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <User className="h-4 w-4 mr-1 text-gray-500" />
-                          {item.customer_name}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Phone className="h-3 w-3 mr-1" />
-                          {item.customer_phone_number}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <DollarSign className="h-4 w-4 mr-1 text-green-600" />
-                          ₹{item.return_amount.toFixed(2)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {new Date(item.created_at).toLocaleDateString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleUpdateReturnStatus(item.return_id, "approved")}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1 text-green-500" />
-                            Approve
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleUpdateReturnStatus(item.return_id, "rejected")}
-                          >
-                            <XCircle className="h-4 w-4 mr-1" />
-                            Reject
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Return ID</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Requested On</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingReturns.map((item) => (
+                      <TableRow key={getReturnId(item)}>
+                        <TableCell className="font-medium">
+                          {getReturnId(item)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 text-blue-600" />
+                            {getProductName(item)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-gray-500" />
+                              {getCustomerName(item)}
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <Phone className="h-3 w-3" />
+                              {getCustomerPhone(item)}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 font-semibold text-green-600">
+                            <DollarSign className="h-4 w-4" />
+                            ₹{getReturnAmount(item).toFixed(2)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Calendar className="h-4 w-4" />
+                            {new Date(getCreatedAt(item)).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleUpdateReturnStatus(getReturnId(item), "approved")}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleUpdateReturnStatus(getReturnId(item), "rejected")}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
-              <p className="text-gray-500 text-center py-8">No pending return requests.</p>
+              <div className="text-center py-12 text-gray-500">
+                <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No pending return requests.</p>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -192,79 +246,87 @@ export default function ReturnsPage() {
         {/* Other Returns Section (Approved, Rejected, Completed) */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <HistoryIcon className="h-5 w-5 mr-2 text-blue-600" />
+            <CardTitle className="flex items-center gap-2">
+              <HistoryIcon className="h-5 w-5 text-blue-600" />
               Return History
-              <Badge variant="outline" className="ml-2 bg-blue-100 text-blue-800">
+              <Badge variant="secondary" className="ml-2">
                 {otherReturns.length}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {otherReturns.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Return ID</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Last Updated</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {otherReturns.map((item) => (
-                    <TableRow key={item.return_id}>
-                      <TableCell className="font-medium">{item.return_id}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <Package className="h-4 w-4 mr-1 text-gray-500" />
-                          {item.product_name}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <User className="h-4 w-4 mr-1 text-gray-500" />
-                          {item.customer_name}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Phone className="h-3 w-3 mr-1" />
-                          {item.customer_phone_number}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <DollarSign className="h-4 w-4 mr-1 text-green-600" />
-                          ₹{item.return_amount.toFixed(2)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            item.status === "approved"
-                              ? "bg-green-100 text-green-800"
-                              : item.status === "rejected"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-blue-100 text-blue-800"
-                          }
-                        >
-                          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {new Date(item.updated_at).toLocaleDateString()}
-                        </div>
-                      </TableCell>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Return ID</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Last Updated</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {otherReturns.map((item) => (
+                      <TableRow key={getReturnId(item)}>
+                        <TableCell className="font-medium">
+                          {getReturnId(item)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 text-blue-600" />
+                            {getProductName(item)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-gray-500" />
+                              {getCustomerName(item)}
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <Phone className="h-3 w-3" />
+                              {getCustomerPhone(item)}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 font-semibold text-green-600">
+                            <DollarSign className="h-4 w-4" />
+                            ₹{getReturnAmount(item).toFixed(2)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              item.status === "approved"
+                                ? "default"
+                                : item.status === "rejected"
+                                ? "destructive"
+                                : "secondary"
+                            }
+                          >
+                            {item.status && item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Calendar className="h-4 w-4" />
+                            {new Date(getUpdatedAt(item)).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
-              <p className="text-gray-500 text-center py-8">No other return requests found.</p>
+              <div className="text-center py-12 text-gray-500">
+                <HistoryIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No other return requests found.</p>
+              </div>
             )}
           </CardContent>
         </Card>

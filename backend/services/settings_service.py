@@ -2,17 +2,69 @@
 Settings Service
 Handles all settings-related business logic and database operations
 """
+
 import json
 import logging
 from datetime import datetime
 from typing import Dict, Optional, Tuple
-
 from utils.supabase_db import db
 from utils.json_helpers import get_settings_data, save_settings_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
 logger = logging.getLogger(__name__)
 
+# ============================================
+# CUSTOM CONVERSION FOR SYSTEMSETTINGS TABLE
+# ============================================
+
+def convert_to_db_format(frontend_data: dict) -> dict:
+    """
+    Convert frontend camelCase to database format.
+    Most fields: lowercase (no underscores)
+    Timestamps: snake_case (with underscores)
+    """
+    converted = {}
+    
+    # Special handling for timestamp fields
+    timestamp_fields = {
+        'createdat': 'created_at',
+        'updatedat': 'updated_at',
+        'lastsynctime': 'lastsynctime',  # Keep as-is if it exists
+        'lastsyncid': 'lastsyncid'  # Keep as-is if it exists
+    }
+    
+    for key, value in frontend_data.items():
+        lowercase_key = key.lower()
+        
+        # Check if it's a timestamp field that needs underscore
+        if lowercase_key in timestamp_fields:
+            converted[timestamp_fields[lowercase_key]] = value
+        else:
+            # Regular fields: just lowercase
+            converted[lowercase_key] = value
+    
+    return converted
+
+def convert_from_db_format(db_data: dict) -> dict:
+    """
+    Convert database format to frontend camelCase.
+    Handles mixed naming (lowercase + snake_case timestamps)
+    """
+    converted = {}
+    
+    # Map database fields to camelCase
+    field_mapping = {
+        'created_at': 'createdAt',
+        'updated_at': 'updatedAt',
+        # Other fields stay as-is since they're already lowercase
+    }
+    
+    for key, value in db_data.items():
+        # Use mapping if exists, otherwise keep as-is
+        converted_key = field_mapping.get(key, key)
+        converted[converted_key] = value
+    
+    return converted
 
 # ============================================
 # LOCAL JSON OPERATIONS
@@ -29,7 +81,6 @@ def get_local_settings() -> Dict:
         logger.error(f"Error getting local settings: {e}", exc_info=True)
         return {}
 
-
 # ============================================
 # SUPABASE OPERATIONS
 # ============================================
@@ -41,9 +92,9 @@ def get_supabase_settings() -> Dict:
         response = client.table("systemsettings").select("*").limit(1).execute()
         
         if response.data and len(response.data) > 0:
-            # Get the first (and likely only) row
             settings_row = response.data[0]
-            converted = convert_snake_to_camel(settings_row)
+            converted = convert_from_db_format(settings_row)
+            
             logger.debug(f"Returning settings from Supabase: {converted}")
             return converted
         else:
@@ -52,7 +103,6 @@ def get_supabase_settings() -> Dict:
     except Exception as e:
         logger.error(f"Error getting Supabase settings: {e}", exc_info=True)
         return {}
-
 
 # ============================================
 # MERGED OPERATIONS
@@ -81,7 +131,6 @@ def get_merged_settings() -> Tuple[Dict, int]:
         system_settings.update(supabase_settings)  # Supabase takes precedence
         
         # Extract bill_formats and store_formats from Supabase if they exist
-        # (assuming they're stored as JSON text columns)
         bill_formats = local_bill_formats.copy()
         store_formats = local_store_formats.copy()
         
@@ -121,7 +170,6 @@ def get_merged_settings() -> Tuple[Dict, int]:
             "storeFormats": {}
         }, 500
 
-
 # ============================================
 # BUSINESS LOGIC
 # ============================================
@@ -134,73 +182,74 @@ def update_settings(settings_data: dict) -> Tuple[bool, str, int]:
     try:
         if not settings_data:
             return False, "No settings data provided", 400
-
+        
         system_settings_from_frontend = settings_data.get('systemSettings', {})
         bill_formats_from_frontend = settings_data.get('billFormats', {})
         store_formats_from_frontend = settings_data.get('storeFormats', {})
-
-        # Convert system settings keys to snake_case for database
-        converted_system_settings = convert_camel_to_snake(system_settings_from_frontend)
         
-        # Ensure updatedat is set for system settings
-        converted_system_settings['updatedat'] = datetime.now().isoformat()
+        # Convert system settings to database format
+        converted_system_settings = convert_to_db_format(system_settings_from_frontend)
         
-        # Prepare data for local JSON storage
+        # Set updated_at timestamp (with underscore for DB)
+        converted_system_settings['updated_at'] = datetime.now().isoformat()
+        
+        # Prepare data for local JSON storage (keep in converted format)
         local_json_data = {
             "systemSettings": converted_system_settings,
-            "billFormats": bill_formats_from_frontend, # These are already in correct format for JSON
-            "storeFormats": store_formats_from_frontend  # These are already in correct format for JSON
+            "billFormats": bill_formats_from_frontend,
+            "storeFormats": store_formats_from_frontend
         }
         
         # Save to local JSON
-        # get_settings_data() will return the full structure {"systemSettings": {}, "billFormats": {}, ...}
-        # We replace the whole content to ensure consistency.
         save_settings_data(local_json_data)
-
-        # Update in Supabase (only system settings are stored in systemsettings table as individual columns)
+        
+        # Update in Supabase
         client = db.client
         
-        # The systemsettings table is expected to have only one row (id=1)
-        # We update individual fields from converted_system_settings
-        
-        # Remove 'id' if it exists, as it's used in .eq() and shouldn't be updated as a field
+        # Remove 'id' from update fields (it's used in .eq() clause)
         update_fields = converted_system_settings.copy()
-        record_id = update_fields.pop('id', None) # Get ID if present, remove from update fields
-
+        record_id = update_fields.pop('id', None)
+        
+        # Don't update created_at
+        update_fields.pop('created_at', None)
+        
         if record_id:
             try:
-                # Attempt to update the existing row with ID 1
+                # Attempt to update the existing row
                 result = client.table('systemsettings').update(update_fields).eq('id', record_id).execute()
+                
                 if not result.data:
                     logger.warning(f"No existing settings row with id {record_id} found in Supabase to update. Attempting insert.")
-                    # Fallback to insert if update finds no row, although unlikely for ID 1
-                    insert_data = {**converted_system_settings, 'id': record_id, 'createdat': datetime.now().isoformat()}
+                    # Fallback to insert if update finds no row
+                    insert_data = {**update_fields, 'id': record_id}
                     client.table('systemsettings').insert(insert_data).execute()
+                    
             except Exception as e:
                 logger.error(f"Error updating systemsettings in Supabase for id {record_id}: {e}", exc_info=True)
                 return False, f"Error updating system settings: {e}", 500
         else:
-            logger.warning("No ID found in system settings data for Supabase update. Ensure settings have an 'id' field.")
-            # If no ID is provided, and we expect only one row with ID 1, we try to update/insert ID 1
-            record_id = 1 # Default to ID 1 for system settings if not provided
-            update_fields_with_id = {**update_fields, 'id': record_id}
+            logger.warning("No ID found in system settings data for Supabase update. Defaulting to ID 1.")
+            # Default to ID 1 for system settings if not provided
+            record_id = 1
+            
             try:
-                 result = client.table('systemsettings').update(update_fields).eq('id', record_id).execute()
-                 if not result.data:
+                result = client.table('systemsettings').update(update_fields).eq('id', record_id).execute()
+                
+                if not result.data:
                     # If update finds no row, insert
-                    insert_data = {**converted_system_settings, 'id': record_id, 'createdat': datetime.now().isoformat()}
+                    insert_data = {**update_fields, 'id': record_id}
                     client.table('systemsettings').insert(insert_data).execute()
+                    
             except Exception as e:
-                 logger.error(f"Error updating/inserting systemsettings in Supabase for default id {record_id}: {e}", exc_info=True)
-                 return False, f"Error updating system settings: {e}", 500
-
-        logger.info(f"Settings updated")
+                logger.error(f"Error updating/inserting systemsettings in Supabase for default id {record_id}: {e}", exc_info=True)
+                return False, f"Error updating system settings: {e}", 500
+        
+        logger.info(f"Settings updated successfully")
         return True, "Settings updated", 200
         
     except Exception as e:
         logger.error(f"Error updating settings: {e}", exc_info=True)
         return False, str(e), 500
-
 
 def get_setting(key: str) -> Tuple[Optional[any], int]:
     """
@@ -213,7 +262,7 @@ def get_setting(key: str) -> Tuple[Optional[any], int]:
         
         if value is None:
             return None, 404
-        
+            
         return value, 200
         
     except Exception as e:

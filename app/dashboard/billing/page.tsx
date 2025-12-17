@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -8,10 +9,37 @@ import usePolling from "@/hooks/usePolling";
 import api from "@/app/utils/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -22,7 +50,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface BillFormat {
   width: number;
   height: number | "auto";
-  margins: { top: number; bottom: number; left: number; right: number };
+  margins: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
   unit: string;
 }
 
@@ -39,8 +72,8 @@ interface Product {
   id: string;
   name: string;
   price: number;
-  barcode: string;
-  stock: number;
+  barcode?: string;
+  stock?: number;
 }
 
 interface BillItem {
@@ -53,13 +86,14 @@ interface BillItem {
 
 interface Bill {
   id: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
   customerAddress?: string;
   items: BillItem[];
   subtotal: number;
   tax: number;
+  taxPercentage?: number;
   discountPercentage: number;
   discountAmount: number;
   total: number;
@@ -100,7 +134,6 @@ export default function BillingPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-
   // Form state
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -109,6 +142,7 @@ export default function BillingPage() {
   const [selectedProductId, setSelectedProductId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [discountPercentage, setDiscountPercentage] = useState(0);
+
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
     gstin: "",
     taxPercentage: 0,
@@ -117,143 +151,216 @@ export default function BillingPage() {
     companyPhone: "",
     companyEmail: "",
   });
+
   const [billFormats, setBillFormats] = useState<Record<string, BillFormat>>({});
   const [selectedBillFormat, setSelectedBillFormat] = useState("A4");
 
   // Initial load
   useEffect(() => {
-    console.log("🔍 [BillingPage] Component mounting...");
+    console.log("BillingPage: Component mounting...");
+
     if (typeof window !== "undefined") {
       localStorage.setItem("adminLoggedIn", "true");
-
-      // Load system settings
-      fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/settings`)
-        .then((res) => res.json())
-        .then((data) => {
-          console.log("⚙️ [Settings] Loaded settings:", data);
-          if (data.systemSettings) setSystemSettings(data.systemSettings);
-          if (data.billFormats) setBillFormats(data.billFormats);
-        })
-        .catch((error) => console.error("Failed to load system settings and bill formats:", error));
-
-      const isLoggedIn = localStorage.getItem("adminLoggedIn");
-      if (isLoggedIn !== "true") {
-        router.push("/");
-        return;
-      }
-
-      setIsOnline(navigator.onLine);
-      window.addEventListener("online", () => setIsOnline(true));
-      window.addEventListener("offline", () => setIsOnline(false));
-
-      return () => {
-        window.removeEventListener("online", () => setIsOnline(true));
-        window.removeEventListener("offline", () => setIsOnline(false));
-      };
     }
+
+    // Load system settings
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/settings`)
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("Settings: Loaded settings", data);
+        if (data.systemSettings) {
+          // Handle both camelCase and snake_case
+          const settings = data.systemSettings;
+          const normalizedSettings = {
+            gstin: settings.gstin || "",
+            taxPercentage: settings.taxPercentage || settings.tax_percentage || 0,
+            companyName: settings.companyName || settings.company_name || "",
+            companyAddress: settings.companyAddress || settings.company_address || "",
+            companyPhone: settings.companyPhone || settings.company_phone || "",
+            companyEmail: settings.companyEmail || settings.company_email || "",
+          };
+          console.log("Settings: Normalized settings", normalizedSettings);
+          setSystemSettings(normalizedSettings);
+        }
+        if (data.billFormats) {
+          setBillFormats(data.billFormats);
+        }
+      })
+      .catch((error) => console.error("Failed to load system settings and bill formats", error));
+
+    const isLoggedIn = localStorage.getItem("adminLoggedIn");
+    if (isLoggedIn !== "true") {
+      router.push("/");
+      return;
+    }
+
+    setIsOnline(navigator.onLine);
+    window.addEventListener("online", () => setIsOnline(true));
+    window.addEventListener("offline", () => setIsOnline(false));
+
+    return () => {
+      window.removeEventListener("online", () => setIsOnline(true));
+      window.removeEventListener("offline", () => setIsOnline(false));
+    };
   }, [router]);
 
   // Optimized fetch function with silent updates
   const fetchData = useCallback(
-    async (supabaseEndpoint: string, localStorageEndpoint: string, updateLocalStorageEndpoint: string, dataType: string) => {
-      console.log(`🔍 [fetchData] Fetching ${dataType}...`);
+    async (
+      supabaseEndpoint: string,
+      localStorageEndpoint: string,
+      updateLocalStorageEndpoint: string,
+      dataType: string
+    ) => {
+      console.log(`fetchData: Fetching ${dataType}...`);
+
       if (isOnline) {
         try {
-          console.log(`🌐 [fetchData] Fetching ${dataType} from Supabase...`);
+          console.log(`fetchData: Fetching ${dataType} from Supabase...`);
           const supabaseResponse = await api.get(supabaseEndpoint);
           const data = supabaseResponse.data;
-          console.log(`📦 [fetchData] Raw ${dataType} from API:`, data);
+          console.log(`fetchData: Raw ${dataType} from API`, data);
 
           let processedData = data;
+
           if (dataType === "products") {
             processedData = data.map((product: any) => ({
               ...product,
               stock: product.stock || 0,
             }));
+          } else if (dataType === "customers") {
+            // FIX: Normalize customer field names
+            processedData = data.map((customer: any) => ({
+              id: customer.id,
+              name: customer.name,
+              email: customer.email,
+              phone: customer.phone,
+              address: customer.address,
+              createdAt: customer.createdat || customer.createdAt,
+              updatedAt: customer.updatedat || customer.updatedAt,
+            }));
           }
 
-          console.log(`✅ [fetchData] Processed ${dataType}:`, processedData);
+          console.log(`fetchData: Processed ${dataType}`, processedData);
+
           // Silent background update
           api.post(updateLocalStorageEndpoint, processedData).catch(() => {});
+
           return processedData;
         } catch (error) {
           console.warn(`Failed to fetch ${dataType} from Supabase, falling back to local`, error);
+          console.log(`fetchData: Falling back to local for ${dataType}`);
+          const localResponse = await api.get(localStorageEndpoint);
+          console.log(`fetchData: Local ${dataType} data`, localResponse.data);
+
+          if (dataType === "products") {
+            return localResponse.data.map((product: any) => ({
+              ...product,
+              stock: product.stock || 0,
+            }));
+          } else if (dataType === "customers") {
+            // FIX: Normalize customer field names from local storage too
+            return localResponse.data.map((customer: any) => ({
+              id: customer.id,
+              name: customer.name,
+              email: customer.email,
+              phone: customer.phone,
+              address: customer.address,
+              createdAt: customer.createdat || customer.createdAt,
+              updatedAt: customer.updatedat || customer.updatedAt,
+            }));
+          }
+          return localResponse.data;
         }
       }
-
-      console.log(`💾 [fetchData] Falling back to local for ${dataType}`);
-      const localResponse = await api.get(localStorageEndpoint);
-      console.log(`💾 [fetchData] Local ${dataType} data:`, localResponse.data);
-      if (dataType === "products") {
-        return localResponse.data.map((product: any) => ({
-          ...product,
-          stock: product.stock || 0,
-        }));
-      }
-      return localResponse.data;
     },
     [isOnline]
   );
 
-  const fetchProducts = useCallback(() => fetchData("/api/supabase/products", "/api/local/products", "/api/local/products/update", "products"), [fetchData]);
+  const fetchProducts = useCallback(
+    () => fetchData("/api/supabase/products", "/api/local/products", "/api/local/products/update", "products"),
+    [fetchData]
+  );
 
   const fetchBills = useCallback(async () => {
-    console.log("🔍 [fetchBills] Starting fetch...");
-    
+    console.log("fetchBills: Starting fetch...");
+
     if (isOnline) {
       try {
-        console.log("🌐 [fetchBills] Fetching from Supabase...");
+        console.log("fetchBills: Fetching from Supabase...");
         const response = await api.get("/api/supabase/bills-with-details");
         const data = response.data;
-        
-        console.log("📦 [fetchBills] Raw data from API:", data);
-        console.log("📦 [fetchBills] Number of bills:", data.length);
-        
+        console.log("fetchBills: Raw data from API", data);
+        console.log("fetchBills: Number of bills", data.length);
+
         // Check first bill's items
         if (data.length > 0 && data[0].items) {
-          console.log("🔍 [fetchBills] First bill items:", data[0].items);
-          console.log("🔍 [fetchBills] First item details:", data[0].items[0]);
+          console.log("fetchBills: First bill items", data[0].items);
+          console.log("fetchBills: First item details", data[0].items[0]);
         }
-        
+
         const processedData = data.map((bill: any) => {
-          console.log(`📝 [fetchBills] Processing bill ${bill.id}`);
-          
+          console.log(`fetchBills: Processing bill ${bill.id}`);
+          // FIX: Handle discount percentage - prioritize the correct field
+          const discountPct = bill.discountpercentage || bill.discountPercentage || 0;
+          const discountAmt = bill.discountamount || bill.discountAmount || 0;
+
+          // FIX: Handle tax percentage and amount
+          const taxPct = bill.taxpercentage || bill.taxPercentage || 0;
+          const taxAmt = bill.taxamount || bill.taxAmount || bill.tax || 0;
+
           return {
             ...bill,
             date: bill.timestamp || bill.date,
-            tax: bill.taxAmount || bill.tax,
+            tax: taxAmt,
+            taxPercentage: taxPct,
             status: bill.status || "Paid",
             items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
-            discountPercentage: bill.discountPercentage || 0,
+            discountPercentage: discountPct,
+            discountAmount: discountAmt,
           };
         });
 
-        console.log("✅ [fetchBills] Final processed data:", processedData);
-        
+        console.log("fetchBills: Final processed data", processedData);
+
         // Silent background update
         api.post("/api/local/bills/update", processedData).catch(() => {});
+
         return processedData;
       } catch (error) {
-        console.error("❌ [fetchBills] Error fetching from Supabase:", error);
+        console.error("fetchBills: Error fetching from Supabase", error);
+        console.log("fetchBills: Falling back to local storage");
+        const localResponse = await api.get("/api/local/bills");
+        console.log("fetchBills: Local data", localResponse.data);
+
+        return localResponse.data.map((bill: any) => {
+          // FIX: Handle discount percentage in local data too
+          const discountPct = bill.discountpercentage || bill.discountPercentage || 0;
+          const discountAmt = bill.discountamount || bill.discountAmount || 0;
+
+          // FIX: Handle tax percentage and amount
+          const taxPct = bill.taxpercentage || bill.taxPercentage || 0;
+          const taxAmt = bill.taxamount || bill.taxAmount || bill.tax || 0;
+
+          return {
+            ...bill,
+            date: bill.timestamp || bill.date,
+            tax: taxAmt,
+            taxPercentage: taxPct,
+            status: bill.status || "Paid",
+            items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
+            discountPercentage: discountPct,
+            discountAmount: discountAmt,
+          };
+        });
       }
     }
-
-    console.log("💾 [fetchBills] Falling back to local storage");
-    const localResponse = await api.get("/api/local/bills");
-    console.log("💾 [fetchBills] Local data:", localResponse.data);
-    
-    return localResponse.data.map((bill: any) => ({
-      ...bill,
-      date: bill.timestamp || bill.date,
-      tax: bill.taxAmount || bill.tax,
-      status: bill.status || "Paid",
-      items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
-      discountPercentage: bill.discountPercentage || 0,
-    }));
   }, [isOnline]);
 
-
-  const fetchCustomers = useCallback(() => fetchData("/api/supabase/customers", "/api/local/customers", "/api/local/customers/update", "customers"), [fetchData]);
+  const fetchCustomers = useCallback(
+    () => fetchData("/api/supabase/customers", "/api/local/customers", "/api/local/customers/update", "customers"),
+    [fetchData]
+  );
 
   // Use polling with LONGER intervals (20 seconds instead of 5)
   const { data: productsData, loading: productsLoading, error: productsError, refetch: refetchProducts } = usePolling<Product[]>(fetchProducts, { interval: 20000 });
@@ -262,7 +369,7 @@ export default function BillingPage() {
 
   // Manual refresh function
   const handleManualRefresh = async () => {
-    console.log("🔄 [handleManualRefresh] Manual refresh triggered.");
+    console.log("handleManualRefresh: Manual refresh triggered.");
     setIsRefreshing(true);
     try {
       await Promise.all([refetchProducts(), refetchBills(), refetchCustomers()]);
@@ -273,47 +380,49 @@ export default function BillingPage() {
 
   // Handle errors
   useEffect(() => {
-    if (productsError) console.error("Failed to load products:", productsError);
-    if (billsError) console.error("Failed to load bills:", billsError);
-    if (customersError) console.error("Failed to load customers:", customersError);
+    if (productsError) console.error("Failed to load products", productsError);
+    if (billsError) console.error("Failed to load bills", billsError);
+    if (customersError) console.error("Failed to load customers", customersError);
   }, [productsError, billsError, customersError]);
 
-  const currentProducts = productsData || [];
-  const currentBills = billsData || [];
-  const currentCustomers = customersData || [];
+  const currentProducts: Product[] = productsData || [];
+  const currentBills: Bill[] = billsData || [];
+  const currentCustomers: Customer[] = customersData || [];
 
   useEffect(() => {
-    console.log("📦 [Products] Updated products data:", productsData);
+    console.log("Products: Updated products data", productsData);
   }, [productsData]);
 
   useEffect(() => {
-    console.log("🧾 [Bills] Updated bills data:", billsData);
+    console.log("Bills: Updated bills data", billsData);
   }, [billsData]);
 
   useEffect(() => {
-    console.log("👥 [Customers] Updated customers data:", customersData);
+    console.log("Customers: Updated customers data", customersData);
   }, [customersData]);
 
   const addItemToBill = () => {
     if (!selectedProductId) return;
 
-    const product = currentProducts.find((p) => p.id === selectedProductId);
+    const product = currentProducts.find((p: Product) => p.id === selectedProductId);
     if (!product) return;
 
-    console.log("➕ [addItemToBill] Adding product to bill:", product, "Quantity:", quantity);
+    console.log("addItemToBill: Adding product to bill", product, "Quantity:", quantity);
 
     const price = product.price !== undefined && product.price !== null ? product.price : 0;
     const availableStock = product.stock !== undefined && product.stock !== null ? product.stock : Infinity;
 
     const existingItemIndex = billItems.findIndex((item) => item.productId === selectedProductId);
-    let newQuantity = quantity;
 
+    let newQuantity = quantity;
     if (existingItemIndex >= 0) {
       newQuantity = billItems[existingItemIndex].quantity + quantity;
     }
 
     if (newQuantity > availableStock) {
-      alert(`Cannot add ${quantity} more units of ${product.name}. Only ${availableStock - (existingItemIndex >= 0 ? billItems[existingItemIndex].quantity : 0)} units available.`);
+      alert(
+        `Cannot add ${quantity} more units of ${product.name}. Only ${availableStock - (existingItemIndex >= 0 ? billItems[existingItemIndex].quantity : 0)} units available.`
+      );
       return;
     }
 
@@ -338,7 +447,7 @@ export default function BillingPage() {
   };
 
   const removeItemFromBill = (productId: string) => {
-    console.log("➖ [removeItemFromBill] Removing product ID from bill:", productId);
+    console.log("removeItemFromBill: Removing product ID from bill", productId);
     setBillItems(billItems.filter((item) => item.productId !== productId));
   };
 
@@ -357,7 +466,8 @@ export default function BillingPage() {
 
   const createBill = async () => {
     if (!customerName || billItems.length === 0) return;
-    console.log("📝 [createBill] Attempting to create bill...");
+
+    console.log("createBill: Attempting to create bill...");
 
     const { subtotal, tax, discountAmount, total } = calculateTotals();
 
@@ -381,12 +491,16 @@ export default function BillingPage() {
       gstin: systemSettings.gstin,
       billFormat: selectedBillFormat,
     };
-    console.log("📤 [createBill] Bill payload:", newBill);
+
+    console.log("createBill: Bill payload", newBill);
 
     try {
       const response = await api.post("/api/bills", newBill);
-      console.log("📨 [createBill] API response:", response);
-      if (!response.status.toString().startsWith("2")) throw new Error("Failed to create bill");
+      console.log("createBill: API response", response);
+
+      if (!response.status.toString().startsWith("2")) {
+        throw new Error("Failed to create bill");
+      }
 
       setCustomerName("");
       setCustomerEmail("");
@@ -394,241 +508,336 @@ export default function BillingPage() {
       setBillItems([]);
       setDiscountPercentage(0);
       setIsCreateDialogOpen(false);
-      
+
       // Immediate refresh after creating bill
       refetchBills();
     } catch (error) {
-      console.error("Error creating bill:", error);
+      console.error("Error creating bill", error);
       alert("Failed to create bill.");
     }
   };
 
   const deleteBill = async (id: string) => {
-    console.log(`🗑️ [deleteBill] Deleting bill with ID: ${id}`);
+    console.log("deleteBill: Deleting bill with ID", id);
     try {
       const response = await api.delete(`/api/bills/${id}`);
-      console.log(`🗑️ [deleteBill] API Response for deletion of ${id}:`, response);
-      if (!response.status.toString().startsWith("2")) throw new Error("Failed to delete bill");
-      
+      console.log("deleteBill: API Response for deletion of", id, response);
+
+      if (!response.status.toString().startsWith("2")) {
+        throw new Error("Failed to delete bill");
+      }
+
       // Immediate refresh after deleting
       refetchBills();
     } catch (error) {
-      console.error("Error deleting bill:", error);
+      console.error("Error deleting bill", error);
     }
   };
 
   const viewBill = (bill: Bill) => {
-    console.log("👁️ [viewBill] Viewing bill:", bill);
+    console.log("viewBill: Viewing bill", bill);
     setSelectedBill(bill);
     setIsViewDialogOpen(true);
   };
 
   const viewCustomer = (customer: Customer) => {
-    console.log("👁️ [viewCustomer] Viewing customer:", customer);
+    console.log("viewCustomer: Viewing customer", customer);
     setSelectedCustomer(customer);
     setIsCustomerViewDialogOpen(true);
   };
 
   const generateReceiptHtml = (bill: Bill, format: BillFormat): string => {
+    console.log("generateReceiptHtml: Bill data", bill);
+    console.log("generateReceiptHtml: System settings", systemSettings);
+
     const isLetter = format.width === 216 && format.height === 279;
     const isA4 = format.width === 210 && format.height === 297;
     const isThermal = format.width === 80;
+
     const maxWidth = isThermal ? "80mm" : isLetter ? "216mm" : isA4 ? "210mm" : `${format.width}mm`;
 
-    const companyName = bill.companyName || systemSettings.companyName;
-    const companyAddress = bill.companyAddress || systemSettings.companyAddress;
-    const companyPhone = bill.companyPhone || systemSettings.companyPhone;
-    const companyEmail = bill.companyEmail || systemSettings.companyEmail;
-    const gstin = bill.gstin || systemSettings.gstin;
+    // FIX: Handle both camelCase and snake_case from settings
+    const settingsAny = systemSettings as any;
+    const companyName = bill.companyName || systemSettings.companyName || settingsAny.company_name || "UNDEFINED";
+    const companyAddress = bill.companyAddress || systemSettings.companyAddress || settingsAny.company_address || undefined;
+    const companyPhone = bill.companyPhone || systemSettings.companyPhone || settingsAny.company_phone || undefined;
+    const companyEmail = bill.companyEmail || systemSettings.companyEmail || settingsAny.company_email || undefined;
+    const gstin = bill.gstin || systemSettings.gstin || settingsAny.gstin || "";
+    const taxPercentage = bill.taxPercentage || systemSettings.taxPercentage || settingsAny.tax_percentage || 0;
 
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Invoice - ${bill.id}</title>
-          <style>
-            @page {
-              size: ${isLetter ? "letter" : isA4 ? "A4" : `${format.width}mm ${format.height === "auto" ? "auto" : format.height + "mm"}`};
-              margin: ${format.margins.top}mm ${format.margins.right}mm ${format.margins.bottom}mm ${format.margins.left}mm;
-            }
-            body {
-              font-family: Arial, sans-serif;
-              max-width: ${maxWidth};
-              margin: 0 auto;
-              font-size: 13px;
-              color: #000;
-            }
-            .header, .footer { text-align: center; padding: 10px 0; }
-            .company-name { font-size: 18px; font-weight: bold; text-transform: uppercase; }
-            .invoice-title { font-size: 16px; font-weight: bold; margin-top: 10px; }
-            .section { margin: 20px 0; }
-            .section-title { font-weight: bold; border-bottom: 1px solid #ccc; margin-bottom: 5px; }
-            .row { display: flex; justify-content: space-between; margin-bottom: 6px; }
-            .items-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-            .items-table th, .items-table td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
-            .items-table th { background-color: #f2f2f2; }
-            .totals { margin-top: 10px; width: 100%; }
-            .totals td { padding: 6px; }
-            .totals .label { text-align: right; font-weight: bold; }
-            .totals .value { text-align: right; width: 100px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="company-name">${companyName}</div>
-            <div>${companyAddress}</div>
-            <div>Phone: ${companyPhone}</div>
-            <div>Email: ${companyEmail}</div>
-            <div class="invoice-title">INVOICE</div>
-          </div>
+    console.log("generateReceiptHtml: Using company info", {
+      companyName,
+      companyAddress,
+      companyPhone,
+      companyEmail,
+      gstin,
+      taxPercentage,
+    });
 
-          <div class="section">
-            <div class="row">
-              <div><strong>Invoice ID:</strong> ${bill.id}</div>
-              <div><strong>Date:</strong> ${new Date(bill.date).toLocaleString()}</div>
-            </div>
-            ${gstin ? `<div><strong>GSTIN:</strong> ${gstin}</div>` : ""}
-          </div>
+    // Responsive font sizes based on format
+    const headerFontSize = isThermal ? "14px" : "18px";
+    const bodyFontSize = isThermal ? "11px" : "13px";
+    const titleFontSize = isThermal ? "13px" : "16px";
 
-          ${
-            bill.customerName || bill.customerPhone
-              ? `
-          <div class="section">
-            <div class="section-title">Customer Details</div>
-            ${bill.customerName ? `<div>Name: ${bill.customerName}</div>` : ""}
-            ${bill.customerPhone ? `<div>Phone: ${bill.customerPhone}</div>` : ""}
-            ${bill.customerEmail ? `<div>Email: ${bill.customerEmail}</div>` : ""}
-            ${bill.customerAddress ? `<div>Address: ${bill.customerAddress}</div>` : ""}
-          </div>
-          `
-              : ""
-          }
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <title>Invoice - ${bill.id}</title>
+  <style>
+    @page {
+      size: ${isLetter ? "letter" : isA4 ? "A4" : `${format.width}mm ${format.height === "auto" ? "auto" : format.height + "mm"}`};
+      margin: ${format.margins.top}mm ${format.margins.right}mm ${format.margins.bottom}mm ${format.margins.left}mm;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      max-width: ${maxWidth};
+      margin: 0 auto;
+      font-size: ${bodyFontSize};
+      color: #000;
+      padding: ${isThermal ? "5px 0" : "0"};
+    }
+    .header, .footer {
+      text-align: center;
+      padding: ${isThermal ? "5px 0" : "10px 0"};
+    }
+    .company-name {
+      font-size: ${headerFontSize};
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+    .company-details {
+      font-size: ${isThermal ? "10px" : "12px"};
+      line-height: 1.4;
+    }
+    .invoice-title {
+      font-size: ${titleFontSize};
+      font-weight: bold;
+      margin-top: ${isThermal ? "5px" : "10px"};
+      border-top: 1px solid #000;
+      border-bottom: 1px solid #000;
+      padding: ${isThermal ? "3px 0" : "5px 0"};
+    }
+    .section {
+      margin: ${isThermal ? "10px 0" : "15px 0"};
+    }
+    .section-title {
+      font-weight: bold;
+      border-bottom: 1px dashed #000;
+      margin-bottom: 5px;
+      padding-bottom: 2px;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: ${isThermal ? "3px" : "5px"};
+      font-size: ${isThermal ? "10px" : "12px"};
+    }
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: ${isThermal ? "5px" : "10px"};
+      font-size: ${isThermal ? "10px" : bodyFontSize};
+    }
+    .items-table th, .items-table td {
+      border: 1px solid #000;
+      padding: ${isThermal ? "3px 4px" : "6px 8px"};
+      text-align: left;
+    }
+    .items-table th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    .items-table td.number {
+      text-align: right;
+    }
+    .totals {
+      margin-top: ${isThermal ? "10px" : "15px"};
+      border-top: 1px dashed #000;
+      padding-top: ${isThermal ? "5px" : "10px"};
+    }
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: ${isThermal ? "3px" : "5px"};
+      font-size: ${isThermal ? "11px" : "13px"};
+    }
+    .totals-row.total {
+      font-weight: bold;
+      font-size: ${isThermal ? "13px" : "15px"};
+      border-top: 2px solid #000;
+      padding-top: 5px;
+      margin-top: 5px;
+    }
+    .footer {
+      margin-top: ${isThermal ? "10px" : "20px"};
+      font-size: ${isThermal ? "10px" : "12px"};
+      border-top: 1px dashed #000;
+      padding-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="company-name">${companyName}</div>
+    <div class="company-details">
+      ${companyAddress}<br>
+      Phone: ${companyPhone}<br>
+      Email: ${companyEmail}
+      ${gstin ? `<br>GSTIN: ${gstin}` : ""}
+    </div>
+  </div>
 
-          <div class="section">
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Item</th>
-                  <th>Qty</th>
-                  <th>Rate</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${bill.items
-                  .map(
-                    (item: any, i: number) => `
-                  <tr>
-                    <td>${i + 1}</td>
-                    <td>${item.productName}</td>
-                    <td>${item.quantity}</td>
-                    <td>₹${item.price.toFixed(2)}</td>
-                    <td>₹${item.total.toFixed(2)}</td>
-                  </tr>
-                `
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-          </div>
+  <div class="invoice-title">INVOICE</div>
 
-          <div class="section">
-            <table class="totals">
-              <tr>
-                <td class="label">Subtotal:</td>
-                <td class="value">₹${bill.subtotal.toFixed(2)}</td>
-              </tr>
-              ${
-                bill.discountAmount > 0
-                  ? `
-              <tr>
-                <td class="label">Discount (${bill.discountPercentage.toFixed(1)}%):</td>
-                <td class="value">-₹${bill.discountAmount.toFixed(2)}</td>
-              </tr>
-              `
-                  : ""
-              }
-              <tr>
-                <td class="label">Tax (${systemSettings.taxPercentage}%):</td>
-                <td class="value">₹${bill.tax.toFixed(2)}</td>
-              </tr>
-              <tr>
-                <td class="label">Total:</td>
-                <td class="value"><strong>₹${bill.total.toFixed(2)}</strong></td>
-              </tr>
-            </table>
-          </div>
+  <div class="section">
+    <div class="row">
+      <span><strong>Invoice:</strong> ${bill.id.substring(5, 17)}</span>
+      <span><strong>Date:</strong> ${new Date(bill.date).toLocaleDateString()}</span>
+    </div>
+    ${
+      bill.customerName || bill.customerPhone
+        ? `
+    <div class="row">
+      <span><strong>Customer:</strong> ${bill.customerName || "Walk-in"}</span>
+      ${bill.customerPhone ? `<span>${bill.customerPhone}</span>` : ""}
+    </div>`
+        : ""
+    }
+  </div>
 
-          <div class="footer">
-            <p>Thank you for your business!</p>
-          </div>
-        </body>
-      </html>
-    `;
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width: ${isThermal ? "10%" : "8%"}">#</th>
+        <th style="width: ${isThermal ? "40%" : "45%"}">Item</th>
+        <th style="width: ${isThermal ? "15%" : "12%"}" class="number">Qty</th>
+        <th style="width: ${isThermal ? "17%" : "17%"}" class="number">Rate</th>
+        <th style="width: ${isThermal ? "18%" : "18%"}" class="number">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${bill.items
+        .map((item: any, i: number) => {
+          const productName = item.productName || item.product_name || item.productname || "Item";
+          return `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${productName}</td>
+          <td class="number">${item.quantity}</td>
+          <td class="number">₹${item.price.toFixed(2)}</td>
+          <td class="number">₹${item.total.toFixed(2)}</td>
+        </tr>`;
+        })
+        .join("")}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <div class="totals-row">
+      <span>Subtotal</span>
+      <span>₹${bill.subtotal.toFixed(2)}</span>
+    </div>
+    ${
+      bill.discountAmount && bill.discountAmount > 0
+        ? `
+    <div class="totals-row" style="color: #c00">
+      <span>Discount (${bill.discountPercentage.toFixed(1)}%)</span>
+      <span>-₹${bill.discountAmount.toFixed(2)}</span>
+    </div>`
+        : ""
+    }
+    <div class="totals-row">
+      <span>Tax (${taxPercentage.toFixed(1)}%)</span>
+      <span>₹${bill.tax.toFixed(2)}</span>
+    </div>
+    <div class="totals-row total">
+      <span>TOTAL</span>
+      <span>₹${bill.total.toFixed(2)}</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p style="margin: 5px 0;">Thank you for your business!</p>
+    ${isThermal ? '<p style="margin: 5px 0; font-size: 9px;">Powered by SIRI Billing System</p>' : ""}
+  </div>
+</body>
+</html>`;
   };
 
   const handlePrintBill = async (billToPrint: Bill) => {
-    console.log("🖨️ [handlePrintBill] Printing bill:", billToPrint);
-    const formatName = billToPrint.billFormat || selectedBillFormat;
+    console.log("handlePrintBill: Printing bill", billToPrint);
+    console.log("handlePrintBill: System settings", systemSettings);
+    console.log("handlePrintBill: Bill items", billToPrint.items);
 
+    const formatName = billToPrint.billFormat || selectedBillFormat;
     const defaultFormat: BillFormat = {
       width: 210,
       height: 297,
       margins: { top: 10, bottom: 10, left: 10, right: 10 },
       unit: "mm",
     };
-
     const format = billFormats[formatName] || billFormats["A4"] || defaultFormat;
-    console.log("🖨️ [handlePrintBill] Using bill format:", format);
+
+    console.log("handlePrintBill: Using bill format", format);
+
     const receiptHtml = generateReceiptHtml(billToPrint, format);
 
     try {
       await unifiedPrint({ htmlContent: receiptHtml });
     } catch (printError) {
-      console.error("Failed to send print job:", printError);
+      console.error("Failed to send print job", printError);
       alert("Failed to print bill. Please check console for details.");
     }
   };
 
-  const filteredBills = currentBills.filter((bill) => {
+  const filteredBills = currentBills.filter((bill: Bill) => {
     const customerName = bill.customerName || "";
     const billId = bill.id || "";
     const searchLower = billSearchTerm.toLowerCase();
     return customerName.toLowerCase().includes(searchLower) || billId.includes(searchLower);
   });
 
-  const filteredCustomers = currentCustomers.filter((customer) => {
+  const filteredCustomers = currentCustomers.filter((customer: Customer) => {
     const customerName = customer.name || "";
     const customerEmail = customer.email || "";
     const customerPhone = customer.phone || "";
     const searchLower = customerSearchTerm.toLowerCase();
-    return customerName.toLowerCase().includes(searchLower) || customerEmail.toLowerCase().includes(searchLower) || customerPhone.toLowerCase().includes(searchLower);
+    return (
+      customerName.toLowerCase().includes(searchLower) ||
+      customerEmail.toLowerCase().includes(searchLower) ||
+      customerPhone.toLowerCase().includes(searchLower)
+    );
   });
 
   const { subtotal, tax, discountAmount, total } = calculateTotals();
+
   const discountPresets = [5, 10, 15, 20, 25];
 
   const handleImportBills = async () => {
     if (!importFile) return;
-    console.log("📥 [handleImportBills] Importing bills from file:", importFile.name);
+
+    console.log("handleImportBills: Importing bills from file", importFile.name);
 
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const importedBills = JSON.parse((e.target?.result as string) || "");
-        console.log("📥 [handleImportBills] Parsed bills for import:", importedBills);
-        const response = await api.post("/api/bills/import", importedBills);
-        console.log("📥 [handleImportBills] Import API response:", response);
+        const importedBills = JSON.parse(e.target?.result as string);
+        console.log("handleImportBills: Parsed bills for import", importedBills);
 
-        if (!response.status.toString().startsWith("2")) throw new Error("Failed to import bills");
+        const response = await api.post("/api/bills/import", importedBills);
+        console.log("handleImportBills: Import API response", response);
+
+        if (!response.status.toString().startsWith("2")) {
+          throw new Error("Failed to import bills");
+        }
 
         console.log("Bills imported successfully");
         setIsImportDialogOpen(false);
         setImportFile(null);
-        refetchBills(); // Refresh after import
+        refetchBills();
       } catch (error) {
-        console.error("Error parsing or importing bills:", error);
+        console.error("Error parsing or importing bills", error);
       }
     };
     reader.readAsText(importFile);
@@ -643,13 +852,15 @@ export default function BillingPage() {
           <div>
             <h1 className="text-3xl font-bold">Billing System</h1>
             <p className="text-muted-foreground">Create and manage bills with discount adjustments</p>
-            {(productsLoading || billsLoading || customersLoading) && <p className="text-sm text-blue-500">Loading data...</p>}
-            {(productsError || billsError || customersError) && <p className="text-sm text-red-500">Error loading data.</p>}
+            {(productsLoading || billsLoading || customersLoading) && (
+              <p className="text-sm text-blue-500">Loading data...</p>
+            )}
+            {(productsError || billsError || customersError) && (
+              <p className="text-sm text-red-500">Error loading data.</p>
+            )}
           </div>
 
           <div className="flex space-x-2">
-            {/* Debug Toggle Button */}
-
             {/* Manual Refresh Button */}
             <Button variant="outline" onClick={handleManualRefresh} disabled={isRefreshing || !isOnline}>
               <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
@@ -670,7 +881,12 @@ export default function BillingPage() {
                   <DialogDescription>Upload a JSON file containing bill data.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  <Input id="billFile" type="file" accept=".json" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} />
+                  <Input
+                    id="billFile"
+                    type="file"
+                    accept=".json"
+                    onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)}
+                  />
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
@@ -704,15 +920,29 @@ export default function BillingPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="customerName">Customer Name</Label>
-                        <Input id="customerName" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
+                        <Input
+                          id="customerName"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          required
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="customerEmail">Email (optional)</Label>
-                        <Input id="customerEmail" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
+                        <Input
+                          id="customerEmail"
+                          type="email"
+                          value={customerEmail}
+                          onChange={(e) => setCustomerEmail(e.target.value)}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="customerPhone">Phone (optional)</Label>
-                        <Input id="customerPhone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+                        <Input
+                          id="customerPhone"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                        />
                       </div>
                     </div>
                   </div>
@@ -730,7 +960,7 @@ export default function BillingPage() {
                             <SelectValue placeholder="Choose a product" />
                           </SelectTrigger>
                           <SelectContent>
-                            {currentProducts.map((product) => (
+                            {currentProducts.map((product: Product) => (
                               <SelectItem key={product.id} value={product.id}>
                                 {product.name} - ₹{product.price ? product.price.toFixed(2) : "0.00"} (Stock: {product.stock})
                               </SelectItem>
@@ -740,7 +970,13 @@ export default function BillingPage() {
                       </div>
                       <div className="w-24">
                         <Label htmlFor="quantity">Quantity</Label>
-                        <Input id="quantity" type="number" min="1" value={quantity} onChange={(e) => setQuantity(Number.parseInt(e.target.value) || 1)} />
+                        <Input
+                          id="quantity"
+                          type="number"
+                          min="1"
+                          value={quantity}
+                          onChange={(e) => setQuantity(Number.parseInt(e.target.value) || 1)}
+                        />
                       </div>
                       <Button onClick={addItemToBill} disabled={!selectedProductId}>
                         Add Item
@@ -770,7 +1006,11 @@ export default function BillingPage() {
                               <TableCell>{item.quantity}</TableCell>
                               <TableCell>₹{item.total.toFixed(2)}</TableCell>
                               <TableCell>
-                                <Button variant="outline" size="sm" onClick={() => removeItemFromBill(item.productId)}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => removeItemFromBill(item.productId)}
+                                >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </TableCell>
@@ -782,11 +1022,12 @@ export default function BillingPage() {
                       {/* Discount and Total Section */}
                       <div className="bg-gray-50 p-6 rounded-lg space-y-4">
                         <div className="flex justify-between text-base">
-                          <span>Subtotal:</span>
+                          <span>Subtotal</span>
                           <span className="font-medium">₹{subtotal.toFixed(2)}</span>
                         </div>
+
                         <div className="flex justify-between text-base">
-                          <span>Tax (10%):</span>
+                          <span>Tax (10%)</span>
                           <span className="font-medium">₹{tax.toFixed(2)}</span>
                         </div>
 
@@ -804,7 +1045,9 @@ export default function BillingPage() {
                                 max="100"
                                 step="0.1"
                                 value={discountPercentage.toFixed(1)}
-                                onChange={(e) => handleDiscountPercentageChange(Number.parseFloat(e.target.value) || 0)}
+                                onChange={(e) =>
+                                  handleDiscountPercentageChange(Number.parseFloat(e.target.value) || 0)
+                                }
                                 className="w-20 text-right"
                               />
                               <span className="text-sm">%</span>
@@ -815,18 +1058,29 @@ export default function BillingPage() {
                           <div className="flex flex-wrap gap-2">
                             <span className="text-sm text-gray-600 mr-2">Quick:</span>
                             {discountPresets.map((preset) => (
-                              <Button key={preset} variant="outline" size="sm" onClick={() => setDiscountPercentage(preset)} className="text-xs h-7">
+                              <Button
+                                key={preset}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setDiscountPercentage(preset)}
+                                className="text-xs h-7"
+                              >
                                 {preset}%
                               </Button>
                             ))}
-                            <Button variant="outline" size="sm" onClick={() => setDiscountPercentage(0)} className="text-xs h-7">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDiscountPercentage(0)}
+                              className="text-xs h-7"
+                            >
                               Clear
                             </Button>
                           </div>
 
                           {discountPercentage > 0 && (
                             <div className="flex justify-between text-base text-red-600">
-                              <span>Discount ({discountPercentage.toFixed(1)}%):</span>
+                              <span>Discount ({discountPercentage.toFixed(1)}%)</span>
                               <span className="font-medium">-₹{discountAmount.toFixed(2)}</span>
                             </div>
                           )}
@@ -836,7 +1090,7 @@ export default function BillingPage() {
 
                         {/* Total */}
                         <div className="flex justify-between items-center text-xl font-bold">
-                          <span>Total:</span>
+                          <span>Total</span>
                           <span>₹{total.toFixed(2)}</span>
                         </div>
 
@@ -880,7 +1134,12 @@ export default function BillingPage() {
                 <CardDescription>{currentBills.length} bills created</CardDescription>
                 <div className="flex items-center space-x-2">
                   <Search className="h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search bills..." value={billSearchTerm} onChange={(e) => setBillSearchTerm(e.target.value)} className="max-w-sm" />
+                  <Input
+                    placeholder="Search bills..."
+                    value={billSearchTerm}
+                    onChange={(e) => setBillSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
                 </div>
               </CardHeader>
               <CardContent>
@@ -899,13 +1158,15 @@ export default function BillingPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredBills.map((bill) => (
+                      {filteredBills.map((bill: Bill) => (
                         <TableRow key={bill.id}>
                           <TableCell className="font-mono">{bill.id}</TableCell>
                           <TableCell>
                             <div>
                               <div className="font-medium">{bill.customerName || "Walk-in Customer"}</div>
-                              {bill.customerEmail && <div className="text-sm text-muted-foreground">{bill.customerEmail}</div>}
+                              {bill.customerEmail && (
+                                <div className="text-sm text-muted-foreground">{bill.customerEmail}</div>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>{new Date(bill.date).toLocaleDateString()}</TableCell>
@@ -941,14 +1202,18 @@ export default function BillingPage() {
                                 <DialogContent>
                                   <DialogHeader>
                                     <DialogTitle>Are you sure?</DialogTitle>
-                                    <DialogDescription>This action cannot be undone. This will permanently delete the bill {bill.id}.</DialogDescription>
+                                    <DialogDescription>
+                                      This action cannot be undone. This will permanently delete the bill {bill.id}.
+                                    </DialogDescription>
                                   </DialogHeader>
                                   <DialogFooter>
                                     <Button
                                       variant="outline"
-                                      onClick={() => {
-                                        (document.querySelector('[data-state="open"]') as HTMLElement)?.click();
-                                      }}
+                                      onClick={() =>
+                                        (
+                                          document.querySelector('[data-state="open"]') as HTMLElement
+                                        )?.click()
+                                      }
                                     >
                                       Cancel
                                     </Button>
@@ -968,7 +1233,9 @@ export default function BillingPage() {
                   <div className="text-center py-8">
                     <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium">No bills found</h3>
-                    <p className="text-muted-foreground">{billSearchTerm ? "Try adjusting your search terms" : "Create your first bill to get started"}</p>
+                    <p className="text-muted-foreground">
+                      {billSearchTerm ? "Try adjusting your search terms" : "Create your first bill to get started"}
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -983,7 +1250,12 @@ export default function BillingPage() {
                 <CardDescription>{currentCustomers.length} registered customers</CardDescription>
                 <div className="flex items-center space-x-2">
                   <Search className="h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search customers..." value={customerSearchTerm} onChange={(e) => setCustomerSearchTerm(e.target.value)} className="max-w-sm" />
+                  <Input
+                    placeholder="Search customers..."
+                    value={customerSearchTerm}
+                    onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
                 </div>
               </CardHeader>
               <CardContent>
@@ -1001,20 +1273,29 @@ export default function BillingPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredCustomers.map((customer) => {
-                        const customerBills = currentBills.filter((bill) => bill.customerEmail === customer.email || bill.customerPhone === customer.phone);
-                        const totalSpent = customerBills.reduce((sum, bill) => sum + bill.total, 0);
+                      {filteredCustomers.map((customer: Customer) => {
+                        // FIX: Match bills by customerId instead of name/email/phone
+                        const customerBills = currentBills.filter((bill: Bill) => {
+                          const billCustomerId = (bill as any).customerId || (bill as any).customerid;
+                          return billCustomerId === customer.id;
+                        });
+                        
+                        const totalSpent = customerBills.reduce((sum: number, bill: Bill) => sum + (bill.total || 0), 0);
 
                         return (
                           <TableRow key={customer.id}>
-                            <TableCell className="font-medium">{customer.name}</TableCell>
+                            <TableCell className="font-medium">{customer.name || "N/A"}</TableCell>
                             <TableCell>{customer.email || "N/A"}</TableCell>
                             <TableCell>{customer.phone || "N/A"}</TableCell>
                             <TableCell>{customer.address || "N/A"}</TableCell>
                             <TableCell>{customerBills.length}</TableCell>
                             <TableCell>₹{totalSpent.toFixed(2)}</TableCell>
                             <TableCell>
-                              <Button variant="outline" size="sm" onClick={() => viewCustomer(customer)}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => viewCustomer(customer)}
+                              >
                                 <Eye className="h-4 w-4" />
                               </Button>
                             </TableCell>
@@ -1026,7 +1307,9 @@ export default function BillingPage() {
                 ) : (
                   <div className="text-center py-8">
                     <h3 className="text-lg font-medium">No customers found</h3>
-                    <p className="text-muted-foreground">{customerSearchTerm ? "Try adjusting your search terms" : "Customers will appear here once they have bills"}</p>
+                    <p className="text-muted-foreground">
+                      {customerSearchTerm ? "Try adjusting your search terms" : "Customers will appear here once they have bills"}
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -1039,12 +1322,12 @@ export default function BillingPage() {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Bill Details</DialogTitle>
-              <DialogDescription>Bill #{selectedBill?.id}</DialogDescription>
+              <DialogDescription>Bill: {selectedBill?.id}</DialogDescription>
             </DialogHeader>
 
             {selectedBill && (
               <div className="space-y-6">
-                
+                {/* Customer & Bill Information */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h4 className="font-medium">Customer Information</h4>
@@ -1059,10 +1342,14 @@ export default function BillingPage() {
                     <div className="text-sm text-muted-foreground mt-1">
                       <div>Date: {new Date(selectedBill.date).toLocaleString()}</div>
                       <div>Status: {selectedBill.status}</div>
+                      {selectedBill.taxPercentage !== undefined && selectedBill.taxPercentage > 0 && (
+                        <div>Tax Rate: {selectedBill.taxPercentage}%</div>
+                      )}
                     </div>
                   </div>
                 </div>
 
+                {/* Items Table */}
                 <div>
                   <h4 className="font-medium mb-2">Items</h4>
                   <Table>
@@ -1075,35 +1362,52 @@ export default function BillingPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedBill.items?.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.productName}</TableCell>
-                          <TableCell>₹{item.price.toFixed(2)}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>₹{item.total.toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))}
+                      {selectedBill.items?.map((item: any, index: number) => {
+                        // Handle both camelCase and snake_case field names
+                        const productName = item.productName || item.product_name || item.productname || "Unknown Product";
+                        const price = item.price || 0;
+                        const quantity = item.quantity || 0;
+                        const total = item.total || 0;
+
+                        return (
+                          <TableRow key={index}>
+                            <TableCell>{productName}</TableCell>
+                            <TableCell>₹{price.toFixed(2)}</TableCell>
+                            <TableCell>{quantity}</TableCell>
+                            <TableCell>₹{total.toFixed(2)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
 
+                {/* Totals Section */}
                 <div className="space-y-2 text-right bg-gray-50 p-4 rounded-lg">
                   <div className="flex justify-between">
-                    <span>Subtotal:</span>
+                    <span>Subtotal</span>
                     <span>₹{selectedBill.subtotal.toFixed(2)}</span>
                   </div>
+
+                  {/* Tax with percentage */}
                   <div className="flex justify-between">
-                    <span>Tax:</span>
+                    <span>
+                      Tax {selectedBill.taxPercentage !== undefined && selectedBill.taxPercentage > 0 && `(${selectedBill.taxPercentage}%)`}
+                    </span>
                     <span>₹{(selectedBill.tax || 0).toFixed(2)}</span>
                   </div>
+
+                  {/* Discount */}
                   {selectedBill.discountPercentage > 0 && (
                     <div className="flex justify-between text-red-600">
-                      <span>Discount ({selectedBill.discountPercentage.toFixed(1)}%):</span>
+                      <span>Discount ({selectedBill.discountPercentage.toFixed(1)}%)</span>
                       <span>-₹{selectedBill.discountAmount.toFixed(2)}</span>
                     </div>
                   )}
+
+                  {/* Total */}
                   <div className="flex justify-between font-bold text-lg">
-                    <span>Total:</span>
+                    <span>Total</span>
                     <span>₹{selectedBill.total.toFixed(2)}</span>
                   </div>
                 </div>
@@ -1143,20 +1447,26 @@ export default function BillingPage() {
                       <div>Address: {selectedCustomer.address || "N/A"}</div>
                     </div>
                   </div>
+
                   <div>
                     <h4 className="font-medium">Spending Overview</h4>
                     <div className="text-sm text-muted-foreground mt-1">
-                      <div>
-                        Total Bills:{" "}
-                        {currentBills.filter((bill) => bill.customerEmail === selectedCustomer.email || bill.customerPhone === selectedCustomer.phone).length}
-                      </div>
-                      <div>
-                        Total Spent: ₹
-                        {currentBills
-                          .filter((bill) => bill.customerEmail === selectedCustomer.email || bill.customerPhone === selectedCustomer.phone)
-                          .reduce((sum, bill) => sum + bill.total, 0)
-                          .toFixed(2)}
-                      </div>
+                      {(() => {
+                        {/* FIX: Match bills by customerId */}
+                        const customerBills = currentBills.filter((bill: Bill) => {
+                          const billCustomerId = (bill as any).customerId || (bill as any).customerid;
+                          return billCustomerId === selectedCustomer.id;
+                        });
+                        
+                        const totalSpent = customerBills.reduce((sum: number, bill: Bill) => sum + (bill.total || 0), 0);
+
+                        return (
+                          <>
+                            <div>Total Bills: {customerBills.length}</div>
+                            <div>Total Spent: ₹{totalSpent.toFixed(2)}</div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -1175,8 +1485,12 @@ export default function BillingPage() {
                     </TableHeader>
                     <TableBody>
                       {currentBills
-                        .filter((bill) => bill.customerEmail === selectedCustomer.email || bill.customerPhone === selectedCustomer.phone)
-                        .map((bill) => (
+                        .filter((bill: Bill) => {
+                          // FIX: Match by customerId
+                          const billCustomerId = (bill as any).customerId || (bill as any).customerid;
+                          return billCustomerId === selectedCustomer.id;
+                        })
+                        .map((bill: Bill) => (
                           <TableRow key={bill.id}>
                             <TableCell className="font-mono">{bill.id}</TableCell>
                             <TableCell>{new Date(bill.date).toLocaleDateString()}</TableCell>
