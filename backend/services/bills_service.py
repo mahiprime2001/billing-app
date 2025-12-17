@@ -2,6 +2,7 @@
 Bills Service
 Handles all bill-related business logic and database operations
 """
+
 import logging
 import uuid
 from datetime import datetime
@@ -12,8 +13,10 @@ from utils.supabase_db import db
 from utils.json_helpers import get_bills_data, save_bills_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
-logger = logging.getLogger(__name__)
+# Import products service to get product data
+from services import products_service
 
+logger = logging.getLogger(__name__)
 
 # ============================================
 # LOCAL JSON OPERATIONS
@@ -30,7 +33,6 @@ def get_local_bills() -> List[Dict]:
         logger.error(f"Error getting local bills: {e}", exc_info=True)
         return []
 
-
 def update_local_bills(bills_data: List[Dict]) -> bool:
     """Update local JSON bills with new data"""
     try:
@@ -41,13 +43,11 @@ def update_local_bills(bills_data: List[Dict]) -> bool:
         # Convert from camelCase to snake_case before saving
         snake_case_bills = [convert_camel_to_snake(bill) for bill in bills_data]
         save_bills_data(snake_case_bills)
-        
         logger.info(f"Updated local JSON with {len(bills_data)} bills.")
         return True
     except Exception as e:
         logger.error(f"Error updating local bills: {e}", exc_info=True)
         return False
-
 
 # ============================================
 # SUPABASE OPERATIONS
@@ -59,7 +59,6 @@ def get_supabase_bills() -> List[Dict]:
         client = db.client
         response = client.table("bills").select("*").execute()
         bills = response.data or []
-        
         transformed_bills = [convert_snake_to_camel(bill) for bill in bills]
         logger.debug(f"Returning {len(transformed_bills)} bills from Supabase.")
         return transformed_bills
@@ -67,21 +66,152 @@ def get_supabase_bills() -> List[Dict]:
         logger.error(f"Error getting Supabase bills: {e}", exc_info=True)
         return []
 
-
 def get_supabase_bills_with_details() -> List[Dict]:
-    """Get bills with full item details from Supabase"""
+    """Get bills with full item details from Supabase using products service"""
     try:
         client = db.client
-        response = client.table("bills").select("*, items:billitems(*)").execute()
-        bills = response.data or []
         
+        print("\n" + "=" * 80)
+        print("🔍 FETCHING BILLS WITH DETAILS (Using Products Service)")
+        print("=" * 80)
+        
+        # Step 1: Fetch products using the merged products (local + supabase)
+        print("📡 Step 1: Fetching products via products_service.get_merged_products()...")
+        products_list, status_code = products_service.get_merged_products()
+        
+        if status_code != 200:
+            print(f"   ❌ Failed to fetch products, status code: {status_code}")
+            return []
+        
+        print(f"   ✓ Fetched {len(products_list)} products from merged products")
+        
+        # Create product lookup map from products service
+        print("\n🗺️ Building product lookup map...")
+        products_map = {}
+        for product in products_list:
+            product_id = product.get('id')
+            products_map[product_id] = {
+                'name': product.get('name', 'Unknown Product'),
+                'price': product.get('price', 0)
+            }
+        
+        print(f"   ✓ Product map: {len(products_map)} products indexed")
+        
+        # Show sample products
+        if products_map:
+            print("\n   📋 Sample products:")
+            for idx, (pid, pinfo) in enumerate(list(products_map.items())[:3]):
+                print(f"      {idx + 1}. {pinfo['name']} (₹{pinfo['price']})")
+        
+        # Step 2: Fetch bills
+        print("\n📡 Step 2: Fetching bills...")
+        bills_response = client.table("bills").select("*").execute()
+        bills = bills_response.data or []
+        print(f"   ✓ Fetched {len(bills)} bills")
+        
+        # Step 3: Fetch bill items
+        print("\n📡 Step 3: Fetching bill items...")
+        items_response = client.table("billitems").select("*").execute()
+        all_items = items_response.data or []
+        print(f"   ✓ Fetched {len(all_items)} bill items")
+        
+        # Group items by bill ID and enrich with product names
+        print("\n📦 Enriching bill items with product names...")
+        items_by_bill = {}
+        items_enriched = 0
+        items_missing_product = 0
+        
+        for item in all_items:
+            bill_id = item.get('billid')
+            product_id = item.get('productid')
+            
+            if not bill_id:
+                continue
+            
+            # Get product info from products map
+            product_info = products_map.get(product_id)
+            if product_info:
+                item['productname'] = product_info['name']
+                items_enriched += 1
+                if items_enriched <= 5:  # Show first 5 items
+                    print(f"   ✓ Item: '{product_info['name']}' x{item.get('quantity')} = ₹{item.get('total')}")
+            else:
+                item['productname'] = 'Unknown Product'
+                items_missing_product += 1
+                print(f"   ⚠️ Product ID {product_id[:20]}... not found in products map")
+            
+            # Group by bill
+            if bill_id not in items_by_bill:
+                items_by_bill[bill_id] = []
+            items_by_bill[bill_id].append(item)
+        
+        print(f"\n   ✓ Enriched: {items_enriched} items")
+        if items_missing_product > 0:
+            print(f"   ⚠️ Missing: {items_missing_product} items without product info")
+        print(f"   ✓ Grouped for {len(items_by_bill)} bills")
+        
+        # Attach items to bills
+        print("\n🧾 Attaching items to bills...")
+        bills_with_items = 0
+        
+        for bill in bills:
+            bill_id = bill.get('id')
+            bill_items = items_by_bill.get(bill_id, [])
+            bill['items'] = bill_items
+            
+            if bill_items:
+                bills_with_items += 1
+                if bills_with_items <= 3:  # Show first 3 bills
+                    print(f"\n   📄 Bill: {bill_id}")
+                    print(f"      Customer: {bill.get('customerid', 'N/A')}")
+                    print(f"      Total: ₹{bill.get('total', 0)}")
+                    print(f"      Items ({len(bill_items)}):")
+                    for idx, item in enumerate(bill_items[:3]):
+                        print(f"         • {item.get('productname')} x{item.get('quantity')} = ₹{item.get('total')}")
+        
+        print(f"\n   ✓ {bills_with_items}/{len(bills)} bills have items")
+        
+        # Convert to camelCase
+        print("\n🔄 Converting to camelCase...")
+        print("   ⚠️ BEFORE conversion - checking first bill's first item:")
+        if bills and bills[0].get('items'):
+            first_item_before = bills[0]['items'][0]
+            print(f"      productname (snake): '{first_item_before.get('productname')}'")
+            print(f"      Keys: {list(first_item_before.keys())}")
+        
+        # Convert bills to camelCase (this will recursively convert nested items)
         transformed_bills = [convert_snake_to_camel(bill) for bill in bills]
-        logger.debug(f"Returning {len(transformed_bills)} bills with details from Supabase.")
+        
+        # Verify transformation
+        print("\n✅ Verification after camelCase:")
+        if transformed_bills:
+            first_bill = transformed_bills[0]
+            print(f"   Bill ID: {first_bill.get('id')}")
+            print(f"   Total: ₹{first_bill.get('total')}")
+            
+            if first_bill.get('items'):
+                first_item = first_bill['items'][0]
+                print(f"\n   First item ALL keys: {list(first_item.keys())}")
+                print(f"   First item details:")
+                print(f"      productName: '{first_item.get('productName')}'")
+                print(f"      productname: '{first_item.get('productname')}'")
+                print(f"      productId: {first_item.get('productId', 'N/A')[:30] if first_item.get('productId') else 'N/A'}...")
+                print(f"      quantity: {first_item.get('quantity')}")
+                print(f"      price: ₹{first_item.get('price')}")
+                print(f"      total: ₹{first_item.get('total')}")
+        
+        print("\n" + "=" * 80)
+        print(f"✅ SUCCESS: Returning {len(transformed_bills)} bills with details")
+        print("=" * 80 + "\n")
+        
         return transformed_bills
+        
     except Exception as e:
+        print(f"\n❌ ERROR in get_supabase_bills_with_details: {e}")
         logger.error(f"Error getting Supabase bills with details: {e}", exc_info=True)
+        import traceback
+        traceback.print_exc()
         return []
-
 
 # ============================================
 # MERGED OPERATIONS
@@ -117,11 +247,9 @@ def get_merged_bills() -> Tuple[List[Dict], int]:
         
         logger.debug(f"Returning {len(final_bills)} merged bills")
         return final_bills, 200
-        
     except Exception as e:
         logger.error(f"Error getting merged bills: {e}", exc_info=True)
         return [], 500
-
 
 # ============================================
 # BUSINESS LOGIC
@@ -136,51 +264,81 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
         if not bill_data:
             return None, "No bill data provided", 400
         
-        # Convert field names
-        bill_data = convert_camel_to_snake(bill_data)
+        print(f"\n🆕 Creating new bill...")
+        
+        # Convert field names from camelCase to snake_case for Supabase
+        db_bill_data = convert_camel_to_snake(bill_data)
         
         # Generate ID if not present
-        if 'id' not in bill_data:
-            bill_data['id'] = str(uuid.uuid4())
+        if 'id' not in db_bill_data:
+            db_bill_data['id'] = str(uuid.uuid4())
+        
+        bill_id = db_bill_data['id']
+        print(f"   Bill ID: {bill_id}")
         
         # Add timestamps
         now_naive = datetime.now().isoformat()
-        if 'createdat' not in bill_data:
-            bill_data['createdat'] = now_naive
-        bill_data['updatedat'] = now_naive
+        if 'created_at' not in db_bill_data:
+            db_bill_data['created_at'] = now_naive
+        db_bill_data['updated_at'] = now_naive
         
         # Extract items if present
-        items = bill_data.pop('items', [])
+        items = db_bill_data.pop('items', [])
+        print(f"   Items: {len(items)}")
         
         # Insert bill into Supabase
         client = db.client
-        supabase_response = client.table('bills').insert(bill_data).execute()
+        print(f"   📤 Inserting bill...")
+        supabase_response = client.table('bills').insert(db_bill_data).execute()
         
         if not supabase_response.data:
+            print(f"   ❌ Failed to insert bill")
             return None, "Failed to insert bill into Supabase", 500
+        
+        print(f"   ✓ Bill inserted")
         
         # Insert bill items if present
         if items:
-            for item in items:
-                item['bill_id'] = bill_data['id']
+            bill_items_for_db = []
+            for idx, item in enumerate(items):
+                db_item = {
+                    'bill_id': bill_id,
+                    'product_id': item.get('product_id') or item.get('productid'),
+                    'quantity': item.get('quantity'),
+                    'price': item.get('price'),
+                    'total': item.get('total')
+                }
+                
                 if 'id' not in item:
-                    item['id'] = str(uuid.uuid4())
+                    db_item['id'] = str(uuid.uuid4())
+                else:
+                    db_item['id'] = item['id']
+                
+                bill_items_for_db.append(db_item)
             
-            client.table('bill_items').insert(items).execute()
+            print(f"   📤 Inserting {len(bill_items_for_db)} items...")
+            client.table('billitems').insert(bill_items_for_db).execute()
+            print(f"   ✓ Items inserted")
         
         # Save to local JSON
         bills = get_bills_data()
-        bill_data['items'] = items  # Add items back for local storage
-        bills.append(bill_data)
-        save_bills_data(bills)
         
-        logger.info(f"Bill created {bill_data['id']}")
-        return bill_data['id'], "Bill created", 201
+        # Add items back to the snake_cased bill data so it is complete
+        db_bill_data['items'] = items
+        bills.append(db_bill_data)
+        save_bills_data(bills)
+        print(f"   ✓ Saved to local JSON")
+        
+        print(f"✅ Bill created: {bill_id}\n")
+        logger.info(f"Bill created {bill_id}")
+        return bill_id, "Bill created", 201
         
     except Exception as e:
+        print(f"❌ Error creating bill: {e}\n")
         logger.error(f"Error creating bill: {e}", exc_info=True)
+        import traceback
+        traceback.print_exc()
         return None, str(e), 500
-
 
 def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
     """
@@ -188,23 +346,31 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
     Returns (success, message, status_code)
     """
     try:
+        print(f"\n🗑️ Deleting bill: {bill_id}")
+        
         # Delete from local JSON
         bills = get_bills_data()
         bill_index = next((i for i, b in enumerate(bills) if b.get('id') == bill_id), -1)
         
-        if bill_index == -1:
-            return False, "Bill not found", 404
-        
-        bills.pop(bill_index)
-        save_bills_data(bills)
-        
+        if bill_index != -1:
+            bills.pop(bill_index)
+            save_bills_data(bills)
+            print(f"   ✓ Deleted from local")
+        else:
+            print(f"   ⚠️ Bill not found in local storage")
+
         # Delete from Supabase
         client = db.client
+        print(f"   📤 Deleting from Supabase...")
+        client.table('billitems').delete().eq('bill_id', bill_id).execute()
         client.table('bills').delete().eq('id', bill_id).execute()
+        print(f"   ✓ Deleted from Supabase")
         
+        print(f"✅ Bill deleted: {bill_id}\n")
         logger.info(f"Bill deleted {bill_id}")
         return True, "Bill deleted", 200
         
     except Exception as e:
+        print(f"❌ Error deleting bill: {e}\n")
         logger.error(f"Error deleting bill: {e}", exc_info=True)
         return False, str(e), 500

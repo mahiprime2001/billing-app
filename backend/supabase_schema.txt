@@ -11,7 +11,7 @@ CREATE TABLE public.app_config (
 );
 CREATE TABLE public.batch (
   id character varying NOT NULL,
-  batchnumber character varying NOT NULL,
+  batch_number character varying NOT NULL,
   place text,
   createdat timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   updatedat timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
@@ -35,27 +35,19 @@ CREATE TABLE public.billitems (
   id bigint NOT NULL DEFAULT nextval('billitems_id_seq'::regclass),
   billid character varying,
   productid character varying,
-  productname character varying,
   quantity integer,
   price numeric,
   total numeric,
-  tax numeric DEFAULT 0.00,
-  gstrate numeric DEFAULT 0.00,
-  barcodes text,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT billitems_pkey PRIMARY KEY (id),
-  CONSTRAINT billitems_ibfk_1 FOREIGN KEY (billid) REFERENCES public.bills(id),
   CONSTRAINT billitems_ibfk_2 FOREIGN KEY (productid) REFERENCES public.products(id)
 );
 CREATE TABLE public.bills (
   id character varying NOT NULL,
   storeid character varying,
-  storename character varying,
-  storeaddress text,
-  customername character varying,
-  customerphone character varying,
-  customeremail character varying,
-  customeraddress text,
   customerid character varying,
+  userid character varying,
   subtotal numeric,
   taxpercentage numeric,
   taxamount numeric,
@@ -64,19 +56,15 @@ CREATE TABLE public.bills (
   total numeric,
   paymentmethod character varying,
   timestamp timestamp without time zone,
-  notes text,
-  gstin character varying,
-  companyname character varying,
-  companyaddress text,
-  companyphone character varying,
-  companyemail character varying,
-  billformat character varying,
+  status character varying DEFAULT 'completed'::character varying,
   createdby character varying,
-  items text,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT bills_pkey PRIMARY KEY (id),
   CONSTRAINT bills_ibfk_1 FOREIGN KEY (storeid) REFERENCES public.stores(id),
   CONSTRAINT bills_ibfk_2 FOREIGN KEY (createdby) REFERENCES public.users(id),
-  CONSTRAINT bills_ibfk_3 FOREIGN KEY (customerid) REFERENCES public.customers(id)
+  CONSTRAINT bills_ibfk_3 FOREIGN KEY (customerid) REFERENCES public.customers(id),
+  CONSTRAINT bills_ibfk_4 FOREIGN KEY (userid) REFERENCES public.users(id)
 );
 CREATE TABLE public.customers (
   id character varying NOT NULL,
@@ -84,8 +72,8 @@ CREATE TABLE public.customers (
   phone character varying,
   email character varying,
   address text,
-  createdat timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-  updatedat timestamp without time zone, -- This column will be updated via a trigger for ON UPDATE CURRENT_TIMESTAMP behavior
+  createdat timestamp without time zone,
+  updatedat timestamp without time zone,
   CONSTRAINT customers_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.notifications (
@@ -123,39 +111,32 @@ CREATE TABLE public.products (
   name character varying,
   price numeric,
   stock integer,
-  assignedstoreid character varying,
   batchid character varying,
   selling_price numeric,
   createdat timestamp without time zone,
   updatedat timestamp without time zone,
-  barcode text,
-  description text,
-  category character varying,
-  supplier character varying,
-  imageurl text,
+  barcode character varying,
   CONSTRAINT products_pkey PRIMARY KEY (id),
-  CONSTRAINT fk_products_assigned_store FOREIGN KEY (assignedstoreid) REFERENCES public.stores(id),
   CONSTRAINT fk_products_batch FOREIGN KEY (batchid) REFERENCES public.batch(id)
 );
 CREATE TABLE public.returns (
   s_no integer NOT NULL DEFAULT nextval('returns_s_no_seq'::regclass),
   return_id character varying NOT NULL,
-  product_name character varying NOT NULL,
   product_id character varying,
-  customer_name character varying,
-  customer_phone_number character varying,
   message text,
   refund_method USER-DEFINED DEFAULT 'cash'::refund_method_enum,
   bill_id character varying,
-  item_index integer,
   return_amount numeric,
   status USER-DEFINED DEFAULT 'pending'::return_status_enum,
   created_by character varying,
   created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  original_quantity integer,
+  return_quantity integer,
+  customer_id character varying,
   CONSTRAINT returns_pkey PRIMARY KEY (s_no),
-  CONSTRAINT returns_ibfk_1 FOREIGN KEY (bill_id) REFERENCES public.bills(id),
-  CONSTRAINT returns_ibfk_2 FOREIGN KEY (product_id) REFERENCES public.products(id)
+  CONSTRAINT returns_ibfk_2 FOREIGN KEY (product_id) REFERENCES public.products(id),
+  CONSTRAINT returns_customer_fk FOREIGN KEY (customer_id) REFERENCES public.customers(id)
 );
 CREATE TABLE public.storeinventory (
   id character varying NOT NULL,
@@ -191,14 +172,12 @@ CREATE TABLE public.sync_table (
   sync_attempts integer DEFAULT 0,
   created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   synced_at timestamp without time zone,
+  source_app text,
+  store_id text,
+  retry_count integer DEFAULT 0,
+  error_message text,
+  processed_at timestamp without time zone,
   CONSTRAINT sync_table_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.sync_table_backup (
-  id integer NOT NULL DEFAULT 0,
-  sync_time timestamp without time zone,
-  change_type character varying,
-  change_data text,
-  timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE public.systemsettings (
   id integer NOT NULL DEFAULT nextval('systemsettings_id_seq'::regclass),
@@ -208,6 +187,8 @@ CREATE TABLE public.systemsettings (
   companyaddress text,
   companyphone character varying,
   companyemail character varying,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT systemsettings_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.users (
@@ -228,6 +209,8 @@ CREATE TABLE public.users (
 CREATE TABLE public.userstores (
   userId character varying NOT NULL,
   storeId character varying NOT NULL,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT userstores_pkey PRIMARY KEY (userId, storeId),
   CONSTRAINT userstores_ibfk_1 FOREIGN KEY (userId) REFERENCES public.users(id),
   CONSTRAINT userstores_ibfk_2 FOREIGN KEY (storeId) REFERENCES public.stores(id)

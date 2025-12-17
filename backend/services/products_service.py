@@ -2,6 +2,7 @@
 Products Service
 Handles all product-related business logic and database operations
 """
+
 import logging
 import uuid
 from datetime import datetime
@@ -15,11 +16,12 @@ from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 logger = logging.getLogger(__name__)
 
 
+# ============================================
+# HELPER FUNCTIONS
+# ============================================
+
 def get_primary_barcode(product: dict) -> str:
-    """
-    Helper to expose a single primary barcode for UI 
-    (e.g., first barcode in a comma-separated string).
-    """
+    """Helper to expose a single primary barcode for UI (e.g., first barcode in a comma-separated string)."""
     barcodes_str = product.get('barcodes') or product.get('barcode')
     if isinstance(barcodes_str, str) and barcodes_str.strip():
         codes = [b.strip() for b in barcodes_str.split(',') if b.strip()]
@@ -51,7 +53,7 @@ def process_barcodes(product_data: dict) -> str:
     # Return unique, sorted, comma-separated string
     if all_barcodes:
         return ','.join(sorted(list(set(all_barcodes))))
-    return ''
+    return ""
 
 
 # ============================================
@@ -98,7 +100,6 @@ def update_local_products(products_data: List[Dict]) -> bool:
         # Convert from camelCase to snake_case before saving
         snake_case_products = [convert_camel_to_snake(product) for product in products_data]
         save_products_data(snake_case_products)
-        
         logger.info(f"Updated local JSON with {len(products_data)} products.")
         return True
     except Exception as e:
@@ -148,7 +149,6 @@ def insert_product_to_supabase(product_data: dict) -> Optional[dict]:
     try:
         client = db.client
         logger.info(f"Attempting to insert product {product_data['id']} into Supabase...")
-        
         supabase_response = client.table('products').insert(product_data).execute()
         
         if supabase_response.data is None or len(supabase_response.data) == 0:
@@ -167,7 +167,6 @@ def update_product_in_supabase(product_id: str, update_data: dict) -> Optional[d
     try:
         client = db.client
         logger.info(f"Updating product {product_id} in Supabase...")
-        
         supabase_response = client.table('products').update(update_data).eq('id', product_id).execute()
         
         if supabase_response.data is None or len(supabase_response.data) == 0:
@@ -179,6 +178,19 @@ def update_product_in_supabase(product_id: str, update_data: dict) -> Optional[d
     except Exception as e:
         logger.error(f"Error updating product in Supabase: {e}", exc_info=True)
         return None
+
+
+def delete_product_from_supabase(product_id: str) -> bool:
+    """Delete a product from Supabase"""
+    try:
+        client = db.client
+        logger.info(f"Deleting product {product_id} from Supabase...")
+        client.table('products').delete().eq('id', product_id).execute()
+        logger.info(f"Product {product_id} deleted from Supabase.")
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting product from Supabase: {e}", exc_info=True)
+        return False
 
 
 # ============================================
@@ -205,7 +217,7 @@ def get_merged_products() -> Tuple[List[Dict], int]:
             if product.get('id'):
                 products_map[product['id']] = product
         
-        # Add Supabase products (higher priority), overwriting local if IDs match
+        # Add Supabase products (higher priority, overwriting local if IDs match)
         for product in supabase_products:
             if product.get('id'):
                 products_map[product['id']] = product
@@ -213,9 +225,7 @@ def get_merged_products() -> Tuple[List[Dict], int]:
         final_products = list(products_map.values())
         final_products.sort(key=lambda x: x.get('name', ''), reverse=False)
         
-        logger.debug(f"Returning {len(final_products)} total products "
-                    f"(Supabase: {len(supabase_products)}, Local: {len(local_products)})")
-        
+        logger.debug(f"Returning {len(final_products)} total products (Supabase: {len(supabase_products)}, Local: {len(local_products)})")
         return final_products, 200
     except Exception as e:
         logger.error(f"Error getting merged products: {e}", exc_info=True)
@@ -254,7 +264,7 @@ def create_product(product_data: dict) -> Tuple[Optional[str], str, int]:
         product_data.pop('barcodes', None)  # Remove array field
         
         # Handle empty batchId
-        if 'batchid' in product_data and product_data['batchid'] == '':
+        if 'batchid' in product_data and not product_data['batchid']:
             product_data['batchid'] = None
         
         # STEP 1: Insert into Supabase
@@ -269,7 +279,6 @@ def create_product(product_data: dict) -> Tuple[Optional[str], str, int]:
         
         logger.info(f"Product created {product_data['id']} (Supabase + local JSON)")
         return product_data['id'], "Product created", 201
-        
     except Exception as e:
         logger.error(f"Error creating product: {e}", exc_info=True)
         return None, str(e), 500
@@ -313,25 +322,48 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
         # Update timestamp
         update_data['updatedat'] = datetime.now().isoformat()
         
-        # Check for soft deletion
-        is_soft_delete = update_data.get('_deleted') is True
-        
         # STEP 1: Update in local JSON
         products[product_index].update(update_data)
         save_products_data(products)
-        
-        # STEP 2: Update in Supabase
-        update_product_in_supabase(product_id, update_data)
-        
-        if is_soft_delete:
-            logger.info(f"Product {product_id} marked for deletion")
-            return True, "Product marked for deletion", 200
-        else:
-            logger.info(f"Product updated {product_id}")
-            return True, "Product updated", 200
+
+        # STEP 2: Update in Supabase (remove _deleted field if present)
+        update_data_clean = {k: v for k, v in update_data.items() if k != '_deleted'}
+        update_product_in_supabase(product_id, update_data_clean)
+
+        logger.info(f"Product updated {product_id}")
+        return True, "Product updated", 200
             
     except Exception as e:
         logger.error(f"Error updating product: {e}", exc_info=True)
+        return False, str(e), 500
+
+
+def delete_product(product_id: str) -> Tuple[bool, str, int]:
+    """
+    Hard delete a product (permanent removal).
+    Does NOT delete from storeinventory (keeps for historical data).
+    Returns (success, message, status_code)
+    """
+    try:
+        # STEP 1: Delete from local JSON
+        products = get_products_data()
+        product_index = next((i for i, p in enumerate(products) if p.get('id') == product_id), -1)
+        
+        if product_index == -1:
+            return False, "Product not found", 404
+        
+        # Remove from local JSON
+        deleted_product = products.pop(product_index)
+        save_products_data(products)
+        
+        # STEP 2: Delete from Supabase
+        delete_product_from_supabase(product_id)
+        
+        logger.info(f"Product hard deleted: {product_id} ({deleted_product.get('name')})")
+        return True, "Product deleted successfully", 200
+        
+    except Exception as e:
+        logger.error(f"Error deleting product: {e}", exc_info=True)
         return False, str(e), 500
 
 
@@ -342,10 +374,8 @@ def get_product_availability(product_id: str) -> Tuple[Optional[List[Dict]], int
     """
     try:
         from utils.json_helpers import get_store_inventory_data
-        
         inventory = get_store_inventory_data()
-        product_availability = [inv for inv in inventory if inv.get('product_id') == product_id]
-        
+        product_availability = [inv for inv in inventory if inv.get('productid') == product_id]
         return product_availability, 200
     except Exception as e:
         logger.error(f"Error fetching product availability: {e}", exc_info=True)

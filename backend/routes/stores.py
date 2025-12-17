@@ -12,11 +12,12 @@ logger = logging.getLogger(__name__)
 # Create Blueprint
 stores_bp = Blueprint('stores', __name__, url_prefix='/api')
 
+
 # ============================================
-# SUPABASE STORES ENDPOINTS
+# DIRECT SUPABASE/LOCAL ROUTES (FOR DEBUGGING)
 # ============================================
 
-@stores_bp.route("/supabase/stores", methods=["GET"])
+@stores_bp.route('/supabase/stores', methods=['GET'])
 def get_supabase_stores():
     """Get stores directly from Supabase"""
     try:
@@ -25,11 +26,8 @@ def get_supabase_stores():
         return jsonify(stores), 200
     except Exception as e:
         logger.error(f"Error in get_supabase_stores: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
-# ============================================
-# LOCAL STORES ENDPOINTS (FOR DEBUGGING)
-# ============================================
 
 @stores_bp.route('/stores/local', methods=['GET'])
 def get_local_stores_only():
@@ -37,53 +35,47 @@ def get_local_stores_only():
     try:
         stores = stores_service.get_local_stores()
         logger.debug(f"Returning {len(stores)} stores from local storage.")
-        return jsonify({"count": len(stores), "stores": stores}), 200
+        return jsonify({'count': len(stores), 'stores': stores}), 200
     except Exception as e:
         logger.error(f"Error in get_local_stores_only: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
-# ============================================
-# SYNC ENDPOINT
-# ============================================
 
 @stores_bp.route('/stores/sync', methods=['POST'])
 def sync_stores():
     """Sync local storage from Supabase"""
     try:
         success, message, status_code = stores_service.sync_local_from_supabase()
-        
         if success:
-            return jsonify({"message": message}), status_code
+            return jsonify({'message': message}), status_code
         else:
-            return jsonify({"error": message}), status_code
-            
+            return jsonify({'error': message}), status_code
     except Exception as e:
         logger.error(f"Error in sync_stores: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+
 
 # ============================================
-# MERGED STORES ENDPOINTS
+# MAIN STORES ROUTES
 # ============================================
 
 @stores_bp.route('/stores', methods=['GET'])
 def get_stores():
-    """Get stores by merging local and Supabase (Supabase takes precedence)"""
+    """Get all stores with inventory statistics (merged from local and Supabase)"""
     try:
-        stores, status_code = stores_service.get_merged_stores()
+        stores, status_code = stores_service.get_all_stores_with_inventory()
+        
         if status_code == 200:
             return jsonify(stores), 200
         else:
             return jsonify({
-                "error": "Internal server error",
-                "details": "Failed to fetch stores"
+                'error': 'Internal server error',
+                'details': 'Failed to fetch stores'
             }), status_code
     except Exception as e:
         logger.error(f"Error in get_stores: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error", "details": str(e)}), 500
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
 
-# ============================================
-# CREATE, UPDATE & DELETE STORES
-# ============================================
 
 @stores_bp.route('/stores', methods=['POST'])
 def create_store():
@@ -100,33 +92,33 @@ def create_store():
             except ImportError:
                 logger.warning("Sync manager not available, skipping sync log")
             
-            return jsonify({"message": message, "id": store_id}), 201
+            return jsonify({'message': message, 'id': store_id}), 201
         else:
-            return jsonify({"error": message}), status_code
-            
+            return jsonify({'error': message}), status_code
     except Exception as e:
         logger.error(f"Error in create_store: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+
 
 @stores_bp.route('/stores/<store_id>', methods=['GET'])
 def get_store(store_id):
     """Get single store"""
     try:
-        stores, status_code = stores_service.get_merged_stores()
+        stores, status_code = stores_service.get_all_stores_with_inventory()
         
         if status_code != 200:
-            return jsonify({"error": "Failed to fetch stores"}), status_code
+            return jsonify({'error': 'Failed to fetch stores'}), status_code
         
         store = next((s for s in stores if s.get('id') == store_id), None)
         
         if store:
             return jsonify(store), 200
         else:
-            return jsonify({"error": "Store not found"}), 404
-            
+            return jsonify({'error': 'Store not found'}), 404
     except Exception as e:
         logger.error(f"Error in get_store: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+
 
 @stores_bp.route('/stores/<store_id>', methods=['PUT'])
 def update_store(store_id):
@@ -143,13 +135,13 @@ def update_store(store_id):
             except ImportError:
                 logger.warning("Sync manager not available, skipping sync log")
             
-            return jsonify({"message": message, "id": store_id}), status_code
+            return jsonify({'message': message, 'id': store_id}), status_code
         else:
-            return jsonify({"error": message}), status_code
-            
+            return jsonify({'error': message}), status_code
     except Exception as e:
         logger.error(f"Error in update_store: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+
 
 @stores_bp.route('/stores/<store_id>', methods=['DELETE'])
 def delete_store(store_id):
@@ -165,16 +157,16 @@ def delete_store(store_id):
             except ImportError:
                 logger.warning("Sync manager not available, skipping sync log")
             
-            return jsonify({"message": message}), status_code
+            return jsonify({'message': message}), status_code
         else:
-            return jsonify({"error": message}), status_code
-            
+            return jsonify({'error': message}), status_code
     except Exception as e:
         logger.error(f"Error in delete_store: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+
 
 # ============================================
-# INVENTORY ENDPOINTS
+# INVENTORY ROUTES
 # ============================================
 
 @stores_bp.route('/stores/<store_id>/inventory', methods=['GET'])
@@ -186,11 +178,11 @@ def get_store_inventory(store_id):
         if status_code == 200:
             return jsonify(inventory), 200
         else:
-            return jsonify({"error": "Failed to fetch inventory"}), status_code
-            
+            return jsonify({'error': 'Failed to fetch inventory'}), status_code
     except Exception as e:
         logger.error(f"Error in get_store_inventory: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+
 
 @stores_bp.route('/stores/<store_id>/assign-products', methods=['POST'])
 def assign_products_to_store(store_id):
@@ -200,32 +192,32 @@ def assign_products_to_store(store_id):
         success, message, status_code = stores_service.assign_products_to_store(store_id, products)
         
         if success:
-            return jsonify({"message": message}), status_code
+            return jsonify({'message': message}), status_code
         else:
-            return jsonify({"error": message}), status_code
-            
+            return jsonify({'error': message}), status_code
     except Exception as e:
         logger.error(f"Error in assign_products_to_store: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+
 
 @stores_bp.route('/inventory/assign', methods=['POST'])
 def assign_inventory():
     """Assign inventory (alternative endpoint)"""
     try:
         data = request.json
-        store_id = data.get('storeId') or data.get('store_id')
+        store_id = data.get('storeId') or data.get('storeid')
         products = data.get('products', [])
         
         success, message, status_code = stores_service.assign_products_to_store(store_id, products)
         
         if success:
-            return jsonify({"message": message}), status_code
+            return jsonify({'message': message}), status_code
         else:
-            return jsonify({"error": message}), status_code
-            
+            return jsonify({'error': message}), status_code
     except Exception as e:
         logger.error(f"Error in assign_inventory: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+
 
 @stores_bp.route('/inventory/<inventory_id>/adjust', methods=['PATCH'])
 def adjust_inventory(inventory_id):
@@ -235,17 +227,13 @@ def adjust_inventory(inventory_id):
         success, message, status_code = stores_service.adjust_inventory(inventory_id, adjustment)
         
         if success:
-            return jsonify({"message": message}), status_code
+            return jsonify({'message': message}), status_code
         else:
-            return jsonify({"error": message}), status_code
-            
+            return jsonify({'error': message}), status_code
     except Exception as e:
         logger.error(f"Error in adjust_inventory: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
-# ============================================
-# ADDITIONAL INVENTORY ENDPOINTS
-# ============================================
 
 @stores_bp.route('/stores/<store_id>/assigned-products', methods=['GET'])
 def get_assigned_products(store_id):
@@ -256,42 +244,62 @@ def get_assigned_products(store_id):
         if status_code == 200:
             return jsonify(inventory), 200
         else:
-            return jsonify({"error": "Failed to fetch assigned products"}), status_code
-            
+            return jsonify({'error': 'Failed to fetch assigned products'}), status_code
     except Exception as e:
         logger.error(f"Error in get_assigned_products: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+
 
 @stores_bp.route('/stores/<store_id>/inventory-calendar', methods=['GET'])
 def get_inventory_calendar(store_id):
     """Get inventory calendar for a store"""
     try:
-        # This would return inventory grouped by date
-        # For now, return basic inventory
-        inventory, status_code = stores_service.get_store_inventory(store_id)
+        days = request.args.get('days', 90, type=int)
+        
+        calendar, status_code = stores_service.get_store_inventory_calendar(store_id, days)
         
         if status_code == 200:
-            return jsonify({"inventory": inventory}), 200
+            return jsonify({
+                'success': True,
+                'calendar': calendar
+            }), 200
         else:
-            return jsonify({"error": "Failed to fetch inventory calendar"}), status_code
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch inventory calendar',
+                'calendar': []
+            }), status_code
             
     except Exception as e:
         logger.error(f"Error in get_inventory_calendar: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'calendar': []
+        }), 500
+
 
 @stores_bp.route('/stores/<store_id>/inventory-by-date/<date_str>', methods=['GET'])
 def get_inventory_by_date(store_id, date_str):
     """Get inventory by date"""
     try:
-        # This would filter inventory by date
-        # For now, return all inventory
-        inventory, status_code = stores_service.get_store_inventory(store_id)
+        result, status_code = stores_service.get_store_inventory_by_date(store_id, date_str)
         
         if status_code == 200:
-            return jsonify(inventory), 200
+            return jsonify(result), 200
         else:
-            return jsonify({"error": "Failed to fetch inventory"}), status_code
+            return jsonify({
+                'rows': [],
+                'totalStock': 0,
+                'totalValue': 0,
+                'error': 'Failed to fetch inventory'
+            }), status_code
             
     except Exception as e:
         logger.error(f"Error in get_inventory_by_date: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            'rows': [],
+            'totalStock': 0,
+            'totalValue': 0,
+            'error': str(e)
+        }), 500

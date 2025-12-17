@@ -40,7 +40,7 @@ interface AdminUser {
   role: "super_admin" | "billing_user" | "temporary_user"
   assignedStores?: string[]
   sessionDuration?: number // hours for temporary users
-  createdAt: string
+  createdat: string
   updatedAt: string
   status: "active" | "inactive"
 }
@@ -291,23 +291,44 @@ const handleOpenEditDialog = (user: AdminUser) => {
     status: user.status,
     password: user.password,
   });
-  console.log("All available stores (for context):", stores.map(s => ({ id: s.id, name: s.name, status: s.status })));
+  console.log("All available stores for context:", stores.map(s => ({ id: s.id, name: s.name, status: s.status })));
 
   setFormData((prevFormData) => {
+    // Ensure assignedStores is always an array
+    let assignedStoresArray: string[] = [];
+    
+    if (user.assignedStores) {
+      if (Array.isArray(user.assignedStores)) {
+        assignedStoresArray = user.assignedStores;
+      } else if (typeof user.assignedStores === 'string') {
+        // If it's a string, split by comma or keep as single item
+        const storeString = user.assignedStores as string;
+        assignedStoresArray = storeString.includes(',') 
+          ? storeString.split(',').map((s: string) => s.trim())
+          : [storeString];
+      }
+    }
+    
     const newFormData = {
       ...prevFormData,
       name: user.name,
       email: user.email,
-      password: user.password || '', // ✅ FIXED: Show existing password
+      password: user.password || "", // FIXED: Show existing password
       role: user.role,
-      assignedStores: user.assignedStores || [], // ✅ FIXED: Ensure it's an array
+      assignedStores: assignedStoresArray, // FIXED: Ensure it's always an array
       sessionDuration: user.sessionDuration || 24,
       status: user.status,
     };
+    
     console.log("FormData after setting:", newFormData);
+    console.log("AssignedStores type:", typeof newFormData.assignedStores, "Is array:", Array.isArray(newFormData.assignedStores));
+    console.log("AssignedStores value:", newFormData.assignedStores);
+    
     return newFormData;
   });
 };
+
+
 
   const toggleStoreAssignment = (storeId: string) => {
     setFormData((prev) => ({
@@ -671,7 +692,7 @@ const handleOpenEditDialog = (user: AdminUser) => {
                           )}
                         </td>
                         <td className="p-4">
-                          <span className="text-sm text-gray-500">{new Date(user.createdAt).toLocaleDateString()}</span>
+                          <span className="text-sm text-gray-500">{new Date(user.createdat).toLocaleDateString()}</span>
                         </td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">

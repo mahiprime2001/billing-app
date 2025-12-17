@@ -1,15 +1,15 @@
- export interface Product {
+export interface Product {
   id: string;
   name: string;
   price: number;
   barcode?: string; // String for backend storage, comma-separated
   stock: number;
   sellingPrice?: number;
-  batchId?: string; // NEW
+  batchid?: string; // Changed from batchId to match database
   createdAt: string;
   updatedAt: string;
-  _deleted?: boolean; // Soft delete flag for products
 }
+
 
 export interface StoreInventory {
   id: string;
@@ -20,13 +20,15 @@ export interface StoreInventory {
   updatedAt: string;
 }
 
+
 export interface Batch {
   id: string;
-  batchnumber: string; // Corrected to lowercase 'n' to match backend
+  batchNumber: string; // Corrected to lowercase 'n' to match backend
   place: string;
   createdAt?: string; // Added createdAt to Batch interface
   updatedAt?: string; // Added updatedAt to Batch interface
 }
+
 
 export interface BillItem {
   id: string;
@@ -39,6 +41,7 @@ export interface BillItem {
   gstRate: number;
   barcodes: string;
 }
+
 
 export interface Bill {
   id: string;

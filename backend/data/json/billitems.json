@@ -1,1 +1,62 @@
-[]
+[
+  {
+    "id": 1,
+    "billid": "BILL-635ec1f2ef9f",
+    "productid": "8585f16f-d4c0-4221-b892-701a01b8f023",
+    "quantity": 5,
+    "price": 900.0,
+    "total": 4500.0,
+    "created_at": "2025-12-11T07:28:10.081321",
+    "updated_at": "2025-12-11T07:28:10.081321"
+  },
+  {
+    "id": 2,
+    "billid": "BILL-683348569e6b",
+    "productid": "8585f16f-d4c0-4221-b892-701a01b8f023",
+    "quantity": 5,
+    "price": 900.0,
+    "total": 4500.0,
+    "created_at": "2025-12-11T08:42:39.656979",
+    "updated_at": "2025-12-11T08:42:39.656979"
+  },
+  {
+    "id": 3,
+    "billid": "BILL-dceaac4c52fb",
+    "productid": "8585f16f-d4c0-4221-b892-701a01b8f023",
+    "quantity": 7,
+    "price": 900.0,
+    "total": 6300.0,
+    "created_at": "2025-12-11T08:57:46.089507",
+    "updated_at": "2025-12-11T08:57:46.089507"
+  },
+  {
+    "id": 4,
+    "billid": "BILL-6e0a21838bb5",
+    "productid": "8585f16f-d4c0-4221-b892-701a01b8f023",
+    "quantity": 1,
+    "price": 900.0,
+    "total": 900.0,
+    "created_at": "2025-12-11T18:23:51.076593",
+    "updated_at": "2025-12-11T18:23:51.076593"
+  },
+  {
+    "id": 5,
+    "billid": "BILL-b1edb09c9b0d",
+    "productid": "8585f16f-d4c0-4221-b892-701a01b8f023",
+    "quantity": 1,
+    "price": 900.0,
+    "total": 900.0,
+    "created_at": "2025-12-11T18:39:25.324443",
+    "updated_at": "2025-12-11T18:39:25.324443"
+  },
+  {
+    "id": 6,
+    "billid": "BILL-694030707ddf",
+    "productid": "8585f16f-d4c0-4221-b892-701a01b8f023",
+    "quantity": 1,
+    "price": 900.0,
+    "total": 900.0,
+    "created_at": "2025-12-12T15:52:34.055372",
+    "updated_at": "2025-12-12T15:52:34.055372"
+  }
+]

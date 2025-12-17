@@ -114,31 +114,50 @@ export default function ProductsPage() {
 
   // Normalize data on fetch to create a 'barcodes' array from the 'barcode' string for UI
   const products: Product[] = useMemo(() => {
-    if (!productsData || productsData.length === 0) return [];
+  if (!productsData || productsData.length === 0) return [];
 
-    return productsData
-      .map(p => ({
-        ...p,
-        barcodes: typeof p.barcode === 'string' && p.barcode.trim() !== ''
-          ? p.barcode.split(',')
-          : [],
-        price: typeof p.price === 'number' ? p.price : Number((p as any).price ?? 0),
-        displayPrice: (p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).price ?? 0,
-      }))
-      .filter(p => !(p as any)._deleted); // Re-added: Filter out _deleted products
-  }, [productsData]);
+  return productsData
+    .map(p => ({
+      ...p,
+      barcodes: typeof p.barcode === 'string' && p.barcode.trim() !== ''
+        ? p.barcode.split(',')
+        : [],
+      price: typeof p.price === 'number' ? p.price : Number((p as any).price ?? 0),
+      displayPrice: (p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).price ?? 0,
+      // ✅ NEW: Normalize createdAt to handle both camelCase and lowercase from database
+      createdAt: p.createdAt || (p as any).createdat || (p as any).created_at,
+    }))
+    .filter(p => !(p as any)._deleted);
+}, [productsData]);
+
 
   // Debugging logs for SWR data
+    // Debugging logs for SWR data
   useEffect(() => {
-    console.log("SWR Products Data:", products);
+    console.log("=== SWR Data Debug ===");
+    console.log("Products Data:", products);
+    console.log("Products Count:", products.length);
     if (productsError) {
       console.error("SWR Products Error:", productsError);
     }
-    console.log("SWR Batches Data:", batches);
+    console.log("Batches Data:", batches);
+    console.log("Batches Count:", batches.length);
+    console.log("Batches:", JSON.stringify(batches, null, 2));
     if (batchesError) {
       console.error("SWR Batches Error:", batchesError);
     }
+    
+    // Test batch lookup
+    if (products.length > 0 && batches.length > 0) {
+      const firstProduct = products[0];
+      console.log("First Product:", firstProduct);
+      console.log("First Product batchid:", firstProduct.batchid);
+      const foundBatch = batches.find(batch => batch.id === firstProduct.batchid);
+      console.log("Found Batch for first product:", foundBatch);
+    }
+    console.log("======================");
   }, [products, productsError, batches, batchesError]);
+
   const scrollableDivRef = useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [assignedStores, setAssignedStores] = useState<SystemStore[]>([])
@@ -164,7 +183,7 @@ export default function ProductsPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isByDateDialogOpen, setIsByDateDialogOpen] = useState(false);
   const [isBatchInputOpen, setIsBatchInputOpen] = useState(false);
-  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+  const [selectedbatchid, setSelectedbatchid] = useState<string | null>(null);
   const [batchesForSelectedDate, setBatchesForSelectedDate] = useState<Batch[]>([]);
   const [unbatchedProductsForSelectedDate, setUnbatchedProductsForSelectedDate] = useState<Product[]>([]); // NEW STATE
   const [isBatchesForDayDialogOpen, setIsBatchesForDayDialogOpen] = useState(false);
@@ -183,11 +202,11 @@ export default function ProductsPage() {
     const dateKey = toKey(date);
     const productsOnDate = productsByDate[dateKey] || [];
 
-    const batchedProductsOnDate = productsOnDate.filter(p => p.batchId);
-    const currentUnbatchedProductsOnDate = productsOnDate.filter(p => !p.batchId);
+    const batchedProductsOnDate = productsOnDate.filter(p => p.batchid);
+    const currentUnbatchedProductsOnDate = productsOnDate.filter(p => !p.batchid);
 
-    const batchIdsOnDate = [...new Set(batchedProductsOnDate.map(p => p.batchId).filter(Boolean))];
-    const filteredBatches = batches.filter(batch => batchIdsOnDate.includes(batch.id));
+    const batchidsOnDate = [...new Set(batchedProductsOnDate.map(p => p.batchid).filter(Boolean))];
+    const filteredBatches = batches.filter(batch => batchidsOnDate.includes(batch.id));
 
     setBatchesForSelectedDate(filteredBatches);
     setUnbatchedProductsForSelectedDate(currentUnbatchedProductsOnDate); // Set unbatched products state
@@ -220,7 +239,7 @@ export default function ProductsPage() {
     stock: "",
     sellingPrice: "",
     barcodes: [""], // Initialize with one empty barcode field
-    batchId: "",
+    batchid: "",
   });
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
 
@@ -250,7 +269,7 @@ export default function ProductsPage() {
       stock: "",
       sellingPrice: "",
       barcodes: [""], // Reset to one empty barcode field
-      batchId: "",
+      batchid: "",
     })
   }
 
@@ -320,7 +339,7 @@ export default function ProductsPage() {
       stock: Number.parseInt(formData.stock),
       sellingPrice: Number.parseFloat(formData.sellingPrice),
       barcode: validBarcodes.join(","), // Join array into a comma-separated string for 'barcode' field
-      batchId: formData.batchId,
+      batchid: formData.batchid,
     };
 
     try {
@@ -374,7 +393,7 @@ export default function ProductsPage() {
       stock: Number.parseInt(formData.stock),
       sellingPrice: Number.parseFloat(formData.sellingPrice),
       barcode: validBarcodes.join(","), // Join array into a comma-separated string for 'barcode' field
-      batchId: formData.batchId === "" ? undefined : formData.batchId, // Send undefined if batchId is empty
+      batchid: formData.batchid === "" ? undefined : formData.batchid, // Send undefined if batchid is empty
     };
 
     try {
@@ -400,34 +419,33 @@ export default function ProductsPage() {
 
 const handleDeleteProduct = async (productId: string) => {
   // Optimistic update - remove from UI immediately
-  mutate(
-    productsData.filter((p) => p.id !== productId),
-    false
-  );
+  mutate(productsData.filter((p) => p.id !== productId), false);
 
   try {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`,
       {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _deleted: true }), // Use _deleted instead of deleted
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
       }
     );
 
     if (!response.ok) {
-      throw new Error("Failed to mark product for deletion");
+      throw new Error("Failed to delete product");
     }
 
     // Force revalidation after successful delete
     await mutate();
   } catch (error) {
-    console.error("Error marking product for deletion:", error);
-    alert("Failed to mark product for deletion.");
+    console.error("Error deleting product:", error);
+    alert("Failed to delete product.");
     // Revert optimistic update on error
     mutate();
   }
 };
+
 
   const openEditDialog = (product: Product) => {
     setEditingProduct(product)
@@ -439,7 +457,7 @@ const handleDeleteProduct = async (productId: string) => {
       barcodes: typeof product.barcode === 'string' && product.barcode.trim() !== ''
         ? product.barcode.split(',')
         : [""], // Initialize with existing barcode string parsed to array, or one empty field
-      batchId: product.batchId || "",
+      batchid: product.batchid || "",
     })
     setIsEditDialogOpen(true)
   }
@@ -546,7 +564,7 @@ const handleDeleteProduct = async (productId: string) => {
     const matchesPrice = productPrice >= priceMin && productPrice <= priceMax;
 
     // NEW: Batch filter
-    const matchesBatch = batchFilter === "all" || product.batchId === batchFilter;
+    const matchesBatch = batchFilter === "all" || product.batchid === batchFilter;
 
     // NEW: Selling Price range filter
     const sellingPriceMin = sellingPriceRange.min ? parseFloat(sellingPriceRange.min) : 0;
@@ -632,16 +650,29 @@ const handleDeleteProduct = async (productId: string) => {
   };
 
   const productsByDate = useMemo(() => {
-    const map: Record<string, (Product & { createdAt?: string })[]> = {}; // Use local Product interface
-    for (const p of products) { // Use 'products' (which has barcodes) directly
-      if (!p?.createdAt) continue;
-      const d = new Date(p.createdAt);
-      if (Number.isNaN(d.getTime())) continue;
-      const key = d.toISOString().slice(0, 10);
-      (map[key] ||= []).push(p);
+  const map: Record<string, Product[]> = {};
+  for (const p of products) {
+    // ✅ NEW: Check both createdAt (camelCase) and createdat (lowercase) from database
+    const createdAtValue = p?.createdAt || (p as any)?.createdat;
+    
+    if (!createdAtValue) {
+      console.log('Product missing createdAt:', p);
+      continue;
     }
-    return map;
-  }, [products]); // Depend on 'products' (the extended type)
+    
+    const d = new Date(createdAtValue);
+    if (Number.isNaN(d.getTime())) {
+      console.log('Invalid date for product:', p, 'createdAt:', createdAtValue);
+      continue;
+    }
+    
+    const key = d.toISOString().slice(0, 10);
+    map[key] = [...(map[key] || []), p];
+  }
+  console.log('Final productsByDate map:', map);
+  return map;
+}, [products]);
+
 
   const dateCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -657,7 +688,7 @@ const handleDeleteProduct = async (productId: string) => {
 
     const rows = list
       .map((p) => {
-        const productBatch = batches.find(batch => batch.id === p.batchId);
+        const productBatch = batches.find(batch => batch.id === p.batchid);
         const stock = (p as any).stock ?? 0;
         const price = Number((p as any).price ?? 0);
         const value = stock * price;
@@ -673,7 +704,7 @@ const handleDeleteProduct = async (productId: string) => {
         <tr>
           <td style="padding:6px;border:1px solid #ddd;">${allBarcodes}</td>
           <td style="padding:6px;border:1px solid #ddd;">${p.name}</td>
-          <td style="padding:6px;border:1px solid #ddd;">${productBatch?.batchnumber || "N/A"} (${productBatch?.place || "N/A"})</td>
+          <td style="padding:6px;border:1px solid #ddd;">${productBatch?.batchNumber || "N/A"} (${productBatch?.place || "N/A"})</td>
           <td style="padding:6px;border:1px solid #ddd; text-align:right;">${stock}</td>
           <td style="padding:6px;border:1px solid #ddd; text-align:right;">₹${price.toFixed(2)}</td>
           <td style="padding:6px;border:1px solid #ddd; text-align:right;">₹${value.toFixed(2)}</td>
@@ -892,10 +923,10 @@ const handleDeleteProduct = async (productId: string) => {
                 setIsAddDialogOpen(open);
                 if (!open) {
                   resetForm();
-                  setSelectedBatchId(null); // Reset selected batch when dialog closes
+                  setSelectedbatchid(null); // Reset selected batch when dialog closes
                 } else {
                   resetForm(); // Reset form when dialog opens
-                  setSelectedBatchId(null); // Reset selected batch when dialog opens
+                  setSelectedbatchid(null); // Reset selected batch when dialog opens
                 }
               }}
             >
@@ -979,9 +1010,9 @@ const handleDeleteProduct = async (productId: string) => {
                   <div className="space-y-2">
                     <Label htmlFor="batch">Batch (Optional)</Label>
                     <Select
-                      value={formData.batchId || ""}
+                      value={formData.batchid || ""}
                       onValueChange={(value) => {
-                        setFormData({ ...formData, batchId: value === "no-batch-selected" ? "" : value });
+                        setFormData({ ...formData, batchid: value === "no-batch-selected" ? "" : value });
                       }}
                     >
                       <SelectTrigger id="batch">
@@ -993,7 +1024,7 @@ const handleDeleteProduct = async (productId: string) => {
                           <SelectItem key={`${batch.id}-${index}`} value={batch.id}>
                             <div className="flex flex-col">
                               <span>{batch.place}</span>
-                              <span className="text-xs text-muted-foreground">{batch.batchnumber}</span>
+                              <span className="text-xs text-muted-foreground">{batch.batchNumber}</span>
                             </div>
                           </SelectItem>
                         ))}
@@ -1215,8 +1246,8 @@ const handleDeleteProduct = async (productId: string) => {
                   {filteredProducts.map((product) => {
                     const stockStatus = getStockStatus(product.stock)
                     const StatusIcon = stockStatus.icon
-                    const productBatch = batches.find(batch => batch.id === product.batchId);
-                    // console.log(`Product: ${product.name}, BatchId: ${product.batchId}, ProductBatch:`, productBatch); // Debugging line
+                    const productBatch = batches.find(batch => batch.id === product.batchid);
+                    // console.log(`Product: ${product.name}, batchid: ${product.batchid}, ProductBatch:`, productBatch); // Debugging line
                     return (
                       <tr key={product.id} className="border-b hover:bg-gray-50">
                         <td className="p-4">
@@ -1234,7 +1265,7 @@ const handleDeleteProduct = async (productId: string) => {
                         </td>
                         <td className="p-4">
                           <div>
-                            <div className="font-medium">Batch: {productBatch?.batchnumber || "N/A"}</div>
+                            <div className="font-medium">Batch: {productBatch?.batchNumber || "N/A"}</div>
                             <div className="text-xs text-muted-foreground">Place: {productBatch?.place || "N/A"}</div>
                           </div>
                         </td>
@@ -1388,7 +1419,7 @@ const handleDeleteProduct = async (productId: string) => {
                     <SelectItem value="all">All Batches</SelectItem>
                     {batches.map((batch) => (
                       <SelectItem key={batch.id} value={batch.id}>
-                        {batch.batchnumber} ({batch.place})
+                        {batch.batchNumber} ({batch.place})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1474,7 +1505,7 @@ const handleDeleteProduct = async (productId: string) => {
                   {batchesForSelectedDate.map((batch) => (
                     <Card key={batch.id} className="cursor-pointer hover:bg-gray-50" onClick={() => handleBatchCardClick(batch)}>
                       <CardHeader>
-                        <CardTitle>{batch.batchnumber}</CardTitle>
+                        <CardTitle>{batch.batchNumber}</CardTitle>
                         <CardDescription>{batch.place}</CardDescription>
                       </CardHeader>
                     </Card>
@@ -1499,7 +1530,7 @@ const handleDeleteProduct = async (productId: string) => {
           <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                Products in Batch {selectedBatchForProducts?.batchnumber} on {selectedDate ? selectedDate.toDateString() : ""}
+                Products in Batch {selectedBatchForProducts?.batchNumber} on {selectedDate ? selectedDate.toDateString() : ""}
               </DialogTitle>
               <DialogDescription>
                 Listed by product id, name, stock, and price.
@@ -1511,11 +1542,11 @@ const handleDeleteProduct = async (productId: string) => {
               let totalStock = 0;
               let totalValue = 0;
               const productsForBatchAndDate = (productsByDate[selectedKey] || []).filter(
-                (p) => p.batchId === selectedBatchForProducts?.id
+                (p) => p.batchid === selectedBatchForProducts?.id
               );
 
               const rows = productsForBatchAndDate.map((p) => {
-                const productBatch = batches.find(batch => batch.id === p.batchId);
+                const productBatch = batches.find(batch => batch.id === p.batchid);
                 const stock = Number((p as any).stock) || 0; // Ensure stock is a number, default to 0
                 const price = Number((p as any).price) || 0; // Ensure price is a number, default to 0
                 const value = stock * price;
@@ -1523,20 +1554,33 @@ const handleDeleteProduct = async (productId: string) => {
                 totalStock += stock;
                 totalValue += value;
 
-                const allBarcodes = (p.barcode && p.barcode.trim() !== '')
-                  ? p.barcode.split(',').map(b => `<span style="display:block;">${b}</span>`).join("")
-                  : "N/A";
+                const barcodeArray = (p.barcode && p.barcode.trim() !== '')
+  ? p.barcode.split(',').map(b => b.trim()).filter(b => b !== '')
+  : [];
 
-                return (
-                  <tr key={(p as any).id} className="border-b hover:bg-gray-50">
-                    <td className="p-2">{allBarcodes}</td>
-                    <td className="p-2">{(p as any).name}</td>
-                    <td className="p-2">{productBatch?.batchnumber || "N/A"} ({productBatch?.place || "N/A"})</td>
-                    <td className="p-2 text-right">{stock}</td>
-                    <td className="p-2 text-right">₹{price.toFixed(2)}</td>
-                    <td className="p-2 text-right">₹{value.toFixed(2)}</td>
-                  </tr>
-                );
+return (
+  <tr key={(p as any).id} className="border-b hover:bg-gray-50">
+    <td className="p-2">
+      {barcodeArray.length > 0 ? (
+        <div className="space-y-1">
+          {barcodeArray.map((barcode, idx) => (
+            <div key={idx} className="text-xs bg-gray-100 px-2 py-1 rounded">
+              {barcode}
+            </div>
+          ))}
+        </div>
+      ) : (
+        "N/A"
+      )}
+    </td>
+    <td className="p-2">{(p as any).name}</td>
+    <td className="p-2">{productBatch?.batchNumber || "N/A"} ({productBatch?.place || "N/A"})</td>
+    <td className="p-2 text-right">{stock}</td>
+    <td className="p-2 text-right">₹{price.toFixed(2)}</td>
+    <td className="p-2 text-right">₹{value.toFixed(2)}</td>
+  </tr>
+);
+
               });
 
               return (
@@ -1574,7 +1618,7 @@ const handleDeleteProduct = async (productId: string) => {
                 onClick={() => {
                   if (!selectedDate || !selectedBatchForProducts) return;
                   const productsToPrint = (productsByDate[selectedKey] || []).filter(
-                    (p) => p.batchId === selectedBatchForProducts.id
+                    (p) => p.batchid === selectedBatchForProducts.id
                   );
                   const productIdsToPrint = productsToPrint.map(p => p.id);
                   const htmlContent = generatePrintHtml(
@@ -1615,7 +1659,7 @@ const handleDeleteProduct = async (productId: string) => {
               const productsForCurrentDisplay = productsToDisplayInByDateDialog; // Use the new state variable
 
               const rows = productsForCurrentDisplay.map((p) => {
-                const productBatch = batches.find(batch => batch.id === p.batchId);
+                const productBatch = batches.find(batch => batch.id === p.batchid);
                 const stock = Number((p as any).stock) || 0;
                 const price = Number((p as any).price) || 0;
                 const value = stock * price;
@@ -1623,18 +1667,27 @@ const handleDeleteProduct = async (productId: string) => {
                 totalStock += stock;
                 totalValue += value;
 
-                const allBarcodes = (p.barcode && p.barcode.trim() !== '')
-                  ? p.barcode.split(',').map(b => `<span style="display:block;">${b}</span>`).join("")
-                  : "N/A";
+                const barcodeArray = (p.barcode && p.barcode.trim() !== '')
+                  ? p.barcode.split(',').map(b => b.trim()).filter(b => b !== '')
+                  : [];
 
                 return (
                   <tr key={(p as any).id} className="border-b hover:bg-gray-50">
-                    <td className="p-2">{allBarcodes}</td>
+                    <td className="p-2">
+                      {barcodeArray.length > 0 ? (
+                        <div className="space-y-1">{barcodeArray.map((barcode, idx) => (
+                            <div key={idx} className="text-xs bg-gray-100 px-2 py-1 rounded">{barcode}</div>
+                          ))}
+                        </div>
+                      ) : (
+                        "N/A"
+                      )}
+                    </td>
                     <td className="p-2">{(p as any).name}</td>
-                    <td className="p-2">{productBatch?.batchnumber || "N/A"} ({productBatch?.place || "N/A"})</td>
+                    <td className="p-2">{productBatch?.batchNumber || "N/A"} ({productBatch?.place || "N/A"})</td>
                     <td className="p-2 text-right">{stock}</td>
-<td className="p-2 text-right">₹{price.toFixed(2)}</td>
-<td className="p-2 text-right">₹{value.toFixed(2)}</td>
+                    <td className="p-2 text-right">₹{price.toFixed(2)}</td>
+                    <td className="p-2 text-right">₹{value.toFixed(2)}</td>
                   </tr>
                 );
               });
@@ -1712,7 +1765,7 @@ const handleDeleteProduct = async (productId: string) => {
             if (!open) {
               resetForm();
               setEditingProduct(null);
-              setSelectedBatchId(null); // Reset selected batch when edit dialog closes
+              setSelectedbatchid(null); // Reset selected batch when edit dialog closes
             }
           }}
         >
@@ -1788,9 +1841,9 @@ const handleDeleteProduct = async (productId: string) => {
               <div className="space-y-2">
                 <Label htmlFor="edit-batch">Batch (Optional)</Label>
                 <Select
-                  value={formData.batchId || ""}
+                  value={formData.batchid || ""}
                       onValueChange={(value) => {
-                        setFormData({ ...formData, batchId: value === "no-batch-selected" ? "" : value });
+                        setFormData({ ...formData, batchid: value === "no-batch-selected" ? "" : value });
                       }}
                 >
                   <SelectTrigger id="edit-batch">
@@ -1802,7 +1855,7 @@ const handleDeleteProduct = async (productId: string) => {
                       <SelectItem key={`${batch.id}-${index}`} value={batch.id}>
                         <div className="flex flex-col">
                           <span>{batch.place}</span>
-                          <span className="text-xs text-muted-foreground">{batch.batchnumber}</span>
+                          <span className="text-xs text-muted-foreground">{batch.batchNumber}</span>
                         </div>
                       </SelectItem>
                     ))}

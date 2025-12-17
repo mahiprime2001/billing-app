@@ -66,6 +66,8 @@ interface StoreType {
   totalRevenue: number
   totalBills: number
   lastBillDate: string
+  productCount?: number;  // NEW
+  totalStock?: number;    // NEW
 }
 
 type DateCard = {
@@ -242,32 +244,37 @@ function MiniCalendar({
 }
 
 // Store Insight Modal Component
+// Store Insight Modal Component
 function StoreInsightModal({
   open,
   onClose,
   store,
 }: {
-  open: boolean
-  onClose: () => void
-  store: StoreType | null
+  open: boolean;
+  onClose: () => void;
+  store: StoreType | null;
 }) {
-  const [days, setDays] = useState(90) // Increased to 90 days for better calendar view
-  const [dates, setDates] = useState<DateCard[]>([])
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [rows, setRows] = useState<Row[]>([])
-  const [totals, setTotals] = useState<{ totalStock: number; totalValue: number }>({
-    totalStock: 0,
-    totalValue: 0,
-  })
+  const [days, setDays] = useState(90); // Increased to 90 days for better calendar view
+  const [dates, setDates] = useState<DateCard[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [totals, setTotals] = useState<{
+    totalStock: number;
+    totalValue: number;
+  }>({ totalStock: 0, totalValue: 0 });
+  const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
+  // Fetch calendar data when modal opens
   useEffect(() => {
     if (!open || !store) return;
-    
+
+    setIsLoadingCalendar(true);
     fetch(`${API}/api/stores/${store.id}/inventory-calendar?days=${days}`)
       .then((r) => r.json())
       .then((j) => {
-        console.log("Calendar API response:", j); // Add this debug line
-        if (j.success && j.calendar) {
+        console.log("Calendar API response:", j); // Debug line
+        if (j.success && Array.isArray(j.calendar)) {
           setDates(j.calendar);
         } else {
           console.error("Invalid calendar response:", j);
@@ -277,29 +284,48 @@ function StoreInsightModal({
       .catch((err) => {
         console.error("Calendar fetch error:", err);
         setDates([]);
+      })
+      .finally(() => {
+        setIsLoadingCalendar(false);
       });
   }, [open, store, days]);
 
+  // Fetch details for selected date
   useEffect(() => {
-    if (!open || !store || !selectedDate) return
+    if (!open || !store || !selectedDate) return;
+
+    setIsLoadingDetails(true);
     fetch(`${API}/api/stores/${store.id}/inventory-by-date/${selectedDate}`)
       .then((r) => r.json())
       .then((j) => {
-        setRows(j.rows || [])
-        setTotals({ totalStock: j.totalStock || 0, totalValue: j.totalValue || 0 })
+        if (j.rows && Array.isArray(j.rows)) {
+          setRows(j.rows);
+          setTotals({
+            totalStock: j.totalStock || 0,
+            totalValue: j.totalValue || 0,
+          });
+        } else {
+          console.error("Invalid inventory-by-date response:", j);
+          setRows([]);
+          setTotals({ totalStock: 0, totalValue: 0 });
+        }
       })
-      .catch(() => {
-        setRows([])
-        setTotals({ totalStock: 0, totalValue: 0 })
+      .catch((err) => {
+        console.error("Inventory by date fetch error:", err);
+        setRows([]);
+        setTotals({ totalStock: 0, totalValue: 0 });
       })
-  }, [open, store, selectedDate])
+      .finally(() => {
+        setIsLoadingDetails(false);
+      });
+  }, [open, store, selectedDate]);
 
   const handlePrint = async () => {
-    const src = document.getElementById("printable-table")?.outerHTML || ""
+    const src = document.getElementById("printable-table")?.outerHTML;
     const htmlContent = `
       <html>
         <head>
-          <title>Store Inventory — ${store?.name || ""}</title>
+          <title>Store Inventory - ${store?.name}</title>
           <style>
             body{font-family:Inter,system-ui,Arial;padding:12px}
             .print-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid #eee}
@@ -316,35 +342,43 @@ function StoreInsightModal({
         <body>
           <div class="print-header">
             <div class="print-header-left">
-              <h1>${store?.name || "Store Inventory"}</h1>
-              ${store?.address ? `<p class="address">${store.address}</p>` : ''}
+              <h1>${store?.name} - Store Inventory</h1>
+              ${store?.address ? `<p class="address">${store.address}</p>` : ""}
             </div>
-            <p>${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+            <p>${new Date().toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            })}</p>
           </div>
           ${src}
         </body>
       </html>
     `;
-    await unifiedPrint({ htmlContent });
-  }
 
-  if (!open || !store) return null
+    await unifiedPrint({htmlContent: htmlContent,
+  isThermalPrinter: false,
+  useBackendPrint: false});
+  };
+
+  if (!open || !store) return null;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
-        {/* Header: Store details */}
+        {/* Header - Store details */}
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="text-lg font-semibold flex items-center">
             <Building className="h-5 w-5 mr-2 text-blue-600" />
             {store.name} - Inventory Overview
           </DialogTitle>
           <DialogDescription>
-            <span>{store.address || "No address"}</span> • <span>{store.phone || "No phone"}</span>
+            <span>{store.address || "No address"}</span> •{" "}
+            <span>{store.phone || "No phone"}</span>
           </DialogDescription>
         </DialogHeader>
 
-        {/* Body: Calendar + Selected Date Details */}
+        {/* Body - Calendar & Selected Date Details */}
         <div className="flex-1 overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
             {/* Left Side - Calendar */}
@@ -358,13 +392,21 @@ function StoreInsightModal({
                   {dates.length} days with inventory
                 </Badge>
               </div>
-              
-              <MiniCalendar
-                dates={dates}
-                selectedDate={selectedDate}
-                onDateSelect={setSelectedDate}
-              />
-              
+
+              {isLoadingCalendar ? (
+                <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-gray-500 text-sm">Loading calendar...</p>
+                  </div>
+                </div>
+              ) : (
+                <MiniCalendar
+                  dates={dates}
+                  selectedDate={selectedDate}
+                  onDateSelect={setSelectedDate}
+                />
+              )}
+
               {/* Quick Stats */}
               {selectedDate && (
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
@@ -374,15 +416,25 @@ function StoreInsightModal({
                   <div className="grid grid-cols-3 gap-3 text-xs">
                     <div>
                       <div className="text-blue-600 font-medium">Products</div>
-                      <div className="text-blue-800 font-semibold">{rows.length}</div>
+                      <div className="text-blue-800 font-semibold">
+                        {rows.length}
+                      </div>
                     </div>
                     <div>
-                      <div className="text-blue-600 font-medium">Total Stock</div>
-                      <div className="text-blue-800 font-semibold">{totals.totalStock}</div>
+                      <div className="text-blue-600 font-medium">
+                        Total Stock
+                      </div>
+                      <div className="text-blue-800 font-semibold">
+                        {totals.totalStock}
+                      </div>
                     </div>
                     <div>
-                      <div className="text-blue-600 font-medium">Total Value</div>
-                      <div className="text-blue-800 font-semibold">₹{totals.totalValue.toFixed(2)}</div>
+                      <div className="text-blue-600 font-medium">
+                        Total Value
+                      </div>
+                      <div className="text-blue-800 font-semibold">
+                        ₹{totals.totalValue.toFixed(2)}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -393,7 +445,7 @@ function StoreInsightModal({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">
-                  {selectedDate ? 'Product Details' : 'Select a date to view products'}
+                  {selectedDate ? "Product Details" : "Select a date to view products"}
                 </h3>
                 {selectedDate && rows.length > 0 && (
                   <Button
@@ -407,48 +459,81 @@ function StoreInsightModal({
               </div>
 
               {selectedDate ? (
-                <div className="border rounded-lg overflow-hidden max-h-[500px] overflow-y-auto">
-                  <Table id="printable-table">
-                    <TableHeader className="bg-slate-100 sticky top-0">
-                      <TableRow>
-                        <TableHead className="text-xs">S.No</TableHead>
-                        <TableHead className="text-xs">Barcode</TableHead>
-                        <TableHead className="text-xs">Product</TableHead>
-                        <TableHead className="text-xs">Price</TableHead>
-                        <TableHead className="text-xs">Stock</TableHead>
-                        <TableHead className="text-xs">Value</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.map((r, i) => (
-                        <TableRow key={r.id} className="hover:bg-gray-50">
-                          <TableCell className="text-xs">{i + 1}</TableCell>
-                          <TableCell className="text-xs font-mono">{r.barcode}</TableCell>
-                          <TableCell className="text-xs">{r.name}</TableCell>
-                          <TableCell className="text-xs">₹{r.price.toFixed(2)}</TableCell>
-                          <TableCell className="text-xs">{r.stock}</TableCell>
-                          <TableCell className="text-xs">₹{r.rowValue.toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                    {rows.length > 0 && (
-                      <TableFooter className="bg-slate-50">
+                isLoadingDetails ? (
+                  <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
+                    <div className="text-center">
+                      <p className="text-gray-500 text-sm">Loading details...</p>
+                    </div>
+                  </div>
+                ) : rows.length > 0 ? (
+                  <div className="border rounded-lg overflow-hidden max-h-[500px] overflow-y-auto">
+                    <Table id="printable-table">
+                      <TableHeader className="bg-slate-100 sticky top-0">
                         <TableRow>
-                          <TableCell colSpan={4} className="text-xs font-semibold">
-                            Totals
-                          </TableCell>
-                          <TableCell className="text-xs font-semibold">{totals.totalStock}</TableCell>
-                          <TableCell className="text-xs font-semibold">₹{totals.totalValue.toFixed(2)}</TableCell>
+                          <TableHead className="text-xs">S.No</TableHead>
+                          <TableHead className="text-xs">Barcode</TableHead>
+                          <TableHead className="text-xs">Product</TableHead>
+                          <TableHead className="text-xs">Price</TableHead>
+                          <TableHead className="text-xs">Stock</TableHead>
+                          <TableHead className="text-xs">Value</TableHead>
                         </TableRow>
-                      </TableFooter>
-                    )}
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {rows.map((r, i) => (
+                          <TableRow key={r.id} className="hover:bg-gray-50">
+                            <TableCell className="text-xs">{i + 1}</TableCell>
+                            <TableCell className="text-xs font-mono">
+                              {r.barcode}
+                            </TableCell>
+                            <TableCell className="text-xs">{r.name}</TableCell>
+                            <TableCell className="text-xs">
+                              ₹{r.price.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-xs">{r.stock}</TableCell>
+                            <TableCell className="text-xs">
+                              ₹{r.rowValue.toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                      {rows.length > 0 && (
+                        <TableFooter className="bg-slate-50">
+                          <TableRow>
+                            <TableCell
+                              colSpan={4}
+                              className="text-xs font-semibold"
+                            >
+                              Totals
+                            </TableCell>
+                            <TableCell className="text-xs font-semibold">
+                              {totals.totalStock}
+                            </TableCell>
+                            <TableCell className="text-xs font-semibold">
+                              ₹{totals.totalValue.toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        </TableFooter>
+                      )}
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
+                    <div className="text-center">
+                      <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                      <p className="text-gray-500 text-sm">
+                        No inventory data available for this date
+                      </p>
+                    </div>
+                  </div>
+                )
               ) : (
                 <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
                   <div className="text-center">
                     <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                    <p className="text-gray-500 text-sm">Click on a highlighted date in the calendar to view inventory details</p>
+                    <p className="text-gray-500 text-sm">
+                      Click on a highlighted date in the calendar to view
+                      inventory details
+                    </p>
                   </div>
                 </div>
               )}
@@ -462,15 +547,19 @@ function StoreInsightModal({
             Close
           </Button>
           {selectedDate && rows.length > 0 && (
-            <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
+            <Button
+              onClick={handlePrint}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
               Print Selected Date
             </Button>
           )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
+
 
 export default function StoresPage() {
   const router = useRouter()
@@ -921,6 +1010,7 @@ export default function StoresPage() {
                     <TableRow className="bg-gray-50">
                       <TableHead>Store Details</TableHead>
                       <TableHead>Store Info</TableHead>
+                      <TableHead>Store Inventory</TableHead>
                       <TableHead>Revenue</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
@@ -978,26 +1068,27 @@ export default function StoresPage() {
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            {(() => {
-                              // Filter bills for the current store using normalized IDs
-                              const storeBills = bills.filter(bill => {
-                                const billStoreId = normalizeStoreId(bill.storeId);
-                                const storeId = normalizeStoreId(store.id);
-                                return billStoreId === storeId;
-                              });
-                              
-                              // Calculate total revenue
-                              const storeRevenue = storeBills.reduce((sum, bill) => sum + (bill.total || 0), 0);
-                              
-                              return (
-                                <>
-                                  <div className="text-sm font-medium">₹{storeRevenue.toFixed(2)}</div>
-                                  <div className="text-xs text-gray-500">{storeBills.length} bills</div>
-                                </>
-                              );
-                            })()}
+                            <div className="text-2xl font-bold text-black-600">
+                              {store.productCount || 0}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {store.totalStock || 0} total stock
+                            </div>
                           </div>
                         </TableCell>
+
+                        {/* Revenue Cell */}
+<TableCell>
+  <div className="space-y-1">
+    <div className="text-sm font-medium">
+      ₹{(store.totalRevenue || 0).toFixed(2)}
+    </div>
+    <div className="text-xs text-gray-500">
+      {store.totalBills || 0} bills
+    </div>
+  </div>
+</TableCell>
+
                         <TableCell>
                           <div className="flex items-center space-x-2">
                             <Switch

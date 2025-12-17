@@ -1,97 +1,79 @@
-"use client"
-
-import { useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import DashboardLayout from "@/components/dashboard-layout"
-import OfflineBanner from "@/components/OfflineBanner" // Import OfflineBanner
-import { Button } from "@/components/ui/button"
-import usePolling from "@/hooks/usePolling"
-import api from "@/app/utils/api"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer } from "lucide-react" // Added Printer icon
-import { Separator } from "@/components/ui/separator"
-import { Upload } from "lucide-react" // Import Upload icon
-import { unifiedPrint } from "@/app/utils/printUtils"; // Import unifiedPrint
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs" // Import Tabs components
+"use client";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import DashboardLayout from "@/components/dashboard-layout";
+import OfflineBanner from "@/components/OfflineBanner";
+import { Button } from "@/components/ui/button";
+import usePolling from "@/hooks/usePolling";
+import api from "@/app/utils/api";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Upload } from "lucide-react";
+import { unifiedPrint } from "@/app/utils/printUtils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface BillFormat {
-  width: number
-  height: number | "auto"
-  margins: {
-    top: number
-    bottom: number
-    left: number
-    right: number
-  }
-  unit: string
+  width: number;
+  height: number | "auto";
+  margins: { top: number; bottom: number; left: number; right: number };
+  unit: string;
 }
 
 interface SystemSettings {
-  gstin: string
-  taxPercentage: number
-  companyName: string
-  companyAddress: string
-  companyPhone: string
-  companyEmail: string
+  gstin: string;
+  taxPercentage: number;
+  companyName: string;
+  companyAddress: string;
+  companyPhone: string;
+  companyEmail: string;
 }
 
 interface Product {
-  id: string
-  name: string
-  price: number
-  barcode: string
-  stock: number // Added stock to the Product interface
+  id: string;
+  name: string;
+  price: number;
+  barcode: string;
+  stock: number;
 }
 
 interface BillItem {
-  productId: string
-  productName: string
-  price: number
-  quantity: number
-  total: number
+  productId: string;
+  productName: string;
+  price: number;
+  quantity: number;
+  total: number;
 }
 
 interface Bill {
-  id: string
-  customerName: string
-  customerEmail: string
-  customerPhone: string
-  customerAddress?: string // Added customerAddress
-  items: BillItem[]
-  subtotal: number
-  tax: number // This 'tax' property seems to be the calculated tax amount.
-             // In generateReceiptHtml, we use bill.tax.toFixed(1)%,
-             // which implies it's a percentage. Let's clarify.
-             // Based on the 'createBill' function, 'tax' is `subtotal * 0.1` so it's an amount.
-             // I'll adjust generateReceiptHtml to use bill.tax and systemSettings.taxPercentage
-  discountPercentage: number
-  discountAmount: number
-  total: number
-  date: string
-  status: string
-  companyName?: string
-  companyAddress?: string
-  companyPhone?: string
-  companyEmail?: string
-  gstin?: string
-  billFormat?: string
-  storeName?: string
-  storeAddress?: string
-  storePhone?: string
+  id: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  customerAddress?: string;
+  items: BillItem[];
+  subtotal: number;
+  tax: number;
+  discountPercentage: number;
+  discountAmount: number;
+  total: number;
+  date: string;
+  status: string;
+  companyName?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
+  gstin?: string;
+  billFormat?: string;
+  storeName?: string;
+  storeAddress?: string;
+  storePhone?: string;
 }
 
 interface Customer {
@@ -105,26 +87,28 @@ interface Customer {
 }
 
 export default function BillingPage() {
-  const router = useRouter()
-  const [isOnline, setIsOnline] = useState(true); // State to track online status
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [selectedBill, setSelectedBill] = useState<Bill | null>(null)
-  const [billSearchTerm, setBillSearchTerm] = useState("") // Renamed for clarity
-  const [customerSearchTerm, setCustomerSearchTerm] = useState("") // New search term for customers
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false) // State for import dialog
-  const [importFile, setImportFile] = useState<File | null>(null) // State for the selected import file
-  const [isCustomerViewDialogOpen, setIsCustomerViewDialogOpen] = useState(false); // New state for customer view dialog
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null); // New state for selected customer
+  const router = useRouter();
+  const [isOnline, setIsOnline] = useState(true);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+  const [billSearchTerm, setBillSearchTerm] = useState("");
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [isCustomerViewDialogOpen, setIsCustomerViewDialogOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
 
   // Form state
-  const [customerName, setCustomerName] = useState("")
-  const [customerEmail, setCustomerEmail] = useState("")
-  const [customerPhone, setCustomerPhone] = useState("")
-  const [billItems, setBillItems] = useState<BillItem[]>([])
-  const [selectedProductId, setSelectedProductId] = useState("")
-  const [quantity, setQuantity] = useState(1)
-  const [discountPercentage, setDiscountPercentage] = useState(0)
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [billItems, setBillItems] = useState<BillItem[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [discountPercentage, setDiscountPercentage] = useState(0);
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
     gstin: "",
     taxPercentage: 0,
@@ -134,173 +118,196 @@ export default function BillingPage() {
     companyEmail: "",
   });
   const [billFormats, setBillFormats] = useState<Record<string, BillFormat>>({});
-  const [selectedBillFormat, setSelectedBillFormat] = useState("A4"); // Default format
+  const [selectedBillFormat, setSelectedBillFormat] = useState("A4");
 
+  // Initial load
   useEffect(() => {
+    console.log("🔍 [BillingPage] Component mounting...");
     if (typeof window !== "undefined") {
-      localStorage.setItem("adminLoggedIn", "true")
+      localStorage.setItem("adminLoggedIn", "true");
+
+      // Load system settings
+      fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/settings`)
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("⚙️ [Settings] Loaded settings:", data);
+          if (data.systemSettings) setSystemSettings(data.systemSettings);
+          if (data.billFormats) setBillFormats(data.billFormats);
+        })
+        .catch((error) => console.error("Failed to load system settings and bill formats:", error));
+
+      const isLoggedIn = localStorage.getItem("adminLoggedIn");
+      if (isLoggedIn !== "true") {
+        router.push("/");
+        return;
+      }
+
+      setIsOnline(navigator.onLine);
+      window.addEventListener("online", () => setIsOnline(true));
+      window.addEventListener("offline", () => setIsOnline(false));
+
+      return () => {
+        window.removeEventListener("online", () => setIsOnline(true));
+        window.removeEventListener("offline", () => setIsOnline(false));
+      };
     }
-
-    // Load system settings and bill formats
-    fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/settings")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.systemSettings) setSystemSettings(data.systemSettings);
-        if (data.billFormats) setBillFormats(data.billFormats);
-      })
-      .catch((error) => console.error("Failed to load system settings and bill formats:", error));
-
-    const isLoggedIn = localStorage.getItem("adminLoggedIn")
-    if (isLoggedIn !== "true") {
-      router.push("/")
-      return
-    }
-
-    // Set initial online status
-    setIsOnline(navigator.onLine);
-
-    // Add event listeners for online/offline
-    window.addEventListener("online", () => setIsOnline(true));
-    window.addEventListener("offline", () => setIsOnline(false));
-
-    return () => {
-      window.removeEventListener("online", () => setIsOnline(true));
-      window.removeEventListener("offline", () => setIsOnline(false));
-    };
   }, [router]);
 
-  const fetchData = useCallback(async (
-    supabaseEndpoint: string,
-    localStorageEndpoint: string,
-    updateLocalStorageEndpoint: string,
-    dataType: string
-  ) => {
-    if (isOnline) {
-      try {
-        const supabaseResponse = await api.get(supabaseEndpoint);
-        const data = supabaseResponse.data;
+  // Optimized fetch function with silent updates
+  const fetchData = useCallback(
+    async (supabaseEndpoint: string, localStorageEndpoint: string, updateLocalStorageEndpoint: string, dataType: string) => {
+      console.log(`🔍 [fetchData] Fetching ${dataType}...`);
+      if (isOnline) {
+        try {
+          console.log(`🌐 [fetchData] Fetching ${dataType} from Supabase...`);
+          const supabaseResponse = await api.get(supabaseEndpoint);
+          const data = supabaseResponse.data;
+          console.log(`📦 [fetchData] Raw ${dataType} from API:`, data);
 
-        // Custom mapping for bills
-        let processedData = data;
-        if (dataType === 'bills') {
-          processedData = data.map((bill: any) => ({
-            ...bill,
-            date: bill.timestamp,
-            tax: bill.taxAmount,
-            status: bill.status || "Paid",
-            items: bill.items ? JSON.parse(bill.items) : [], // Parse items if it's a JSON string
-          }));
-        } else if (dataType === 'products') {
-          processedData = data.map((product: any) => ({
-            ...product,
-            stock: product.stock || 0,
-          }));
+          let processedData = data;
+          if (dataType === "products") {
+            processedData = data.map((product: any) => ({
+              ...product,
+              stock: product.stock || 0,
+            }));
+          }
+
+          console.log(`✅ [fetchData] Processed ${dataType}:`, processedData);
+          // Silent background update
+          api.post(updateLocalStorageEndpoint, processedData).catch(() => {});
+          return processedData;
+        } catch (error) {
+          console.warn(`Failed to fetch ${dataType} from Supabase, falling back to local`, error);
         }
-        
-        // Update local JSON with fresh Supabase data
-        await api.post(updateLocalStorageEndpoint, processedData);
-        return processedData;
-      } catch (error) {
-        console.warn(`Failed to fetch ${dataType} from Supabase, falling back to local:`, error);
       }
-    }
-    // Fallback to local JSON if offline or Supabase fetch failed
-    const localResponse = await api.get(localStorageEndpoint);
-    
-    // Custom mapping for bills from local storage
-    if (dataType === 'bills') {
-      return localResponse.data.map((bill: any) => ({
-        ...bill,
-        date: bill.timestamp,
-        tax: bill.taxAmount,
-        status: bill.status || "Paid",
-        items: bill.items ? JSON.parse(bill.items) : [], // Parse items if it's a JSON string
-      }));
-    } else if (dataType === 'products') {
-      return localResponse.data.map((product: any) => ({
-        ...product,
-        stock: product.stock || 0,
-      }));
-    }
-    return localResponse.data;
-  }, [isOnline]);
 
-  const fetchProducts = useCallback(() => fetchData(
-    "/api/supabase/products",
-    "/api/local/products",
-    "/api/local/products/update",
-    "products"
-  ), [fetchData]);
+      console.log(`💾 [fetchData] Falling back to local for ${dataType}`);
+      const localResponse = await api.get(localStorageEndpoint);
+      console.log(`💾 [fetchData] Local ${dataType} data:`, localResponse.data);
+      if (dataType === "products") {
+        return localResponse.data.map((product: any) => ({
+          ...product,
+          stock: product.stock || 0,
+        }));
+      }
+      return localResponse.data;
+    },
+    [isOnline]
+  );
+
+  const fetchProducts = useCallback(() => fetchData("/api/supabase/products", "/api/local/products", "/api/local/products/update", "products"), [fetchData]);
 
   const fetchBills = useCallback(async () => {
+    console.log("🔍 [fetchBills] Starting fetch...");
+    
     if (isOnline) {
       try {
-        const response = await api.get('/api/supabase/bills-with-details');
+        console.log("🌐 [fetchBills] Fetching from Supabase...");
+        const response = await api.get("/api/supabase/bills-with-details");
         const data = response.data;
         
-        // Map to match your Bill interface
-        const processedData = data.map((bill: any) => ({
-          ...bill,
-          date: bill.timestamp,
-          tax: bill.taxAmount,
-          status: bill.status || 'Paid',
-        }));
+        console.log("📦 [fetchBills] Raw data from API:", data);
+        console.log("📦 [fetchBills] Number of bills:", data.length);
         
-        // Update local storage
-        await api.post('/api/local/bills/update', processedData);
+        // Check first bill's items
+        if (data.length > 0 && data[0].items) {
+          console.log("🔍 [fetchBills] First bill items:", data[0].items);
+          console.log("🔍 [fetchBills] First item details:", data[0].items[0]);
+        }
+        
+        const processedData = data.map((bill: any) => {
+          console.log(`📝 [fetchBills] Processing bill ${bill.id}`);
+          
+          return {
+            ...bill,
+            date: bill.timestamp || bill.date,
+            tax: bill.taxAmount || bill.tax,
+            status: bill.status || "Paid",
+            items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
+            discountPercentage: bill.discountPercentage || 0,
+          };
+        });
+
+        console.log("✅ [fetchBills] Final processed data:", processedData);
+        
+        // Silent background update
+        api.post("/api/local/bills/update", processedData).catch(() => {});
         return processedData;
       } catch (error) {
-        console.warn('Failed to fetch bills from Supabase, falling back to local', error);
+        console.error("❌ [fetchBills] Error fetching from Supabase:", error);
       }
     }
+
+    console.log("💾 [fetchBills] Falling back to local storage");
+    const localResponse = await api.get("/api/local/bills");
+    console.log("💾 [fetchBills] Local data:", localResponse.data);
     
-    // Fallback to local
-    const localResponse = await api.get('/api/local/bills');
     return localResponse.data.map((bill: any) => ({
       ...bill,
-      date: bill.timestamp,
-      tax: bill.taxAmount,
-      status: bill.status || 'Paid',
+      date: bill.timestamp || bill.date,
+      tax: bill.taxAmount || bill.tax,
+      status: bill.status || "Paid",
+      items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
+      discountPercentage: bill.discountPercentage || 0,
     }));
   }, [isOnline]);
 
-  const fetchCustomers = useCallback(() => fetchData(
-    "/api/supabase/customers",
-    "/api/local/customers",
-    "/api/local/customers/update",
-    "customers"
-  ), [fetchData]);
 
+  const fetchCustomers = useCallback(() => fetchData("/api/supabase/customers", "/api/local/customers", "/api/local/customers/update", "customers"), [fetchData]);
 
-  const { data: productsData, loading: productsLoading, error: productsError } = usePolling<Product[]>(fetchProducts, { interval: 5000 });
-  const { data: billsData, loading: billsLoading, error: billsError, refetch: refetchBills } = usePolling<Bill[]>(fetchBills, { interval: 5000 });
-  const { data: customersData, loading: customersLoading, error: customersError } = usePolling<Customer[]>(fetchCustomers, { interval: 5000 });
+  // Use polling with LONGER intervals (20 seconds instead of 5)
+  const { data: productsData, loading: productsLoading, error: productsError, refetch: refetchProducts } = usePolling<Product[]>(fetchProducts, { interval: 20000 });
+  const { data: billsData, loading: billsLoading, error: billsError, refetch: refetchBills } = usePolling<Bill[]>(fetchBills, { interval: 20000 });
+  const { data: customersData, loading: customersLoading, error: customersError, refetch: refetchCustomers } = usePolling<Customer[]>(fetchCustomers, { interval: 20000 });
 
+  // Manual refresh function
+  const handleManualRefresh = async () => {
+    console.log("🔄 [handleManualRefresh] Manual refresh triggered.");
+    setIsRefreshing(true);
+    try {
+      await Promise.all([refetchProducts(), refetchBills(), refetchCustomers()]);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
 
-  // Handle loading and error states (optional, but good practice)
+  // Handle errors
   useEffect(() => {
     if (productsError) console.error("Failed to load products:", productsError);
     if (billsError) console.error("Failed to load bills:", billsError);
     if (customersError) console.error("Failed to load customers:", customersError);
   }, [productsError, billsError, customersError]);
 
-  // Ensure products and bills are initialized as empty arrays if polling hasn't returned data yet
   const currentProducts = productsData || [];
   const currentBills = billsData || [];
   const currentCustomers = customersData || [];
 
+  useEffect(() => {
+    console.log("📦 [Products] Updated products data:", productsData);
+  }, [productsData]);
+
+  useEffect(() => {
+    console.log("🧾 [Bills] Updated bills data:", billsData);
+  }, [billsData]);
+
+  useEffect(() => {
+    console.log("👥 [Customers] Updated customers data:", customersData);
+  }, [customersData]);
+
   const addItemToBill = () => {
-    if (!selectedProductId) return
+    if (!selectedProductId) return;
 
-    const product = currentProducts.find((p) => p.id === selectedProductId)
-    if (!product) return
+    const product = currentProducts.find((p) => p.id === selectedProductId);
+    if (!product) return;
 
-    const price = product.price !== undefined && product.price !== null ? product.price : 0; // Ensure price is a number
-    const availableStock = product.stock !== undefined && product.stock !== null ? product.stock : Infinity; // Use Infinity if stock is not tracked
+    console.log("➕ [addItemToBill] Adding product to bill:", product, "Quantity:", quantity);
 
-    const existingItemIndex = billItems.findIndex((item) => item.productId === selectedProductId)
+    const price = product.price !== undefined && product.price !== null ? product.price : 0;
+    const availableStock = product.stock !== undefined && product.stock !== null ? product.stock : Infinity;
 
+    const existingItemIndex = billItems.findIndex((item) => item.productId === selectedProductId);
     let newQuantity = quantity;
+
     if (existingItemIndex >= 0) {
       newQuantity = billItems[existingItemIndex].quantity + quantity;
     }
@@ -311,10 +318,10 @@ export default function BillingPage() {
     }
 
     if (existingItemIndex >= 0) {
-      const updatedItems = [...billItems]
+      const updatedItems = [...billItems];
       updatedItems[existingItemIndex].quantity = newQuantity;
-      updatedItems[existingItemIndex].total = updatedItems[existingItemIndex].quantity * price
-      setBillItems(updatedItems)
+      updatedItems[existingItemIndex].total = updatedItems[existingItemIndex].quantity * price;
+      setBillItems(updatedItems);
     } else {
       const newItem: BillItem = {
         productId: product.id,
@@ -322,35 +329,37 @@ export default function BillingPage() {
         price: price,
         quantity: quantity,
         total: price * quantity,
-      }
-      setBillItems([...billItems, newItem])
+      };
+      setBillItems([...billItems, newItem]);
     }
 
-    setSelectedProductId("")
-    setQuantity(1)
-  }
+    setSelectedProductId("");
+    setQuantity(1);
+  };
 
   const removeItemFromBill = (productId: string) => {
-    setBillItems(billItems.filter((item) => item.productId !== productId))
-  }
+    console.log("➖ [removeItemFromBill] Removing product ID from bill:", productId);
+    setBillItems(billItems.filter((item) => item.productId !== productId));
+  };
 
   const calculateTotals = () => {
-    const subtotal = billItems.reduce((sum, item) => sum + item.total, 0)
-    const tax = subtotal * 0.1 // 10% tax
-    const discountAmount = (subtotal * discountPercentage) / 100
-    const total = subtotal + tax - discountAmount
-    return { subtotal, tax, discountAmount, total }
-  }
+    const subtotal = billItems.reduce((sum, item) => sum + item.total, 0);
+    const tax = subtotal * 0.1;
+    const discountAmount = (subtotal * discountPercentage) / 100;
+    const total = subtotal + tax - discountAmount;
+    return { subtotal, tax, discountAmount, total };
+  };
 
   const handleDiscountPercentageChange = (newPercentage: number) => {
-    const validPercentage = Math.max(0, Math.min(100, newPercentage))
-    setDiscountPercentage(validPercentage)
-  }
+    const validPercentage = Math.max(0, Math.min(100, newPercentage));
+    setDiscountPercentage(validPercentage);
+  };
 
   const createBill = async () => {
-    if (!customerName || billItems.length === 0) return
+    if (!customerName || billItems.length === 0) return;
+    console.log("📝 [createBill] Attempting to create bill...");
 
-    const { subtotal, tax, discountAmount, total } = calculateTotals()
+    const { subtotal, tax, discountAmount, total } = calculateTotals();
 
     const newBill: Bill = {
       id: Date.now().toString(),
@@ -371,16 +380,13 @@ export default function BillingPage() {
       companyEmail: systemSettings.companyEmail,
       gstin: systemSettings.gstin,
       billFormat: selectedBillFormat,
-      // storeName, storeAddress, storePhone are not available in this context,
-      // they would typically come from the selected store during checkout in billing/page.tsx
-    }
+    };
+    console.log("📤 [createBill] Bill payload:", newBill);
 
     try {
       const response = await api.post("/api/bills", newBill);
-
-      if (!response.status.toString().startsWith('2')) {
-        throw new Error("Failed to create bill");
-      }
+      console.log("📨 [createBill] API response:", response);
+      if (!response.status.toString().startsWith("2")) throw new Error("Failed to create bill");
 
       setCustomerName("");
       setCustomerEmail("");
@@ -388,7 +394,9 @@ export default function BillingPage() {
       setBillItems([]);
       setDiscountPercentage(0);
       setIsCreateDialogOpen(false);
-      refetchBills(); // Refetch bills to update the local state and trigger potential sync
+      
+      // Immediate refresh after creating bill
+      refetchBills();
     } catch (error) {
       console.error("Error creating bill:", error);
       alert("Failed to create bill.");
@@ -396,36 +404,37 @@ export default function BillingPage() {
   };
 
   const deleteBill = async (id: string) => {
+    console.log(`🗑️ [deleteBill] Deleting bill with ID: ${id}`);
     try {
       const response = await api.delete(`/api/bills/${id}`);
-
-      if (!response.status.toString().startsWith('2')) {
-        throw new Error("Failed to delete bill");
-      }
-      refetchBills(); // Refetch bills to update the local state
+      console.log(`🗑️ [deleteBill] API Response for deletion of ${id}:`, response);
+      if (!response.status.toString().startsWith("2")) throw new Error("Failed to delete bill");
+      
+      // Immediate refresh after deleting
+      refetchBills();
     } catch (error) {
       console.error("Error deleting bill:", error);
     }
   };
 
   const viewBill = (bill: Bill) => {
-    setSelectedBill(bill)
-    setIsViewDialogOpen(true)
-  }
+    console.log("👁️ [viewBill] Viewing bill:", bill);
+    setSelectedBill(bill);
+    setIsViewDialogOpen(true);
+  };
 
   const viewCustomer = (customer: Customer) => {
+    console.log("👁️ [viewCustomer] Viewing customer:", customer);
     setSelectedCustomer(customer);
     setIsCustomerViewDialogOpen(true);
   };
 
-  // Generate receipt HTML
   const generateReceiptHtml = (bill: Bill, format: BillFormat): string => {
     const isLetter = format.width === 216 && format.height === 279;
     const isA4 = format.width === 210 && format.height === 297;
-    const isThermal = format.width <= 80;
+    const isThermal = format.width === 80;
     const maxWidth = isThermal ? "80mm" : isLetter ? "216mm" : isA4 ? "210mm" : `${format.width}mm`;
 
-    // Use bill's own company info if available, otherwise fallback to system settings
     const companyName = bill.companyName || systemSettings.companyName;
     const companyAddress = bill.companyAddress || systemSettings.companyAddress;
     const companyPhone = bill.companyPhone || systemSettings.companyPhone;
@@ -439,71 +448,29 @@ export default function BillingPage() {
           <title>Invoice - ${bill.id}</title>
           <style>
             @page {
-              size: ${isLetter ? "letter" : isA4 ? "A4" : `${format.width}mm ${format.height === "auto" ? "auto" : `${format.height}mm`}`};
+              size: ${isLetter ? "letter" : isA4 ? "A4" : `${format.width}mm ${format.height === "auto" ? "auto" : format.height + "mm"}`};
               margin: ${format.margins.top}mm ${format.margins.right}mm ${format.margins.bottom}mm ${format.margins.left}mm;
             }
             body {
-              font-family: 'Arial', sans-serif;
+              font-family: Arial, sans-serif;
               max-width: ${maxWidth};
               margin: 0 auto;
               font-size: 13px;
               color: #000;
             }
-            .header, .footer {
-              text-align: center;
-              padding: 10px 0;
-            }
-            .company-name {
-              font-size: 18px;
-              font-weight: bold;
-              text-transform: uppercase;
-            }
-            .invoice-title {
-              font-size: 16px;
-              font-weight: bold;
-              margin-top: 10px;
-            }
-            .section {
-              margin: 20px 0;
-            }
-            .section-title {
-              font-weight: bold;
-              border-bottom: 1px solid #ccc;
-              margin-bottom: 5px;
-            }
-            .row {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 6px;
-            }
-            .items-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 15px;
-            }
-            .items-table th, .items-table td {
-              border: 1px solid #ccc;
-              padding: 6px 8px;
-              text-align: left;
-            }
-            .items-table th {
-              background-color: #f2f2f2;
-            }
-            .totals {
-              margin-top: 10px;
-              width: 100%;
-            }
-            .totals td {
-              padding: 6px;
-            }
-            .totals .label {
-              text-align: right;
-              font-weight: bold;
-            }
-            .totals .value {
-              text-align: right;
-              width: 100px;
-            }
+            .header, .footer { text-align: center; padding: 10px 0; }
+            .company-name { font-size: 18px; font-weight: bold; text-transform: uppercase; }
+            .invoice-title { font-size: 16px; font-weight: bold; margin-top: 10px; }
+            .section { margin: 20px 0; }
+            .section-title { font-weight: bold; border-bottom: 1px solid #ccc; margin-bottom: 5px; }
+            .row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+            .items-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            .items-table th, .items-table td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+            .items-table th { background-color: #f2f2f2; }
+            .totals { margin-top: 10px; width: 100%; }
+            .totals td { padding: 6px; }
+            .totals .label { text-align: right; font-weight: bold; }
+            .totals .value { text-align: right; width: 100px; }
           </style>
         </head>
         <body>
@@ -532,7 +499,8 @@ export default function BillingPage() {
             ${bill.customerPhone ? `<div>Phone: ${bill.customerPhone}</div>` : ""}
             ${bill.customerEmail ? `<div>Email: ${bill.customerEmail}</div>` : ""}
             ${bill.customerAddress ? `<div>Address: ${bill.customerAddress}</div>` : ""}
-          </div>`
+          </div>
+          `
               : ""
           }
 
@@ -573,10 +541,12 @@ export default function BillingPage() {
               </tr>
               ${
                 bill.discountAmount > 0
-                  ? `<tr>
-                      <td class="label">Discount (${bill.discountPercentage.toFixed(1)}%):</td>
-                      <td class="value">-₹${bill.discountAmount.toFixed(2)}</td>
-                    </tr>`
+                  ? `
+              <tr>
+                <td class="label">Discount (${bill.discountPercentage.toFixed(1)}%):</td>
+                <td class="value">-₹${bill.discountAmount.toFixed(2)}</td>
+              </tr>
+              `
                   : ""
               }
               <tr>
@@ -599,9 +569,18 @@ export default function BillingPage() {
   };
 
   const handlePrintBill = async (billToPrint: Bill) => {
+    console.log("🖨️ [handlePrintBill] Printing bill:", billToPrint);
     const formatName = billToPrint.billFormat || selectedBillFormat;
-    const format = billFormats[formatName] || billFormats.A4; // Fallback to A4 if format not found
 
+    const defaultFormat: BillFormat = {
+      width: 210,
+      height: 297,
+      margins: { top: 10, bottom: 10, left: 10, right: 10 },
+      unit: "mm",
+    };
+
+    const format = billFormats[formatName] || billFormats["A4"] || defaultFormat;
+    console.log("🖨️ [handlePrintBill] Using bill format:", format);
     const receiptHtml = generateReceiptHtml(billToPrint, format);
 
     try {
@@ -613,45 +592,41 @@ export default function BillingPage() {
   };
 
   const filteredBills = currentBills.filter((bill) => {
-    const customerName = bill.customerName || ""
-    const billId = bill.id || ""
-    const searchLower = billSearchTerm.toLowerCase()
-
-    return customerName.toLowerCase().includes(searchLower) || billId.includes(searchLower)
-  })
+    const customerName = bill.customerName || "";
+    const billId = bill.id || "";
+    const searchLower = billSearchTerm.toLowerCase();
+    return customerName.toLowerCase().includes(searchLower) || billId.includes(searchLower);
+  });
 
   const filteredCustomers = currentCustomers.filter((customer) => {
     const customerName = customer.name || "";
     const customerEmail = customer.email || "";
     const customerPhone = customer.phone || "";
     const searchLower = customerSearchTerm.toLowerCase();
-
-    return customerName.toLowerCase().includes(searchLower) ||
-           customerEmail.toLowerCase().includes(searchLower) ||
-           customerPhone.toLowerCase().includes(searchLower);
+    return customerName.toLowerCase().includes(searchLower) || customerEmail.toLowerCase().includes(searchLower) || customerPhone.toLowerCase().includes(searchLower);
   });
 
-  const { subtotal, tax, discountAmount, total } = calculateTotals()
-
-  // Quick discount preset buttons
-  const discountPresets = [5, 10, 15, 20, 25]
+  const { subtotal, tax, discountAmount, total } = calculateTotals();
+  const discountPresets = [5, 10, 15, 20, 25];
 
   const handleImportBills = async () => {
     if (!importFile) return;
+    console.log("📥 [handleImportBills] Importing bills from file:", importFile.name);
 
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const importedBills = JSON.parse(e.target?.result as string);
-        // Send to API for processing
+        const importedBills = JSON.parse((e.target?.result as string) || "");
+        console.log("📥 [handleImportBills] Parsed bills for import:", importedBills);
         const response = await api.post("/api/bills/import", importedBills);
+        console.log("📥 [handleImportBills] Import API response:", response);
 
-        if (!response.status.toString().startsWith('2')) {
-          throw new Error("Failed to import bills");
-        }
+        if (!response.status.toString().startsWith("2")) throw new Error("Failed to import bills");
+
         console.log("Bills imported successfully");
         setIsImportDialogOpen(false);
         setImportFile(null);
+        refetchBills(); // Refresh after import
       } catch (error) {
         console.error("Error parsing or importing bills:", error);
       }
@@ -662,7 +637,8 @@ export default function BillingPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {!isOnline && <OfflineBanner />} {/* Display offline banner */}
+        {!isOnline && <OfflineBanner />}
+
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Billing System</h1>
@@ -670,11 +646,20 @@ export default function BillingPage() {
             {(productsLoading || billsLoading || customersLoading) && <p className="text-sm text-blue-500">Loading data...</p>}
             {(productsError || billsError || customersError) && <p className="text-sm text-red-500">Error loading data.</p>}
           </div>
+
           <div className="flex space-x-2">
+            {/* Debug Toggle Button */}
+
+            {/* Manual Refresh Button */}
+            <Button variant="outline" onClick={handleManualRefresh} disabled={isRefreshing || !isOnline}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+              {isRefreshing ? "Refreshing..." : "Refresh"}
+            </Button>
+
             {/* Import Bills Dialog */}
             <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" disabled={!isOnline}> {/* Disable import when offline */}
+                <Button variant="outline" disabled={!isOnline}>
                   <Upload className="h-4 w-4 mr-2" />
                   Import Bills
                 </Button>
@@ -685,18 +670,13 @@ export default function BillingPage() {
                   <DialogDescription>Upload a JSON file containing bill data.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  <Input
-                    id="billFile"
-                    type="file"
-                    accept=".json"
-                    onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)}
-                  />
+                  <Input id="billFile" type="file" accept=".json" onChange={(e) => setImportFile(e.target.files ? e.target.files[0] : null)} />
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={() => handleImportBills()} disabled={!importFile}>
+                  <Button onClick={handleImportBills} disabled={!importFile}>
                     Import
                   </Button>
                 </DialogFooter>
@@ -724,29 +704,15 @@ export default function BillingPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="customerName">Customer Name</Label>
-                        <Input
-                          id="customerName"
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          required
-                        />
+                        <Input id="customerName" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="customerEmail">Email (optional)</Label>
-                        <Input
-                          id="customerEmail"
-                          type="email"
-                          value={customerEmail}
-                          onChange={(e) => setCustomerEmail(e.target.value)}
-                        />
+                        <Input id="customerEmail" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="customerPhone">Phone (optional)</Label>
-                        <Input
-                          id="customerPhone"
-                          value={customerPhone}
-                          onChange={(e) => setCustomerPhone(e.target.value)}
-                        />
+                        <Input id="customerPhone" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
                       </div>
                     </div>
                   </div>
@@ -758,7 +724,7 @@ export default function BillingPage() {
                     <h3 className="text-lg font-medium">Add Products</h3>
                     <div className="flex gap-4 items-end">
                       <div className="flex-1">
-                        <Label htmlFor="product">Select Product</Label>
+                        <Label htmlFor="productSelect">Product</Label>
                         <Select value={selectedProductId} onValueChange={setSelectedProductId}>
                           <SelectTrigger>
                             <SelectValue placeholder="Choose a product" />
@@ -766,7 +732,7 @@ export default function BillingPage() {
                           <SelectContent>
                             {currentProducts.map((product) => (
                               <SelectItem key={product.id} value={product.id}>
-                                {product.name} - ₹{product.price ? product.price.toFixed(2) : '0.00'} (Stock: {product.stock})
+                                {product.name} - ₹{product.price ? product.price.toFixed(2) : "0.00"} (Stock: {product.stock})
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -774,13 +740,7 @@ export default function BillingPage() {
                       </div>
                       <div className="w-24">
                         <Label htmlFor="quantity">Quantity</Label>
-                        <Input
-                          id="quantity"
-                          type="number"
-                          min="1"
-                          value={quantity}
-                          onChange={(e) => setQuantity(Number.parseInt(e.target.value) || 1)}
-                        />
+                        <Input id="quantity" type="number" min="1" value={quantity} onChange={(e) => setQuantity(Number.parseInt(e.target.value) || 1)} />
                       </div>
                       <Button onClick={addItemToBill} disabled={!selectedProductId}>
                         Add Item
@@ -830,12 +790,12 @@ export default function BillingPage() {
                           <span className="font-medium">₹{tax.toFixed(2)}</span>
                         </div>
 
-                        {/* Discount Section with Presets */}
+                        {/* Discount Section */}
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <Label className="flex items-center text-base">
                               <Percent className="h-4 w-4 mr-2" />
-                              Discount Percentage:
+                              Discount Percentage
                             </Label>
                             <div className="flex items-center space-x-2">
                               <Input
@@ -855,22 +815,11 @@ export default function BillingPage() {
                           <div className="flex flex-wrap gap-2">
                             <span className="text-sm text-gray-600 mr-2">Quick:</span>
                             {discountPresets.map((preset) => (
-                              <Button
-                                key={preset}
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setDiscountPercentage(preset)}
-                                className="text-xs h-7"
-                              >
+                              <Button key={preset} variant="outline" size="sm" onClick={() => setDiscountPercentage(preset)} className="text-xs h-7">
                                 {preset}%
                               </Button>
                             ))}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setDiscountPercentage(0)}
-                              className="text-xs h-7"
-                            >
+                            <Button variant="outline" size="sm" onClick={() => setDiscountPercentage(0)} className="text-xs h-7">
                               Clear
                             </Button>
                           </div>
@@ -885,7 +834,7 @@ export default function BillingPage() {
 
                         <Separator />
 
-                        {/* Total (Non-editable) */}
+                        {/* Total */}
                         <div className="flex justify-between items-center text-xl font-bold">
                           <span>Total:</span>
                           <span>₹{total.toFixed(2)}</span>
@@ -916,11 +865,14 @@ export default function BillingPage() {
           </div>
         </div>
 
+        {/* Tabs for Bills and Customers */}
         <Tabs defaultValue="bills" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="bills">Bills History</TabsTrigger>
             <TabsTrigger value="customers">Customers Info</TabsTrigger>
           </TabsList>
+
+          {/* Bills Tab */}
           <TabsContent value="bills">
             <Card>
               <CardHeader>
@@ -928,12 +880,7 @@ export default function BillingPage() {
                 <CardDescription>{currentBills.length} bills created</CardDescription>
                 <div className="flex items-center space-x-2">
                   <Search className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search bills..."
-                    value={billSearchTerm}
-                    onChange={(e) => setBillSearchTerm(e.target.value)}
-                    className="max-w-sm"
-                  />
+                  <Input placeholder="Search bills..." value={billSearchTerm} onChange={(e) => setBillSearchTerm(e.target.value)} className="max-w-sm" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -954,13 +901,11 @@ export default function BillingPage() {
                     <TableBody>
                       {filteredBills.map((bill) => (
                         <TableRow key={bill.id}>
-                          <TableCell className="font-mono">#{bill.id}</TableCell>
+                          <TableCell className="font-mono">{bill.id}</TableCell>
                           <TableCell>
                             <div>
                               <div className="font-medium">{bill.customerName || "Walk-in Customer"}</div>
-                              {bill.customerEmail && (
-                                <div className="text-sm text-muted-foreground">{bill.customerEmail}</div>
-                              )}
+                              {bill.customerEmail && <div className="text-sm text-muted-foreground">{bill.customerEmail}</div>}
                             </div>
                           </TableCell>
                           <TableCell>{new Date(bill.date).toLocaleDateString()}</TableCell>
@@ -996,12 +941,15 @@ export default function BillingPage() {
                                 <DialogContent>
                                   <DialogHeader>
                                     <DialogTitle>Are you sure?</DialogTitle>
-                                    <DialogDescription>
-                                      This action cannot be undone. This will permanently delete the bill ({bill.id}).
-                                    </DialogDescription>
+                                    <DialogDescription>This action cannot be undone. This will permanently delete the bill {bill.id}.</DialogDescription>
                                   </DialogHeader>
                                   <DialogFooter>
-                                    <Button variant="outline" onClick={() => (document.querySelector('[data-state="open"]') as HTMLElement)?.click()}>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => {
+                                        (document.querySelector('[data-state="open"]') as HTMLElement)?.click();
+                                      }}
+                                    >
                                       Cancel
                                     </Button>
                                     <Button variant="destructive" onClick={() => deleteBill(bill.id)}>
@@ -1020,14 +968,14 @@ export default function BillingPage() {
                   <div className="text-center py-8">
                     <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium">No bills found</h3>
-                    <p className="text-muted-foreground">
-                      {billSearchTerm ? "Try adjusting your search terms" : "Create your first bill to get started"}
-                    </p>
+                    <p className="text-muted-foreground">{billSearchTerm ? "Try adjusting your search terms" : "Create your first bill to get started"}</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Customers Tab */}
           <TabsContent value="customers">
             <Card>
               <CardHeader>
@@ -1035,12 +983,7 @@ export default function BillingPage() {
                 <CardDescription>{currentCustomers.length} registered customers</CardDescription>
                 <div className="flex items-center space-x-2">
                   <Search className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search customers..."
-                    value={customerSearchTerm}
-                    onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                    className="max-w-sm"
-                  />
+                  <Input placeholder="Search customers..." value={customerSearchTerm} onChange={(e) => setCustomerSearchTerm(e.target.value)} className="max-w-sm" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -1059,7 +1002,7 @@ export default function BillingPage() {
                     </TableHeader>
                     <TableBody>
                       {filteredCustomers.map((customer) => {
-                        const customerBills = currentBills.filter(bill => bill.customerEmail === customer.email || bill.customerPhone === customer.phone);
+                        const customerBills = currentBills.filter((bill) => bill.customerEmail === customer.email || bill.customerPhone === customer.phone);
                         const totalSpent = customerBills.reduce((sum, bill) => sum + bill.total, 0);
 
                         return (
@@ -1083,9 +1026,7 @@ export default function BillingPage() {
                 ) : (
                   <div className="text-center py-8">
                     <h3 className="text-lg font-medium">No customers found</h3>
-                    <p className="text-muted-foreground">
-                      {customerSearchTerm ? "Try adjusting your search terms" : "Customers will appear here once they have bills"}
-                    </p>
+                    <p className="text-muted-foreground">{customerSearchTerm ? "Try adjusting your search terms" : "Customers will appear here once they have bills"}</p>
                   </div>
                 )}
               </CardContent>
@@ -1103,6 +1044,7 @@ export default function BillingPage() {
 
             {selectedBill && (
               <div className="space-y-6">
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h4 className="font-medium">Customer Information</h4>
@@ -1115,7 +1057,7 @@ export default function BillingPage() {
                   <div>
                     <h4 className="font-medium">Bill Information</h4>
                     <div className="text-sm text-muted-foreground mt-1">
-                      <div>Date: {new Date(selectedBill.date).toLocaleDateString()}</div>
+                      <div>Date: {new Date(selectedBill.date).toLocaleString()}</div>
                       <div>Status: {selectedBill.status}</div>
                     </div>
                   </div>
@@ -1140,7 +1082,7 @@ export default function BillingPage() {
                           <TableCell>{item.quantity}</TableCell>
                           <TableCell>₹{item.total.toFixed(2)}</TableCell>
                         </TableRow>
-                      )) || []}
+                      ))}
                     </TableBody>
                   </Table>
                 </div>
@@ -1204,8 +1146,17 @@ export default function BillingPage() {
                   <div>
                     <h4 className="font-medium">Spending Overview</h4>
                     <div className="text-sm text-muted-foreground mt-1">
-                      <div>Total Bills: {currentBills.filter(bill => bill.customerEmail === selectedCustomer.email || bill.customerPhone === selectedCustomer.phone).length}</div>
-                      <div>Total Spent: ₹{currentBills.filter(bill => bill.customerEmail === selectedCustomer.email || bill.customerPhone === selectedCustomer.phone).reduce((sum, bill) => sum + bill.total, 0).toFixed(2)}</div>
+                      <div>
+                        Total Bills:{" "}
+                        {currentBills.filter((bill) => bill.customerEmail === selectedCustomer.email || bill.customerPhone === selectedCustomer.phone).length}
+                      </div>
+                      <div>
+                        Total Spent: ₹
+                        {currentBills
+                          .filter((bill) => bill.customerEmail === selectedCustomer.email || bill.customerPhone === selectedCustomer.phone)
+                          .reduce((sum, bill) => sum + bill.total, 0)
+                          .toFixed(2)}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1223,23 +1174,31 @@ export default function BillingPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {currentBills.filter(bill => bill.customerEmail === selectedCustomer.email || bill.customerPhone === selectedCustomer.phone).map((bill) => (
-                        <TableRow key={bill.id}>
-                          <TableCell className="font-mono">#{bill.id}</TableCell>
-                          <TableCell>{new Date(bill.date).toLocaleDateString()}</TableCell>
-                          <TableCell>₹{bill.total.toFixed(2)}</TableCell>
-                          <TableCell><Badge variant="default">{bill.status}</Badge></TableCell>
-                          <TableCell>
-                            <Button variant="outline" size="sm" onClick={() => {
-                              setSelectedBill(bill);
-                              setIsViewDialogOpen(true);
-                              setIsCustomerViewDialogOpen(false); // Close customer dialog when opening bill dialog
-                            }}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {currentBills
+                        .filter((bill) => bill.customerEmail === selectedCustomer.email || bill.customerPhone === selectedCustomer.phone)
+                        .map((bill) => (
+                          <TableRow key={bill.id}>
+                            <TableCell className="font-mono">{bill.id}</TableCell>
+                            <TableCell>{new Date(bill.date).toLocaleDateString()}</TableCell>
+                            <TableCell>₹{bill.total.toFixed(2)}</TableCell>
+                            <TableCell>
+                              <Badge variant="default">{bill.status}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedBill(bill);
+                                  setIsViewDialogOpen(true);
+                                  setIsCustomerViewDialogOpen(false);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
                     </TableBody>
                   </Table>
                 </div>
@@ -1253,8 +1212,7 @@ export default function BillingPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
       </div>
     </DashboardLayout>
-  )
+  );
 }
