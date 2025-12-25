@@ -18,40 +18,43 @@ import {
 } from "lucide-react"
 
 interface ProductSale {
-  name: string;
-  quantity: number;
-  revenue: number;
+  name: string
+  quantity: number
+  revenue: number
+}
+
+interface BillItem {
+  productId: string
+  productName: string
+  quantity: number
+  total: number
 }
 
 interface Bill {
-  id: string;
-  date: string;
-  total: number;
-  items: Array<{
-    productId: string;
-    productName: string;
-    quantity: number;
-    total: number;
-  }>;
+  id: string
+  date: string
+  total: number
+  items?: BillItem[]
 }
 
 interface Product {
-  id: string;
-  name: string;
-  stock: number;
-  minStock: number;
+  id: string
+  name: string
+  stock: number
+  minStock: number
 }
 
-interface Store {
-  id: string;
-  name: string;
-  status: string;
+interface StoreType {
+  id: string
+  name: string
+  status: string
 }
 
 interface User {
-  id: string;
-  name: string;
-  isActive: boolean;
+  id: string
+  name: string
+  isActive?: boolean
+  is_active?: boolean
 }
 
 export default function DashboardPage() {
@@ -71,10 +74,8 @@ export default function DashboardPage() {
   })
 
   useEffect(() => {
-    // For now, removing local storage checks as per user's request
-    // The actual user data and role will be fetched via a new authentication flow.
-    // For demonstration, setting a dummy user. This will be replaced by actual login.
-    setUser({ name: "Admin", role: "super_admin" }); // Dummy user for now
+    // dummy user for now
+    setUser({ name: "Admin", role: "super_admin" })
 
     const loadData = async () => {
       try {
@@ -82,111 +83,193 @@ export default function DashboardPage() {
         setError(null)
         await loadDashboardData()
       } catch (err) {
-        console.error('Error loading dashboard data:', err)
-        setError('Failed to load dashboard data. Please try again later.')
+        console.error("Error loading dashboard data:", err)
+        setError("Failed to load dashboard data. Please try again later.")
       } finally {
         setLoading(false)
       }
     }
-    
+
     loadData()
   }, [router])
 
   const loadDashboardData = async () => {
     try {
-      // Fetch data directly from Flask backend
-      const [billsResponse, productsResponse, storesResponse, usersResponse] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/bills`),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products`),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/stores`),
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/users`)
-      ]);
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL
+
+      const [billsResponse, productsResponse, storesResponse, usersResponse] =
+        await Promise.all([
+          fetch(`${baseUrl}/api/bills`),
+          fetch(`${baseUrl}/api/products`),
+          fetch(`${baseUrl}/api/stores`),
+          fetch(`${baseUrl}/api/users`),
+        ])
 
       if (!billsResponse.ok) {
-        const errorText = await billsResponse.text();
-        console.error(`Failed to fetch bills: ${billsResponse.status} ${billsResponse.statusText} - ${errorText}`);
-        throw new Error('Failed to fetch bills data');
+        const errorText = await billsResponse.text()
+        console.error(
+          `Failed to fetch bills: ${billsResponse.status} ${billsResponse.statusText} - ${errorText}`,
+        )
+        throw new Error("Failed to fetch bills data")
       }
       if (!productsResponse.ok) {
-        const errorText = await productsResponse.text();
-        console.error(`Failed to fetch products: ${productsResponse.status} ${productsResponse.statusText} - ${errorText}`);
-        throw new Error('Failed to fetch products data');
+        const errorText = await productsResponse.text()
+        console.error(
+          `Failed to fetch products: ${productsResponse.status} ${productsResponse.statusText} - ${errorText}`,
+        )
+        throw new Error("Failed to fetch products data")
       }
       if (!storesResponse.ok) {
-        const errorText = await storesResponse.text();
-        console.error(`Failed to fetch stores: ${storesResponse.status} ${storesResponse.statusText} - ${errorText}`);
-        throw new Error('Failed to fetch stores data');
+        const errorText = await storesResponse.text()
+        console.error(
+          `Failed to fetch stores: ${storesResponse.status} ${storesResponse.statusText} - ${errorText}`,
+        )
+        throw new Error("Failed to fetch stores data")
       }
       if (!usersResponse.ok) {
-        const errorText = await usersResponse.text();
-        console.error(`Failed to fetch users: ${usersResponse.status} ${usersResponse.statusText} - ${errorText}`);
-        throw new Error('Failed to fetch users data');
+        const errorText = await usersResponse.text()
+        console.error(
+          `Failed to fetch users: ${usersResponse.status} ${usersResponse.statusText} - ${errorText}`,
+        )
+        throw new Error("Failed to fetch users data")
       }
-      const [bills, products, stores, users] = await Promise.all([
-        billsResponse.json() as Promise<Bill[]>,
-        productsResponse.json() as Promise<Product[]>,
-        storesResponse.json() as Promise<Store[]>,
-        usersResponse.json() as Promise<User[]>
-      ]);
 
-      // Calculate stats
-      const totalRevenue = bills.reduce((sum, bill) => sum + bill.total, 0);
-      const totalBills = bills.length;
-      const totalProducts = products.length;
-      const totalStores = stores.filter(store => store.status === "active").length;
-      const totalUsers = users.filter(user => user.isActive).length;
-      const lowStockProducts = products.filter(product => product.stock <= product.minStock).length;
+      const rawBills = await billsResponse.json()
+      const rawProducts = await productsResponse.json()
+      const rawStores = await storesResponse.json()
+      const rawUsers = await usersResponse.json()
 
-      // Recent bills (last 5)
+      const bills: Bill[] = Array.isArray(rawBills)
+        ? rawBills
+        : Array.isArray(rawBills?.data)
+        ? rawBills.data
+        : []
+      const products: Product[] = Array.isArray(rawProducts)
+        ? rawProducts
+        : Array.isArray(rawProducts?.data)
+        ? rawProducts.data
+        : []
+      const stores: StoreType[] = Array.isArray(rawStores)
+        ? rawStores
+        : Array.isArray(rawStores?.data)
+        ? rawStores.data
+        : []
+      const users: User[] = Array.isArray(rawUsers)
+        ? rawUsers
+        : Array.isArray(rawUsers?.data)
+        ? rawUsers.data
+        : []
+
+      console.log("📊 Dashboard data:", {
+        bills: bills.length,
+        products: products.length,
+        stores: stores.length,
+        users: users.length,
+      })
+
+      // -------- OVERALL STATS --------
+      const totalRevenue = bills.reduce(
+        (sum, bill) => sum + (bill.total || 0),
+        0,
+      )
+      const totalBills = bills.length
+      const totalProducts = products.length
+      const totalStores = stores.filter(
+        (store) => store.status === "active",
+      ).length
+
+      // active users: if isActive/is_active missing, treat as active
+      const activeUsers = users.filter(
+        (u) =>
+          u.isActive === true ||
+          u.is_active === true ||
+          (u.isActive === undefined && u.is_active === undefined),
+      )
+      const totalUsers = activeUsers.length
+
+      const lowStockProducts = products.filter(
+        (product) => product.stock <= product.minStock,
+      ).length
+
+      // -------- RECENT BILLS --------
       const recentBills = [...bills]
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 5);
+        .sort(
+          (a, b) =>
+            new Date(b.date).getTime() - new Date(a.date).getTime(),
+        )
+        .slice(0, 5)
 
-      // Top products by quantity sold
-      const productSales: Record<string, ProductSale> = {};
-      
-      bills.forEach(bill => {
-        if (bill.items) { // Add null check here
-          bill.items.forEach(item => {
-            if (productSales[item.productId]) {
-              productSales[item.productId].quantity += item.quantity;
-              productSales[item.productId].revenue += item.total;
-            } else {
-              productSales[item.productId] = {
-                name: item.productName,
-                quantity: item.quantity,
-                revenue: item.total,
-              };
-            }
-          });
-        }
-      });
+// -------- TOP PRODUCTS (by quantity sold) --------
+const productSales: Record<string, ProductSale> = {}
 
-      const topProducts = Object.values(productSales)
-        .sort((a, b) => b.quantity - a.quantity)
-        .slice(0, 5);
+bills.forEach((bill: any) => {
+  // bill.items may be nested or named differently; normalize a bit
+  const rawItems =
+    bill.items ||
+    bill.bill_items ||
+    bill.BillItems ||
+    bill.items_json ||
+    []
 
-      setStats({
-        totalRevenue,
-        totalBills,
-        totalProducts,
-        totalStores,
-        totalUsers,
-        lowStockProducts,
-        recentBills,
-        topProducts,
-      });
+  if (!Array.isArray(rawItems)) return
+
+  rawItems.forEach((raw: any) => {
+    const productId =
+      raw.productId || raw.product_id || raw.productid || raw.id
+    if (!productId) return
+
+    const quantity = Number(raw.quantity ?? raw.qty ?? 0)
+    const lineTotal = Number(
+      raw.total ??
+        raw.line_total ??
+        raw.amount ??
+        (raw.price ?? 0) * quantity,
+    )
+    const name =
+      raw.productName ||
+      raw.product_name ||
+      raw.productname ||
+      raw.name ||
+      "Unknown product"
+
+    if (productSales[productId]) {
+      productSales[productId].quantity += quantity
+      productSales[productId].revenue += lineTotal
+    } else {
+      productSales[productId] = {
+        name,
+        quantity,
+        revenue: lineTotal,
+      }
+    }
+  })
+})
+
+const topProducts = Object.values(productSales)
+  .sort((a, b) => b.quantity - a.quantity)
+  .slice(0, 5)
+
+console.log("✅ Aggregated:", {
+  topProducts,
+})
+
+setStats((prev) => ({
+  ...prev,
+  totalRevenue,
+  totalBills,
+  totalProducts,
+  totalStores,
+  totalUsers,
+  lowStockProducts,
+  recentBills,
+  topProducts,
+}))
+
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
-      throw error; // Re-throw to be caught by the caller
+      console.error("Error loading dashboard data:", error)
+      throw error
     }
   }
-
-  // For now, we will always render the dashboard, assuming authentication will be handled elsewhere
-  // or a dummy user is set.
-  // if (!user) {
-  //   return <div>Loading...</div>
-  // }
 
   if (loading) {
     return (
@@ -204,9 +287,11 @@ export default function DashboardPage() {
         {/* Welcome Header */}
         <div>
           <h1 className="text-4xl font-bold text-gray-900">
-            Welcome back{user?.name ? `, ${user.name}` : ''}!
+            Welcome back{user?.name ? `, ${user.name}` : ""}!
           </h1>
-          <p className="text-gray-600 mt-2">Here's what's happening with your jewelry business today.</p>
+          <p className="text-gray-600 mt-2">
+            Here&apos;s what&apos;s happening with your jewelry business today.
+          </p>
         </div>
 
         {/* Stats Cards */}
@@ -217,8 +302,12 @@ export default function DashboardPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{stats.totalRevenue.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">From {stats.totalBills} bills</p>
+              <div className="text-2xl font-bold">
+                ₹{stats.totalRevenue.toFixed(2)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                From {stats.totalBills} bills
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -240,7 +329,9 @@ export default function DashboardPage() {
               <div className="text-2xl font-bold">{stats.totalProducts}</div>
               <p className="text-xs text-muted-foreground">
                 {stats.lowStockProducts > 0 && (
-                  <span className="text-yellow-600">{stats.lowStockProducts} low stock</span>
+                  <span className="text-yellow-600">
+                    {stats.lowStockProducts} low stock
+                  </span>
                 )}
                 {stats.lowStockProducts === 0 && "All in stock"}
               </p>
@@ -271,7 +362,8 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <p className="text-yellow-700">
-                You have {stats.lowStockProducts} products with low stock levels. Consider restocking these items soon.
+                You have {stats.lowStockProducts} products with low stock levels.
+                Consider restocking these items soon.
               </p>
             </CardContent>
           </Card>
@@ -291,24 +383,37 @@ export default function DashboardPage() {
               {stats.recentBills.length > 0 ? (
                 <div className="space-y-4">
                   {stats.recentBills.map((bill: any) => (
-                    <div key={bill.id} className="flex items-center justify-between">
+                    <div
+                      key={bill.id}
+                      className="flex items-center justify-between"
+                    >
                       <div>
                         <p className="font-medium">#{bill.id}</p>
-                        <p className="text-sm text-gray-500">{bill.customerName}</p>
+                        <p className="text-sm text-gray-500">
+                          {bill.customerName}
+                        </p>
                         <p className="text-xs text-gray-400 flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
-                          {new Date(bill.date).toLocaleDateString()}
+                          {bill.date
+                            ? new Date(bill.date).toLocaleDateString()
+                            : "Invalid Date"}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold">₹{bill.total.toFixed(2)}</p>
-                        <Badge variant="secondary">{bill.items ? bill.items.length : 0} items</Badge>
+                        <p className="font-bold">
+                          ₹{(bill.total || 0).toFixed(2)}
+                        </p>
+                        <Badge variant="secondary">
+                          {bill.items ? bill.items.length : 0} items
+                        </Badge>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">No bills created yet</p>
+                <p className="text-gray-500 text-center py-8">
+                  No bills created yet
+                </p>
               )}
             </CardContent>
           </Card>
@@ -326,20 +431,29 @@ export default function DashboardPage() {
               {stats.topProducts.length > 0 ? (
                 <div className="space-y-4">
                   {stats.topProducts.map((product: any, index: number) => (
-                    <div key={index} className="flex items-center justify-between">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between"
+                    >
                       <div>
                         <p className="font-medium">{product.name}</p>
-                        <p className="text-sm text-gray-500">{product.quantity} units sold</p>
+                        <p className="text-sm text-gray-500">
+                          {product.quantity} units sold
+                        </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold">₹{product.revenue.toFixed(2)}</p>
+                        <p className="font-bold">
+                          ₹{product.revenue.toFixed(2)}
+                        </p>
                         <Badge variant="outline">#{index + 1}</Badge>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">No sales data available</p>
+                <p className="text-gray-500 text-center py-8">
+                  No sales data available
+                </p>
               )}
             </CardContent>
           </Card>
@@ -357,7 +471,9 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.totalUsers}</div>
-                <p className="text-sm text-gray-500">Active users in system</p>
+                <p className="text-sm text-gray-500">
+                  Active users in system
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -369,9 +485,14 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  ₹{stats.totalStores > 0 ? (stats.totalRevenue / stats.totalStores).toFixed(2) : "0.00"}
+                  ₹
+                  {stats.totalStores > 0
+                    ? (stats.totalRevenue / stats.totalStores).toFixed(2)
+                    : "0.00"}
                 </div>
-                <p className="text-sm text-gray-500">Average revenue per store</p>
+                <p className="text-sm text-gray-500">
+                  Average revenue per store
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -383,7 +504,10 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  ₹{stats.totalBills > 0 ? (stats.totalRevenue / stats.totalBills).toFixed(2) : "0.00"}
+                  ₹
+                  {stats.totalBills > 0
+                    ? (stats.totalRevenue / stats.totalBills).toFixed(2)
+                    : "0.00"}
                 </div>
                 <p className="text-sm text-gray-500">Average bill value</p>
               </CardContent>

@@ -36,6 +36,12 @@ def get_dashboard_analytics() -> Tuple[Dict, int]:
         total_products = len(products)
         total_stores = len(stores)
         
+        # Get top products
+        top_products, _ = get_top_products(limit=5)
+        
+        # Get active users
+        active_users, _ = get_active_users()
+        
         # Calculate today's revenue
         today = datetime.now().date().isoformat()
         today_revenue = sum(
@@ -49,7 +55,9 @@ def get_dashboard_analytics() -> Tuple[Dict, int]:
             'totalBills': total_bills,
             'totalProducts': total_products,
             'totalStores': total_stores,
-            'todayRevenue': round(today_revenue, 2)
+            'todayRevenue': round(today_revenue, 2),
+            'topProducts': top_products,
+            'activeUsers': active_users.get('activeUsers', 0)
         }
         
         return analytics, 200
@@ -231,3 +239,21 @@ def get_store_performance() -> Tuple[List[Dict], int]:
     except Exception as e:
         logger.error(f"Error getting store performance: {e}", exc_info=True)
         return [], 500
+# ============================================
+# USER ANALYTICS
+# ============================================
+
+def get_active_users() -> Tuple[Dict, int]:
+    """
+    Get active user count.
+    Returns (active_users_dict, status_code)
+    """
+    try:
+        users = get_users_data()
+        active_users = sum(1 for user in users if user.get('is_active'))
+        
+        return {'activeUsers': active_users}, 200
+        
+    except Exception as e:
+        logger.error(f"Error getting active users: {e}", exc_info=True)
+        return {}, 500

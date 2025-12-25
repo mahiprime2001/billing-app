@@ -2,169 +2,160 @@
 Bills Routes
 Flask blueprint for all bill-related API endpoints
 """
+
 from flask import Blueprint, jsonify, request
 import logging
-
 from services import bills_service
 
 logger = logging.getLogger(__name__)
 
 # Create Blueprint
-bills_bp = Blueprint('bills', __name__, url_prefix='/api')
+bills_bp = Blueprint("bills", __name__, url_prefix="/api")
 
-
-# ============================================
+# ======================================================
 # LOCAL BILLS ENDPOINTS
-# ============================================
+# ======================================================
 
 @bills_bp.route("/local/bills", methods=["GET"])
 def get_local_bills():
     """Get bills from LOCAL JSON"""
     try:
         bills = bills_service.get_local_bills()
-        logger.debug(f"Returning {len(bills)} bills from local JSON.")
+        logger.debug(f"Returning {len(bills)} local bills")
         return jsonify(bills), 200
     except Exception as e:
-        logger.error(f"Error in get_local_bills: {e}", exc_info=True)
+        logger.error("Error fetching local bills", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
 @bills_bp.route("/local/bills/update", methods=["POST"])
 def update_local_bills():
-    """Update local JSON bills with new data"""
+    """Update local JSON bills"""
     try:
-        bills_data = request.json
-        
+        bills_data = request.json or []
         success = bills_service.update_local_bills(bills_data)
+
         if success:
             return jsonify({
-                "message": f"Local bills updated with {len(bills_data)} records."
+                "message": f"Local bills updated with {len(bills_data)} records"
             }), 200
-        else:
-            return jsonify({"error": "Failed to update local bills"}), 500
-            
+
+        return jsonify({"error": "Failed to update local bills"}), 500
+
     except Exception as e:
-        logger.error(f"Error in update_local_bills: {e}", exc_info=True)
+        logger.error("Error updating local bills", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
-# ============================================
+# ======================================================
 # SUPABASE BILLS ENDPOINTS
-# ============================================
+# ======================================================
 
 @bills_bp.route("/supabase/bills", methods=["GET"])
 def get_supabase_bills():
     """Get bills directly from Supabase"""
     try:
         bills = bills_service.get_supabase_bills()
-        logger.debug(f"Returning {len(bills)} bills from Supabase.")
+        logger.debug(f"Returning {len(bills)} supabase bills")
         return jsonify(bills), 200
     except Exception as e:
-        logger.error(f"Error in get_supabase_bills: {e}", exc_info=True)
+        logger.error("Error fetching supabase bills", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
 @bills_bp.route("/supabase/bills-with-details", methods=["GET"])
 def get_supabase_bills_with_details():
-    """Get bills with details from Supabase"""
+    """Get bills with items from Supabase"""
     try:
         bills = bills_service.get_supabase_bills_with_details()
-        logger.debug(f"Returning {len(bills)} bills with details from Supabase.")
+        logger.debug(f"Returning {len(bills)} detailed bills")
         return jsonify(bills), 200
     except Exception as e:
-        logger.error(f"Error in get_supabase_bills_with_details: {e}", exc_info=True)
+        logger.error("Error fetching detailed supabase bills", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
-# ============================================
-# MERGED BILLS ENDPOINTS
-# ============================================
+# ======================================================
+# MAIN / MERGED BILLS ENDPOINT (FIXED)
+# ======================================================
 
-@bills_bp.route('/bills', methods=['GET'])
+@bills_bp.route("/bills", methods=["GET"])
 def get_bills():
-    """Get bills by merging local and Supabase (Supabase takes precedence)"""
+    """
+    Main bills endpoint used by frontend
+    Priority:
+    1. Supabase bills with details
+    2. Merged bills (local + supabase)
+    3. Empty list (never break UI)
+    """
     try:
-        bills, status_code = bills_service.get_merged_bills()
-        
-        if status_code == 200:
+        logger.info("Fetching bills with details from Supabase")
+        bills = bills_service.get_supabase_bills_with_details()
+
+        if bills:
+            logger.info(f"Returning {len(bills)} bills with details")
             return jsonify(bills), 200
-        else:
-            return jsonify({
-                "error": "Internal server error",
-                "details": "Failed to fetch bills"
-            }), status_code
-            
+
+        logger.warning("No detailed bills found, trying merged bills")
+        bills, status_code = bills_service.get_merged_bills()
+
+        if status_code == 200:
+            logger.info(f"Returning {len(bills)} merged bills")
+            return jsonify(bills), 200
+
+        logger.warning("No bills found, returning empty list")
+        return jsonify([]), 200
+
     except Exception as e:
-        logger.error(f"Error in get_bills: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error", "details": str(e)}), 500
+        logger.error("Error in get_bills", exc_info=True)
+        return jsonify([]), 200
 
 
-# ============================================
-# CREATE & DELETE BILLS
-# ============================================
+# ======================================================
+# DELETE BILL
+# ======================================================
 
-@bills_bp.route('/bills', methods=['POST'])
-def create_bill():
-    """Create bill"""
-    try:
-        bill_data = request.json
-        
-        bill_id, message, status_code = bills_service.create_bill(bill_data)
-        
-        if status_code == 201:
-            # Log for sync
-            try:
-                from scripts.sync_manager import log_json_crud_operation
-                log_json_crud_operation('bills', 'CREATE', bill_id, bill_data)
-            except ImportError:
-                logger.warning("Sync manager not available, skipping sync log")
-            
-            return jsonify({"message": message, "id": bill_id}), 201
-        else:
-            return jsonify({"error": message}), status_code
-            
-    except Exception as e:
-        logger.error(f"Error in create_bill: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-
-
-@bills_bp.route('/bills/<bill_id>', methods=['DELETE'])
+@bills_bp.route("/bills/<bill_id>", methods=["DELETE"])
 def delete_bill(bill_id):
-    """Delete bill"""
+    """Delete a bill"""
     try:
         success, message, status_code = bills_service.delete_bill(bill_id)
-        
+
         if success:
-            # Log for sync
+            # Sync log (optional)
             try:
                 from scripts.sync_manager import log_json_crud_operation
-                log_json_crud_operation('bills', 'DELETE', bill_id, {'id': bill_id})
+                log_json_crud_operation(
+                    table_name="bills",
+                    operation="DELETE",
+                    record_id=bill_id,
+                    data={"id": bill_id},
+                )
             except ImportError:
-                logger.warning("Sync manager not available, skipping sync log")
-            
+                logger.warning("Sync manager not available")
+
             return jsonify({"message": message}), status_code
-        else:
-            return jsonify({"error": message}), status_code
-            
+
+        return jsonify({"error": message}), status_code
+
     except Exception as e:
-        logger.error(f"Error in delete_bill: {e}", exc_info=True)
+        logger.error("Error deleting bill", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
-# ============================================
+# ======================================================
 # SYNC ENDPOINT
-# ============================================
+# ======================================================
 
-@bills_bp.route('/bills/sync', methods=['GET'])
+@bills_bp.route("/bills/sync", methods=["GET"])
 def sync_bills():
-    """Sync bills endpoint"""
+    """Sync bills for offline/online reconciliation"""
     try:
-        # This endpoint can be used for manual sync trigger
-        bills, status_code = bills_service.get_merged_bills()
+        bills = bills_service.get_supabase_bills_with_details()
         return jsonify({
             "status": "synced",
             "count": len(bills)
         }), 200
     except Exception as e:
-        logger.error(f"Error in sync_bills: {e}", exc_info=True)
+        logger.error("Error syncing bills", exc_info=True)
         return jsonify({"error": str(e)}), 500

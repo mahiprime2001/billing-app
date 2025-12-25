@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import IdleTimeoutHandler from "@/components/idle-timeout-handler";
 import OfflineBanner from "@/components/OfflineBanner";
 import ServerErrorHandler from "@/components/server-error-handler";
@@ -15,9 +15,15 @@ export default function AppProviders({
   const [backendStatus, setBackendStatus] = useState<'online' | 'offline' | 'checking'>('checking');
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 3;
+  
+  // ✅ FIX: Use refs to track backend initialization state
+  const backendInitialized = useRef(false);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ✅ HARDCODED: Backend URL
+  const BACKEND_URL = "http://127.0.0.1:8080";
 
   useEffect(() => {
-    const backendApiUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://127.0.0.1:8080";
     const pollInterval = 5000; // Poll every 5 seconds
     const requestTimeout = 5000; // 5 second timeout for requests
 
@@ -26,7 +32,7 @@ export default function AppProviders({
       const timeoutId = setTimeout(() => controller.abort(), requestTimeout);
 
       try {
-        const response = await fetch(`${backendApiUrl}/api/sync/status`, {
+        const response = await fetch(`${BACKEND_URL}/api/sync/status`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -41,8 +47,8 @@ export default function AppProviders({
           setBackendStatus('offline');
           setRetryCount(prev => prev + 1);
           
-          // Try to restart backend if in Tauri and max retries reached
-          if (retryCount >= MAX_RETRIES) {
+          // ✅ FIX: Try to restart backend only once per failure cycle
+          if (retryCount >= MAX_RETRIES && !backendInitialized.current) {
             await ensureBackend();
             setRetryCount(0);
           }
@@ -50,11 +56,10 @@ export default function AppProviders({
           const data = await response.json();
           console.log("✅ Backend heartbeat:", data);
           setBackendStatus('online');
-          setRetryCount(0); // Reset retry count on success
+          setRetryCount(0);
         }
       } catch (error) {
         clearTimeout(timeoutId);
-        
         if (error instanceof Error) {
           if (error.name === 'AbortError') {
             console.error("⏱️ Heartbeat timeout - Backend not responding");
@@ -64,72 +69,69 @@ export default function AppProviders({
         } else {
           console.error("❌ Unknown heartbeat error:", error);
         }
-        
+
         setBackendStatus('offline');
         setRetryCount(prev => prev + 1);
         
-        // Try to restart backend if in Tauri and max retries reached
-        if (retryCount >= MAX_RETRIES) {
+        // ✅ FIX: Try to restart backend only once per failure cycle
+        if (retryCount >= MAX_RETRIES && !backendInitialized.current) {
           await ensureBackend();
           setRetryCount(0);
         }
       }
     };
 
-    // Ensure backend is running on app load (Tauri only)
+    // ✅ FIX: Ensure backend is running only ONCE
     const ensureBackend = async () => {
+      if (backendInitialized.current) {
+        console.log("⚠️ Backend already initialized, skipping...");
+        return;
+      }
+
       if (typeof window !== 'undefined' && '__TAURI__' in window) {
         try {
           console.log("🔄 Attempting to start backend...");
+          backendInitialized.current = true; // ✅ Mark as initialized BEFORE calling
+          
           const result = await invoke('ensure_backend_running');
           console.log('✅ Backend check:', result);
-          
+
           // Wait a moment for backend to start, then retry heartbeat
           setTimeout(() => {
             sendHeartbeat();
           }, 2000);
         } catch (error) {
           console.error('❌ Failed to ensure backend is running:', error);
+          backendInitialized.current = false; // ✅ Reset on failure
         }
       }
     };
 
-    // Send initial heartbeat and ensure backend immediately
-    sendHeartbeat();
-    ensureBackend();
+    // ✅ FIX: Only initialize once
+    if (!backendInitialized.current) {
+      console.log("🚀 Initializing backend for the first time...");
+      ensureBackend();
+      sendHeartbeat();
 
-    // Set up interval for continuous heartbeats
-    const intervalId = setInterval(sendHeartbeat, pollInterval);
+      // Set up interval for continuous heartbeats
+      heartbeatIntervalRef.current = setInterval(sendHeartbeat, pollInterval);
+    }
 
     // Clean up interval on component unmount
     return () => {
-      clearInterval(intervalId);
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
     };
-  }, [retryCount]); // Add retryCount to dependencies
+  }, [retryCount]); // Keep retryCount dependency for retry logic
 
   return (
     <>
-      {/* Updater component - checks for updates on app load */}
-      {/* ✅ FIXED: Removed currentVersion prop */}
       <Updater />
-
-      {/* Offline banner - shows when no internet connection */}
-      <OfflineBanner />
-
-      {/* Backend status indicator */}
-      {backendStatus === 'offline' && (
-        <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 z-50">
-          ⚠️ Backend server is offline. Retrying... ({retryCount}/{MAX_RETRIES})
-        </div>
-      )}
-
-      {/* Server error handler - catches API errors */}
-      {/* ✅ FIXED: Added children prop */}
+      <IdleTimeoutHandler />
       <ServerErrorHandler>
-        {/* Idle timeout handler - logs out inactive users */}
-        <IdleTimeoutHandler />
-
-        {/* Main app content */}
+        {backendStatus === 'offline' && <OfflineBanner />}
         {children}
       </ServerErrorHandler>
     </>

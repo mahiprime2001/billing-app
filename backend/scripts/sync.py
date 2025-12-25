@@ -21,12 +21,25 @@ from utils.supabase_db import SupabaseDB, db as SupabaseDBInstance # noqa: E402
 from utils.json_utils import convert_camel_to_snake # NEW: Import conversion utility
 
 logger = logging.getLogger(__name__)
-if not logger.handlers:
-    # Local logger fallback if caller doesn't pass logger_instance
+if not logger.handlers:  # Local logger fallback if caller doesn't pass logger_instance
     import io
-    utf8_stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    handler = logging.StreamHandler(utf8_stdout)
-    handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    from pathlib import Path
+
+    # Decide where to log (PROJECT_ROOT is already defined above)
+    log_path = Path(PROJECT_ROOT) / "sync.log"
+
+    if sys.stdout is not None and hasattr(sys.stdout, "buffer"):
+        # Console mode: log to UTF-8 stdout
+        stream = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+        handler = logging.StreamHandler(stream)
+    else:
+        # No console (PyInstaller --noconsole): log to file
+        handler = logging.FileHandler(log_path, encoding="utf-8")
+
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.DEBUG)
 

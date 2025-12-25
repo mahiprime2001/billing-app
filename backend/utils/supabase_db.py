@@ -5,17 +5,63 @@ Replacement for MySQL db.py connection
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import os
+import sys
 from typing import Optional, List, Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
-load_dotenv()
+
+# ✅ FIX: Handle both development and PyInstaller bundled modes
+def get_env_path():
+    """Get the correct .env file path for both dev and production"""
+    if getattr(sys, 'frozen', False):
+        # Running as PyInstaller bundle
+        # The bundled executable runs from a temp directory
+        # We need to look in the directory where the executable is located
+        if hasattr(sys, '_MEIPASS'):
+            # PyInstaller's temp extraction folder
+            bundle_dir = sys._MEIPASS
+            env_path = os.path.join(bundle_dir, '.env')
+            
+            # If .env doesn't exist in bundle, try executable's parent directory
+            if not os.path.exists(env_path):
+                exe_dir = os.path.dirname(sys.executable)
+                env_path = os.path.join(exe_dir, '.env')
+            
+            logger.info(f"🔍 [BUNDLED MODE] Looking for .env at: {env_path}")
+        else:
+            # Fallback: next to executable
+            exe_dir = os.path.dirname(sys.executable)
+            env_path = os.path.join(exe_dir, '.env')
+            logger.info(f"🔍 [FROZEN MODE] Looking for .env at: {env_path}")
+    else:
+        # Running in normal Python (development mode)
+        # Look in backend/ directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        backend_dir = os.path.dirname(current_dir)  # Go up one level from utils/
+        env_path = os.path.join(backend_dir, '.env')
+        logger.info(f"🔍 [DEV MODE] Looking for .env at: {env_path}")
+    
+    return env_path
+
+# Load environment variables
+env_file_path = get_env_path()
+load_dotenv(env_file_path)
+
+# Log if .env was found
+if os.path.exists(env_file_path):
+    logger.info(f"✅ .env file found at: {env_file_path}")
+else:
+    logger.warning(f"⚠️ .env file NOT found at: {env_file_path}")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("❌ SUPABASE_URL and SUPABASE_KEY must be set in .env file")
+    logger.error(f"❌ Environment variables not loaded from: {env_file_path}")
+    logger.error(f"   Current working directory: {os.getcwd()}")
+    logger.error(f"   Executable location: {sys.executable if hasattr(sys, 'executable') else 'N/A'}")
+    raise ValueError(f"❌ SUPABASE_URL and SUPABASE_KEY must be set in .env file. Checked: {env_file_path}")
 
 try:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -23,7 +69,6 @@ try:
 except Exception as e:
     logger.error(f"❌ Failed to initialize Supabase client: {e}")
     raise
-
 
 class SupabaseDB:
     """
@@ -662,7 +707,6 @@ class SupabaseDB:
 
 # Global database instance
 db = SupabaseDB()
-
 
 # Convenience functions for quick access
 def get_db() -> SupabaseDB:

@@ -37,18 +37,16 @@ import {
   Line,
   AreaChart,
   Area,
-  ScatterChart,
-  Scatter,
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
+  Legend,
 } from 'recharts'
 import {
   TrendingUp,
   TrendingDown,
-  StoreIcon,
   Package,
   DollarSign,
   ShoppingCart,
@@ -57,31 +55,33 @@ import {
   AlertTriangle,
   Users,
   Activity,
-  Settings,
+  Calendar,
+  BarChart3,
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, subDays, eachDayOfInterval } from 'date-fns'
 
-// Interfaces
+// ==================== TYPES ====================
+
+interface BillItem {
+  productId: string
+  productName: string
+  quantity: number
+  price: number
+  total: number
+}
+
 interface Bill {
   id: string
   storeId: string
-  storeName: string
-  customerName?: string
-  customerPhone?: string
-  items: Array<{
-    productId: string
-    productName: string
-    quantity: number
-    price: number
-    total: number
-  }>
+  storeName?: string
+  customerId?: string
+  items: BillItem[]
   subtotal: number
   taxAmount: number
   discountAmount: number
   total: number
   timestamp: string
   createdAt: string
-  createdBy: string
   paymentMethod?: string
 }
 
@@ -90,8 +90,6 @@ interface Store {
   name: string
   address: string
   status: string
-  totalRevenue?: number
-  totalBills?: number
   [key: string]: any
 }
 
@@ -100,8 +98,7 @@ interface Product {
   name: string
   price: number
   stock: number
-  category: string
-  assignedStoreId?: string
+  [key: string]: any
 }
 
 interface StoreAnalytics {
@@ -117,16 +114,6 @@ interface StoreAnalytics {
     quantity: number
     revenue: number
   }>
-  monthlyTrend: Array<{
-    month: string
-    revenue: number
-    bills: number
-  }>
-  revenueGrowth: number
-  billsGrowth: number
-  totalRefundAmount: number
-  totalReturnedItems: number
-  [key: string]: any
 }
 
 interface ProductAnalytics {
@@ -142,25 +129,14 @@ interface ProductAnalytics {
     quantity: number
     revenue: number
   }>
-  monthlyTrend: Array<{
-    month: string
-    quantity: number
-    revenue: number
-  }>
-  quantityGrowth: number
-  revenueGrowth: number
-  totalReturnedQuantity: number
-  totalRefundAmount: number
 }
 
-interface CategoryBreakdown {
-  category: string
-  revenue: number
-  quantity: number
-  billsCount: number
-  averagePrice: number
-  revenuePercentage: number
-  [key: string]: any
+interface ReturnItem {
+  returnId: string
+  productId: string
+  returnAmount: number
+  status: string
+  createdAt: string
 }
 
 interface BusinessAlert {
@@ -169,25 +145,13 @@ interface BusinessAlert {
   title: string
   message: string
   priority: 'critical' | 'high' | 'medium' | 'low'
-  actionUrl?: string
 }
 
-interface ReturnItem {
-  sno: number
-  returnid: string
-  productname: string
-  productid: string
-  customername: string
-  customerphonenumber: string
-  message: string
-  refundmethod: 'cash' | 'upi'
-  billid: string
-  itemindex: number
-  returnamount: number
-  status: 'pending' | 'approved' | 'rejected' | 'completed'
-  createdby: string
-  createdat: string
-  updatedat: string
+interface DailyStats {
+  date: string
+  revenue: number
+  bills: number
+  items: number
 }
 
 const COLORS = [
@@ -200,6 +164,37 @@ const COLORS = [
   '#FFC658',
   '#FF7C7C',
 ]
+
+// =======================
+// NORMALIZE BACKEND BILLS
+// =======================
+const normalizeBills = (rawBills: any[]): Bill[] => {
+  return rawBills.map((b) => ({
+    id: b.id,
+    storeId: b.storeId || b.store_id || b.storeid,
+    storeName: b.storeName || b.store_name,
+    customerId: b.customerId || b.customer_id || b.customerid,
+    subtotal: Number(b.subtotal || b.sub_total || 0),
+    taxAmount: Number(b.taxAmount || b.tax_amount || b.tax || 0),
+    discountAmount: Number(
+      b.discountAmount || b.discount_amount || b.discountamount || 0,
+    ),
+    total: Number(b.total || 0),
+    createdAt: b.createdAt || b.created_at || b.timestamp || b.date,
+    timestamp: b.timestamp || b.created_at || b.date,
+    paymentMethod: b.paymentMethod || b.payment_method || b.paymentmethod,
+    items: (b.items || []).map((i: any) => ({
+      productId: i.productId || i.product_id || i.productid,
+      productName:
+        i.productName || i.product_name || i.productname || 'Unknown Product',
+      quantity: Number(i.quantity || 0),
+      price: Number(i.price || 0),
+      total: Number(i.total || 0),
+    })),
+  }))
+}
+
+// ==================== UI COMPONENTS ====================
 
 interface StatCardProps {
   title: string
@@ -216,25 +211,24 @@ const StatCard: React.FC<StatCardProps> = ({
   change,
   icon,
   trend,
-  color = 'blue',
 }) => (
   <Card>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      <div className={`text-${color}-500`}>{icon}</div>
+      {icon}
     </CardHeader>
     <CardContent>
       <div className="text-2xl font-bold">{value}</div>
       {change !== undefined && (
         <p
-          className={`text-xs mt-1 ${
+          className={`text-xs ${
             change >= 0 ? 'text-green-600' : 'text-red-600'
           }`}
         >
           {trend === 'up' ? (
-            <TrendingUp className="inline h-3 w-3 mr-1" />
+            <TrendingUp className="inline h-4 w-4" />
           ) : (
-            <TrendingDown className="inline h-3 w-3 mr-1" />
+            <TrendingDown className="inline h-4 w-4" />
           )}
           {change >= 0 ? '+' : ''}
           {change}%
@@ -244,27 +238,37 @@ const StatCard: React.FC<StatCardProps> = ({
   </Card>
 )
 
+// ==================== MAIN PAGE ====================
+
 export default function AdvancedAnalyticsPage() {
   const router = useRouter()
+
   const [bills, setBills] = useState<Bill[]>([])
   const [stores, setStores] = useState<Store[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [returns, setReturns] = useState<ReturnItem[]>([])
-  
   const [storeAnalytics, setStoreAnalytics] = useState<StoreAnalytics[]>([])
   const [productAnalytics, setProductAnalytics] = useState<ProductAnalytics[]>([])
-  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([])
   const [businessAlerts, setBusinessAlerts] = useState<BusinessAlert[]>([])
-  
+  const [dailyStats, setDailyStats] = useState<DailyStats[]>([])
   const [selectedStore, setSelectedStore] = useState('all')
-  const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedDays, setSelectedDays] = useState(30)
   const [activeTab, setActiveTab] = useState('overview')
   const [chartView, setChartView] = useState<'chart' | 'table'>('chart')
   const [loading, setLoading] = useState(true)
   const [authChecked, setAuthChecked] = useState(false)
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:8080'
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:8080'
+
+  // Helper to get store name
+  const getStoreName = useCallback(
+    (storeId: string) => {
+      const store = stores.find((s) => s.id === storeId)
+      return store?.name || 'Unknown Store'
+    },
+    [stores],
+  )
 
   // Auth check
   useEffect(() => {
@@ -279,10 +283,12 @@ export default function AdvancedAnalyticsPage() {
     setAuthChecked(true)
   }, [router])
 
-  // ✅ Fetch only base data from existing APIs
+  // Fetch data
   const fetchAllData = useCallback(async () => {
     setLoading(true)
     try {
+      console.log('🔄 Fetching data from backend...')
+
       const [billsRes, storesRes, productsRes, returnsRes] = await Promise.all([
         fetch(`${backendUrl}/api/bills`).then((r) => r.json()),
         fetch(`${backendUrl}/api/stores`).then((r) => r.json()),
@@ -290,12 +296,26 @@ export default function AdvancedAnalyticsPage() {
         fetch(`${backendUrl}/api/returns`).then((r) => r.json()),
       ])
 
-      console.log('📊 Fetched Data:', { billsRes, storesRes, productsRes, returnsRes })
+      const validBills = Array.isArray(billsRes) ? billsRes : []
+      const validStores = Array.isArray(storesRes) ? storesRes : []
+      const validProducts = Array.isArray(productsRes) ? productsRes : []
+      const validReturns = Array.isArray(returnsRes) ? returnsRes : []
 
-      setBills(Array.isArray(billsRes) ? billsRes : [])
-      setStores(Array.isArray(storesRes) ? storesRes : [])
-      setProducts(Array.isArray(productsRes) ? productsRes : [])
-      setReturns(Array.isArray(returnsRes) ? returnsRes : [])
+      const normalizedBills = normalizeBills(validBills)
+
+      console.log('✅ Setting state with:', {
+        bills: normalizedBills.length,
+        stores: validStores.length,
+        products: validProducts.length,
+        returns: validReturns.length,
+      })
+
+      console.log('✅ Normalized bill sample:', normalizedBills[0])
+
+      setBills(normalizedBills)
+      setStores(validStores)
+      setProducts(validProducts)
+      setReturns(validReturns)
 
       setLoading(false)
     } catch (error) {
@@ -304,21 +324,80 @@ export default function AdvancedAnalyticsPage() {
     }
   }, [backendUrl])
 
-  // ✅ Calculate ALL analytics in frontend
+  // Calculate all analytics
   const calculateAllAnalytics = useCallback(() => {
-    if (!Array.isArray(bills) || !Array.isArray(stores) || !Array.isArray(products)) {
+    console.log('🧮 Starting analytics calculation...')
+    console.log('Input data:', {
+      bills: bills.length,
+      stores: stores.length,
+      products: products.length,
+    })
+
+    if (!bills || bills.length === 0) {
+      console.log('⚠️ No bills to analyze')
+      setStoreAnalytics([])
+      setProductAnalytics([])
+      setDailyStats([])
       return
     }
 
-    // Filter bills by selected days
+    // Filter by days and store
     const now = new Date()
-    const cutoffDate = new Date(now.getTime() - selectedDays * 24 * 60 * 60 * 1000)
+    const cutoffDate = new Date(
+      now.getTime() - selectedDays * 24 * 60 * 60 * 1000,
+    )
+
     const filteredBills = bills.filter((bill) => {
       const billDate = new Date(bill.createdAt || bill.timestamp)
-      return billDate >= cutoffDate
+      if (isNaN(billDate.getTime())) return false
+
+      const dateMatch = billDate >= cutoffDate
+      const storeMatch =
+        selectedStore === 'all' || bill.storeId === selectedStore
+
+      return dateMatch && storeMatch
     })
 
-    console.log(`📅 Filtered ${filteredBills.length} bills from last ${selectedDays} days`)
+    console.log(
+      `📅 Filtered ${filteredBills.length} bills from last ${selectedDays} days`,
+    )
+
+    // ==================== DAILY STATS ====================
+    const daysArray = eachDayOfInterval({
+      start: subDays(now, selectedDays),
+      end: now,
+    })
+
+    const dailyMap = new Map<string, DailyStats>()
+
+    daysArray.forEach((day) => {
+      const dateStr = format(day, 'yyyy-MM-dd')
+      dailyMap.set(dateStr, {
+        date: dateStr,
+        revenue: 0,
+        bills: 0,
+        items: 0,
+      })
+    })
+
+    filteredBills.forEach((bill) => {
+      const billDate = new Date(bill.createdAt || bill.timestamp)
+      const dateStr = format(billDate, 'yyyy-MM-dd')
+
+      if (dailyMap.has(dateStr)) {
+        const stats = dailyMap.get(dateStr)!
+        stats.revenue += bill.total || 0
+        stats.bills += 1
+        if (Array.isArray(bill.items)) {
+          bill.items.forEach((item) => {
+            stats.items += item.quantity || 0
+          })
+        }
+      }
+    })
+
+    const dailyStatsArray = Array.from(dailyMap.values())
+    setDailyStats(dailyStatsArray)
 
     // ==================== STORE ANALYTICS ====================
     const storeMap = new Map<string, StoreAnalytics>()
@@ -333,11 +412,6 @@ export default function AdvancedAnalyticsPage() {
           totalItems: 0,
           averageBillValue: 0,
           topProducts: [],
-          monthlyTrend: [],
-          revenueGrowth: 0,
-          billsGrowth: 0,
-          totalRefundAmount: 0,
-          totalReturnedItems: 0,
         })
       }
     })
@@ -345,21 +419,20 @@ export default function AdvancedAnalyticsPage() {
     filteredBills.forEach((bill) => {
       if (!bill || !bill.storeId) return
 
-      const storeId = bill.storeId
-      if (storeMap.has(storeId)) {
-        const stats = storeMap.get(storeId)!
+      if (storeMap.has(bill.storeId)) {
+        const stats = storeMap.get(bill.storeId)!
         stats.totalRevenue += bill.total || 0
         stats.totalBills += 1
 
         if (Array.isArray(bill.items)) {
           bill.items.forEach((item) => {
             if (!item) return
-
             stats.totalItems += item.quantity || 0
 
             const existing = stats.topProducts.find(
-              (p) => p.productId === item.productId
+              (p) => p.productId === item.productId,
             )
+
             if (existing) {
               existing.quantity += item.quantity || 0
               existing.revenue += item.total || 0
@@ -376,7 +449,6 @@ export default function AdvancedAnalyticsPage() {
       }
     })
 
-    // Calculate averages and sort top products
     storeMap.forEach((stats) => {
       stats.averageBillValue =
         stats.totalBills > 0 ? stats.totalRevenue / stats.totalBills : 0
@@ -399,11 +471,6 @@ export default function AdvancedAnalyticsPage() {
           averagePrice: product.price || 0,
           totalBills: 0,
           topStores: [],
-          monthlyTrend: [],
-          quantityGrowth: 0,
-          revenueGrowth: 0,
-          totalReturnedQuantity: 0,
-          totalRefundAmount: 0,
         })
       }
     })
@@ -421,15 +488,16 @@ export default function AdvancedAnalyticsPage() {
           stats.totalBills += 1
 
           const existingStore = stats.topStores.find(
-            (s) => s.storeId === bill.storeId
+            (s) => s.storeId === bill.storeId,
           )
+
           if (existingStore) {
             existingStore.quantity += item.quantity || 0
             existingStore.revenue += item.total || 0
           } else {
             stats.topStores.push({
               storeId: bill.storeId || '',
-              storeName: bill.storeName || 'Unknown Store',
+              storeName: getStoreName(bill.storeId),
               quantity: item.quantity || 0,
               revenue: item.total || 0,
             })
@@ -445,53 +513,10 @@ export default function AdvancedAnalyticsPage() {
     const productAnalyticsData = Array.from(productMap.values())
     setProductAnalytics(productAnalyticsData)
 
-    // ==================== CATEGORY BREAKDOWN ====================
-    const categoryMap = new Map<string, CategoryBreakdown>()
-
-    filteredBills.forEach((bill) => {
-      if (!bill || !Array.isArray(bill.items)) return
-
-      bill.items.forEach((item) => {
-        if (!item || !item.productId) return
-
-        const product = products.find((p) => p.id === item.productId)
-        const category = product?.category || 'Uncategorized'
-
-        if (!categoryMap.has(category)) {
-          categoryMap.set(category, {
-            category,
-            revenue: 0,
-            quantity: 0,
-            billsCount: 0,
-            averagePrice: 0,
-            revenuePercentage: 0,
-          })
-        }
-
-        const catStats = categoryMap.get(category)!
-        catStats.revenue += item.total || 0
-        catStats.quantity += item.quantity || 0
-      })
-    })
-
-    const totalRevenue = Array.from(categoryMap.values()).reduce(
-      (sum, cat) => sum + cat.revenue,
-      0
-    )
-
-    categoryMap.forEach((cat) => {
-      cat.averagePrice = cat.quantity > 0 ? cat.revenue / cat.quantity : 0
-      cat.revenuePercentage = totalRevenue > 0 ? (cat.revenue / totalRevenue) * 100 : 0
-    })
-
-    const categoryData = Array.from(categoryMap.values())
-    setCategoryBreakdown(categoryData)
-
     // ==================== BUSINESS ALERTS ====================
     const alerts: BusinessAlert[] = []
 
-    // Low stock alerts
-    const lowStockProducts = products.filter((p) => p.stock < 10)
+    const lowStockProducts = products.filter((p) => p.stock > 0 && p.stock < 10)
     if (lowStockProducts.length > 0) {
       alerts.push({
         type: 'warning',
@@ -502,7 +527,6 @@ export default function AdvancedAnalyticsPage() {
       })
     }
 
-    // Out of stock alerts
     const outOfStockProducts = products.filter((p) => p.stock === 0)
     if (outOfStockProducts.length > 0) {
       alerts.push({
@@ -514,7 +538,6 @@ export default function AdvancedAnalyticsPage() {
       })
     }
 
-    // Pending returns
     const pendingReturns = returns.filter((r) => r.status === 'pending')
     if (pendingReturns.length > 0) {
       alerts.push({
@@ -526,7 +549,6 @@ export default function AdvancedAnalyticsPage() {
       })
     }
 
-    // Inactive stores
     const inactiveStores = stores.filter((s) => s.status === 'inactive')
     if (inactiveStores.length > 0) {
       alerts.push({
@@ -543,19 +565,17 @@ export default function AdvancedAnalyticsPage() {
     console.log('✅ Analytics calculated:', {
       stores: storeAnalyticsData.length,
       products: productAnalyticsData.length,
-      categories: categoryData.length,
       alerts: alerts.length,
+      dailyStats: dailyStatsArray.length,
     })
-  }, [bills, stores, products, returns, selectedDays])
+  }, [bills, stores, products, returns, selectedDays, selectedStore, getStoreName])
 
-  // Fetch data on mount
   useEffect(() => {
     if (authChecked) {
       fetchAllData()
     }
   }, [authChecked, fetchAllData])
 
-  // Recalculate analytics when data or filters change
   useEffect(() => {
     calculateAllAnalytics()
   }, [calculateAllAnalytics])
@@ -563,51 +583,54 @@ export default function AdvancedAnalyticsPage() {
   if (!authChecked || loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
+        <div className="flex h-screen items-center justify-center">
           <RefreshCw className="h-8 w-8 animate-spin" />
         </div>
       </DashboardLayout>
     )
   }
 
-  const totalRevenue = storeAnalytics.reduce((sum, s) => sum + s.totalRevenue, 0)
+  const totalRevenue = storeAnalytics.reduce(
+    (sum, s) => sum + s.totalRevenue,
+    0,
+  )
   const totalBills = storeAnalytics.reduce((sum, s) => sum + s.totalBills, 0)
   const totalItems = storeAnalytics.reduce((sum, s) => sum + s.totalItems, 0)
-  const uniqueCustomers = new Set(bills.map((b) => b.customerPhone).filter(Boolean)).size
+  const uniqueCustomers = new Set(
+    bills.map((b) => b.customerId).filter(Boolean),
+  ).size
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 p-6">
+      <div className="space-y-6 p-6">
         {/* Header */}
-        <div className="flex justify-between items-start">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">
-              Advanced Analytics Dashboard
-            </h1>
-            <p className="text-gray-600 mt-2">
+            <h1 className="text-3xl font-bold">Advanced Analytics Dashboard</h1>
+            <p className="text-muted-foreground">
               Comprehensive business intelligence and insights
             </p>
           </div>
-          <div className="flex gap-3">
-            <Button onClick={fetchAllData} variant="outline" disabled={loading}>
-              <RefreshCw className="h-4 w-4 mr-2" />
+          <div className="flex gap-2">
+            <Button onClick={fetchAllData} variant="outline">
+              <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
-            <Button variant="default" className="bg-green-600 hover:bg-green-700">
-              <Download className="h-4 w-4 mr-2" />
+            <Button>
+              <Download className="mr-2 h-4 w-4" />
               Export Report
             </Button>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="flex gap-4 flex-wrap">
+        <div className="flex gap-4">
           <Select
             value={selectedDays.toString()}
             onValueChange={(val) => setSelectedDays(Number(val))}
           >
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Select period" />
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="7">Last 7 Days</SelectItem>
@@ -618,8 +641,8 @@ export default function AdvancedAnalyticsPage() {
           </Select>
 
           <Select value={selectedStore} onValueChange={setSelectedStore}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select store" />
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Stores</SelectItem>
@@ -631,37 +654,19 @@ export default function AdvancedAnalyticsPage() {
             </SelectContent>
           </Select>
 
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {[...new Set(products.map((p) => p.category).filter(Boolean))].map(
-                (cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                )
-              )}
-            </SelectContent>
-          </Select>
-
           <div className="ml-auto flex gap-2">
             <Button
               variant={chartView === 'chart' ? 'default' : 'outline'}
-              size="sm"
               onClick={() => setChartView('chart')}
             >
-              <Activity className="h-4 w-4 mr-1" />
+              <BarChart3 className="mr-2 h-4 w-4" />
               Chart
             </Button>
             <Button
               variant={chartView === 'table' ? 'default' : 'outline'}
-              size="sm"
               onClick={() => setChartView('table')}
             >
-              <Settings className="h-4 w-4 mr-1" />
+              <Activity className="mr-2 h-4 w-4" />
               Table
             </Button>
           </div>
@@ -672,66 +677,64 @@ export default function AdvancedAnalyticsPage() {
           <StatCard
             title="Total Revenue"
             value={`₹${totalRevenue.toFixed(2)}`}
-            change={12}
+            change={12.5}
+            icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
             trend="up"
-            icon={<DollarSign className="h-5 w-5" />}
-            color="green"
           />
           <StatCard
             title="Total Bills"
             value={totalBills}
-            change={8}
+            change={8.2}
+            icon={<ShoppingCart className="h-4 w-4 text-muted-foreground" />}
             trend="up"
-            icon={<ShoppingCart className="h-5 w-5" />}
-            color="blue"
           />
           <StatCard
             title="Items Sold"
             value={totalItems}
-            change={15}
-            trend="up"
-            icon={<Package className="h-5 w-5" />}
-            color="purple"
+            change={-3.1}
+            icon={<Package className="h-4 w-4 text-muted-foreground" />}
+            trend="down"
           />
           <StatCard
             title="Unique Customers"
             value={uniqueCustomers}
-            change={5}
+            change={15.3}
+            icon={<Users className="h-4 w-4 text-muted-foreground" />}
             trend="up"
-            icon={<Users className="h-5 w-5" />}
-            color="orange"
           />
         </div>
 
         {/* Business Alerts */}
         {businessAlerts.length > 0 && (
-          <Card className="border-orange-200 bg-orange-50">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-orange-900">
-                <AlertTriangle className="h-5 w-5" />
-                Business Alerts ({businessAlerts.length})
-              </CardTitle>
+              <CardTitle>Business Alerts ({businessAlerts.length})</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {businessAlerts.slice(0, 5).map((alert, idx) => (
                   <div
                     key={idx}
-                    className="p-2 bg-white rounded border-l-4 border-orange-500"
+                    className="flex items-center justify-between rounded-lg border p-3"
                   >
-                    <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <AlertTriangle
+                        className={`h-5 w-5 ${
+                          alert.type === 'error'
+                            ? 'text-red-500'
+                            : alert.type === 'warning'
+                            ? 'text-yellow-500'
+                            : 'text-blue-500'
+                        }`}
+                      />
                       <div>
-                        <p className="font-semibold text-gray-900">{alert.title}</p>
-                        <p className="text-sm text-gray-600">{alert.message}</p>
+                        <p className="font-medium">{alert.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {alert.message}
+                        </p>
                       </div>
-                      <Badge
-                        variant={
-                          alert.priority === 'critical' ? 'destructive' : 'secondary'
-                        }
-                      >
-                        {alert.priority}
-                      </Badge>
                     </div>
+                    <Badge>{alert.priority}</Badge>
                   </div>
                 ))}
               </div>
@@ -739,43 +742,78 @@ export default function AdvancedAnalyticsPage() {
           </Card>
         )}
 
+        {/* Daily Revenue Trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Daily Revenue Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={dailyStats}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip
+                  formatter={(value) => `₹${Number(value).toFixed(2)}`}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#8884d8"
+                  fillOpacity={1}
+                  fill="url(#colorRevenue)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
         {/* Tabs */}
-        <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="stores">Stores</TabsTrigger>
             <TabsTrigger value="products">Products</TabsTrigger>
-            <TabsTrigger value="categories">Categories</TabsTrigger>
+            <TabsTrigger value="trends">Trends</TabsTrigger>
             <TabsTrigger value="returns">Returns</TabsTrigger>
             <TabsTrigger value="inventory">Inventory</TabsTrigger>
-            <TabsTrigger value="trends">Trends</TabsTrigger>
-            <TabsTrigger value="comparison">Compare</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Revenue Overview</CardTitle>
+                  <CardTitle>Revenue by Store</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {chartView === 'chart' ? (
                     <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={storeAnalytics.slice(0, 5)}>
+                      <BarChart data={storeAnalytics}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="storeName" />
                         <YAxis />
                         <Tooltip
-                          formatter={(value: any) => `₹${Number(value).toFixed(2)}`}
+                          formatter={(value) =>
+                            `₹${Number(value).toFixed(2)}`
+                          }
                         />
-                        <Line
-                          type="monotone"
+                        <Legend />
+                        <Bar
                           dataKey="totalRevenue"
-                          stroke="#8884d8"
-                          strokeWidth={2}
+                          fill="#8884d8"
+                          name="Revenue"
                         />
-                      </LineChart>
+                      </BarChart>
                     </ResponsiveContainer>
                   ) : (
                     <Table>
@@ -809,13 +847,13 @@ export default function AdvancedAnalyticsPage() {
                     <ResponsiveContainer width="100%" height={300}>
                       <PieChart>
                         <Pie
-                          data={storeAnalytics as any}
+                          data={storeAnalytics}
                           dataKey="totalRevenue"
                           nameKey="storeName"
                           cx="50%"
                           cy="50%"
-                          outerRadius={80}
-                          fill="#8884d8"
+                          outerRadius={100}
+                          label
                         >
                           {storeAnalytics.map((_, index) => (
                             <Cell
@@ -825,7 +863,9 @@ export default function AdvancedAnalyticsPage() {
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value: any) => `₹${Number(value).toFixed(2)}`}
+                          formatter={(value) =>
+                            `₹${Number(value).toFixed(2)}`
+                          }
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -842,7 +882,13 @@ export default function AdvancedAnalyticsPage() {
                           <TableRow key={s.storeId}>
                             <TableCell>{s.storeName}</TableCell>
                             <TableCell>
-                              {((s.totalRevenue / totalRevenue) * 100).toFixed(1)}%
+                              {totalRevenue > 0
+                                ? (
+                                    (s.totalRevenue / totalRevenue) *
+                                    100
+                                  ).toFixed(1)
+                                : '0.0'}
+                              %
                             </TableCell>
                           </TableRow>
                         ))}
@@ -852,13 +898,40 @@ export default function AdvancedAnalyticsPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Bills vs Items Trend */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Bills vs Items Sold</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={dailyStats}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="bills"
+                      stroke="#8884d8"
+                      name="Bills"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="items"
+                      stroke="#82ca9d"
+                      name="Items"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* Add other tabs similar to before but using the frontend-calculated data */}
-          {/* I'll keep this shorter - you can copy from the previous version */}
-          
           {/* Stores Tab */}
-          <TabsContent value="stores" className="space-y-6">
+          <TabsContent value="stores" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Store Performance Analysis</CardTitle>
@@ -877,7 +950,9 @@ export default function AdvancedAnalyticsPage() {
                   <TableBody>
                     {storeAnalytics.map((s) => (
                       <TableRow key={s.storeId}>
-                        <TableCell className="font-semibold">{s.storeName}</TableCell>
+                        <TableCell className="font-medium">
+                          {s.storeName}
+                        </TableCell>
                         <TableCell>₹{s.totalRevenue.toFixed(2)}</TableCell>
                         <TableCell>{s.totalBills}</TableCell>
                         <TableCell>{s.totalItems}</TableCell>
@@ -888,13 +963,91 @@ export default function AdvancedAnalyticsPage() {
                 </Table>
               </CardContent>
             </Card>
+
+            {/* Store Radar */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Store Performance Radar</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <RadarChart data={storeAnalytics.slice(0, 5)}>
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="storeName" />
+                    <PolarRadiusAxis />
+                    <Radar
+                      name="Revenue"
+                      dataKey="totalRevenue"
+                      stroke="#8884d8"
+                      fill="#8884d8"
+                      fillOpacity={0.6}
+                    />
+                    <Legend />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Products Tab */}
-          <TabsContent value="products" className="space-y-6">
+          <TabsContent value="products" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Products by Revenue</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={productAnalytics
+                        .slice()
+                        .sort((a, b) => b.totalRevenue - a.totalRevenue)
+                        .slice(0, 10)}
+                      layout="vertical"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis dataKey="productName" type="category" width={120} />
+                      <Tooltip
+                        formatter={(value) =>
+                          `₹${Number(value).toFixed(2)}`
+                        }
+                      />
+                      <Bar dataKey="totalRevenue" fill="#82ca9d" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Products by Quantity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={productAnalytics
+                        .slice()
+                        .sort(
+                          (a, b) => b.totalQuantitySold - a.totalQuantitySold,
+                        )
+                        .slice(0, 10)}
+                      layout="vertical"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis dataKey="productName" type="category" width={120} />
+                      <Tooltip />
+                      <Bar dataKey="totalQuantitySold" fill="#8884d8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+
             <Card>
               <CardHeader>
-                <CardTitle>Product Performance</CardTitle>
+                <CardTitle>Product Performance Table</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -909,11 +1062,12 @@ export default function AdvancedAnalyticsPage() {
                   </TableHeader>
                   <TableBody>
                     {productAnalytics
+                      .slice()
                       .sort((a, b) => b.totalRevenue - a.totalRevenue)
                       .slice(0, 15)
                       .map((p) => (
                         <TableRow key={p.productId}>
-                          <TableCell className="font-semibold">
+                          <TableCell className="font-medium">
                             {p.productName}
                           </TableCell>
                           <TableCell>{p.totalQuantitySold}</TableCell>
@@ -928,58 +1082,116 @@ export default function AdvancedAnalyticsPage() {
             </Card>
           </TabsContent>
 
-          {/* Categories Tab */}
-          <TabsContent value="categories" className="space-y-6">
+          {/* Trends Tab */}
+          <TabsContent value="trends" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Category Breakdown</CardTitle>
+                <CardTitle>Revenue Trend Analysis</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={categoryBreakdown as any}
-                      dataKey="revenue"
-                      nameKey="category"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                    >
-                      {categoryBreakdown.map((_, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={COLORS[index % COLORS.length]}
+                <ResponsiveContainer width="100%" height={400}>
+                  <AreaChart data={dailyStats}>
+                    <defs>
+                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                        <stop
+                          offset="5%"
+                          stopColor="#8884d8"
+                          stopOpacity={0.8}
                         />
-                      ))}
-                    </Pie>
+                        <stop
+                          offset="95%"
+                          stopColor="#8884d8"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
                     <Tooltip
-                      formatter={(value: any) => `₹${Number(value).toFixed(2)}`}
+                      formatter={(value) =>
+                        `₹${Number(value).toFixed(2)}`
+                      }
                     />
-                  </PieChart>
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#8884d8"
+                      fill="url(#colorRev)"
+                      name="Revenue"
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Daily Bills Count</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={dailyStats}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line
+                        type="monotone"
+                        dataKey="bills"
+                        stroke="#8884d8"
+                        strokeWidth={2}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Daily Items Sold</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={dailyStats}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line
+                        type="monotone"
+                        dataKey="items"
+                        stroke="#82ca9d"
+                        strokeWidth={2}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Returns Tab */}
-          <TabsContent value="returns" className="space-y-6">
+          <TabsContent value="returns" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
               <StatCard
                 title="Total Returns"
                 value={returns.length}
-                icon={<ShoppingCart className="h-5 w-5" />}
+                icon={<Activity className="h-4 w-4 text-muted-foreground" />}
               />
               <StatCard
-                title="Total Refunded"
+                title="Refund Amount"
                 value={`₹${returns
-                  .reduce((sum, r) => sum + r.returnamount, 0)
+                  .reduce((sum, r) => sum + (r.returnAmount || 0), 0)
                   .toFixed(2)}`}
-                icon={<DollarSign className="h-5 w-5" />}
+                icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
               />
               <StatCard
                 title="Pending Returns"
                 value={returns.filter((r) => r.status === 'pending').length}
-                icon={<Activity className="h-5 w-5" />}
+                icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
               />
             </div>
 
@@ -992,34 +1204,45 @@ export default function AdvancedAnalyticsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Customer</TableHead>
+                      <TableHead>Product ID</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {returns
+                      .slice()
                       .sort(
                         (a, b) =>
-                          new Date(b.createdat).getTime() -
-                          new Date(a.createdat).getTime()
+                          new Date(b.createdAt).getTime() -
+                          new Date(a.createdAt).getTime(),
                       )
                       .slice(0, 20)
                       .map((item) => (
-                        <TableRow key={item.returnid}>
+                        <TableRow key={item.returnId}>
                           <TableCell>
-                            {format(new Date(item.createdat), 'MMM dd, yyyy')}
+                            {item.createdAt &&
+                            !isNaN(new Date(item.createdAt).getTime())
+                              ? format(
+                                  new Date(item.createdAt),
+                                  'MMM dd, yyyy',
+                                )
+                              : 'N/A'}
                           </TableCell>
-                          <TableCell className="font-medium">
-                            {item.productname}
+                          <TableCell className="font-mono text-xs">
+                            {item.productId?.substring(0, 20)}...
                           </TableCell>
-                          <TableCell>{item.customername}</TableCell>
-                          <TableCell>₹{item.returnamount.toFixed(2)}</TableCell>
+                          <TableCell>
+                            ₹{(item.returnAmount || 0).toFixed(2)}
+                          </TableCell>
                           <TableCell>
                             <Badge
                               variant={
-                                item.status === 'approved' ? 'default' : 'secondary'
+                                item.status === 'approved'
+                                  ? 'default'
+                                  : item.status === 'pending'
+                                  ? 'secondary'
+                                  : 'destructive'
                               }
                             >
                               {item.status}
@@ -1034,33 +1257,74 @@ export default function AdvancedAnalyticsPage() {
           </TabsContent>
 
           {/* Inventory Tab */}
-          <TabsContent value="inventory" className="space-y-6">
+          <TabsContent value="inventory" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-4">
               <StatCard
                 title="Total Products"
                 value={products.length}
-                icon={<Package className="h-5 w-5" />}
+                icon={<Package className="h-4 w-4 text-muted-foreground" />}
               />
               <StatCard
-                title="Total Stock Value"
+                title="Inventory Value"
                 value={`₹${products
                   .reduce((sum, p) => sum + p.price * p.stock, 0)
                   .toFixed(2)}`}
-                icon={<DollarSign className="h-5 w-5" />}
+                icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
               />
               <StatCard
                 title="Low Stock"
-                value={products.filter((p) => p.stock < 10).length}
-                icon={<TrendingDown className="h-5 w-5" />}
-                color="orange"
+                value={products.filter((p) => p.stock > 0 && p.stock < 10).length}
+                icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
               />
               <StatCard
                 title="Out of Stock"
                 value={products.filter((p) => p.stock === 0).length}
-                icon={<AlertTriangle className="h-5 w-5" />}
-                color="red"
+                icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
               />
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Inventory Status Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        {
+                          name: 'In Stock',
+                          value: products.filter((p) => p.stock >= 10).length,
+                        },
+                        {
+                          name: 'Low Stock',
+                          value: products.filter(
+                            (p) => p.stock > 0 && p.stock < 10,
+                          ).length,
+                        },
+                        {
+                          name: 'Out of Stock',
+                          value: products.filter((p) => p.stock === 0).length,
+                        },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      <Cell fill="#00C49F" />
+                      <Cell fill="#FFBB28" />
+                      <Cell fill="#FF8042" />
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>
@@ -1071,7 +1335,6 @@ export default function AdvancedAnalyticsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead>Category</TableHead>
                       <TableHead>Stock</TableHead>
                       <TableHead>Price</TableHead>
                       <TableHead>Value</TableHead>
@@ -1083,15 +1346,20 @@ export default function AdvancedAnalyticsPage() {
                       .slice(0, 20)
                       .map((p) => (
                         <TableRow key={p.id}>
-                          <TableCell className="font-medium">{p.name}</TableCell>
-                          <TableCell>{p.category}</TableCell>
+                          <TableCell className="font-medium">
+                            {p.name}
+                          </TableCell>
                           <TableCell>
-                            <Badge variant={p.stock === 0 ? 'destructive' : 'secondary'}>
+                            <Badge
+                              variant={p.stock === 0 ? 'destructive' : 'secondary'}
+                            >
                               {p.stock}
                             </Badge>
                           </TableCell>
                           <TableCell>₹{p.price.toFixed(2)}</TableCell>
-                          <TableCell>₹{(p.price * p.stock).toFixed(2)}</TableCell>
+                          <TableCell>
+                            ₹{(p.price * p.stock).toFixed(2)}
+                          </TableCell>
                         </TableRow>
                       ))}
                   </TableBody>
@@ -1099,8 +1367,6 @@ export default function AdvancedAnalyticsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-
-          {/* Other tabs can be added similarly */}
         </Tabs>
       </div>
     </DashboardLayout>

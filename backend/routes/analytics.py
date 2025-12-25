@@ -20,42 +20,10 @@ analytics_bp = Blueprint("analytics", __name__, url_prefix="/api/analytics")
 def get_dashboard():
     """Get dashboard analytics"""
     try:
-        days = request.args.get("days", 30, type=int)
         analytics, status_code = analytics_service.get_dashboard_analytics()
 
         if status_code == 200:
-            # Format to match frontend expectations
-            response = {
-                "period": f"Last {days} days",
-                "revenue": {
-                    "current": analytics.get("totalRevenue", 0),
-                    "previous": 0,  # TODO: Calculate previous period revenue
-                    "growth": 0,    # TODO: Calculate growth percentage
-                },
-                "bills": {
-                    "total": analytics.get("totalBills", 0),
-                    "averageValue": analytics.get("totalRevenue", 0)
-                    / max(analytics.get("totalBills", 1), 1),
-                },
-                "items": {
-                    "totalSold": 0,  # TODO: Calculate from bills
-                    "perTransaction": 0,
-                },
-                "inventory": {
-                    "totalProducts": analytics.get("totalProducts", 0),
-                    "totalValue": 0,  # TODO: Calculate inventory value
-                    "lowStockCount": 0,
-                },
-                "customers": {
-                    "unique": 0,      # TODO: Calculate unique customers
-                    "repeatRate": 0,  # TODO: Calculate repeat customers
-                },
-                "stores": {
-                    "total": analytics.get("totalStores", 0),
-                    "active": analytics.get("totalStores", 0),
-                },
-            }
-            return jsonify(response), 200
+            return jsonify(analytics), 200
         else:
             return jsonify({"error": "Failed to fetch dashboard analytics"}), status_code
     except Exception as e:

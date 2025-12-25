@@ -42,8 +42,10 @@ except ImportError:
 
 # Configure encoding for Windows
 if sys.platform == "win32":
-    sys.stdout.reconfigure(encoding='utf-8')
-    sys.stderr.reconfigure(encoding='utf-8')
+    if sys.stdout is not None:
+        sys.stdout.reconfigure(encoding='utf-8')
+    if sys.stderr is not None:
+        sys.stderr.reconfigure(encoding='utf-8')
 
 # Load environment variables
 load_dotenv()
@@ -132,7 +134,41 @@ def create_app(config_name='default'):
     def health():
         return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
     
+    @app.route('/api/shutdown', methods=['POST', 'GET'])
+    def shutdown():
+        """Gracefully shutdown the Flask backend"""
+        app.logger.info("Shutdown request received from frontend")
+
+        # Try Werkzeug's shutdown (available when using app.run)
+        func = request.environ.get("werkzeug.server.shutdown")
+        if func is not None:
+            app.logger.info("Using werkzeug.server.shutdown")
+            func()
+            return jsonify({
+                "status": "success",
+                "message": "Backend shutting down gracefully (werkzeug)"
+            }), 200
+
+        # Fallback for other servers / PyInstaller exe
+        app.logger.info("werkzeug.server.shutdown not available, using fallback exit")
+
+        def _force_exit():
+            import time, os
+            time.sleep(0.5)  # allow response to be sent
+            os._exit(0)      # hard exit, but usually lets PyInstaller clean up
+
+        from threading import Thread
+        Thread(target=_force_exit, daemon=True).start()
+
+        return jsonify({
+            "status": "success",
+            "message": "Backend shutting down gracefully (fallback)"
+        }), 200
+    
     return app
+
+        # Shutdown endpoint
+    
 
 
 def setup_logging(app):
