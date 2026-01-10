@@ -1,23 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 
-// Type guard to check if running in Tauri environment
 declare global {
   interface Window {
     __TAURI__?: object;
   }
 }
 
-/**
- * Opens a hidden iframe, writes the provided HTML content to it, and triggers the print dialog.
- * This function is used for web-based printing.
- * @param htmlContent The HTML string to display and print.
- */
 async function printInBrowserWindow(html: string): Promise<void> {
   return new Promise((resolve, reject) => {
     try {
-      let printExecuted = false; // Flag to prevent duplicate prints
+      let printExecuted = false;
 
-      // Create a hidden iframe for printing
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed';
       iframe.style.right = '0';
@@ -28,7 +21,6 @@ async function printInBrowserWindow(html: string): Promise<void> {
 
       document.body.appendChild(iframe);
 
-      // Write content to iframe
       const iframeDoc = iframe.contentWindow?.document;
       if (!iframeDoc) {
         document.body.removeChild(iframe);
@@ -40,16 +32,14 @@ async function printInBrowserWindow(html: string): Promise<void> {
       iframeDoc.write(html);
       iframeDoc.close();
 
-      // Wait for content to load, then print
       iframe.onload = () => {
-        if (printExecuted) return; // Prevent duplicate
+        if (printExecuted) return;
         printExecuted = true;
 
         try {
           iframe.contentWindow?.focus();
           iframe.contentWindow?.print();
 
-          // Clean up after printing
           setTimeout(() => {
             if (iframe.parentNode) {
               document.body.removeChild(iframe);
@@ -64,9 +54,8 @@ async function printInBrowserWindow(html: string): Promise<void> {
         }
       };
 
-      // Fallback if onload doesn't fire within 500ms
       setTimeout(() => {
-        if (printExecuted) return; // Prevent duplicate
+        if (printExecuted) return;
         printExecuted = true;
 
         try {
@@ -87,7 +76,6 @@ async function printInBrowserWindow(html: string): Promise<void> {
           reject(e);
         }
       }, 500);
-
     } catch (error) {
       console.error('Print error:', error);
       reject(error);
@@ -95,20 +83,12 @@ async function printInBrowserWindow(html: string): Promise<void> {
   });
 }
 
-/**
- * Handles thermal label printing.
- * This function is intended for use within the Tauri desktop application.
- * @param content The content to print (raw text or label-formatted PDF).
- * @param isThermalPrinter A flag to indicate if the target printer is a thermal printer.
- * @returns A Promise that resolves when the print job is sent.
- */
 async function printThermalLabel(content: string, isThermalPrinter: boolean): Promise<void> {
   if (!isThermalPrinter) {
     console.warn("Attempted to print thermal label to a non-thermal printer.");
     throw new Error("Not a thermal printer.");
   }
   try {
-    // Call backend command for thermal printing
     await invoke("print_thermal_document", { content });
     console.log("Thermal label content sent to printer successfully.");
   } catch (error) {
@@ -117,24 +97,12 @@ async function printThermalLabel(content: string, isThermalPrinter: boolean): Pr
   }
 }
 
-/**
- * Unified printing function that handles different print scenarios.
- * @param options An object containing printing options.
- * @param options.htmlContent Optional HTML content for window-based printing.
- * @param options.thermalContent Optional content for thermal printing.
- * @param options.isThermalPrinter Optional flag to indicate if the target printer is a thermal printer.
- * @param options.productIds Optional product IDs for backend printing.
- * @param options.copies Optional number of copies to print.
- * @param options.useBackendPrint Optional flag to use backend printing.
- * @param options.printerName Optional printer name for backend printing.
- * @param options.storeName Optional store name for backend printing.
- * @returns A Promise that resolves when the print job is completed.
- */
+// ✅ FIXED: Proper payload typing
 export async function unifiedPrint({
   htmlContent,
   thermalContent,
   isThermalPrinter = false,
-  productIds,
+  labelData,
   copies = 1,
   useBackendPrint = false,
   printerName,
@@ -143,17 +111,27 @@ export async function unifiedPrint({
   htmlContent?: string;
   thermalContent?: string;
   isThermalPrinter?: boolean;
-  productIds?: string[];
+  labelData?: Array<{
+    id: string;
+    name: string;
+    price: number;
+    barcode: string;
+  }>;
   copies?: number;
   useBackendPrint?: boolean;
-  printerName?: string;
-  storeName?: string;
+  printerName?: string | undefined;
+  storeName?: string | undefined;
 }): Promise<void> {
-  // If caller requests backend print and provides productIds, attempt backend print first.
-  if (useBackendPrint && productIds && productIds.length > 0) {
+  // ✅ FIXED: Properly typed payload
+  if (useBackendPrint && labelData && labelData.length > 0) {
     try {
       const backendApiUrl = (process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:8080").replace(/\/+$/g, "");
-      const payload: any = { productIds, copies };
+      const payload: any = { 
+        labelData,
+        copies 
+      };
+      
+      // ✅ FIXED: Safe property assignment
       if (printerName) payload.printerName = printerName;
       if (storeName) payload.storeName = storeName;
 
@@ -169,25 +147,21 @@ export async function unifiedPrint({
       
       if (response.ok && data.status === "success") {
         console.log("✅ Backend print succeeded:", data.message || "");
-        return; // ✅ SUCCESS - exit here
+        return;
       }
       
       console.warn("⚠️ Backend print returned non-success, falling back to browser print", data);
-      // fallthrough to browser printing below
     } catch (err) {
       console.error("❌ Error sending backend print request, falling back to browser print:", err);
-      // fallthrough to browser printing below
     }
   }
 
-  // For browser-based printing with HTML content
   if (htmlContent) {
     console.log("🖨️ Using browser-based HTML printing");
     await printInBrowserWindow(htmlContent);
     return;
   }
 
-  // For thermal content, wrap in HTML and print via browser
   if (thermalContent) {
     console.log("🖨️ Using browser-based thermal content printing");
     const html = `<!DOCTYPE html>
@@ -213,11 +187,6 @@ export async function unifiedPrint({
   throw new Error("No printable content provided.");
 }
 
-/**
- * Escapes HTML special characters to prevent XSS and rendering issues.
- * @param s The string to escape.
- * @returns The escaped string.
- */
 function escapeHtml(s: string): string {
   return String(s)
     .replace(/&/g, "&amp;")

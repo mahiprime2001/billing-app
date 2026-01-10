@@ -1,99 +1,106 @@
 """
 Printing Routes
 Flask blueprint for all printing-related API endpoints
+
+IMPORTANT:
+- Tauri is the source of truth
+- Backend ONLY prints what it receives
 """
+
 from flask import Blueprint, jsonify, request
 import logging
 
+printing_bp = Blueprint("printing", __name__, url_prefix="/api")
 logger = logging.getLogger(__name__)
 
-# Create Blueprint
-printing_bp = Blueprint('printing', __name__, url_prefix='/api')
 
-# ============================================
-# PRINTER ENDPOINTS
-# ============================================
-
-@printing_bp.route('/printers', methods=['GET'])
+# ============================================================
+# GET AVAILABLE PRINTERS (used by Tauri UI)
+# ============================================================
+@printing_bp.route("/printers", methods=["GET"])
 def get_printers():
-    """Get available printers"""
     try:
-        printers = []
+        import win32print
 
-        # Try to get Windows printers
-        try:
-            import win32print
-
-            printer_info = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL)
-            printers = [
-                {
-                    "name": p[2],
-                    "isDefault": p[2] == win32print.GetDefaultPrinter()
-                }
-                for p in printer_info
-            ]
-        except ImportError:
-            logger.warning("win32print not available")
-        except Exception as e:
-            logger.error(f"Error getting printers: {e}", exc_info=True)
-
-        # Normalize to simple string list for frontend
-        printer_names = [p["name"] for p in printers]
+        printer_info = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL)
+        printer_names = [p[2] for p in printer_info]
 
         return jsonify({
             "status": "success",
-            "printers": printer_names,
+            "printers": printer_names
         }), 200
 
     except Exception as e:
-        logger.error(f"Error in get_printers: {e}", exc_info=True)
+        logger.error("Failed to fetch printers", exc_info=True)
         return jsonify({
             "status": "error",
             "message": str(e),
-            "printers": [],
+            "printers": []
         }), 500
 
-# ============================================
-# PRINT LABEL ENDPOINT
-# ============================================
 
-@printing_bp.route('/print-label', methods=['POST', 'OPTIONS'])
+# ============================================================
+# PRINT LABEL (TAURI → BACKEND → PRINTER)
+# ============================================================
+@printing_bp.route("/print-label", methods=["POST", "OPTIONS"])
 def print_label():
-    """Print label"""
-
-    # Handle CORS preflight
-    if request.method == 'OPTIONS':
+    # CORS preflight
+    if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
 
     try:
-        data = request.json or {}
-        printer_name = data.get('printerName')
-        label_data = data.get('labelData', {})
+        data = request.get_json(force=True)
 
+        # ---- REQUIRED FROM TAURI ----
+        printer_name = data.get("printerName")
+        products = data.get("labelData")
+        copies = data.get("copies", 1)
+        store_name = data.get("storeName", "Company Name")
+
+        # ---- VALIDATION ----
         if not printer_name:
-            return jsonify({"error": "Printer name is required"}), 400
+            return jsonify({"error": "printerName is required"}), 400
 
-        # Generate TSPL commands
+        if not isinstance(products, list) or not products:
+            return jsonify({"error": "labelData must be a non-empty list"}), 400
+
         try:
-            from utils.print_TSPL import generate_tspl, send_raw_to_printer
+            copies = int(copies)
+            if copies <= 0:
+                raise ValueError
+        except Exception:
+            return jsonify({"error": "copies must be a positive integer"}), 400
 
-            tspl_commands = generate_tspl(label_data)
+        logger.info(
+            f"PRINT REQUEST → Printer='{printer_name}', "
+            f"Products={len(products)}, Copies={copies}, Store='{store_name}'"
+        )
 
-            # Send to printer
-            success = send_raw_to_printer(printer_name, tspl_commands)
+        # ---- PRINTING ----
+        from utils.print_TSPL import generate_tspl, send_raw_to_printer
 
-            if success:
-                return jsonify({"message": "Label printed successfully"}), 200
-            else:
-                return jsonify({"error": "Failed to print label"}), 500
+        tspl_commands = generate_tspl(
+            products=products,
+            copies=copies,
+            store_name=store_name,
+            logger=logger
+        )
 
-        except ImportError:
-            logger.error("Printing module (utils.print_TSPL) not available", exc_info=True)
-            return jsonify({"error": "Printing module not available"}), 503
-        except Exception as e:
-            logger.error(f"Error printing label: {e}", exc_info=True)
-            return jsonify({"error": str(e)}), 500
+        send_raw_to_printer(
+            printer_name=printer_name,
+            raw_data=tspl_commands,
+            logger=logger
+        )
+
+        # ---- SUCCESS ----
+        return jsonify({
+            "status": "success",
+            "message": "Label printed successfully"
+        }), 200
 
     except Exception as e:
-        logger.error(f"Error in print_label: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        logger.error("PRINT LABEL FAILED", exc_info=True)
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500

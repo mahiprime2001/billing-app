@@ -2,6 +2,9 @@
 
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use once_cell::sync::Lazy;
+
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
@@ -14,6 +17,10 @@ use std::path::PathBuf;
 
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::HWND;
+
+// Global state for backend management
+static BACKEND_SPAWNING: Lazy<Arc<AtomicBool>> = Lazy::new(|| Arc::new(AtomicBool::new(false)));
+static BACKEND_PID: Lazy<Arc<Mutex<Option<u32>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 
 // ============================================================================
 // UPDATER COMMANDS
@@ -141,7 +148,6 @@ async fn print_to_thermal_printer(
 ) -> Result<PrintResponse, PrintResponse> {
     info!("Printing to thermal printer: {}", printer_name);
     info!("TSPL Commands: {}", tspl_commands);
-    
     let copies = copies.unwrap_or(1);
     let mut final_response = PrintResponse {
         status: "success".into(),
@@ -157,6 +163,7 @@ async fn print_to_thermal_printer(
             break;
         }
     }
+
     Ok(final_response)
 }
 
@@ -165,7 +172,6 @@ async fn get_available_printers() -> Result<Vec<String>, String> {
     #[cfg(target_os = "windows")]
     {
         use std::process::Command;
-        
         info!("Searching for available printers...");
         let output = Command::new("wmic")
             .args(&["printer", "get", "name"])
@@ -183,7 +189,7 @@ async fn get_available_printers() -> Result<Vec<String>, String> {
         info!("Found {} printers: {:?}", printers.len(), printers);
         Ok(printers)
     }
-
+    
     #[cfg(not(target_os = "windows"))]
     {
         info!("Using default printer (non-Windows)");
@@ -221,9 +227,7 @@ async fn send_tspl_to_printer(
                 DesiredAccess: PRINTER_ACCESS_USE | PRINTER_ACCESS_ADMINISTER,
             };
 
-            if OpenPrinterA(PCSTR(name_cstr.as_ptr() as *const _), &mut handle, Some(&defaults))
-                .is_err()
-            {
+            if OpenPrinterA(PCSTR(name_cstr.as_ptr() as *const _), &mut handle, Some(&defaults)).is_err() {
                 return Err(PrintResponse {
                     status: "error".into(),
                     message: "OpenPrinterA failed".into(),
@@ -257,8 +261,7 @@ async fn send_tspl_to_printer(
 
             let bytes = tspl_commands.as_bytes();
             let mut written: u32 = 0;
-            let result =
-                WritePrinter(handle, bytes.as_ptr() as *const _, bytes.len() as u32, &mut written);
+            let result = WritePrinter(handle, bytes.as_ptr() as *const _, bytes.len() as u32, &mut written);
 
             EndPagePrinter(handle);
             EndDocPrinter(handle);
@@ -329,7 +332,6 @@ async fn start_http_server(printer_list: PrinterList) {
         .and(warp::body::json())
         .and_then(move |req: PrintRequest| async move {
             info!("API POST /api/print: {:?}", req);
-
             if req.printer_name.is_empty() {
                 return Ok::<_, Infallible>(warp::reply::json(&PrintResponse {
                     status: "error".into(),
@@ -348,9 +350,7 @@ async fn start_http_server(printer_list: PrinterList) {
                 req.printer_name.clone(),
                 req.tspl_commands.clone(),
                 Some(req.copies),
-            )
-            .await
-            {
+            ).await {
                 Ok(resp) => Ok::<_, Infallible>(warp::reply::json(&resp)),
                 Err(err) => Ok::<_, Infallible>(warp::reply::json(&err)),
             }
@@ -392,11 +392,12 @@ async fn print_html(app: tauri::AppHandle, html: String) -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
 
+    // ✅ FIXED: Use double quotes for string literals
     let escaped = html
-        .replace('\\', "\\\\")
-        .replace('`', "\\`")
-        .replace('\n', "\\n")
-        .replace('\r', "\\r");
+        .replace("\\\\", "\\\\\\\\")
+        .replace("`", "\\`")
+        .replace("\\n", "\\\\n")
+        .replace("\\r", "\\\\r");
 
     webview
         .eval(&format!(
@@ -418,7 +419,6 @@ async fn print_html(app: tauri::AppHandle, html: String) -> Result<(), String> {
             .encode_wide()
             .chain(std::iter::once(0))
             .collect();
-
         let wide_op: Vec<u16> = OsString::from("print")
             .encode_wide()
             .chain(std::iter::once(0))
@@ -449,7 +449,7 @@ async fn print_html(app: tauri::AppHandle, html: String) -> Result<(), String> {
 }
 
 // ============================================================================
-// HELPER FUNCTIONS
+// BACKEND MANAGEMENT FUNCTIONS
 // ============================================================================
 
 fn get_app_log_dir(_app_handle: &tauri::AppHandle) -> Option<PathBuf> {
@@ -466,13 +466,12 @@ fn get_app_log_dir(_app_handle: &tauri::AppHandle) -> Option<PathBuf> {
     None
 }
 
-// ✅ NEW: Check if backend is already running
 async fn is_backend_running() -> bool {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(2))
         .build()
         .unwrap_or_else(|_| reqwest::Client::new());
-    
+
     match client.get("http://127.0.0.1:8080/health").send().await {
         Ok(response) if response.status().is_success() => {
             info!("✅ Backend already running and healthy");
@@ -485,26 +484,22 @@ async fn is_backend_running() -> bool {
     }
 }
 
-// ✅ NEW: Kill all backend processes
 #[cfg(target_os = "windows")]
 fn kill_all_backend_processes() {
     use std::process::Command;
-    
     info!("🔪 Terminating all Siriadmin-backend processes...");
-    
-    // Method 1: Kill by process name
+
     let _ = Command::new("taskkill")
         .args(&["/F", "/IM", "Siriadmin-backend.exe", "/T"])
         .output();
-    
-    // Method 2: Kill by port (in case process name doesn't match)
+
     let output = Command::new("cmd")
         .args(&[
             "/C",
             "for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :8080 ^| findstr LISTENING') do @echo %a"
         ])
         .output();
-    
+
     if let Ok(output) = output {
         let pids = String::from_utf8_lossy(&output.stdout);
         for pid in pids.lines() {
@@ -517,8 +512,7 @@ fn kill_all_backend_processes() {
             }
         }
     }
-    
-    // Give processes time to die
+
     std::thread::sleep(std::time::Duration::from_millis(1000));
     info!("✅ Backend process cleanup complete");
 }
@@ -526,15 +520,12 @@ fn kill_all_backend_processes() {
 #[cfg(not(target_os = "windows"))]
 fn kill_all_backend_processes() {
     use std::process::Command;
-    
     info!("🔪 Terminating all Siriadmin-backend processes...");
-    
-    // Kill by process name
+
     let _ = Command::new("pkill")
         .args(&["-9", "Siriadmin-backend"])
         .output();
-    
-    // Kill by port
+
     let _ = Command::new("lsof")
         .args(&["-ti:8080"])
         .output()
@@ -548,11 +539,18 @@ fn kill_all_backend_processes() {
             }
             Ok(())
         });
-    
+
     std::thread::sleep(std::time::Duration::from_millis(1000));
 }
 
 fn spawn_sidecar(app_handle: &tauri::AppHandle) -> Result<(), String> {
+    if BACKEND_SPAWNING.load(Ordering::SeqCst) {
+        warn!("Backend spawn already in progress, skipping...");
+        return Err("Backend spawn already in progress".to_string());
+    }
+    
+    BACKEND_SPAWNING.store(true, Ordering::SeqCst);
+    
     info!("=== ATTEMPTING TO SPAWN SIDECAR ===");
     info!("Creating sidecar command for 'Siriadmin-backend'...");
 
@@ -562,8 +560,9 @@ fn spawn_sidecar(app_handle: &tauri::AppHandle) -> Result<(), String> {
             cmd
         }
         Err(e) => {
+            BACKEND_SPAWNING.store(false, Ordering::SeqCst);
             error!("✗ Failed to create sidecar command: {}", e);
-            error!("  Make sure 'Siriadmin-backend' is configured in tauri.conf.json under bundle > externalBin");
+            error!(" Make sure 'Siriadmin-backend' is configured in tauri.conf.json under bundle > externalBin");
             return Err(format!("Failed to create sidecar command: {}", e));
         }
     };
@@ -575,41 +574,49 @@ fn spawn_sidecar(app_handle: &tauri::AppHandle) -> Result<(), String> {
             result
         }
         Err(e) => {
+            BACKEND_SPAWNING.store(false, Ordering::SeqCst);
             error!("✗ Failed to spawn sidecar: {}", e);
-            error!("  Check if the binary exists and has execute permissions");
+            error!(" Check if the binary exists and has execute permissions");
             return Err(format!("Failed to spawn sidecar: {}", e));
         }
     };
 
     let pid = command_child.pid();
     info!("✓✓✓ SIDECAR SPAWNED SUCCESSFULLY WITH PID {} ✓✓✓", pid);
+    
+    *BACKEND_PID.lock().unwrap() = Some(pid);
 
-    // Log sidecar output with detailed information
+    let pid_for_monitor = pid;
     tauri::async_runtime::spawn(async move {
-        info!("Sidecar output monitor started for PID {}", pid);
+        info!("Sidecar output monitor started for PID {}", pid_for_monitor);
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line) => {
                     let output = String::from_utf8_lossy(&line);
-                    info!("Sidecar [PID {}] stdout: {}", pid, output);
+                    info!("Sidecar [PID {}] stdout: {}", pid_for_monitor, output);
                 }
                 CommandEvent::Stderr(line) => {
                     let output = String::from_utf8_lossy(&line);
-                    error!("Sidecar [PID {}] stderr: {}", pid, output);
+                    error!("Sidecar [PID {}] stderr: {}", pid_for_monitor, output);
                 }
                 CommandEvent::Error(err) => {
-                    error!("Sidecar [PID {}] error: {}", pid, err);
+                    error!("Sidecar [PID {}] error: {}", pid_for_monitor, err);
                 }
                 CommandEvent::Terminated(payload) => {
-                    warn!(
-                        "Sidecar [PID {}] terminated with code: {:?}",
-                        pid, payload.code
-                    );
+                    warn!("Sidecar [PID {}] terminated with code: {:?}", pid_for_monitor, payload.code);
+                    BACKEND_SPAWNING.store(false, Ordering::SeqCst);
+                    *BACKEND_PID.lock().unwrap() = None;
                 }
                 _ => {}
             }
         }
-        warn!("Sidecar [PID {}] output stream ended", pid);
+        warn!("Sidecar [PID {}] output stream ended", pid_for_monitor);
+    });
+
+    let spawning_flag = BACKEND_SPAWNING.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        spawning_flag.store(false, Ordering::SeqCst);
     });
 
     info!("=== SIDECAR INITIALIZATION COMPLETE ===");
@@ -618,7 +625,6 @@ fn spawn_sidecar(app_handle: &tauri::AppHandle) -> Result<(), String> {
 
 async fn shutdown_backend() {
     info!("Sending shutdown request to backend...");
-    
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(3))
         .build()
@@ -633,27 +639,24 @@ async fn shutdown_backend() {
             if response.status().is_success() {
                 info!("✓ Backend shutdown request successful");
             } else {
-                warn!(
-                    "Backend shutdown request returned status: {}",
-                    response.status()
-                );
+                warn!("Backend shutdown request returned status: {}", response.status());
             }
         }
         Err(e) => {
-            warn!(
-                "Failed to send shutdown request (backend may already be down): {}",
-                e
-            );
+            warn!("Failed to send shutdown request (backend may already be down): {}", e);
         }
     }
 
-    // Give backend time to shutdown gracefully
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 }
 
 #[tauri::command]
 async fn ensure_backend_running(app_handle: tauri::AppHandle) -> Result<String, String> {
     info!("Checking backend status via health endpoint...");
+    
+    if BACKEND_SPAWNING.load(Ordering::SeqCst) {
+        return Ok("Backend spawn in progress".to_string());
+    }
     
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(2))
@@ -683,7 +686,6 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
-            // Setup custom log directory in app installation folder
             let log_path = if let Some(log_dir) = get_app_log_dir(app.handle()) {
                 println!("📁 Log directory: {}", log_dir.display());
                 log_dir.join("app.log")
@@ -692,7 +694,6 @@ fn main() {
                 PathBuf::from("app.log")
             };
 
-            // Initialize logging plugin with custom path
             app.handle()
                 .plugin(
                     tauri_plugin_log::Builder::new()
@@ -714,11 +715,9 @@ fn main() {
             info!("📝 Log file location: {}", log_path.display());
             info!("═══════════════════════════════════════");
 
-            // ✅ CRITICAL FIX: Kill ALL existing backend processes first
             info!("🔧 Cleaning up any existing backend processes...");
             kill_all_backend_processes();
 
-            // Check for updates on app startup
             let app_handle_clone_for_spawn = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 match check_for_updates(app_handle_clone_for_spawn).await {
@@ -727,14 +726,10 @@ fn main() {
                 }
             });
 
-            // ✅ NEW: Smart backend startup with checking
             info!("🔧 Starting backend management...");
             let handle = app.app_handle().clone();
             tauri::async_runtime::spawn(async move {
-                // Wait a moment for cleanup to complete
                 tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
-                
-                // Check if backend survived cleanup (shouldn't happen, but just in case)
                 if is_backend_running().await {
                     info!("⚠️ Backend still running after cleanup, using existing instance");
                 } else {
@@ -742,8 +737,6 @@ fn main() {
                     match spawn_sidecar(&handle) {
                         Ok(_) => {
                             info!("✅ Backend spawned successfully");
-                            
-                            // Verify it's actually running
                             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
                             if is_backend_running().await {
                                 info!("✅ Backend health check passed!");
@@ -758,7 +751,6 @@ fn main() {
                 }
             });
 
-            // Start HTTP server and initial printer scan
             info!("Starting HTTP server on port 5050...");
             let printers = Arc::new(Mutex::new(vec![]));
             let printers_clone = printers.clone();
@@ -776,7 +768,7 @@ fn main() {
                 }
             });
 
-            // ✅ UPDATED: Register window close handler with aggressive shutdown
+            // ✅ FIXED: Proper closure structure
             if let Some(main_win) = app.get_webview_window("main") {
                 info!("📌 Registering window close event handler");
                 main_win.on_window_event(move |event| {
@@ -785,8 +777,6 @@ fn main() {
                         tauri::async_runtime::block_on(async {
                             shutdown_backend().await;
                         });
-                        
-                        // Force kill any remaining processes
                         std::thread::sleep(std::time::Duration::from_millis(500));
                         kill_all_backend_processes();
                     }
@@ -796,6 +786,7 @@ fn main() {
             info!("═══════════════════════════════════════");
             info!("✅ APPLICATION SETUP COMPLETE");
             info!("═══════════════════════════════════════");
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -811,18 +802,12 @@ fn main() {
         .expect("error building app");
 
     info!("Application starting run loop...");
-    
-    // ✅ UPDATED: Also kill on app exit
     app.run(move |_app_handle, event| {
         if let RunEvent::Exit = event {
             info!("🔚 Application exit event received");
-            
-            // Send graceful shutdown
             tauri::async_runtime::block_on(async {
                 shutdown_backend().await;
             });
-            
-            // Force kill after graceful attempt
             std::thread::sleep(std::time::Duration::from_millis(500));
             kill_all_backend_processes();
         }

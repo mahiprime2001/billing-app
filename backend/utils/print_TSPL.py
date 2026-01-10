@@ -157,6 +157,7 @@ def send_raw_to_printer(printer_name, raw_data, logger=None):
         logger.info("="*60)
         logger.info("🎉 PRINT JOB COMPLETED SUCCESSFULLY")
         logger.info("="*60)
+        return True
         
     except Exception as e:
         logger.error(f"❌ Printing error: {e}", exc_info=True)
