@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "sync_time": "2026-01-28T10:39:46.557146",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "56c1b214-d0af-444d-bae6-65cb6830fd74",
+    "change_data": {
+      "name": "A.NECKLACE",
+      "price": 234,
+      "stock": 345,
+      "sellingPrice": 450,
+      "batchid": "",
+      "barcodes": "1769576985568631"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-01-28T10:39:46.557146"
+  }
+]

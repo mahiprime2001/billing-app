@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1,
+    "timestamp": "2026-01-28T10:39:46.558153",
+    "eventType": "Products_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "56c1b214-d0af-444d-bae6-65cb6830fd74",
+      "operation_type": "CREATE"
+    }
+  }
+]

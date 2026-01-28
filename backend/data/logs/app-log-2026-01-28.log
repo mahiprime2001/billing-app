@@ -1,0 +1,13 @@
+2026-01-28 10:38:35,084 - app - INFO - app.py:198 - Application started - Log file: D:\Siri-apps\billing-app\backend\data\logs\app-log-2026-01-28.log
+2026-01-28 10:38:35,084 - app - INFO - app.py:199 - BASE_DIR: D:\Siri-apps\billing-app\backend
+2026-01-28 10:38:35,084 - app - INFO - app.py:200 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:38:35,084 - app - INFO - app.py:201 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:38:35,085 - app - INFO - app.py:228 - Starting log file cleanup. Keeping files for 30 days.
+2026-01-28 10:38:35,085 - app - INFO - app.py:240 - Deleted old log file: D:\Siri-apps\billing-app\backend\data\logs\app-log-2025-12-21.log
+2026-01-28 10:38:35,086 - app - INFO - app.py:240 - Deleted old log file: D:\Siri-apps\billing-app\backend\data\logs\app-log-2025-12-22.log
+2026-01-28 10:38:35,087 - app - INFO - app.py:240 - Deleted old log file: D:\Siri-apps\billing-app\backend\data\logs\app-log-2025-12-25.log
+2026-01-28 10:38:35,087 - app - INFO - app.py:245 - Log cleanup completed. Deleted 3 old log files.
+2026-01-28 10:38:35,088 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data
+2026-01-28 10:38:35,088 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:38:35,088 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:38:35,088 - app - INFO - app.py:79 - Enhanced sync manager initialized
