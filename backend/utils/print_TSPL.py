@@ -64,7 +64,6 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
             tspl.append(f'BARCODE 20,0,"128",55,1,0,1,1,"{barcode}"')
             
             # Text elements
-            tspl.append(f'TEXT 225,4,"1",0,1,1,"{store_name}"')
             tspl.append(f'TEXT 225,24,"1",0,1,1,"{product["name"]}"')
             
             # Price
