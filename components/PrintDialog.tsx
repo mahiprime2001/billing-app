@@ -144,11 +144,11 @@ export default function PrintDialog({
       const shouldUseBackend = forceBackendPrint || directPrint;
 
       if (shouldUseBackend) {
-        // ✅ FIXED: Proper labelData with guaranteed string barcode
+        // ✅ FIXED: Send selling_price instead of price for labels
         const labelData = products.map((product) => ({
           id: product.id,
           name: product.name,
-          price: product.price ?? 0,
+          selling_price: product.sellingPrice ?? 0,
           barcode: getBarcode(product) ?? "NO-BARCODE", // ✅ Guaranteed string
         }));
 

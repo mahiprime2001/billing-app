@@ -114,7 +114,8 @@ export async function unifiedPrint({
   labelData?: Array<{
     id: string;
     name: string;
-    price: number;
+    selling_price?: number;
+    sellingPrice?: number;
     barcode: string;
   }>;
   copies?: number;
@@ -126,30 +127,34 @@ export async function unifiedPrint({
   if (useBackendPrint && labelData && labelData.length > 0) {
     try {
       const backendApiUrl = (process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:8080").replace(/\/+$/g, "");
+      // Map labelData to only include selling_price (snake_case) and remove price
+      const labelDataForBackend = labelData.map(item => {
+        let selling_price = item.selling_price;
+        if (selling_price === undefined && item.sellingPrice !== undefined) selling_price = item.sellingPrice;
+        return {
+          id: item.id,
+          name: item.name,
+          barcode: item.barcode,
+          selling_price: selling_price ?? 0
+        };
+      });
       const payload: any = { 
-        labelData,
+        labelData: labelDataForBackend,
         copies 
       };
-      
-      // ✅ FIXED: Safe property assignment
       if (printerName) payload.printerName = printerName;
       if (storeName) payload.storeName = storeName;
-
-      console.log("📤 Sending backend print request:", payload);
-
+      console.log("📤 Sending backend print request (selling_price only):", payload);
       const response = await fetch(`${backendApiUrl}/api/print-label`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      
       const data = await response.json().catch(() => ({}));
-      
       if (response.ok && data.status === "success") {
         console.log("✅ Backend print succeeded:", data.message || "");
         return;
       }
-      
       console.warn("⚠️ Backend print returned non-success, falling back to browser print", data);
     } catch (err) {
       console.error("❌ Error sending backend print request, falling back to browser print:", err);

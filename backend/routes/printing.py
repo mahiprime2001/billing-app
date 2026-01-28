@@ -75,6 +75,23 @@ def print_label():
             f"PRINT REQUEST → Printer='{printer_name}', "
             f"Products={len(products)}, Copies={copies}, Store='{store_name}'"
         )
+        # Print the full payload to the terminal for debug
+        import pprint
+        print("\n========== FULL PRINT LABEL PAYLOAD ==========")
+        pprint.pprint({
+            'printerName': printer_name,
+            'copies': copies,
+            'storeName': store_name
+        })
+        print("-- Product Details --")
+        for idx, prod in enumerate(products, 1):
+            print(f"Product #{idx}:")
+            print(f"  ID: {prod.get('id')}")
+            print(f"  Name: {prod.get('name')}")
+            print(f"  Barcode: {prod.get('barcode')}")
+            print(f"  Selling Price: {prod.get('selling_price')}")
+            # Print any other fields if needed
+        print("============================================\n")
 
         # ---- PRINTING ----
         from utils.print_TSPL import generate_tspl, send_raw_to_printer

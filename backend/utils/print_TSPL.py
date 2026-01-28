@@ -67,6 +67,7 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
             tspl.append(f'TEXT 225,24,"1",0,1,1,"{product["name"]}"')
             
             # Price
+            # Only use selling_price or sellingPrice, never price
             selling = product.get('selling_price')
             if selling is None or selling == '':
                 selling = product.get('sellingPrice')
@@ -76,7 +77,7 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
                 selling_val = float(selling)
             except Exception:
                 selling_val = 0.0
-            logger.info(f"    💰 Price: Rs.{selling_val:.2f}")
+            logger.info(f"    💰 Selling Price: Rs.{selling_val:.2f}")
             tspl.append(f'TEXT 225,44,"1",0,1,1,"Rs.{selling_val:.2f}"')
             
             # Print ONE label

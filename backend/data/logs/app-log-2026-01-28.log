@@ -11,3 +11,487 @@
 2026-01-28 10:38:35,088 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\json
 2026-01-28 10:38:35,088 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\logs
 2026-01-28 10:38:35,088 - app - INFO - app.py:79 - Enhanced sync manager initialized
+2026-01-28 10:38:39,090 - app - INFO - app.py:256 - Initial data export from Supabase completed successfully.
+2026-01-28 10:38:39,092 - app - INFO - app.py:267 - Starting Flask server on port 8080 (debug=True)
+2026-01-28 10:38:40,581 - app - INFO - app.py:198 - Application started - Log file: D:\Siri-apps\billing-app\backend\data\logs\app-log-2026-01-28.log
+2026-01-28 10:38:40,582 - app - INFO - app.py:199 - BASE_DIR: D:\Siri-apps\billing-app\backend
+2026-01-28 10:38:40,582 - app - INFO - app.py:200 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:38:40,583 - app - INFO - app.py:201 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:38:40,583 - app - INFO - app.py:228 - Starting log file cleanup. Keeping files for 30 days.
+2026-01-28 10:38:40,583 - app - INFO - app.py:245 - Log cleanup completed. Deleted 0 old log files.
+2026-01-28 10:38:40,583 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data
+2026-01-28 10:38:40,584 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:38:40,584 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:38:40,584 - app - INFO - app.py:79 - Enhanced sync manager initialized
+2026-01-28 10:38:43,704 - app - INFO - app.py:256 - Initial data export from Supabase completed successfully.
+2026-01-28 10:38:43,704 - app - INFO - app.py:267 - Starting Flask server on port 8080 (debug=True)
+2026-01-28 10:38:49,556 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:38:49,559 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:38:55,184 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:38:55,188 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:00,188 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:05,169 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:05,172 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:09,551 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:14,550 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:14,555 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:14,598 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/auth/login, Origin=http://localhost:3000
+2026-01-28 10:39:14,606 - app - INFO - app.py:103 - Incoming Request: Method=POST, Path=/api/auth/login, Origin=http://localhost:3000
+2026-01-28 10:39:17,886 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:39:17,896 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2026-01-28 10:39:17,904 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2026-01-28 10:39:17,909 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2026-01-28 10:39:17,910 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2026-01-28 10:39:18,675 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:39:18,682 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2026-01-28 10:39:18,692 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/stores, Origin=http://localhost:3000
+2026-01-28 10:39:19,030 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/users, Origin=http://localhost:3000
+2026-01-28 10:39:19,213 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/bills, Origin=http://localhost:3000
+2026-01-28 10:39:20,188 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:20,191 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:25,185 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:29,553 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:29,555 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:31,827 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:39:31,830 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2026-01-28 10:39:31,830 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:39:32,101 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:39:34,563 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:34,567 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:39,552 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:44,554 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:44,557 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:46,298 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/products, Origin=http://localhost:3000
+2026-01-28 10:39:46,302 - app - INFO - app.py:103 - Incoming Request: Method=POST, Path=/api/products, Origin=http://localhost:3000
+2026-01-28 10:39:46,562 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2026-01-28 10:39:50,170 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:50,174 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:39:55,181 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:00,183 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:00,189 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:02,183 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:40:05,176 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:10,169 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:10,172 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:15,168 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:20,171 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:20,175 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:25,171 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:30,170 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:30,174 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:32,169 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:40:35,173 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:40,170 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:40,173 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:42,923 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:40:44,320 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2026-01-28 10:40:44,550 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:46,681 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/print-label, Origin=http://localhost:3000
+2026-01-28 10:40:46,686 - app - INFO - app.py:103 - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2026-01-28 10:40:53,253 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:40:53,257 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:53,261 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:40:54,550 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:00,170 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:00,173 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:02,183 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:41:05,171 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:10,171 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:10,174 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:15,184 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:15,187 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:20,172 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:25,188 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:25,191 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:30,169 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:32,170 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:41:35,169 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:35,172 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:40,171 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:45,170 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:45,172 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:41:50,169 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:42:02,171 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:42:08,171 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:42:08,175 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:43:08,171 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:43:08,172 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:43:08,174 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:43:42,428 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:43:42,430 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:43:42,431 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:43:42,434 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:43:45,015 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:43:49,561 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:43:49,568 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:43:54,565 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:43:59,559 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:43:59,568 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:01,841 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:44:04,555 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:09,551 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:09,554 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:14,555 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:14,558 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:20,173 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:20,177 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:25,174 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:30,175 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:30,177 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:32,174 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:44:35,174 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:40,175 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:40,178 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:45,177 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:50,242 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:50,266 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:44:55,176 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:45:00,176 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:45:00,179 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:45:02,175 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:45:05,181 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:45:10,176 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:45:10,179 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:45:15,175 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:45:36,521 - app - INFO - app.py:198 - Application started - Log file: D:\Siri-apps\billing-app\backend\data\logs\app-log-2026-01-28.log
+2026-01-28 10:45:36,521 - app - INFO - app.py:199 - BASE_DIR: D:\Siri-apps\billing-app\backend
+2026-01-28 10:45:36,521 - app - INFO - app.py:200 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:45:36,521 - app - INFO - app.py:201 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:45:36,521 - app - INFO - app.py:228 - Starting log file cleanup. Keeping files for 30 days.
+2026-01-28 10:45:36,521 - app - INFO - app.py:245 - Log cleanup completed. Deleted 0 old log files.
+2026-01-28 10:45:36,521 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data
+2026-01-28 10:45:36,521 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:45:36,521 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:45:36,525 - app - INFO - app.py:79 - Enhanced sync manager initialized
+2026-01-28 10:45:39,850 - app - INFO - app.py:256 - Initial data export from Supabase completed successfully.
+2026-01-28 10:45:39,850 - app - INFO - app.py:267 - Starting Flask server on port 8080 (debug=True)
+2026-01-28 10:46:08,182 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:46:08,183 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:46:08,186 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:46:39,614 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:46:39,616 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:46:39,618 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:46:39,620 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:46:45,178 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:46:45,181 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:46:50,184 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:46:55,189 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:46:55,203 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:00,184 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:02,177 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:47:05,183 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:05,195 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:10,188 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:15,177 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:15,182 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:17,247 - app - INFO - app.py:198 - Application started - Log file: D:\Siri-apps\billing-app\backend\data\logs\app-log-2026-01-28.log
+2026-01-28 10:47:17,247 - app - INFO - app.py:199 - BASE_DIR: D:\Siri-apps\billing-app\backend
+2026-01-28 10:47:17,247 - app - INFO - app.py:200 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:47:17,249 - app - INFO - app.py:201 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:47:17,249 - app - INFO - app.py:228 - Starting log file cleanup. Keeping files for 30 days.
+2026-01-28 10:47:17,251 - app - INFO - app.py:245 - Log cleanup completed. Deleted 0 old log files.
+2026-01-28 10:47:17,251 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data
+2026-01-28 10:47:17,253 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:47:17,254 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:47:17,254 - app - INFO - app.py:79 - Enhanced sync manager initialized
+2026-01-28 10:47:20,361 - app - INFO - app.py:256 - Initial data export from Supabase completed successfully.
+2026-01-28 10:47:20,361 - app - INFO - app.py:267 - Starting Flask server on port 8080 (debug=True)
+2026-01-28 10:47:20,407 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:25,180 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:25,194 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:30,168 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:32,183 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:47:35,189 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:35,201 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:39,056 - app - INFO - app.py:198 - Application started - Log file: D:\Siri-apps\billing-app\backend\data\logs\app-log-2026-01-28.log
+2026-01-28 10:47:39,056 - app - INFO - app.py:199 - BASE_DIR: D:\Siri-apps\billing-app\backend
+2026-01-28 10:47:39,056 - app - INFO - app.py:200 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:47:39,056 - app - INFO - app.py:201 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:47:39,056 - app - INFO - app.py:228 - Starting log file cleanup. Keeping files for 30 days.
+2026-01-28 10:47:39,056 - app - INFO - app.py:245 - Log cleanup completed. Deleted 0 old log files.
+2026-01-28 10:47:39,056 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data
+2026-01-28 10:47:39,056 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:47:39,058 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:47:39,058 - app - INFO - app.py:79 - Enhanced sync manager initialized
+2026-01-28 10:47:42,262 - app - INFO - app.py:256 - Initial data export from Supabase completed successfully.
+2026-01-28 10:47:42,264 - app - INFO - app.py:267 - Starting Flask server on port 8080 (debug=True)
+2026-01-28 10:47:42,373 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:47:42,373 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:43,658 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2026-01-28 10:47:44,551 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:44,558 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:49,559 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:49,562 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:54,300 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:54,436 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:47:54,438 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2026-01-28 10:47:54,447 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:47:57,144 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2026-01-28 10:47:58,121 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/print-label, Origin=http://localhost:3000
+2026-01-28 10:47:58,125 - app - INFO - app.py:103 - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2026-01-28 10:47:59,553 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:47:59,556 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:47:59,560 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:04,300 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:09,296 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:09,300 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:14,301 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:20,187 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:20,204 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:25,183 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:25,188 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:48:30,170 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:30,173 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:35,178 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:35,179 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:40,174 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:45,183 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:45,197 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:50,183 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:55,192 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:48:55,197 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:48:55,201 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:00,189 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:05,185 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:05,201 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:06,653 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:49:09,303 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:14,303 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:14,310 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:19,303 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:24,304 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:24,313 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:24,448 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:49:30,189 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:30,206 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:35,191 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:40,173 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:40,181 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:43,155 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:49:44,310 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:49,305 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:49,317 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:55,190 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:55,195 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:49:55,202 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:49:57,146 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:49:59,301 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:04,302 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:04,309 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:10,189 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:10,202 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:15,183 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:20,183 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:20,191 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:25,261 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:25,263 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:50:25,309 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:30,171 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:35,182 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:35,186 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:40,168 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:45,174 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:45,183 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:50,169 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:55,173 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:50:55,177 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:50:55,181 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:00,178 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:05,174 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:05,180 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:25,629 - app - INFO - app.py:198 - Application started - Log file: D:\Siri-apps\billing-app\backend\data\logs\app-log-2026-01-28.log
+2026-01-28 10:51:25,629 - app - INFO - app.py:199 - BASE_DIR: D:\Siri-apps\billing-app\backend
+2026-01-28 10:51:25,629 - app - INFO - app.py:200 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:51:25,629 - app - INFO - app.py:201 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:51:25,629 - app - INFO - app.py:228 - Starting log file cleanup. Keeping files for 30 days.
+2026-01-28 10:51:25,629 - app - INFO - app.py:245 - Log cleanup completed. Deleted 0 old log files.
+2026-01-28 10:51:25,629 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data
+2026-01-28 10:51:25,629 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:51:25,629 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:51:25,629 - app - INFO - app.py:79 - Enhanced sync manager initialized
+2026-01-28 10:51:29,401 - app - INFO - app.py:256 - Initial data export from Supabase completed successfully.
+2026-01-28 10:51:29,401 - app - INFO - app.py:267 - Starting Flask server on port 8080 (debug=True)
+2026-01-28 10:51:30,537 - app - INFO - app.py:198 - Application started - Log file: D:\Siri-apps\billing-app\backend\data\logs\app-log-2026-01-28.log
+2026-01-28 10:51:30,537 - app - INFO - app.py:199 - BASE_DIR: D:\Siri-apps\billing-app\backend
+2026-01-28 10:51:30,537 - app - INFO - app.py:200 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:51:30,537 - app - INFO - app.py:201 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:51:30,537 - app - INFO - app.py:228 - Starting log file cleanup. Keeping files for 30 days.
+2026-01-28 10:51:30,537 - app - INFO - app.py:245 - Log cleanup completed. Deleted 0 old log files.
+2026-01-28 10:51:30,549 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data
+2026-01-28 10:51:30,549 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:51:30,550 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:51:30,550 - app - INFO - app.py:79 - Enhanced sync manager initialized
+2026-01-28 10:51:34,058 - app - INFO - app.py:256 - Initial data export from Supabase completed successfully.
+2026-01-28 10:51:34,058 - app - INFO - app.py:267 - Starting Flask server on port 8080 (debug=True)
+2026-01-28 10:51:34,103 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:34,106 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:51:34,108 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:34,460 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:38,226 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:38,442 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:51:38,444 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/products, Origin=http://localhost:3000
+2026-01-28 10:51:38,447 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:51:41,306 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2026-01-28 10:51:43,232 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:43,232 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:44,354 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/print-label, Origin=http://localhost:3000
+2026-01-28 10:51:44,357 - app - INFO - app.py:103 - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2026-01-28 10:51:46,347 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:51:48,239 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:53,241 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:53,247 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:51:58,238 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:03,232 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:03,235 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:08,236 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:08,240 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:08,469 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:52:13,246 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:18,234 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:18,238 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:23,244 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:23,249 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:29,188 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:29,199 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:34,175 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:39,166 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:39,172 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:52:39,177 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:42,718 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:52:43,233 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:48,240 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:48,254 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:53,232 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:59,176 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:52:59,191 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:04,167 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:09,178 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:09,183 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:53:09,193 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:14,179 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:19,176 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:19,182 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:24,173 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:29,179 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:29,191 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:34,179 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:39,178 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:39,189 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:53:39,192 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:44,179 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:49,188 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:53:49,200 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:54:08,179 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:54:08,193 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:54:09,173 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:54:11,142 - app - INFO - app.py:198 - Application started - Log file: D:\Siri-apps\billing-app\backend\data\logs\app-log-2026-01-28.log
+2026-01-28 10:54:11,142 - app - INFO - app.py:199 - BASE_DIR: D:\Siri-apps\billing-app\backend
+2026-01-28 10:54:11,142 - app - INFO - app.py:200 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:54:11,142 - app - INFO - app.py:201 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:54:11,142 - app - INFO - app.py:228 - Starting log file cleanup. Keeping files for 30 days.
+2026-01-28 10:54:11,142 - app - INFO - app.py:245 - Log cleanup completed. Deleted 0 old log files.
+2026-01-28 10:54:11,142 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data
+2026-01-28 10:54:11,142 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:54:11,142 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:54:11,142 - app - INFO - app.py:79 - Enhanced sync manager initialized
+2026-01-28 10:54:14,264 - app - INFO - app.py:256 - Initial data export from Supabase completed successfully.
+2026-01-28 10:54:14,264 - app - INFO - app.py:267 - Starting Flask server on port 8080 (debug=True)
+2026-01-28 10:54:14,310 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:54:14,314 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:54:30,260 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:54:30,280 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:54:30,283 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:54:31,854 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2026-01-28 10:54:33,040 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/print-label, Origin=http://localhost:3000
+2026-01-28 10:54:33,042 - app - INFO - app.py:103 - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2026-01-28 10:55:32,066 - app - INFO - app.py:198 - Application started - Log file: D:\Siri-apps\billing-app\backend\data\logs\app-log-2026-01-28.log
+2026-01-28 10:55:32,066 - app - INFO - app.py:199 - BASE_DIR: D:\Siri-apps\billing-app\backend
+2026-01-28 10:55:32,066 - app - INFO - app.py:200 - JSON_DIR: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:55:32,066 - app - INFO - app.py:201 - LOGS_DIR: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:55:32,066 - app - INFO - app.py:228 - Starting log file cleanup. Keeping files for 30 days.
+2026-01-28 10:55:32,066 - app - INFO - app.py:245 - Log cleanup completed. Deleted 0 old log files.
+2026-01-28 10:55:32,068 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data
+2026-01-28 10:55:32,068 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\json
+2026-01-28 10:55:32,068 - app - DEBUG - app.py:223 - Directory already exists: D:\Siri-apps\billing-app\backend\data\logs
+2026-01-28 10:55:32,068 - app - INFO - app.py:79 - Enhanced sync manager initialized
+2026-01-28 10:55:35,439 - app - INFO - app.py:256 - Initial data export from Supabase completed successfully.
+2026-01-28 10:55:35,439 - app - INFO - app.py:267 - Starting Flask server on port 8080 (debug=True)
+2026-01-28 10:55:39,127 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:55:39,129 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:55:39,132 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:55:39,137 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:55:43,226 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:55:45,611 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2026-01-28 10:55:46,840 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/print-label, Origin=http://localhost:3000
+2026-01-28 10:55:46,845 - app - INFO - app.py:103 - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2026-01-28 10:55:48,961 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:55:48,963 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:55:48,966 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:55:54,182 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:55:54,192 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:55:59,177 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:04,184 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:04,187 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:09,178 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:09,183 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:56:14,180 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:14,193 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:19,184 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:24,182 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:24,193 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:29,175 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:34,183 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:34,194 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:39,175 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:39,176 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:56:44,175 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:44,178 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:56:49,177 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:57:08,177 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:57:08,181 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:57:30,179 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:57:30,181 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:57:30,184 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:57:49,799 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:57:49,809 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:57:49,871 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:57:49,879 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:57:51,217 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/printers, Origin=http://localhost:3000
+2026-01-28 10:57:53,240 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:57:53,863 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/print-label, Origin=http://localhost:3000
+2026-01-28 10:57:53,868 - app - INFO - app.py:103 - Incoming Request: Method=POST, Path=/api/print-label, Origin=http://localhost:3000
+2026-01-28 10:57:55,296 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:57:59,175 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:57:59,180 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:04,185 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:04,189 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:04,433 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/batches, Origin=http://localhost:3000
+2026-01-28 10:58:09,179 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:09,181 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:58:14,177 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:14,180 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:19,171 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:24,173 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:24,185 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:29,168 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:34,179 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:34,179 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:39,171 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:39,173 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:58:44,183 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:44,197 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:49,186 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:54,182 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:54,188 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:58:59,182 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:59:04,180 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:59:04,194 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:59:37,304 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:59:37,314 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://localhost:3000
+2026-01-28 10:59:37,321 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:59:39,184 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:59:57,182 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:59:57,183 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 10:59:59,188 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 11:00:06,212 - app - INFO - app.py:103 - Incoming Request: Method=OPTIONS, Path=/api/sync/status, Origin=http://localhost:3000
+2026-01-28 11:00:06,216 - app - INFO - app.py:103 - Incoming Request: Method=GET, Path=/api/sync/status, Origin=http://localhost:3000

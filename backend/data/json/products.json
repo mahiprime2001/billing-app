@@ -1,13 +1,13 @@
 [
   {
-    "name": "A.NECKLACE",
-    "price": 234,
-    "stock": 345,
-    "selling_price": 450,
-    "barcode": "1769576985568631",
-    "batchid": null,
     "id": "56c1b214-d0af-444d-bae6-65cb6830fd74",
+    "name": "A.NECKLACE",
+    "price": 234.0,
+    "stock": 345,
+    "batchid": null,
+    "selling_price": 450.0,
     "createdat": "2026-01-28T10:39:46.303935",
-    "updatedat": "2026-01-28T10:39:46.303935"
+    "updatedat": "2026-01-28T10:39:46.303935",
+    "barcode": "1769576985568631"
   }
 ]
