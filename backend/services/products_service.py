@@ -82,6 +82,12 @@ def get_local_products() -> List[Dict]:
             else:
                 converted_product['barcodes'] = []
             
+            # Ensure batchId is properly set (convert from batchid if needed)
+            if 'batchid' in converted_product and converted_product['batchid']:
+                converted_product['batchId'] = converted_product['batchid']
+            elif 'batchId' not in converted_product:
+                converted_product['batchId'] = None
+            
             transformed_products.append(converted_product)
         
         return transformed_products
@@ -134,6 +140,12 @@ def get_supabase_products() -> List[Dict]:
                 converted_product['barcodes'] = [b.strip() for b in barcode_str.split(',') if b.strip()]
             else:
                 converted_product['barcodes'] = []
+            
+            # Ensure batchId is properly set (convert from batchid if needed)
+            if 'batchid' in converted_product and converted_product['batchid']:
+                converted_product['batchId'] = converted_product['batchid']
+            elif 'batchId' not in converted_product:
+                converted_product['batchId'] = None
             
             transformed_products.append(converted_product)
         

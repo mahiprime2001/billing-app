@@ -297,12 +297,23 @@ export default function ProductsPage() {
 
 
   const generateBarcode = () => {
-    const timestamp = Date.now().toString()
-    const randomNum = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0")
-    return `${timestamp}${randomNum}`
-  }
+  const now = new Date();
+
+  // Date part: YYYYMMDD (8 digits)
+  const yyyy = now.getFullYear().toString();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const datePart = `${yyyy}${mm}${dd}`;
+
+  // Random part: 5 digits
+  const randomPart = Math.floor(Math.random() * 100000)
+    .toString()
+    .padStart(5, "0");
+
+  // Final 13-digit barcode
+  return `${datePart}${randomPart}`;
+};
+
 
   const validateBarcode = (barcode: string): boolean => {
     if (!barcode || barcode.trim() === "") return false;
@@ -590,23 +601,47 @@ const handleDeleteProduct = async (productId: string) => {
     // console.log(`Product ${product.name} (ID: ${product.id}) - Matches: ${match}`); // Too verbose, enable if needed
     return match;
   });
-  // console.log("Filtered Products:", filtered);
-  return filtered;
+  
+  // Sort filtered products by date (newest first)
+  const sortedFilteredProducts = filtered.sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA; // Descending order (newest first)
+  });
+  
+  // console.log("Filtered Products:", sortedFilteredProducts);
+  return sortedFilteredProducts;
 }, [products, searchTerm, stockFilter, categoryFilter, priceRange, batchFilter, sellingPriceRange, dateAddedFilter]);
 
-  // Memoized total inventory value calculation
-  const totalInventoryValue = useMemo(() => {
+  // Memoized total inventory value calculation (based on selling price)
+  const totalSellingValue = useMemo(() => {
     const totalValue = products.reduce((sum, p) => {
       const stock = Number(p.stock ?? 0);
-      const price = Number((p as any).sellingPrice ?? (p as any).price ?? 0);
-      if (isNaN(stock) || isNaN(price)) {
-        console.warn(`Invalid stock or price for product ${p.id}: stock=${p.stock}, price=${price}`);
+      const sellingPrice = Number((p as any).sellingPrice ?? (p as any).price ?? 0);
+      if (isNaN(stock) || isNaN(sellingPrice)) {
+        console.warn(`Invalid stock or selling price for product ${p.id}: stock=${p.stock}, sellingPrice=${sellingPrice}`);
         return sum;
       }
-      return sum + (stock * price);
+      return sum + (stock * sellingPrice);
     }, 0);
     
-    console.log("Calculated Total Inventory Value:", totalValue.toFixed(2));
+    console.log("Calculated Total Selling Value:", totalValue.toFixed(2));
+    return totalValue.toFixed(2);
+  }, [products]);
+
+  // Memoized total inventory cost value calculation (based on cost price)
+  const totalCostValue = useMemo(() => {
+    const totalValue = products.reduce((sum, p) => {
+      const stock = Number(p.stock ?? 0);
+      const costPrice = Number(p.price ?? 0);
+      if (isNaN(stock) || isNaN(costPrice)) {
+        console.warn(`Invalid stock or cost price for product ${p.id}: stock=${p.stock}, costPrice=${costPrice}`);
+        return sum;
+      }
+      return sum + (stock * costPrice);
+    }, 0);
+    
+    console.log("Calculated Total Cost Value:", totalValue.toFixed(2));
     return totalValue.toFixed(2);
   }, [products]);
 
@@ -1134,10 +1169,10 @@ const handleDeleteProduct = async (productId: string) => {
               <div className="flex items-center">
                 <AlertCircle className="h-8 w-8 text-yellow-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Value of Inventory</p>
-<p className="text-2xl font-bold text-gray-900">
-  ₹{totalInventoryValue}
-</p>
+                  <p className="text-sm font-medium text-gray-600">Total Value of Selling Price</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    ₹{totalSellingValue}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -1145,10 +1180,12 @@ const handleDeleteProduct = async (productId: string) => {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
-                <XCircle className="h-8 w-8 text-red-600" />
+                <Package className="h-8 w-8 text-blue-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Out of Stock</p>
-                  <p className="text-2xl font-bold text-gray-900">{products.filter((p) => p.stock === 0).length}</p>
+                  <p className="text-sm font-medium text-gray-600">Total Inventory Price Value</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    ₹{totalCostValue}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -1261,6 +1298,9 @@ const handleDeleteProduct = async (productId: string) => {
                         <td className="p-4">
                           <div>
                             <div className="font-medium">{product.name}</div>
+                            <div className="text-xs text-gray-500">
+                              {product.createdAt ? new Date(product.createdAt).toLocaleDateString() : ''}
+                            </div>
                           </div>
                         </td>
                         <td className="p-4">
@@ -1628,7 +1668,6 @@ return (
                   );
                   unifiedPrint({
                     htmlContent,
-                    productIds: productIdsToPrint,
                     useBackendPrint: true,
                     storeName: assignedStores?.[0]?.name || "Siri Art Jewellers",
                   });
@@ -1735,7 +1774,6 @@ return (
                   );
                   unifiedPrint({
                     htmlContent,
-                    productIds: productIdsToPrint,
                     useBackendPrint: true,
                     storeName: assignedStores?.[0]?.name || "Siri Art Jewellers",
                   });
@@ -1755,6 +1793,7 @@ return (
           onPrintSuccess={handlePrintSuccess}
           storeName={assignedStores?.[0]?.name || "Siri Art Jewellers"}
           forceBackendPrint={true}
+          batches={batches}
         />
 
         {/* Edit Product Dialog (unchanged, but with formData updates if needed) */}

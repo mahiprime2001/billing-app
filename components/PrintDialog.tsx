@@ -32,6 +32,11 @@ interface PrintDialogProps {
   onPrintSuccess: () => void;
   storeName: string;
   forceBackendPrint?: boolean;
+  batches?: Array<{
+    id: string;
+    batchNumber: string;
+    place: string;
+  }>;
 }
 
 function getBackendBase(): string {
@@ -46,6 +51,7 @@ export default function PrintDialog({
   onPrintSuccess,
   storeName,
   forceBackendPrint = false,
+  batches = [],
 }: PrintDialogProps) {
   const [copies, setCopies] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -61,6 +67,36 @@ export default function PrintDialog({
   const [barcodeWidthOption, setBarcodeWidthOption] = useState(2);
   const [barcodeHeightOption, setBarcodeHeightOption] = useState(35);
   const [barcodeDisplayValue, setBarcodeDisplayValue] = useState(false);
+
+  // Helper function to get batch information for a product
+  const getBatchInfo = (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    console.log(`🔍 Looking for batch info for product ${productId}`);
+    console.log(`📦 Product found:`, product);
+    console.log(`🆔 Product batchid:`, product?.batchid);
+    console.log(`📦 All batches:`, batches);
+    
+    if (!product?.batchid) {
+      console.log(`❌ No batchid found for product ${productId}`);
+      return null;
+    }
+    
+    const batch = batches.find(b => b.id === product.batchid);
+    console.log(`🔍 Looking for batch with id: ${product.batchid}`);
+    console.log(`📦 Found batch:`, batch);
+    
+    if (!batch) {
+      console.log(`❌ No batch found for id: ${product.batchid}`);
+      return null;
+    }
+    
+    const result = {
+      batchNumber: batch.batchNumber,
+      place: batch.place
+    };
+    console.log(`✅ Batch info found:`, result);
+    return result;
+  };
 
   // Load printers when dialog opens
   useEffect(() => {
@@ -145,12 +181,16 @@ export default function PrintDialog({
 
       if (shouldUseBackend) {
         // ✅ FIXED: Send selling_price instead of price for labels
-        const labelData = products.map((product) => ({
-          id: product.id,
-          name: product.name,
-          selling_price: product.sellingPrice ?? 0,
-          barcode: getBarcode(product) ?? "NO-BARCODE", // ✅ Guaranteed string
-        }));
+        const labelData = products.map((product) => {
+          const batchInfo = getBatchInfo(product.id);
+          return {
+            id: product.id,
+            name: product.name,
+            selling_price: product.sellingPrice ?? 0,
+            barcode: getBarcode(product) ?? "NO-BARCODE", // ✅ Guaranteed string
+            batchNumber: batchInfo?.batchNumber || "",
+          };
+        });
 
         await unifiedPrint({
           useBackendPrint: true,
@@ -224,6 +264,12 @@ export default function PrintDialog({
                     max-height: 6mm;
                     overflow: hidden;
                   ">Product Name: ${escapeHtml(product.name)}</div>
+                  <div style="
+                    font-size: 7px;
+                    font-weight: bold;
+                    white-space: nowrap;
+                    margin-top: 2px;
+                  ">Batch: ${escapeHtml(getBatchInfo(product.id)?.batchNumber || "N/A")}</div>
                   <div style="
                     font-size: 7px;
                     font-weight: bold;
@@ -463,6 +509,9 @@ export default function PrintDialog({
                           }}
                         >
                           Product Name: {product.name}
+                        </div>
+                        <div style={{ fontSize: "7px", fontWeight: "bold", marginTop: "2px" }}>
+                          Batch: {getBatchInfo(product.id)?.batchNumber || "N/A"}
                         </div>
                         <div style={{ fontSize: "7px", fontWeight: "bold", marginTop: "2px" }}>
                           Price: {(product.price ?? 0).toFixed(2)}

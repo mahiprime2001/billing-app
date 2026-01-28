@@ -90,6 +90,8 @@ def print_label():
             print(f"  Name: {prod.get('name')}")
             print(f"  Barcode: {prod.get('barcode')}")
             print(f"  Selling Price: {prod.get('selling_price')}")
+            print(f"  Batch Number: {prod.get('batchNumber', 'N/A')}")
+            print(f"  Full product object: {prod}")
             # Print any other fields if needed
         print("============================================\n")
 
