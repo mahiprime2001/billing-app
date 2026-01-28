@@ -44,6 +44,17 @@
     "barcode": "1769584048869257"
   },
   {
+    "id": "98a5f633-f14c-4746-a9d4-92a920ccd255",
+    "name": "RZ Long chains",
+    "price": 150.0,
+    "stock": 1,
+    "batchid": "32ac771e-5f48-411a-a119-847dcda51056",
+    "selling_price": 650.0,
+    "createdat": "2026-01-28T17:07:11.654415",
+    "updatedat": "2026-01-28T17:07:11.654415",
+    "barcode": "2026012807165"
+  },
+  {
     "id": "7fd2929c-7f23-4373-9ee1-8930c9f1bc03",
     "name": "RG Long chains",
     "price": 350.0,
@@ -77,14 +88,14 @@
     "barcode": "1769583926437340"
   },
   {
-    "id": "e8bbc3fa-a464-4153-bba5-a04636bce128",
+    "id": "0fb0d3b0-3736-4f81-a936-11f54682cb54",
     "name": "RG Long chains",
     "price": 150.0,
-    "stock": 1,
+    "stock": 85,
     "batchid": "32ac771e-5f48-411a-a119-847dcda51056",
-    "selling_price": 650.0,
-    "createdat": "2026-01-28T12:38:37.585563",
-    "updatedat": "2026-01-28T12:38:37.585563",
-    "barcode": "1769584116573014"
+    "selling_price": 600.0,
+    "createdat": "2026-01-28T17:12:55.478078",
+    "updatedat": "2026-01-28T17:14:36.550009",
+    "barcode": "2026012809890"
   }
 ]

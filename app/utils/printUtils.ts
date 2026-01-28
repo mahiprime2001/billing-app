@@ -135,7 +135,8 @@ export async function unifiedPrint({
           id: item.id,
           name: item.name,
           barcode: item.barcode,
-          selling_price: selling_price ?? 0
+          selling_price: selling_price ?? 0,
+           batchNumber: (item as any).batchNumber || ""
         };
       });
       const payload: any = { 
