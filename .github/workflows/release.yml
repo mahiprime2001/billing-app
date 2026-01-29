@@ -132,8 +132,8 @@ jobs:
 
       - name: Copy Python executable to Tauri binaries
         run: |
-          mkdir -p src-tauri/binaries
-          cp backend/dist/Siriadmin-backend-x86_64-pc-windows-msvc.exe src-tauri/binaries/
+          if (-not (Test-Path src-tauri/binaries)) { New-Item -ItemType Directory -Path src-tauri/binaries | Out-Null }
+          Copy-Item backend/dist/Siriadmin-backend-x86_64-pc-windows-msvc.exe src-tauri/binaries/ -Force
 
 
       - name: Install Tauri CLI
