@@ -128,19 +128,10 @@ jobs:
       # ---------------------------
       - name: Build backend sidecar (PyInstaller)
         working-directory: backend
+        shell: pwsh
         run: |
-          uv run pyinstaller ^
-            --clean ^
-            --name "Siriadmin-backend-x86_64-pc-windows-msvc" ^
-            --runtime-tmpdir . ^
-            --onefile ^
-            --add-data "scripts:scripts" ^
-            --add-data "utils:utils" ^
-            --add-data "routes:routes" ^
-            --add-data "services:services" ^
-            --add-data "config.py:." ^
-            --add-data ".env:." ^
-            app.py
+          uv run pyinstaller --clean --name "Siriadmin-backend-x86_64-pc-windows-msvc" --runtime-tmpdir . --onefile --add-data "scripts:scripts" --add-data "utils:utils" --add-data "routes:routes" --add-data "services:services" --add-data "config.py:." --add-data ".env:." app.py
+
 
       # ---------------------------
       # Copy any EXE → Tauri
