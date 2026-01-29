@@ -70,7 +70,7 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
             batch_number = product.get('batchNumber', '')
             if batch_number and batch_number.strip():
                 logger.info(f"    📦 Batch: {batch_number}")
-                tspl.append(f'TEXT 225,6,"1",0,1,1,"Batch: {batch_number}"')
+                tspl.append(f'TEXT 225,6,"1",0,1,1,"{batch_number}"')
                 # Adjust price position down if batch is present
                 price_y = 54
             else:
