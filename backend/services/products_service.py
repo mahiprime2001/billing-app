@@ -196,10 +196,32 @@ def delete_product_from_supabase(product_id: str) -> bool:
     """Delete a product from Supabase"""
     try:
         client = db.client
+
+        # Check if the product exists in the returns table
+        logger.info(f"Checking if product {product_id} exists in the returns table...")
+        returns_check = client.table('returns').select('id').eq('product_id', product_id).execute()
+        if returns_check.get('data'):
+            logger.info(f"Product {product_id} exists in the returns table. Skipping deletion from returns.")
+        
+        # Delete references in storeinventory
+        logger.info(f"Deleting references to product {product_id} in storeinventory...")
+        delete_response = client.table('storeinventory').delete().eq('product_id', product_id).execute()
+        if delete_response.get('error'):
+            logger.error(f"Error deleting references in storeinventory: {delete_response['error']}")
+            return False
+
+        logger.info(f"References to product {product_id} deleted from storeinventory.")
+
+        # Delete the product itself
         logger.info(f"Deleting product {product_id} from Supabase...")
-        client.table('products').delete().eq('id', product_id).execute()
+        product_delete_response = client.table('products').delete().eq('id', product_id).execute()
+        if product_delete_response.get('error'):
+            logger.error(f"Error deleting product from Supabase: {product_delete_response['error']}")
+            return False
+
         logger.info(f"Product {product_id} deleted from Supabase.")
         return True
+
     except Exception as e:
         logger.error(f"Error deleting product from Supabase: {e}", exc_info=True)
         return False

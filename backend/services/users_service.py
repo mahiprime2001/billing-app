@@ -61,55 +61,49 @@ def get_local_users() -> List[Dict]:
 # SUPABASE OPERATIONS
 # ============================================
 
+def assign_store_to_user(user_id: str, store_id: str) -> bool:
+    """Assign a store to a user in the userstores table."""
+    try:
+        client = db.client
+        response = client.table("userstores").insert({
+            "userId": user_id,
+            "storeId": store_id
+        }).execute()
+        if response.status_code == 201:
+            logger.info(f"Successfully assigned store {store_id} to user {user_id}.")
+            return True
+        else:
+            logger.error(f"Failed to assign store {store_id} to user {user_id}: {response.message}")
+            return False
+    except Exception as e:
+        logger.error(f"Error assigning store {store_id} to user {user_id}: {e}", exc_info=True)
+        return False
+
 def get_supabase_users() -> List[Dict]:
-    """Get users directly from Supabase with assigned stores"""
+    """Get users directly from Supabase with assigned stores."""
     try:
         client = db.client
         response = client.table("users").select("*").execute()
         users = response.data or []
-        
+
         # Fetch assigned stores for each user
         for user in users:
             user_id = user.get('id')
             if user_id:
                 try:
                     stores_response = client.table("userstores").select("storeId").eq('userId', user_id).execute()
-                    assigned_stores = [store['storeId'] for store in (stores_response.data or [])]
-                    user['assignedstores'] = assigned_stores
+                    if hasattr(stores_response, 'data') and stores_response.data is not None:
+                        assigned_stores = [store['storeId'] for store in stores_response.data]
+                        user['assignedstores'] = assigned_stores
+                    else:
+                        logger.warning(f"Error fetching stores for user {user_id}: {getattr(stores_response, 'message', 'Unknown error')}")
+                        user['assignedstores'] = []
                 except Exception as store_err:
                     logger.warning(f"Could not fetch stores for user {user_id}: {store_err}")
                     user['assignedstores'] = []
-            else:
-                user['assignedstores'] = []
-        
-        transformed_users = []
-        for user in users:
-            converted_user = convert_snake_to_camel(user)
-            
-            # Ensure createdAt and updatedAt are properly converted
-            if 'createdat' in user and 'createdAt' not in converted_user:
-                converted_user['createdAt'] = user['createdat']
-            if 'updatedat' in user and 'updatedAt' not in converted_user:
-                converted_user['updatedAt'] = user['updatedat']
-            
-            # Handle assignedstores conversion to assignedStores array
-            if 'assignedstores' in user:
-                stores = user['assignedstores']
-                if isinstance(stores, str):
-                    converted_user['assignedStores'] = [stores] if stores else []
-                elif isinstance(stores, list):
-                    converted_user['assignedStores'] = stores
-                else:
-                    converted_user['assignedStores'] = []
-            elif 'assignedStores' not in converted_user:
-                converted_user['assignedStores'] = []
-            
-            transformed_users.append(converted_user)
-        
-        logger.debug(f"Returning {len(transformed_users)} users from Supabase.")
-        return transformed_users
+        return users
     except Exception as e:
-        logger.error(f"Error getting Supabase users: {e}", exc_info=True)
+        logger.error(f"Error fetching users from Supabase: {e}", exc_info=True)
         return []
 
 
@@ -252,8 +246,8 @@ def update_user(user_id: str, update_data: dict) -> Tuple[bool, str, int]:
         user_index = next((i for i, u in enumerate(users) if u.get('id') == user_id), -1)
         
         if user_index == -1:
-            return False, "User not found", 404
-        
+            logger.warning(f"User {user_id} not found in local JSON, continuing with Supabase update")
+
         # Update timestamp
         update_data['updatedat'] = datetime.now().isoformat()
         
@@ -282,25 +276,31 @@ def update_user(user_id: str, update_data: dict) -> Tuple[bool, str, int]:
         # Handle assigned stores if provided - THIS IS THE CRITICAL FIX
         if assigned_stores is not None:
             logger.info(f"Updating stores for user {user_id}: {assigned_stores}")
-            
+
             # STEP 1: Delete ALL existing assignments first
             try:
                 delete_response = client.table('userstores').delete().eq('userId', user_id).execute()
-                logger.info(f"Deleted existing store assignments for user {user_id}")
+                if delete_response.status_code == 200:
+                    logger.info(f"Deleted existing store assignments for user {user_id}")
+                else:
+                    logger.warning(f"Failed to delete existing assignments for user {user_id}: {delete_response.message}")
             except Exception as del_err:
-                logger.warning(f"Error deleting existing assignments for user {user_id}: {del_err}")
-            
+                logger.error(f"Error deleting existing assignments for user {user_id}: {del_err}", exc_info=True)
+
             # STEP 2: Add new assignments (even if it's an empty array)
             if isinstance(assigned_stores, list) and len(assigned_stores) > 0:
                 for store_id in assigned_stores:
                     try:
-                        client.table('userstores').insert({
+                        insert_response = client.table('userstores').insert({
                             'userId': user_id,
                             'storeId': store_id
                         }).execute()
-                        logger.info(f"Assigned store {store_id} to user {user_id}")
+                        if insert_response.status_code == 201:
+                            logger.info(f"Successfully assigned store {store_id} to user {user_id}")
+                        else:
+                            logger.warning(f"Failed to assign store {store_id} to user {user_id}: {insert_response.message}")
                     except Exception as store_err:
-                        logger.error(f"Failed to assign store {store_id} to user {user_id}: {store_err}")
+                        logger.error(f"Failed to assign store {store_id} to user {user_id}: {store_err}", exc_info=True)
         
         logger.info(f"User updated {user_id}")
         return True, "User updated", 200
@@ -386,4 +386,4 @@ def authenticate_user(email: str, password: str) -> Tuple[Optional[Dict], str, i
         return user_data, "Authentication successful", 200
     except Exception as e:
         logger.error(f"Error authenticating user: {e}", exc_info=True)
-        return None, str(e), 500
+        return None, str(e), 5

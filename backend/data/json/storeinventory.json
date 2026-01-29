@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "id": "937acad1-1d5d-4f30-ad74-c68215a29c80",
+    "storeid": "130dc0bd-e877-4d0b-9111-d1885ca7b850",
+    "productid": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
+    "quantity": 10,
+    "minstocklevel": 0,
+    "maxstocklevel": null,
+    "assignedat": "2026-01-29T12:44:01.618713",
+    "updatedat": "2026-01-29T12:44:01.618713"
+  }
+]

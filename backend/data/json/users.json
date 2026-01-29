@@ -8,7 +8,21 @@
     "status": "active",
     "sessionduration": null,
     "createdat": "2025-12-01T13:04:05.560272",
-    "updatedat": "2025-12-05T19:46:00.73472",
+    "updatedat": "2026-01-29T13:07:49.739311",
+    "lastlogin": null,
+    "lastlogout": null,
+    "totalsessionduration": 0
+  },
+  {
+    "id": "ee1e680b-4299-4d8f-8fc3-c5f7e58318a0",
+    "name": "prime",
+    "email": "mahendrareddy965@gmail.com",
+    "password": "VwzZz5C'",
+    "role": "billing_user",
+    "status": "active",
+    "sessionduration": null,
+    "createdat": "2026-01-29T13:16:13.955644",
+    "updatedat": "2026-01-29T13:16:13.955644",
     "lastlogin": null,
     "lastlogout": null,
     "totalsessionduration": 0

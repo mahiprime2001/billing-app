@@ -18,5 +18,82 @@
     "last_retry": null,
     "error_message": null,
     "created_at": "2026-01-28T10:39:46.557146"
+  },
+  {
+    "id": 2,
+    "sync_time": "2026-01-29T12:39:49.304397",
+    "table_name": "Stores",
+    "change_type": "CREATE",
+    "record_id": "130dc0bd-e877-4d0b-9111-d1885ca7b850",
+    "change_data": {
+      "name": "siri art jewellery",
+      "address": "ashok Nagar, Mypadu Road, nellore",
+      "phone": "",
+      "manager": "",
+      "status": "active"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-01-29T12:39:49.304423"
+  },
+  {
+    "id": 3,
+    "sync_time": "2026-01-29T13:07:50.036550",
+    "table_name": "Users",
+    "change_type": "UPDATE",
+    "record_id": "0497138a-918d-4859-9fda-56f413f1f97e",
+    "change_data": {
+      "name": "V.NECKLECE",
+      "email": "mailbox2249@gmail.com",
+      "role": "billing_user",
+      "assignedStores": [
+        "130dc0bd-e877-4d0b-9111-d1885ca7b850"
+      ],
+      "status": "active"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-01-29T13:07:50.036565"
+  },
+  {
+    "id": 4,
+    "sync_time": "2026-01-29T13:16:14.423192",
+    "table_name": "Users",
+    "change_type": "CREATE",
+    "record_id": "ee1e680b-4299-4d8f-8fc3-c5f7e58318a0",
+    "change_data": {
+      "name": "prime",
+      "email": "MAHENDRAREDDY965@GMAIL.COM",
+      "role": "billing_user",
+      "assignedStores": [
+        "130dc0bd-e877-4d0b-9111-d1885ca7b850"
+      ],
+      "status": "active"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-01-29T13:16:14.423220"
+  },
+  {
+    "id": 5,
+    "sync_time": "2026-01-29T14:58:06.843814",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
+    "change_data": {
+      "id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
+      "barcodes": null
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-01-29T14:58:06.843845"
   }
 ]

@@ -9,5 +9,71 @@
       "record_id": "56c1b214-d0af-444d-bae6-65cb6830fd74",
       "operation_type": "CREATE"
     }
+  },
+  {
+    "id": 2,
+    "timestamp": "2026-01-29T12:39:49.306792",
+    "eventType": "Stores_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Stores",
+      "record_id": "130dc0bd-e877-4d0b-9111-d1885ca7b850",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 3,
+    "timestamp": "2026-01-29T13:03:33.660669",
+    "eventType": "Users_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "0497138a-918d-4859-9fda-56f413f1f97e",
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 4,
+    "timestamp": "2026-01-29T13:06:11.354177",
+    "eventType": "Users_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "0497138a-918d-4859-9fda-56f413f1f97e",
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 5,
+    "timestamp": "2026-01-29T13:07:50.038486",
+    "eventType": "Users_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "0497138a-918d-4859-9fda-56f413f1f97e",
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 6,
+    "timestamp": "2026-01-29T13:16:14.426283",
+    "eventType": "Users_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "ee1e680b-4299-4d8f-8fc3-c5f7e58318a0",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 7,
+    "timestamp": "2026-01-29T14:58:06.845967",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
+      "operation_type": "DELETE"
+    }
   }
 ]
