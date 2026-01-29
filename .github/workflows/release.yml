@@ -105,7 +105,6 @@ jobs:
   
 
       - name: Install frontend dependencies
-        working-directory: frontend
         run: npm install
 
       # ---------------------------
