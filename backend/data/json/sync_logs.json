@@ -75,5 +75,126 @@
       "record_id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
       "operation_type": "DELETE"
     }
+  },
+  {
+    "id": 8,
+    "timestamp": "2026-01-30T15:21:23.022897",
+    "eventType": "Users_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "ee1e680b-4299-4d8f-8fc3-c5f7e58318a0",
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 9,
+    "timestamp": "2026-01-30T15:57:30.946647",
+    "eventType": "Users_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "ee1e680b-4299-4d8f-8fc3-c5f7e58318a0",
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 10,
+    "timestamp": "2026-01-30T16:04:09.643517",
+    "eventType": "Users_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "ee1e680b-4299-4d8f-8fc3-c5f7e58318a0",
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 11,
+    "timestamp": "2026-01-30T16:22:47.165168",
+    "eventType": "Users_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "ee1e680b-4299-4d8f-8fc3-c5f7e58318a0",
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 12,
+    "timestamp": "2026-01-30T16:36:49.121547",
+    "eventType": "Users_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "ee1e680b-4299-4d8f-8fc3-c5f7e58318a0",
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 13,
+    "timestamp": "2026-01-30T17:31:46.364244",
+    "eventType": "Users_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "ee1e680b-4299-4d8f-8fc3-c5f7e58318a0",
+      "operation_type": "UPDATE"
+    }
+  },
+  {
+    "id": 14,
+    "timestamp": "2026-01-30T17:36:21.915959",
+    "eventType": "Users_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "eaa54619-4be5-43ef-b33e-d63e333494c2",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 15,
+    "timestamp": "2026-01-30T17:55:23.624402",
+    "eventType": "Users_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "ee1e680b-4299-4d8f-8fc3-c5f7e58318a0",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 16,
+    "timestamp": "2026-01-30T17:55:29.083702",
+    "eventType": "Users_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "eaa54619-4be5-43ef-b33e-d63e333494c2",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 17,
+    "timestamp": "2026-01-30T17:55:39.131303",
+    "eventType": "Users_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "34afe359-e070-4fc1-8cf7-b7ff1c2ee010",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 18,
+    "timestamp": "2026-01-30T18:04:42.626988",
+    "eventType": "Users_update_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Users",
+      "record_id": "34afe359-e070-4fc1-8cf7-b7ff1c2ee010",
+      "operation_type": "UPDATE"
+    }
   }
 ]

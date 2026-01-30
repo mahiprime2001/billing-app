@@ -82,28 +82,44 @@ def assign_store_to_user(user_id: str, store_id: str) -> bool:
 def get_supabase_users() -> List[Dict]:
     """Get users directly from Supabase with assigned stores."""
     try:
+        print("\n" + "="*80)
+        print("[BACKEND] get_supabase_users called")
+        print("="*80)
+        
         client = db.client
         response = client.table("users").select("*").execute()
         users = response.data or []
+        
+        print(f"[BACKEND] Found {len(users)} users in Supabase")
 
         # Fetch assigned stores for each user
         for user in users:
             user_id = user.get('id')
             if user_id:
                 try:
+                    print(f"[BACKEND] Fetching stores for user {user_id}")
                     stores_response = client.table("userstores").select("storeId").eq('userId', user_id).execute()
+                    
                     if hasattr(stores_response, 'data') and stores_response.data is not None:
                         assigned_stores = [store['storeId'] for store in stores_response.data]
                         user['assignedstores'] = assigned_stores
+                        print(f"[BACKEND] User {user_id} has {len(assigned_stores)} assigned stores: {assigned_stores}")
                     else:
-                        logger.warning(f"Error fetching stores for user {user_id}: {getattr(stores_response, 'message', 'Unknown error')}")
+                        print(f"[BACKEND] No stores found for user {user_id}")
                         user['assignedstores'] = []
                 except Exception as store_err:
-                    logger.warning(f"Could not fetch stores for user {user_id}: {store_err}")
+                    print(f"[BACKEND] ⚠️ Could not fetch stores for user {user_id}: {store_err}")
                     user['assignedstores'] = []
+            else:
+                user['assignedstores'] = []
+        
+        print(f"[BACKEND] Returning {len(users)} users with store assignments")
+        print("="*80 + "\n")
         return users
     except Exception as e:
-        logger.error(f"Error fetching users from Supabase: {e}", exc_info=True)
+        print(f"[BACKEND] ❌ ERROR fetching users from Supabase: {e}")
+        import traceback
+        traceback.print_exc()
         return []
 
 
@@ -117,6 +133,10 @@ def get_merged_users() -> Tuple[List[Dict], int]:
     Returns (users_list, status_code)
     """
     try:
+        print("\n" + "="*80)
+        print("[BACKEND] get_merged_users called")
+        print("="*80)
+        
         # Fetch from Supabase (preferred source)
         supabase_users = get_supabase_users()
         
@@ -131,18 +151,39 @@ def get_merged_users() -> Tuple[List[Dict], int]:
             if user.get('id'):
                 users_map[user['id']] = user
         
-        # Add Supabase users (higher priority)
+        # Add Supabase users (higher priority) - they will overwrite local
         for user in supabase_users:
             if user.get('id'):
-                users_map[user['id']] = user
+                # Convert snake_case to camelCase for frontend
+                camel_user = convert_snake_to_camel(user)
+                
+                # Ensure assignedStores is properly set
+                if 'assignedstores' in user:
+                    camel_user['assignedStores'] = user['assignedstores']
+                elif 'assignedStores' not in camel_user:
+                    camel_user['assignedStores'] = []
+                
+                # Ensure createdAt and updatedAt are properly converted
+                if 'createdat' in user and 'createdAt' not in camel_user:
+                    camel_user['createdAt'] = user['createdat']
+                if 'updatedat' in user and 'updatedAt' not in camel_user:
+                    camel_user['updatedAt'] = user['updatedat']
+                
+                users_map[user['id']] = camel_user
         
         final_users = list(users_map.values())
-        logger.debug(f"Returning {len(final_users)} merged users")
+        
+        print(f"[BACKEND] Returning {len(final_users)} merged users")
+        for user in final_users:
+            print(f"[BACKEND] User {user.get('id')} - assignedStores: {user.get('assignedStores', [])}")
+        print("="*80 + "\n")
+        
         return final_users, 200
     except Exception as e:
-        logger.error(f"Error getting merged users: {e}", exc_info=True)
+        print(f"[BACKEND] ❌ ERROR getting merged users: {e}")
+        import traceback
+        traceback.print_exc()
         return [], 500
-
 
 # ============================================
 # BUSINESS LOGIC
@@ -154,71 +195,111 @@ def create_user(user_data: dict) -> Tuple[Optional[str], str, int]:
     Returns (user_id, message, status_code)
     """
     try:
+        print("\n" + "="*80)
+        print("[BACKEND] create_user called")
+        print("="*80)
+        
         if not user_data:
+            print("[BACKEND] ERROR: No user data provided")
             return None, "No user data provided", 400
-        
-        # Convert field names
+
+        print(f"[BACKEND] Raw user_data received: {user_data}")
+
+        # Convert field names from camelCase → snake_case
         user_data = convert_camel_to_snake(user_data)
-        
-        # Convert email to lowercase
+        print(f"[BACKEND] After convert_camel_to_snake: {user_data}")
+
+        # Normalize email
         if 'email' in user_data:
             user_data['email'] = user_data['email'].lower().strip()
+
+        # Extract assigned stores (handle both snake & camel case)
+        assigned_stores = user_data.pop('assigned_stores', user_data.pop('assignedStores', None))
+        print(f"[BACKEND] Extracted assigned_stores (raw): {assigned_stores}")
+        print(f"[BACKEND] Type of assigned_stores: {type(assigned_stores)}")
+
+        # Normalize assigned_stores → always list or None
+        if isinstance(assigned_stores, str):
+            assigned_stores = [s.strip() for s in assigned_stores.split(',') if s.strip()]
+            print(f"[BACKEND] Converted string to list: {assigned_stores}")
         
-        # Extract assignedStores before processing user data
-        assigned_stores = user_data.pop('assignedstores', None)
-        
-        # Generate ID if not present
+        print(f"[BACKEND] Final assigned_stores (normalized): {assigned_stores}")
+
+        # Generate ID if not provided
         if 'id' not in user_data:
             user_data['id'] = str(uuid.uuid4())
-        
+
+        user_id = user_data['id']
+        print(f"[BACKEND] User ID: {user_id}")
+
         # Add timestamps
-        now_naive = datetime.now().isoformat()
-        if 'createdat' not in user_data:
-            user_data['createdat'] = now_naive
-        user_data['updatedat'] = now_naive
-        
-        # Define allowed columns for users table
+        now = datetime.now().isoformat()
+        user_data.setdefault('createdat', now)
+        user_data['updatedat'] = now
+
+        # Allowed columns for Supabase users table
         allowed_columns = [
             'id', 'name', 'email', 'password', 'role', 'status',
-            'sessionduration', 'createdat', 'updatedat', 'lastlogin',
-            'lastlogout', 'totalsessionduration'
+            'sessionduration', 'createdat', 'updatedat',
+            'lastlogin', 'lastlogout', 'totalsessionduration'
         ]
-        
-        # Filter to only allowed columns
+
         filtered_user_data = {k: v for k, v in user_data.items() if k in allowed_columns}
-        
-        # Insert into Supabase users table
+        print(f"[BACKEND] Filtered user_data for Supabase: {filtered_user_data}")
+
+        # Insert user into Supabase
+        print("[BACKEND] Inserting user into Supabase...")
         client = db.client
-        supabase_response = client.table('users').insert(filtered_user_data).execute()
-        
-        if not supabase_response.data:
-            return None, "Failed to insert user into Supabase", 500
-        
-        # Handle assigned stores if provided
-        if assigned_stores and isinstance(assigned_stores, list):
-            user_id = user_data['id']
-            for store_id in assigned_stores:
-                try:
-                    client.table('userstores').insert({
-                        'userId': user_id,
-                        'storeId': store_id
-                    }).execute()
-                    logger.info(f"Assigned store {store_id} to user {user_id}")
-                except Exception as store_err:
-                    logger.warning(f"Failed to assign store {store_id} to user {user_id}: {store_err}")
-        
-        # Save to local JSON with assignedstores for local storage
+        response = client.table('users').insert(filtered_user_data).execute()
+
+        if not response.data:
+            print("[BACKEND] ERROR: Supabase user insert failed")
+            return None, "Failed to create user", 500
+
+        print("[BACKEND] ✅ User inserted into Supabase successfully")
+
+        # 🔥 Assign stores
+        if assigned_stores is not None:
+            print(f"[BACKEND] Processing store assignments: {assigned_stores}")
+            if isinstance(assigned_stores, list):
+                print(f"[BACKEND] Assigning {len(assigned_stores)} stores to user {user_id}")
+                for store_id in assigned_stores:
+                    try:
+                        print(f"[BACKEND] Assigning store {store_id} to user {user_id}")
+                        store_response = client.table('userstores').insert({
+                            'userId': user_id,
+                            'storeId': store_id
+                        }).execute()
+                        print(f"[BACKEND] ✅ Successfully assigned store {store_id}")
+                    except Exception as store_err:
+                        print(f"[BACKEND] ⚠️ Failed to assign store {store_id}: {store_err}")
+            else:
+                print(f"[BACKEND] ⚠️ assigned_stores is not a list: {type(assigned_stores)}")
+        else:
+            print("[BACKEND] No stores to assign (assigned_stores is None)")
+
+        # Save to local JSON
+        print("[BACKEND] Saving to local JSON...")
         users = get_users_data()
         local_user_data = user_data.copy()
-        if assigned_stores:
+
+        # Preserve assignedStores for local storage
+        if assigned_stores is not None:
             local_user_data['assignedstores'] = assigned_stores
+            print(f"[BACKEND] Saved assignedstores to local JSON: {assigned_stores}")
+
         users.append(local_user_data)
         save_users_data(users)
-        
-        logger.info(f"User created {user_data['id']}")
-        return user_data['id'], "User created", 201
+        print("[BACKEND] ✅ Saved to local JSON successfully")
+
+        print(f"[BACKEND] ✅✅✅ User created successfully: {user_id}")
+        print("="*80 + "\n")
+        return user_id, "User created", 201
+
     except Exception as e:
-        logger.error(f"Error creating user: {e}", exc_info=True)
+        print(f"[BACKEND] ❌ ERROR in create_user: {e}")
+        import traceback
+        traceback.print_exc()
         return None, str(e), 500
 
 
@@ -228,29 +309,39 @@ def update_user(user_id: str, update_data: dict) -> Tuple[bool, str, int]:
     Returns (success, message, status_code)
     """
     try:
+        print("\n" + "="*80)
+        print(f"[BACKEND] update_user called for user_id: {user_id}")
+        print("="*80)
+        
         if not update_data:
+            print("[BACKEND] ERROR: No update data provided")
             return False, "No update data provided", 400
+        
+        print(f"[BACKEND] Raw update_data received: {update_data}")
         
         # Convert field names
         update_data = convert_camel_to_snake(update_data)
-        
+        print(f"[BACKEND] After convert_camel_to_snake: {update_data}")
+
         # Convert email to lowercase if present
         if 'email' in update_data:
             update_data['email'] = update_data['email'].lower().strip()
-        
+
         # Extract assignedStores before processing
-        assigned_stores = update_data.pop('assignedstores', None)
-        
+        assigned_stores = update_data.pop('assigned_stores', update_data.pop('assignedStores', None))
+        print(f"[BACKEND] Extracted assigned_stores: {assigned_stores}")
+        print(f"[BACKEND] Type of assigned_stores: {type(assigned_stores)}")
+
         # Find user in local storage
         users = get_users_data()
         user_index = next((i for i, u in enumerate(users) if u.get('id') == user_id), -1)
-        
+
         if user_index == -1:
-            logger.warning(f"User {user_id} not found in local JSON, continuing with Supabase update")
+            print(f"[BACKEND] ⚠️ User {user_id} not found in local JSON")
 
         # Update timestamp
         update_data['updatedat'] = datetime.now().isoformat()
-        
+
         # Define allowed columns for users table
         allowed_columns = [
             'name', 'email', 'password', 'role', 'status',
@@ -258,54 +349,68 @@ def update_user(user_id: str, update_data: dict) -> Tuple[bool, str, int]:
             'lastlogout', 'totalsessionduration'
         ]
         
-        # Filter to only allowed columns
         filtered_update_data = {k: v for k, v in update_data.items() if k in allowed_columns}
-        
-        # Update in local JSON with assignedstores for local storage
-        local_update_data = update_data.copy()
-        if assigned_stores is not None:
-            local_update_data['assignedstores'] = assigned_stores
-        users[user_index].update(local_update_data)
-        save_users_data(users)
-        
+        print(f"[BACKEND] Filtered update_data for Supabase: {filtered_update_data}")
+
+        # Update in local JSON
+        if user_index != -1:
+            local_update_data = update_data.copy()
+            if assigned_stores is not None:
+                local_update_data['assignedstores'] = assigned_stores
+                print(f"[BACKEND] Updating local JSON with assignedstores: {assigned_stores}")
+            users[user_index].update(local_update_data)
+            save_users_data(users)
+            print("[BACKEND] ✅ Updated local JSON")
+
         # Update in Supabase
         client = db.client
-        if filtered_update_data:  # Only update if there are allowed fields
+        if filtered_update_data:
+            print("[BACKEND] Updating user in Supabase...")
             client.table('users').update(filtered_update_data).eq('id', user_id).execute()
-        
-        # Handle assigned stores if provided - THIS IS THE CRITICAL FIX
+            print("[BACKEND] ✅ Updated user in Supabase")
+
+        # Handle assigned stores if provided
         if assigned_stores is not None:
-            logger.info(f"Updating stores for user {user_id}: {assigned_stores}")
+            print(f"[BACKEND] Processing store assignments for user {user_id}")
+            print(f"[BACKEND] New assigned_stores: {assigned_stores}")
 
-            # STEP 1: Delete ALL existing assignments first
+            # STEP 1: Delete ALL existing assignments
             try:
+                print(f"[BACKEND] Deleting all existing userstores for user {user_id}")
                 delete_response = client.table('userstores').delete().eq('userId', user_id).execute()
-                if delete_response.status_code == 200:
-                    logger.info(f"Deleted existing store assignments for user {user_id}")
-                else:
-                    logger.warning(f"Failed to delete existing assignments for user {user_id}: {delete_response.message}")
+                print(f"[BACKEND] ✅ Deleted existing store assignments")
             except Exception as del_err:
-                logger.error(f"Error deleting existing assignments for user {user_id}: {del_err}", exc_info=True)
+                print(f"[BACKEND] ⚠️ Error deleting existing assignments: {del_err}")
 
-            # STEP 2: Add new assignments (even if it's an empty array)
-            if isinstance(assigned_stores, list) and len(assigned_stores) > 0:
-                for store_id in assigned_stores:
-                    try:
-                        insert_response = client.table('userstores').insert({
-                            'userId': user_id,
-                            'storeId': store_id
-                        }).execute()
-                        if insert_response.status_code == 201:
-                            logger.info(f"Successfully assigned store {store_id} to user {user_id}")
-                        else:
-                            logger.warning(f"Failed to assign store {store_id} to user {user_id}: {insert_response.message}")
-                    except Exception as store_err:
-                        logger.error(f"Failed to assign store {store_id} to user {user_id}: {store_err}", exc_info=True)
-        
-        logger.info(f"User updated {user_id}")
+            # STEP 2: Add new assignments
+            if isinstance(assigned_stores, list):
+                if len(assigned_stores) > 0:
+                    print(f"[BACKEND] Adding {len(assigned_stores)} new store assignments")
+                    for store_id in assigned_stores:
+                        try:
+                            print(f"[BACKEND] Assigning store {store_id} to user {user_id}")
+                            insert_response = client.table('userstores').insert({
+                                'userId': user_id,
+                                'storeId': store_id
+                            }).execute()
+                            print(f"[BACKEND] ✅ Successfully assigned store {store_id}")
+                        except Exception as store_err:
+                            print(f"[BACKEND] ⚠️ Failed to assign store {store_id}: {store_err}")
+                else:
+                    print("[BACKEND] No stores to assign (empty list)")
+            else:
+                print(f"[BACKEND] ⚠️ assigned_stores is not a list: {type(assigned_stores)}")
+        else:
+            print("[BACKEND] No store changes (assigned_stores is None)")
+
+        print(f"[BACKEND] ✅✅✅ User {user_id} updated successfully")
+        print("="*80 + "\n")
         return True, "User updated", 200
+        
     except Exception as e:
-        logger.error(f"Error updating user: {e}", exc_info=True)
+        print(f"[BACKEND] ❌ ERROR in update_user: {e}")
+        import traceback
+        traceback.print_exc()
         return False, str(e), 500
 
 

@@ -132,6 +132,61 @@
     "barcode": "2026012986987"
   },
   {
+    "id": "7b7b423e-5939-4783-8907-a83c6be8fd3c",
+    "name": "RG BANGLES  [2.4]",
+    "price": 135.0,
+    "stock": 52,
+    "batchid": "32ac771e-5f48-411a-a119-847dcda51056",
+    "selling_price": 350.0,
+    "createdat": "2026-01-29T16:31:59.529394",
+    "updatedat": "2026-01-29T16:31:59.529394",
+    "barcode": "2026012980204"
+  },
+  {
+    "id": "47d0d5b1-7d1a-4de2-b5c8-72efdd12a012",
+    "name": "RG BANGLES  [2.8]",
+    "price": 135.0,
+    "stock": 54,
+    "batchid": "32ac771e-5f48-411a-a119-847dcda51056",
+    "selling_price": 350.0,
+    "createdat": "2026-01-29T16:38:03.735584",
+    "updatedat": "2026-01-29T16:38:03.735584",
+    "barcode": "2026012956457"
+  },
+  {
+    "id": "34982b5f-091d-4ca7-84d7-98f40b418914",
+    "name": "RG BANGLES  [2.4]",
+    "price": 165.0,
+    "stock": 35,
+    "batchid": "32ac771e-5f48-411a-a119-847dcda51056",
+    "selling_price": 500.0,
+    "createdat": "2026-01-29T18:17:59.4107",
+    "updatedat": "2026-01-29T18:17:59.4107",
+    "barcode": "2026012998686"
+  },
+  {
+    "id": "1241aa99-2c86-43d9-8d26-9e93cfb6c61f",
+    "name": "RG BANGLES  [2.8]",
+    "price": 165.0,
+    "stock": 21,
+    "batchid": "32ac771e-5f48-411a-a119-847dcda51056",
+    "selling_price": 500.0,
+    "createdat": "2026-01-29T18:20:47.609802",
+    "updatedat": "2026-01-29T18:20:47.609802",
+    "barcode": "2026012933697"
+  },
+  {
+    "id": "78d5189e-4432-483c-8311-e3ccaf29aac3",
+    "name": "RG BANGLES  [2.10]",
+    "price": 165.0,
+    "stock": 3,
+    "batchid": "32ac771e-5f48-411a-a119-847dcda51056",
+    "selling_price": 500.0,
+    "createdat": "2026-01-29T18:21:27.978921",
+    "updatedat": "2026-01-29T18:21:27.978921",
+    "barcode": "2026012995802"
+  },
+  {
     "id": "fc8553bd-d603-4af1-a552-5dac9588394f",
     "name": "RG  short chains",
     "price": 100.0,
@@ -163,6 +218,39 @@
     "createdat": "2026-01-29T14:54:08.179425",
     "updatedat": "2026-01-29T14:54:08.179425",
     "barcode": "2026012982163"
+  },
+  {
+    "id": "d27eb200-3ee0-4c49-908f-d35101e86502",
+    "name": "RG BANGLES  [2.6]",
+    "price": 135.0,
+    "stock": 38,
+    "batchid": "32ac771e-5f48-411a-a119-847dcda51056",
+    "selling_price": 350.0,
+    "createdat": "2026-01-29T16:35:33.016033",
+    "updatedat": "2026-01-29T16:35:33.016033",
+    "barcode": "2026012935022"
+  },
+  {
+    "id": "14243793-8883-4fa2-b4b2-ee7a7b6f04ff",
+    "name": "RG BANGLES  [2.10]",
+    "price": 135.0,
+    "stock": 35,
+    "batchid": "32ac771e-5f48-411a-a119-847dcda51056",
+    "selling_price": 350.0,
+    "createdat": "2026-01-29T16:39:56.43175",
+    "updatedat": "2026-01-29T16:39:56.43175",
+    "barcode": "2026012988760"
+  },
+  {
+    "id": "0fa6096a-b4b7-4158-ac55-4976cbaa01df",
+    "name": "RG BANGLES  [2.6]",
+    "price": 165.0,
+    "stock": 37,
+    "batchid": "32ac771e-5f48-411a-a119-847dcda51056",
+    "selling_price": 500.0,
+    "createdat": "2026-01-29T18:19:00.393914",
+    "updatedat": "2026-01-29T18:19:00.393914",
+    "barcode": "2026012942522"
   },
   {
     "id": "b851dc9f-1a57-493b-afec-385fe53f1136",

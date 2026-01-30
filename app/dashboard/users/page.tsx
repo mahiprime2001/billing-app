@@ -93,18 +93,35 @@ export default function UsersPage() {
   }, [router])
 
   const loadUsers = async () => {
-    try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/users")
-      if (response.ok) {
-        const data = await response.json()
-        setUsers(data)
-      } else {
-        console.error("Failed to fetch users")
-      }
-    } catch (error) {
-      console.error("Error fetching users:", error)
+  try {
+    console.log("[FRONTEND] loadUsers - Fetching users...");
+    const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/users");
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log("[FRONTEND] loadUsers - Received data:", data);
+      console.log("[FRONTEND] loadUsers - Number of users:", data.length);
+      
+      // Log each user's assignedStores
+      data.forEach((user: AdminUser, index: number) => {
+        console.log(`[FRONTEND] User ${index + 1} (${user.name}):`, {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          assignedStores: user.assignedStores,
+          assignedStoresType: typeof user.assignedStores,
+          assignedStoresIsArray: Array.isArray(user.assignedStores),
+        });
+      });
+      
+      setUsers(data);
+    } else {
+      console.error("[FRONTEND] Failed to fetch users - Status:", response.status);
     }
+  } catch (error) {
+    console.error("[FRONTEND] Error fetching users:", error);
   }
+};
 
   const loadStores = async () => {
     try {
@@ -142,93 +159,133 @@ export default function UsersPage() {
   }
 
   const handleAddUser = async () => {
-    if (!formData.name || !formData.email || !formData.password) {
-      alert("Please fill in all required fields")
-      return
-    }
-
-    // Validate store assignment for billing users
-    if (formData.role === "billing_user" && formData.assignedStores.length === 0) {
-      alert("Please assign at least one store for billing users")
-      return
-    }
-
-    try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          role: formData.role,
-          assignedStores: formData.role === "billing_user" ? formData.assignedStores : undefined,
-          sessionDuration: formData.role === "temporary_user" ? formData.sessionDuration : undefined,
-          status: formData.status,
-        }),
-      })
-
-      if (response.ok) {
-        loadUsers()
-        resetForm()
-        setIsAddDialogOpen(false)
-      } else {
-        const error = await response.json()
-        alert(error.message || "Failed to add user")
-      }
-    } catch (error) {
-      console.error("Error adding user:", error)
-      alert("An error occurred while adding the user")
-    }
+  if (!formData.name || !formData.email || !formData.password) {
+    alert("Please fill in all required fields");
+    return;
   }
 
-  const handleEditUser = async () => {
-    if (!editingUser || !formData.name || !formData.email) {
-      alert("Please fill in all required fields (Name, Email)")
-      return
-    }
+  // Validate store assignment for billing users
+  if (formData.role === "billing_user" && formData.assignedStores.length === 0) {
+    alert("Please assign at least one store for billing users");
+    return;
+  }
 
-    // Validate store assignment for billing users
-    if (formData.role === "billing_user" && formData.assignedStores.length === 0) {
-      alert("Please assign at least one store for billing users")
-      return
-    }
-
-    const payload: Partial<AdminUser> = {
+  try {
+    // ✅ Build payload with proper structure
+    const payload: any = {
       name: formData.name,
       email: formData.email,
+      password: formData.password,
       role: formData.role,
-      assignedStores: formData.role === "billing_user" ? formData.assignedStores : undefined,
-      sessionDuration: formData.role === "temporary_user" ? formData.sessionDuration : undefined,
       status: formData.status,
     };
 
-    // Only include password in payload if it's not empty
-    if (formData.password) {
-      payload.password = formData.password;
+    // ✅ ALWAYS include assignedStores for billing_user (even if empty)
+    if (formData.role === "billing_user") {
+      payload.assignedStores = formData.assignedStores;
     }
 
-    try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/users/${editingUser.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-
-      if (response.ok) {
-        loadUsers()
-        resetForm()
-        setEditingUser(null)
-        setIsEditDialogOpen(false)
-      } else {
-        const error = await response.json()
-        alert(error.message || "Failed to update user")
-      }
-    } catch (error) {
-      console.error("Error updating user:", error)
-      alert("An error occurred while updating the user")
+    // Include sessionDuration for temporary users
+    if (formData.role === "temporary_user") {
+      payload.sessionDuration = formData.sessionDuration;
     }
+
+    // 🔍 Debug logs
+    console.log("[FRONTEND] handleAddUser - formData:", formData);
+    console.log("[FRONTEND] handleAddUser - formData.assignedStores:", formData.assignedStores);
+    console.log("[FRONTEND] handleAddUser - payload being sent:", JSON.stringify(payload, null, 2));
+
+    const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    console.log("[FRONTEND] Response status:", response.status);
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log("[FRONTEND] Response data:", result);
+      loadUsers();
+      resetForm();
+      setIsAddDialogOpen(false);
+    } else {
+      const error = await response.json();
+      console.error("[FRONTEND] Error response:", error);
+      alert(error.message || "Failed to add user");
+    }
+  } catch (error) {
+    console.error("[FRONTEND] Error adding user:", error);
+    alert("An error occurred while adding the user");
   }
+};
+
+  const handleEditUser = async () => {
+  if (!editingUser || !formData.name || !formData.email) {
+    alert("Please fill in all required fields (Name, Email)");
+    return;
+  }
+
+  // Validate store assignment for billing users
+  if (formData.role === "billing_user" && formData.assignedStores.length === 0) {
+    alert("Please assign at least one store for billing users");
+    return;
+  }
+
+  // ✅ Build payload with proper structure
+  const payload: any = {
+    name: formData.name,
+    email: formData.email,
+    role: formData.role,
+    status: formData.status,
+  };
+
+  // Only include password if it's not empty
+  if (formData.password) {
+    payload.password = formData.password;
+  }
+
+  // ✅ ALWAYS include assignedStores for billing_user (even if empty)
+  if (formData.role === "billing_user") {
+    payload.assignedStores = formData.assignedStores;
+  }
+
+  // Include sessionDuration for temporary users
+  if (formData.role === "temporary_user") {
+    payload.sessionDuration = formData.sessionDuration;
+  }
+
+  // 🔍 Debug logs
+  console.log("[FRONTEND] handleEditUser - formData:", formData);
+  console.log("[FRONTEND] handleEditUser - formData.assignedStores:", formData.assignedStores);
+  console.log("[FRONTEND] handleEditUser - payload being sent:", JSON.stringify(payload, null, 2));
+
+  try {
+    const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/users/${editingUser.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    console.log("[FRONTEND] Response status:", response.status);
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log("[FRONTEND] Response data:", result);
+      loadUsers();
+      resetForm();
+      setEditingUser(null);
+      setIsEditDialogOpen(false);
+    } else {
+      const error = await response.json();
+      console.error("[FRONTEND] Error response:", error);
+      alert(error.message || "Failed to update user");
+    }
+  } catch (error) {
+    console.error("[FRONTEND] Error updating user:", error);
+    alert("An error occurred while updating the user");
+  }
+};
 
   const handleDeleteUser = async (userId: string) => {
     // Prevent deleting the current user
