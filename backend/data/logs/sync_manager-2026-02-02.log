@@ -1,0 +1,7 @@
+2026-02-02 11:45:17,865 - scripts.sync_manager - INFO - Logged CRUD operation: Products - DELETE - 84676894-f542-4651-9e0f-af8858bdea1f
+2026-02-02 12:10:03,864 - scripts.sync_manager - INFO - Logged CRUD operation: Products - DELETE - 84676894-f542-4651-9e0f-af8858bdea1f
+2026-02-02 12:25:13,646 - scripts.sync_manager - INFO - Logged CRUD operation: Products - DELETE - 84676894-f542-4651-9e0f-af8858bdea1f
+2026-02-02 12:37:09,213 - scripts.sync_manager - INFO - Logged CRUD operation: Products - DELETE - 60b39918-5ca3-4e7b-91c9-ca700ff8f4b3
+2026-02-02 12:37:19,524 - scripts.sync_manager - INFO - Logged CRUD operation: Products - DELETE - 84676894-f542-4651-9e0f-af8858bdea1f
+2026-02-02 13:46:55,513 - scripts.sync_manager - INFO - Logged CRUD operation: Products - CREATE - 3424047b-8b59-49c8-9910-ed739eac097c
+2026-02-02 13:52:06,908 - scripts.sync_manager - INFO - Logged CRUD operation: Products - DELETE - 3424047b-8b59-49c8-9910-ed739eac097c

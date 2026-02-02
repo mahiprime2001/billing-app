@@ -8,6 +8,7 @@ export interface Product {
   batchid?: string; // Changed from batchId to match database
   createdAt: string;
   updatedAt: string;
+  tax?: number;
 }
 
 

@@ -193,39 +193,33 @@ def update_product_in_supabase(product_id: str, update_data: dict) -> Optional[d
 
 
 def delete_product_from_supabase(product_id: str) -> bool:
-    """Delete a product from Supabase"""
+    """
+    Delete a product from Supabase (billitems + storeinventory + products tables).
+    Does NOT touch the returns table - return records are preserved.
+    """
     try:
         client = db.client
 
-        # Check if the product exists in the returns table
-        logger.info(f"Checking if product {product_id} exists in the returns table...")
-        returns_check = client.table('returns').select('id').eq('product_id', product_id).execute()
-        if returns_check.get('data'):
-            logger.info(f"Product {product_id} exists in the returns table. Skipping deletion from returns.")
-        
+        # Delete references in billitems first (historical bill records)
+        logger.info(f"Deleting references to product {product_id} in billitems...")
+        client.table('billitems').delete().eq('productid', product_id).execute()
+        logger.info(f"Product {product_id} references deleted from billitems")
+
         # Delete references in storeinventory
         logger.info(f"Deleting references to product {product_id} in storeinventory...")
-        delete_response = client.table('storeinventory').delete().eq('product_id', product_id).execute()
-        if delete_response.get('error'):
-            logger.error(f"Error deleting references in storeinventory: {delete_response['error']}")
-            return False
+        client.table('storeinventory').delete().eq('productid', product_id).execute()
+        logger.info(f"Product {product_id} references deleted from storeinventory")
 
-        logger.info(f"References to product {product_id} deleted from storeinventory.")
+        # Delete the product itself from products table
+        logger.info(f"Deleting product {product_id} from products table...")
+        client.table('products').delete().eq('id', product_id).execute()
+        logger.info(f"Product {product_id} deleted from products table")
 
-        # Delete the product itself
-        logger.info(f"Deleting product {product_id} from Supabase...")
-        product_delete_response = client.table('products').delete().eq('id', product_id).execute()
-        if product_delete_response.get('error'):
-            logger.error(f"Error deleting product from Supabase: {product_delete_response['error']}")
-            return False
-
-        logger.info(f"Product {product_id} deleted from Supabase.")
         return True
 
     except Exception as e:
         logger.error(f"Error deleting product from Supabase: {e}", exc_info=True)
         return False
-
 
 # ============================================
 # MERGED OPERATIONS
@@ -374,8 +368,8 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
 
 def delete_product(product_id: str) -> Tuple[bool, str, int]:
     """
-    Hard delete a product (permanent removal).
-    Does NOT delete from storeinventory (keeps for historical data).
+    Delete a product from local JSON and Supabase (products + storeinventory tables).
+    Does NOT delete from returns table - return records are preserved.
     Returns (success, message, status_code)
     """
     try:
@@ -386,19 +380,22 @@ def delete_product(product_id: str) -> Tuple[bool, str, int]:
         if product_index == -1:
             return False, "Product not found", 404
         
-        # Remove from local JSON
-        deleted_product = products.pop(product_index)
+        # Remove from local storage
+        products.pop(product_index)
         save_products_data(products)
+        logger.info(f"Product {product_id} deleted from local JSON")
         
-        # STEP 2: Delete from Supabase
-        delete_product_from_supabase(product_id)
+        # STEP 2: Delete from Supabase (storeinventory + products)
+        supabase_deleted = delete_product_from_supabase(product_id)
+        if not supabase_deleted:
+            logger.warning(f"Failed to delete product {product_id} from Supabase, but local deletion successful")
         
-        logger.info(f"Product hard deleted: {product_id} ({deleted_product.get('name')})")
         return True, "Product deleted successfully", 200
         
     except Exception as e:
         logger.error(f"Error deleting product: {e}", exc_info=True)
         return False, str(e), 500
+
 
 
 def get_product_availability(product_id: str) -> Tuple[Optional[List[Dict]], int]:

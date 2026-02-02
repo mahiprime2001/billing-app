@@ -60,22 +60,6 @@
     "created_at": "2026-01-29T13:07:50.036565"
   },
   {
-    "id": 5,
-    "sync_time": "2026-01-29T14:58:06.843814",
-    "table_name": "Products",
-    "change_type": "DELETE",
-    "record_id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
-    "change_data": {
-      "id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
-      "barcodes": null
-    },
-    "status": "pending",
-    "retry_count": 0,
-    "last_retry": null,
-    "error_message": null,
-    "created_at": "2026-01-29T14:58:06.843845"
-  },
-  {
     "id": 8,
     "sync_time": "2026-01-30T17:55:23.611164",
     "table_name": "Users",
@@ -125,5 +109,53 @@
     "last_retry": null,
     "error_message": null,
     "created_at": "2026-01-30T18:04:42.611459"
+  },
+  {
+    "id": 12,
+    "sync_time": "2026-02-02T12:37:09.213152",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
+    "change_data": {
+      "id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
+      "barcodes": null
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-02T12:37:09.213152"
+  },
+  {
+    "id": 13,
+    "sync_time": "2026-02-02T12:37:19.524828",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "84676894-f542-4651-9e0f-af8858bdea1f",
+    "change_data": {
+      "id": "84676894-f542-4651-9e0f-af8858bdea1f",
+      "barcodes": null
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-02T12:37:19.524828"
+  },
+  {
+    "id": 14,
+    "sync_time": "2026-02-02T13:52:06.906201",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "3424047b-8b59-49c8-9910-ed739eac097c",
+    "change_data": {
+      "id": "3424047b-8b59-49c8-9910-ed739eac097c",
+      "barcodes": null
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-02T13:52:06.906201"
   }
 ]

@@ -196,5 +196,82 @@
       "record_id": "34afe359-e070-4fc1-8cf7-b7ff1c2ee010",
       "operation_type": "UPDATE"
     }
+  },
+  {
+    "id": 19,
+    "timestamp": "2026-02-02T11:45:17.865253",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "84676894-f542-4651-9e0f-af8858bdea1f",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 20,
+    "timestamp": "2026-02-02T12:10:03.873799",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "84676894-f542-4651-9e0f-af8858bdea1f",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 21,
+    "timestamp": "2026-02-02T12:25:13.679944",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "84676894-f542-4651-9e0f-af8858bdea1f",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 22,
+    "timestamp": "2026-02-02T12:37:09.271095",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 23,
+    "timestamp": "2026-02-02T12:37:19.552300",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "84676894-f542-4651-9e0f-af8858bdea1f",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 24,
+    "timestamp": "2026-02-02T13:46:55.524432",
+    "eventType": "Products_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "3424047b-8b59-49c8-9910-ed739eac097c",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 25,
+    "timestamp": "2026-02-02T13:52:06.916108",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "3424047b-8b59-49c8-9910-ed739eac097c",
+      "operation_type": "DELETE"
+    }
   }
 ]
