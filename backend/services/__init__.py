@@ -7,6 +7,7 @@ from . import customers_service
 from . import bills_service
 from . import batches_service
 from . import returns_service
+from . import discounts_service
 from . import stores_service
 from . import users_service
 from . import notifications_service
@@ -20,6 +21,7 @@ __all__ = [
     'bills_service',
     'batches_service',
     'returns_service',
+    'discounts_service',
     'stores_service',
     'users_service',
     'notifications_service',

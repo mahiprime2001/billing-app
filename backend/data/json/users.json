@@ -1,5 +1,19 @@
 [
   {
+    "id": "34afe359-e070-4fc1-8cf7-b7ff1c2ee010",
+    "name": "prime",
+    "email": "mahendrareddy965@gmail.com",
+    "password": "&G&Xxd,b",
+    "role": "billing_user",
+    "status": "active",
+    "sessionduration": null,
+    "createdat": "2026-01-30T17:55:38.843255",
+    "updatedat": "2026-01-30T18:04:41.820675",
+    "lastlogin": null,
+    "lastlogout": null,
+    "totalsessionduration": 0
+  },
+  {
     "id": "0497138a-918d-4859-9fda-56f413f1f97e",
     "name": "V.NECKLECE",
     "email": "mailbox2249@gmail.com",
@@ -8,7 +22,7 @@
     "status": "active",
     "sessionduration": null,
     "createdat": "2025-12-01T13:04:05.560272",
-    "updatedat": "2026-02-02T11:05:16.911992",
+    "updatedat": "2026-01-29T13:07:49.739311",
     "lastlogin": null,
     "lastlogout": null,
     "totalsessionduration": 0
@@ -23,20 +37,6 @@
     "sessionduration": null,
     "createdat": "2025-11-30T17:39:43.950128",
     "updatedat": "2025-11-30T17:39:43.950128",
-    "lastlogin": null,
-    "lastlogout": null,
-    "totalsessionduration": 0
-  },
-  {
-    "id": "34afe359-e070-4fc1-8cf7-b7ff1c2ee010",
-    "name": "prime",
-    "email": "mahendrareddy965@gmail.com",
-    "password": "&G&Xxd,b",
-    "role": "billing_user",
-    "status": "active",
-    "sessionduration": null,
-    "createdat": "2026-01-30T17:55:38.843255",
-    "updatedat": "2026-01-30T18:04:41.820675",
     "lastlogin": null,
     "lastlogout": null,
     "totalsessionduration": 0

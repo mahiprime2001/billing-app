@@ -7,6 +7,7 @@ from .customers import customers_bp
 from .bills import bills_bp
 from .batches import batches_bp
 from .returns import returns_bp
+from .discounts import discounts_bp
 from .stores import stores_bp
 from .users import users_bp
 from .auth import auth_bp
@@ -23,6 +24,7 @@ __all__ = [
     'bills_bp',
     'batches_bp',
     'returns_bp',
+    'discounts_bp',
     'stores_bp',
     'users_bp',
     'auth_bp',

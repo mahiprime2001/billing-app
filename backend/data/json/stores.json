@@ -1,5 +1,23 @@
 [
   {
+    "id": "130dc0bd-e877-4d0b-9111-d1885ca7b850",
+    "name": "siri art jewellery",
+    "address": "ashok Nagar, Mypadu Road, nellore",
+    "phone": "",
+    "status": "active",
+    "createdat": "2026-01-29T12:39:48.982482",
+    "updatedat": "2026-01-29T12:39:48.982482"
+  },
+  {
+    "id": "STR-1762160885710",
+    "name": "testingstore",
+    "address": "mypadu reddy,",
+    "phone": "675435678",
+    "status": "active",
+    "createdat": "2025-11-03T14:38:05",
+    "updatedat": null
+  },
+  {
     "id": "store3",
     "name": "SIRI ART JEWELLERY - Mall",
     "address": "789 Mall Complex, City",
@@ -36,15 +54,6 @@
     "updatedat": null
   },
   {
-    "id": "STR-1762160885710",
-    "name": "testingstore",
-    "address": "mypadu reddy,",
-    "phone": "675435678",
-    "status": "active",
-    "createdat": "2025-11-03T14:38:05",
-    "updatedat": null
-  },
-  {
     "id": "fb304b5a-bc11-46a6-919c-ce3157a066c0",
     "name": "testing the stores",
     "address": "changed the store details ",
@@ -70,14 +79,5 @@
     "status": "active",
     "createdat": "2025-11-29T23:24:14.928058",
     "updatedat": "2025-11-29T23:24:14.928058"
-  },
-  {
-    "id": "130dc0bd-e877-4d0b-9111-d1885ca7b850",
-    "name": "siri art jewellery",
-    "address": "ashok Nagar, Mypadu Road, nellore",
-    "phone": "",
-    "status": "active",
-    "createdat": "2026-01-29T12:39:48.982482",
-    "updatedat": "2026-01-29T12:39:48.982482"
   }
 ]

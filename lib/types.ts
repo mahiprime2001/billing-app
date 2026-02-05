@@ -9,6 +9,7 @@ export interface Product {
   createdAt: string;
   updatedAt: string;
   tax?: number;
+  hsnCode?: string;
 }
 
 

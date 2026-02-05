@@ -178,6 +178,8 @@ export default function ProductsPage() {
   const [productsToPrint, setProductsToPrint] = useState<Product[]>([]);
   const [isBulkTaxDialogOpen, setIsBulkTaxDialogOpen] = useState(false);
   const [bulkTaxValue, setBulkTaxValue] = useState("");
+  const [isBulkHsnDialogOpen, setIsBulkHsnDialogOpen] = useState(false);
+  const [bulkHsnValue, setBulkHsnValue] = useState("");
 
   // Calendar and modal state
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -243,6 +245,7 @@ export default function ProductsPage() {
     barcodes: [""], // Initialize with one empty barcode field
     batchid: "",
     tax: "",
+    hsnCode: "",
   });
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
 
@@ -274,6 +277,7 @@ export default function ProductsPage() {
       barcodes: [""], // Reset to one empty barcode field
       batchid: "",
       tax: "",
+      hsnCode: "",
     })
   }
 
@@ -356,6 +360,7 @@ export default function ProductsPage() {
       barcode: validBarcodes.join(","), // Join array into a comma-separated string for 'barcode' field
       batchid: formData.batchid,
       tax: formData.tax ? Number.parseFloat(formData.tax) : 0,
+      hsnCode: formData.hsnCode ? formData.hsnCode.trim() : undefined,
     };
 
     try {
@@ -411,6 +416,7 @@ export default function ProductsPage() {
       barcode: validBarcodes.join(","), // Join array into a comma-separated string for 'barcode' field
       batchid: formData.batchid === "" ? undefined : formData.batchid, // Send undefined if batchid is empty
       tax: formData.tax ? Number.parseFloat(formData.tax) : 0,
+      hsnCode: formData.hsnCode ? formData.hsnCode.trim() : undefined,
     };
 
     try {
@@ -464,39 +470,72 @@ const handleDeleteProduct = async (productId: string) => {
 };
 
   const handleBulkTaxUpdate = async () => {
-  if (!bulkTaxValue || selectedProducts.length === 0) {
-    alert("Please enter a tax value and select products");
-    return;
-  }
+    if (!bulkTaxValue || selectedProducts.length === 0) {
+      alert("Please enter a tax value and select products");
+      return;
+    }
 
-  const taxNumber = Number.parseFloat(bulkTaxValue);
-  if (isNaN(taxNumber) || taxNumber < 0) {
-    alert("Please enter a valid tax percentage");
-    return;
-  }
+    const taxNumber = Number.parseFloat(bulkTaxValue);
+    if (isNaN(taxNumber) || taxNumber < 0) {
+      alert("Please enter a valid tax percentage");
+      return;
+    }
 
-  try {
-    // Update all selected products
-    const updatePromises = selectedProducts.map(productId =>
-      fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tax: taxNumber }),
-      })
-    );
+    try {
+      // Update all selected products
+      const updatePromises = selectedProducts.map(productId =>
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tax: taxNumber }),
+        })
+      );
 
-    await Promise.all(updatePromises);
-    
-    mutate(); // Refresh the products list
-    setSelectedProducts([]); // Clear selection
-    setBulkTaxValue(""); // Reset tax value
-    setIsBulkTaxDialogOpen(false);
-    alert(`Successfully updated tax for ${selectedProducts.length} products`);
-  } catch (error) {
-    console.error("Error updating tax:", error);
-    alert("Failed to update tax for some products");
-  }
-};
+      await Promise.all(updatePromises);
+      
+      mutate(); // Refresh the products list
+      setSelectedProducts([]); // Clear selection
+      setBulkTaxValue(""); // Reset tax value
+      setIsBulkTaxDialogOpen(false);
+      alert(`Successfully updated tax for ${selectedProducts.length} products`);
+    } catch (error) {
+      console.error("Error updating tax:", error);
+      alert("Failed to update tax for some products");
+    }
+  };
+  const handleBulkHsnUpdate = async () => {
+    if (!bulkHsnValue || selectedProducts.length === 0) {
+      alert("Please enter an HSN code value and select products");
+      return;
+    }
+
+    const hsnValue = bulkHsnValue.trim();
+    if (!hsnValue) {
+      alert("Please enter a valid HSN code");
+      return;
+    }
+
+    try {
+      const updatePromises = selectedProducts.map(productId =>
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hsnCode: hsnValue }),
+        })
+      );
+
+      await Promise.all(updatePromises);
+      
+      mutate();
+      setSelectedProducts([]);
+      setBulkHsnValue("");
+      setIsBulkHsnDialogOpen(false);
+      alert(`Successfully updated HSN code for ${selectedProducts.length} products`);
+    } catch (error) {
+      console.error("Error updating HSN code:", error);
+      alert("Failed to update HSN code for some products");
+    }
+  };
   const openEditDialog = (product: Product) => {
     setEditingProduct(product)
     setFormData({
@@ -509,6 +548,7 @@ const handleDeleteProduct = async (productId: string) => {
         : [""], // Initialize with existing barcode string parsed to array, or one empty field
       batchid: product.batchid || "",
       tax: (product as any).tax != null ? (product as any).tax.toString() : "",
+      hsnCode: (product as any).hsnCode != null ? String((product as any).hsnCode) : "",
     })
     setIsEditDialogOpen(true)
   }
@@ -1093,6 +1133,17 @@ const handleDeleteProduct = async (productId: string) => {
   />
 </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="hsnCode">HSN Code</Label>
+                      <Input
+                        id="hsnCode"
+                        value={formData.hsnCode}
+                        onChange={(e) => setFormData({ ...formData, hsnCode: e.target.value })}
+                        placeholder="Enter HSN code"
+                      />
+                    </div>
+                  </div>
                   
                   {/* Batch Selection (Optional) */}
                   <div className="space-y-2">
@@ -1300,6 +1351,9 @@ const handleDeleteProduct = async (productId: string) => {
                     <Button variant="outline" size="sm" onClick={() => setIsBulkTaxDialogOpen(true)}>
           Update Tax
         </Button>
+                    <Button variant="outline" size="sm" onClick={() => setIsBulkHsnDialogOpen(true)}>
+                      Update HSN Code
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => openPrintDialog(selectedProducts)}>
                       <Printer className="h-4 w-4 mr-2" />
                       Print Labels
@@ -1330,6 +1384,7 @@ const handleDeleteProduct = async (productId: string) => {
                     <th className="text-left p-4 font-medium">Price</th>
                     <th className="text-left p-4 font-medium">Selling Price</th>
                     <th className="text-left p-4 font-medium">Tax (%)</th>
+                    <th className="text-left p-4 font-medium">HSN Code</th>
                     <th className="text-left p-4 font-medium">Stock</th>
                     <th className="text-left p-4 font-medium">Barcodes</th>
                     <th className="text-left p-4 font-medium">Status</th>
@@ -1384,6 +1439,12 @@ const handleDeleteProduct = async (productId: string) => {
 <td className="p-4">
   <span className="font-medium">
     {Number((product as any).tax ?? 0).toFixed(2)}%
+  </span>
+</td>
+
+<td className="p-4">
+  <span className="font-medium">
+    {(product as any).hsnCode != null ? String((product as any).hsnCode) : "N/A"}
   </span>
 </td>
 
@@ -1953,6 +2014,17 @@ return (
                 />
               </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-hsnCode">HSN Code</Label>
+                  <Input
+                    id="edit-hsnCode"
+                    value={formData.hsnCode}
+                    onChange={(e) => setFormData({ ...formData, hsnCode: e.target.value })}
+                    placeholder="Enter HSN code"
+                  />
+                </div>
+              </div>
               {/* Batch Selection for Edit Product (Optional) */}
               <div className="space-y-2">
                 <Label htmlFor="edit-batch">Batch (Optional)</Label>
@@ -2078,6 +2150,42 @@ return (
       </Button>
       <Button onClick={handleBulkTaxUpdate}>
         Update Tax
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+        {/* Bulk HSN Code Update Dialog */}
+<Dialog open={isBulkHsnDialogOpen} onOpenChange={setIsBulkHsnDialogOpen}>
+  <DialogContent className="sm:max-w-[425px]">
+    <DialogHeader>
+      <DialogTitle>Update HSN Code for Selected Products</DialogTitle>
+      <DialogDescription>
+        Set HSN code for {selectedProducts.length} selected product(s)
+      </DialogDescription>
+    </DialogHeader>
+    <div className="grid gap-4 py-4">
+      <div className="space-y-2">
+        <Label htmlFor="bulk-hsn">HSN Code</Label>
+        <Input
+          id="bulk-hsn"
+          value={bulkHsnValue}
+          onChange={(e) => setBulkHsnValue(e.target.value)}
+          placeholder="Enter HSN code (e.g., 7113)"
+        />
+      </div>
+    </div>
+    <DialogFooter>
+      <Button
+        variant="outline"
+        onClick={() => {
+          setIsBulkHsnDialogOpen(false);
+          setBulkHsnValue("");
+        }}
+      >
+        Cancel
+      </Button>
+      <Button onClick={handleBulkHsnUpdate}>
+        Update HSN Code
       </Button>
     </DialogFooter>
   </DialogContent>

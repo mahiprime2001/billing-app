@@ -273,5 +273,104 @@
       "record_id": "3424047b-8b59-49c8-9910-ed739eac097c",
       "operation_type": "DELETE"
     }
+  },
+  {
+    "id": 26,
+    "timestamp": "2026-02-02T14:22:37.168711",
+    "eventType": "Products_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "5deff12b-c0be-4962-b7ca-d1df31ec675e",
+      "operation_type": "CREATE"
+    }
+  },
+  {
+    "id": 27,
+    "timestamp": "2026-02-02T14:24:47.503501",
+    "eventType": "Stores_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Stores",
+      "record_id": "store3",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 28,
+    "timestamp": "2026-02-02T14:24:53.841199",
+    "eventType": "Stores_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Stores",
+      "record_id": "store_1",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 29,
+    "timestamp": "2026-02-02T14:25:00.232686",
+    "eventType": "Stores_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Stores",
+      "record_id": "STR-1758042415183",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 30,
+    "timestamp": "2026-02-02T14:29:33.137320",
+    "eventType": "Stores_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Stores",
+      "record_id": "STR-1761569064837",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 31,
+    "timestamp": "2026-02-02T14:29:38.154883",
+    "eventType": "Stores_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Stores",
+      "record_id": "STR-1762160885710",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 32,
+    "timestamp": "2026-02-02T14:30:05.283245",
+    "eventType": "Stores_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Stores",
+      "record_id": "fb304b5a-bc11-46a6-919c-ce3157a066c0",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 33,
+    "timestamp": "2026-02-02T14:30:28.831373",
+    "eventType": "Stores_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Stores",
+      "record_id": "STR-1764574507863",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 34,
+    "timestamp": "2026-02-02T14:30:32.965867",
+    "eventType": "Stores_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Stores",
+      "record_id": "STR-1764438854928",
+      "operation_type": "DELETE"
+    }
   }
 ]

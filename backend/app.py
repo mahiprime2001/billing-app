@@ -19,6 +19,7 @@ from routes.customers import customers_bp
 from routes.bills import bills_bp
 from routes.batches import batches_bp
 from routes.returns import returns_bp
+from routes.discounts import discounts_bp
 from routes.stores import stores_bp
 from routes.users import users_bp
 from routes.auth import auth_bp
@@ -87,6 +88,7 @@ def create_app(config_name='default'):
     app.register_blueprint(bills_bp)
     app.register_blueprint(batches_bp)
     app.register_blueprint(returns_bp)
+    app.register_blueprint(discounts_bp)
     app.register_blueprint(stores_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(auth_bp)

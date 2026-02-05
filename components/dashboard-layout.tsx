@@ -44,6 +44,7 @@ import {
   History,
   RefreshCcw,
   Undo2, // Added for Returns icon
+  Percent,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { NotificationBell } from "@/components/notification-bell"
@@ -76,6 +77,7 @@ const menuItems: MenuItem[] = [
   { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3 },
   { title: "Billing", url: "/dashboard/billing", icon: Receipt },
   { title: "Returns", url: "/dashboard/returns", icon: Undo2 }, // Added Returns tab
+  { title: "Discounts", url: "/dashboard/discounts", icon: Percent },
   { title: "Settings", url: "/dashboard/settings", icon: Settings },
 ]
 

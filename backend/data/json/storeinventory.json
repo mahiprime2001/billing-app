@@ -1,12 +1,12 @@
 [
   {
-    "id": "937acad1-1d5d-4f30-ad74-c68215a29c80",
+    "id": "f520d7ba-0576-49fc-8025-53a201e7e8e1",
     "storeid": "130dc0bd-e877-4d0b-9111-d1885ca7b850",
-    "productid": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
-    "quantity": 2,
+    "productid": "5deff12b-c0be-4962-b7ca-d1df31ec675e",
+    "quantity": -22,
     "minstocklevel": 0,
     "maxstocklevel": null,
-    "assignedat": "2026-01-29T12:44:01.618713",
-    "updatedat": "2026-02-02T10:29:50.835443"
+    "assignedat": "2026-02-02T14:32:29.058308",
+    "updatedat": "2026-02-05T10:31:35.374093"
   }
 ]

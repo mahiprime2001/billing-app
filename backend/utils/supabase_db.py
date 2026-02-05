@@ -572,6 +572,58 @@ class SupabaseDB:
         return self.update_return(return_id, {"status": status})
     
     # ==========================================
+    # DISCOUNTS
+    # ==========================================
+    
+    def get_discounts(self, status: Optional[str] = None, limit: int = 100) -> List[Dict]:
+        """Get discounts with optional status filter"""
+        try:
+            query = self.client.table("discounts").select("*").order("created_at", desc=True).limit(limit)
+            if status:
+                query = query.eq("status", status)
+            response = query.execute()
+            return response.data
+        except Exception as e:
+            logger.error(f"Error getting discounts: {e}")
+            return []
+    
+    def get_discount(self, discount_id: str) -> Optional[Dict]:
+        """Get discount by ID"""
+        try:
+            response = self.client.table("discounts").select("*").eq("discount_id", discount_id).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            logger.error(f"Error getting discount {discount_id}: {e}")
+            return None
+    
+    def create_discount(self, discount_data: Dict) -> Optional[Dict]:
+        """Create new discount"""
+        try:
+            response = self.client.table("discounts").insert(discount_data).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            logger.error(f"Error creating discount: {e}")
+            return None
+    
+    def update_discount(self, discount_id: str, discount_data: Dict) -> Optional[Dict]:
+        """Update discount"""
+        try:
+            response = (
+                self.client.table("discounts")
+                .update(discount_data)
+                .eq("discount_id", discount_id)
+                .execute()
+            )
+            return response.data[0] if response.data else None
+        except Exception as e:
+            logger.error(f"Error updating discount {discount_id}: {e}")
+            return None
+    
+    def update_discount_status(self, discount_id: str, status: str) -> Optional[Dict]:
+        """Update discount status"""
+        return self.update_discount(discount_id, {"status": status})
+    
+    # ==========================================
     # NOTIFICATIONS
     # ==========================================
     

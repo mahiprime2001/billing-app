@@ -59,6 +59,7 @@ class Config:
     STORES_FILE = os.path.join(JSON_DIR, "stores.json")
     BATCHES_FILE = os.path.join(JSON_DIR, "batches.json")
     RETURNS_FILE = os.path.join(JSON_DIR, "returns.json")
+    DISCOUNTS_FILE = os.path.join(JSON_DIR, "discounts.json")
     NOTIFICATIONS_FILE = os.path.join(JSON_DIR, "notifications.json")
     SETTINGS_FILE = os.path.join(JSON_DIR, "settings.json")
     SESSIONS_FILE = os.path.join(JSON_DIR, "user_sessions.json")

@@ -169,6 +169,20 @@ def save_returns_data(returns: List[Dict]) -> bool:
 
 
 # ============================================
+# DISCOUNTS
+# ============================================
+
+def get_discounts_data() -> List[Dict]:
+    """Get discounts from local JSON (PRIMARY source)"""
+    return _safe_json_load(Config.DISCOUNTS_FILE, [])
+
+
+def save_discounts_data(discounts: List[Dict]) -> bool:
+    """Save discounts to local JSON (PRIMARY storage)"""
+    return _safe_json_dump(Config.DISCOUNTS_FILE, discounts)
+
+
+# ============================================
 # NOTIFICATIONS
 # ============================================
 
