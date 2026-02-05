@@ -39,7 +39,7 @@
     "@radix-ui/react-toggle": "latest",
     "@radix-ui/react-toggle-group": "latest",
     "@radix-ui/react-tooltip": "latest",
-    "@tauri-apps/plugin-dialog": "2.5.0",
+    "@tauri-apps/plugin-dialog": "2.6.0",
     "@tauri-apps/plugin-process": "^2.3.0",
     "@tauri-apps/plugin-updater": "^2.9.0",
     "@types/bcryptjs": "^2.4.6",
