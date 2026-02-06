@@ -111,38 +111,6 @@
     "created_at": "2026-01-30T18:04:42.611459"
   },
   {
-    "id": 12,
-    "sync_time": "2026-02-02T12:37:09.213152",
-    "table_name": "Products",
-    "change_type": "DELETE",
-    "record_id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
-    "change_data": {
-      "id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
-      "barcodes": null
-    },
-    "status": "pending",
-    "retry_count": 0,
-    "last_retry": null,
-    "error_message": null,
-    "created_at": "2026-02-02T12:37:09.213152"
-  },
-  {
-    "id": 13,
-    "sync_time": "2026-02-02T12:37:19.524828",
-    "table_name": "Products",
-    "change_type": "DELETE",
-    "record_id": "84676894-f542-4651-9e0f-af8858bdea1f",
-    "change_data": {
-      "id": "84676894-f542-4651-9e0f-af8858bdea1f",
-      "barcodes": null
-    },
-    "status": "pending",
-    "retry_count": 0,
-    "last_retry": null,
-    "error_message": null,
-    "created_at": "2026-02-02T12:37:19.524828"
-  },
-  {
     "id": 14,
     "sync_time": "2026-02-02T13:52:06.906201",
     "table_name": "Products",
@@ -159,89 +127,62 @@
     "created_at": "2026-02-02T13:52:06.906201"
   },
   {
-    "id": 15,
-    "sync_time": "2026-02-02T14:22:37.165933",
+    "id": 25,
+    "sync_time": "2026-02-06T15:54:02.750365",
     "table_name": "Products",
-    "change_type": "CREATE",
+    "change_type": "DELETE",
+    "record_id": "84676894-f542-4651-9e0f-af8858bdea1f",
+    "change_data": {
+      "id": "84676894-f542-4651-9e0f-af8858bdea1f",
+      "barcodes": null
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-06T15:54:02.750365"
+  },
+  {
+    "id": 26,
+    "sync_time": "2026-02-06T15:54:15.223366",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
+    "change_data": {
+      "id": "60b39918-5ca3-4e7b-91c9-ca700ff8f4b3",
+      "barcodes": null
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-06T15:54:15.223366"
+  },
+  {
+    "id": 27,
+    "sync_time": "2026-02-06T16:15:50.380460",
+    "table_name": "Products",
+    "change_type": "UPDATE",
     "record_id": "5deff12b-c0be-4962-b7ca-d1df31ec675e",
     "change_data": {
       "name": "testing",
       "price": 540,
-      "stock": 30,
+      "stock": 29,
       "sellingPrice": 750,
       "batchid": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
       "tax": 7,
+      "hsnCode": 2,
       "barcodes": "2026020220188"
     },
     "status": "pending",
     "retry_count": 0,
     "last_retry": null,
     "error_message": null,
-    "created_at": "2026-02-02T14:22:37.165933"
+    "created_at": "2026-02-06T16:15:50.380460"
   },
   {
-    "id": 16,
-    "sync_time": "2026-02-02T14:24:47.491745",
-    "table_name": "Stores",
-    "change_type": "DELETE",
-    "record_id": "store3",
-    "change_data": {
-      "id": "store3"
-    },
-    "status": "pending",
-    "retry_count": 0,
-    "last_retry": null,
-    "error_message": null,
-    "created_at": "2026-02-02T14:24:47.491745"
-  },
-  {
-    "id": 17,
-    "sync_time": "2026-02-02T14:24:53.841199",
-    "table_name": "Stores",
-    "change_type": "DELETE",
-    "record_id": "store_1",
-    "change_data": {
-      "id": "store_1"
-    },
-    "status": "pending",
-    "retry_count": 0,
-    "last_retry": null,
-    "error_message": null,
-    "created_at": "2026-02-02T14:24:53.841199"
-  },
-  {
-    "id": 18,
-    "sync_time": "2026-02-02T14:25:00.224893",
-    "table_name": "Stores",
-    "change_type": "DELETE",
-    "record_id": "STR-1758042415183",
-    "change_data": {
-      "id": "STR-1758042415183"
-    },
-    "status": "pending",
-    "retry_count": 0,
-    "last_retry": null,
-    "error_message": null,
-    "created_at": "2026-02-02T14:25:00.224893"
-  },
-  {
-    "id": 19,
-    "sync_time": "2026-02-02T14:29:33.124526",
-    "table_name": "Stores",
-    "change_type": "DELETE",
-    "record_id": "STR-1761569064837",
-    "change_data": {
-      "id": "STR-1761569064837"
-    },
-    "status": "pending",
-    "retry_count": 0,
-    "last_retry": null,
-    "error_message": null,
-    "created_at": "2026-02-02T14:29:33.124526"
-  },
-  {
-    "id": 20,
-    "sync_time": "2026-02-02T14:29:38.145793",
+    "id": 28,
+    "sync_time": "2026-02-06T16:48:08.528414",
     "table_name": "Stores",
     "change_type": "DELETE",
     "record_id": "STR-1762160885710",
@@ -252,11 +193,71 @@
     "retry_count": 0,
     "last_retry": null,
     "error_message": null,
-    "created_at": "2026-02-02T14:29:38.145793"
+    "created_at": "2026-02-06T16:48:08.528414"
   },
   {
-    "id": 21,
-    "sync_time": "2026-02-02T14:30:05.268237",
+    "id": 29,
+    "sync_time": "2026-02-06T16:48:14.518414",
+    "table_name": "Stores",
+    "change_type": "DELETE",
+    "record_id": "store3",
+    "change_data": {
+      "id": "store3"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-06T16:48:14.518414"
+  },
+  {
+    "id": 30,
+    "sync_time": "2026-02-06T16:48:20.875224",
+    "table_name": "Stores",
+    "change_type": "DELETE",
+    "record_id": "store_1",
+    "change_data": {
+      "id": "store_1"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-06T16:48:20.875224"
+  },
+  {
+    "id": 31,
+    "sync_time": "2026-02-06T16:48:26.338672",
+    "table_name": "Stores",
+    "change_type": "DELETE",
+    "record_id": "STR-1758042415183",
+    "change_data": {
+      "id": "STR-1758042415183"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-06T16:48:26.338672"
+  },
+  {
+    "id": 32,
+    "sync_time": "2026-02-06T16:48:32.702852",
+    "table_name": "Stores",
+    "change_type": "DELETE",
+    "record_id": "STR-1761569064837",
+    "change_data": {
+      "id": "STR-1761569064837"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-06T16:48:32.702852"
+  },
+  {
+    "id": 33,
+    "sync_time": "2026-02-06T16:48:38.099164",
     "table_name": "Stores",
     "change_type": "DELETE",
     "record_id": "fb304b5a-bc11-46a6-919c-ce3157a066c0",
@@ -267,11 +268,11 @@
     "retry_count": 0,
     "last_retry": null,
     "error_message": null,
-    "created_at": "2026-02-02T14:30:05.268237"
+    "created_at": "2026-02-06T16:48:38.099164"
   },
   {
-    "id": 22,
-    "sync_time": "2026-02-02T14:30:28.819982",
+    "id": 34,
+    "sync_time": "2026-02-06T16:50:17.496532",
     "table_name": "Stores",
     "change_type": "DELETE",
     "record_id": "STR-1764574507863",
@@ -282,11 +283,11 @@
     "retry_count": 0,
     "last_retry": null,
     "error_message": null,
-    "created_at": "2026-02-02T14:30:28.819982"
+    "created_at": "2026-02-06T16:50:17.496532"
   },
   {
-    "id": 23,
-    "sync_time": "2026-02-02T14:30:32.956791",
+    "id": 35,
+    "sync_time": "2026-02-06T16:50:21.757642",
     "table_name": "Stores",
     "change_type": "DELETE",
     "record_id": "STR-1764438854928",
@@ -297,6 +298,51 @@
     "retry_count": 0,
     "last_retry": null,
     "error_message": null,
-    "created_at": "2026-02-02T14:30:32.956791"
+    "created_at": "2026-02-06T16:50:21.757642"
+  },
+  {
+    "id": 36,
+    "sync_time": "2026-02-06T18:02:55.149950",
+    "table_name": "Bills",
+    "change_type": "DELETE",
+    "record_id": "BILL-1d41cb949409",
+    "change_data": {
+      "id": "BILL-1d41cb949409"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-06T18:02:55.149950"
+  },
+  {
+    "id": 37,
+    "sync_time": "2026-02-06T18:03:03.146180",
+    "table_name": "Bills",
+    "change_type": "DELETE",
+    "record_id": "BILL-55e3001b7d87",
+    "change_data": {
+      "id": "BILL-55e3001b7d87"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-06T18:03:03.146180"
+  },
+  {
+    "id": 38,
+    "sync_time": "2026-02-06T18:06:28.333697",
+    "table_name": "Bills",
+    "change_type": "DELETE",
+    "record_id": "BILL-314f8525ae6e",
+    "change_data": {
+      "id": "BILL-314f8525ae6e"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-06T18:06:28.333697"
   }
 ]

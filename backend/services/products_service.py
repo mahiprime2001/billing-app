@@ -8,13 +8,11 @@ import uuid
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from decimal import Decimal
-
 from utils.supabase_db import db
-from utils.json_helpers import get_products_data, save_products_data
+from utils.json_helpers import get_products_data, save_products_data, get_hsn_codes_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
 logger = logging.getLogger(__name__)
-
 
 # ============================================
 # HELPER FUNCTIONS
@@ -27,7 +25,6 @@ def get_primary_barcode(product: dict) -> str:
         codes = [b.strip() for b in barcodes_str.split(',') if b.strip()]
         return codes[0] if codes else ""
     return ""
-
 
 def process_barcodes(product_data: dict) -> str:
     """
@@ -55,6 +52,24 @@ def process_barcodes(product_data: dict) -> str:
         return ','.join(sorted(list(set(all_barcodes))))
     return ""
 
+# ============================================
+# HSN CODE UTILITIES
+# ============================================
+
+def get_hsn_code_details(hsn_code_id: str) -> Optional[Dict]:
+    """
+    Get HSN code details by ID
+    Returns HSN code dict or None if not found
+    """
+    try:
+        client = db.client
+        response = client.table("hsn_codes").select("*").eq("id", hsn_code_id).execute()
+        if response.data and len(response.data) > 0:
+            return convert_snake_to_camel(response.data[0])
+        return None
+    except Exception as e:
+        logger.error(f"Error getting HSN code details: {e}", exc_info=True)
+        return None
 
 # ============================================
 # LOCAL JSON OPERATIONS
@@ -69,6 +84,10 @@ def get_local_products() -> List[Dict]:
         for product in products:
             converted_product = convert_snake_to_camel(product)
             
+            # Convert hsn_code_id to hsnCode for frontend
+            if 'hsnCodeId' in converted_product:
+                converted_product['hsnCode'] = converted_product.pop('hsnCodeId')
+            
             # Set display price
             if 'sellingPrice' in converted_product and converted_product['sellingPrice']:
                 converted_product['displayPrice'] = converted_product['sellingPrice']
@@ -82,7 +101,7 @@ def get_local_products() -> List[Dict]:
             else:
                 converted_product['barcodes'] = []
             
-            # Ensure batchId is properly set (convert from batchid if needed)
+            # Ensure batchId is properly set
             if 'batchid' in converted_product and converted_product['batchid']:
                 converted_product['batchId'] = converted_product['batchid']
             elif 'batchId' not in converted_product:
@@ -94,7 +113,6 @@ def get_local_products() -> List[Dict]:
     except Exception as e:
         logger.error(f"Error getting local products: {e}", exc_info=True)
         return []
-
 
 def update_local_products(products_data: List[Dict]) -> bool:
     """Update local JSON products with new data"""
@@ -112,7 +130,6 @@ def update_local_products(products_data: List[Dict]) -> bool:
         logger.error(f"Error updating local products: {e}", exc_info=True)
         return False
 
-
 # ============================================
 # SUPABASE OPERATIONS
 # ============================================
@@ -128,6 +145,10 @@ def get_supabase_products() -> List[Dict]:
         for product in products:
             converted_product = convert_snake_to_camel(product)
             
+            # Convert hsn_code_id to hsnCode for frontend
+            if 'hsnCodeId' in converted_product:
+                converted_product['hsnCode'] = converted_product.pop('hsnCodeId')
+            
             # Set display price
             if 'sellingPrice' in converted_product and converted_product['sellingPrice']:
                 converted_product['displayPrice'] = converted_product['sellingPrice']
@@ -141,7 +162,7 @@ def get_supabase_products() -> List[Dict]:
             else:
                 converted_product['barcodes'] = []
             
-            # Ensure batchId is properly set (convert from batchid if needed)
+            # Ensure batchId is properly set
             if 'batchid' in converted_product and converted_product['batchid']:
                 converted_product['batchId'] = converted_product['batchid']
             elif 'batchId' not in converted_product:
@@ -155,12 +176,12 @@ def get_supabase_products() -> List[Dict]:
         logger.error(f"Error getting Supabase products: {e}", exc_info=True)
         return []
 
-
 def insert_product_to_supabase(product_data: dict) -> Optional[dict]:
     """Insert a product into Supabase"""
     try:
         client = db.client
         logger.info(f"Attempting to insert product {product_data['id']} into Supabase...")
+        
         supabase_response = client.table('products').insert(product_data).execute()
         
         if supabase_response.data is None or len(supabase_response.data) == 0:
@@ -173,12 +194,12 @@ def insert_product_to_supabase(product_data: dict) -> Optional[dict]:
         logger.error(f"Error inserting product to Supabase: {e}", exc_info=True)
         return None
 
-
 def update_product_in_supabase(product_id: str, update_data: dict) -> Optional[dict]:
     """Update a product in Supabase"""
     try:
         client = db.client
         logger.info(f"Updating product {product_id} in Supabase...")
+        
         supabase_response = client.table('products').update(update_data).eq('id', product_id).execute()
         
         if supabase_response.data is None or len(supabase_response.data) == 0:
@@ -191,7 +212,6 @@ def update_product_in_supabase(product_id: str, update_data: dict) -> Optional[d
         logger.error(f"Error updating product in Supabase: {e}", exc_info=True)
         return None
 
-
 def delete_product_from_supabase(product_id: str) -> bool:
     """
     Delete a product from Supabase (billitems + storeinventory + products tables).
@@ -199,24 +219,23 @@ def delete_product_from_supabase(product_id: str) -> bool:
     """
     try:
         client = db.client
-
-        # Delete references in billitems first (historical bill records)
+        
+        # Delete references in billitems first
         logger.info(f"Deleting references to product {product_id} in billitems...")
         client.table('billitems').delete().eq('productid', product_id).execute()
         logger.info(f"Product {product_id} references deleted from billitems")
-
+        
         # Delete references in storeinventory
         logger.info(f"Deleting references to product {product_id} in storeinventory...")
         client.table('storeinventory').delete().eq('productid', product_id).execute()
         logger.info(f"Product {product_id} references deleted from storeinventory")
-
-        # Delete the product itself from products table
+        
+        # Delete the product itself
         logger.info(f"Deleting product {product_id} from products table...")
         client.table('products').delete().eq('id', product_id).execute()
         logger.info(f"Product {product_id} deleted from products table")
-
+        
         return True
-
     except Exception as e:
         logger.error(f"Error deleting product from Supabase: {e}", exc_info=True)
         return False
@@ -245,7 +264,7 @@ def get_merged_products() -> Tuple[List[Dict], int]:
             if product.get('id'):
                 products_map[product['id']] = product
         
-        # Add Supabase products (higher priority, overwriting local if IDs match)
+        # Add Supabase products (higher priority)
         for product in supabase_products:
             if product.get('id'):
                 products_map[product['id']] = product
@@ -258,7 +277,6 @@ def get_merged_products() -> Tuple[List[Dict], int]:
     except Exception as e:
         logger.error(f"Error getting merged products: {e}", exc_info=True)
         return [], 500
-
 
 # ============================================
 # BUSINESS LOGIC
@@ -276,6 +294,10 @@ def create_product(product_data: dict) -> Tuple[Optional[str], str, int]:
         # Convert field names from camelCase to snake_case
         product_data = convert_camel_to_snake(product_data)
         
+        # Convert hsn_code to hsn_code_id for database
+        if 'hsn_code' in product_data:
+            product_data['hsn_code_id'] = product_data.pop('hsn_code')
+        
         # Generate ID if not present
         if 'id' not in product_data:
             product_data['id'] = str(uuid.uuid4())
@@ -289,7 +311,7 @@ def create_product(product_data: dict) -> Tuple[Optional[str], str, int]:
         # Process barcodes
         barcode_string = process_barcodes(product_data)
         product_data['barcode'] = barcode_string
-        product_data.pop('barcodes', None)  # Remove array field
+        product_data.pop('barcodes', None)
         
         # Handle empty batchId
         if 'batchid' in product_data and not product_data['batchid']:
@@ -311,7 +333,6 @@ def create_product(product_data: dict) -> Tuple[Optional[str], str, int]:
         logger.error(f"Error creating product: {e}", exc_info=True)
         return None, str(e), 500
 
-
 def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
     """
     Update a product (offline-first approach).
@@ -323,6 +344,10 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
         
         # Convert field names from camelCase to snake_case
         update_data = convert_camel_to_snake(update_data)
+        
+        # Convert hsn_code to hsn_code_id for database
+        if 'hsn_code' in update_data:
+            update_data['hsn_code_id'] = update_data.pop('hsn_code')
         
         # Find the product in local storage
         products = get_products_data()
@@ -353,22 +378,20 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
         # STEP 1: Update in local JSON
         products[product_index].update(update_data)
         save_products_data(products)
-
+        
         # STEP 2: Update in Supabase (remove _deleted field if present)
         update_data_clean = {k: v for k, v in update_data.items() if k != '_deleted'}
         update_product_in_supabase(product_id, update_data_clean)
-
+        
         logger.info(f"Product updated {product_id}")
         return True, "Product updated", 200
-            
     except Exception as e:
         logger.error(f"Error updating product: {e}", exc_info=True)
         return False, str(e), 500
 
-
 def delete_product(product_id: str) -> Tuple[bool, str, int]:
     """
-    Delete a product from local JSON and Supabase (products + storeinventory tables).
+    Delete a product from local JSON and Supabase.
     Does NOT delete from returns table - return records are preserved.
     Returns (success, message, status_code)
     """
@@ -385,18 +408,15 @@ def delete_product(product_id: str) -> Tuple[bool, str, int]:
         save_products_data(products)
         logger.info(f"Product {product_id} deleted from local JSON")
         
-        # STEP 2: Delete from Supabase (storeinventory + products)
+        # STEP 2: Delete from Supabase
         supabase_deleted = delete_product_from_supabase(product_id)
         if not supabase_deleted:
             logger.warning(f"Failed to delete product {product_id} from Supabase, but local deletion successful")
         
         return True, "Product deleted successfully", 200
-        
     except Exception as e:
         logger.error(f"Error deleting product: {e}", exc_info=True)
         return False, str(e), 500
-
-
 
 def get_product_availability(product_id: str) -> Tuple[Optional[List[Dict]], int]:
     """

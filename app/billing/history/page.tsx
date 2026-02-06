@@ -678,8 +678,8 @@ export default function BillingHistoryPage() {
         
         {/* Sale Details Dialog */}
         <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-          <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle className="flex items-center">
                 <Receipt className="h-5 w-5 mr-2" />
                 Transaction Details
@@ -687,7 +687,7 @@ export default function BillingHistoryPage() {
               <DialogDescription>{selectedSale && `Invoice: ${selectedSale.id}`}</DialogDescription>
             </DialogHeader>
             {selectedSale && (
-              <div className="space-y-6">
+              <div className="flex-1 overflow-y-auto space-y-6">
                 {/* Transaction Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Card>
@@ -751,21 +751,28 @@ export default function BillingHistoryPage() {
                 {/* Items */}
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">Items Purchased</CardTitle>
+                    <CardTitle className="text-sm">Items Purchased ({selectedSale.items.length})</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {selectedSale.items.map((item, index) => (
-                        <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{item.productName}</div>
-                            <div className="text-xs text-gray-600">
-                              ₹{item.price.toFixed(2)} × {item.quantity}
+                  <CardContent className="p-0">
+                    <div className="max-h-64 overflow-y-auto">
+                      <div className="p-4 space-y-2">
+                        {selectedSale.items.slice(0, 6).map((item, index) => (
+                          <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{item.productName}</div>
+                              <div className="text-xs text-gray-600">
+                                ₹{item.price.toFixed(2)} × {item.quantity}
+                              </div>
                             </div>
+                            <div className="font-medium">₹{item.total.toFixed(2)}</div>
                           </div>
-                          <div className="font-medium">₹{item.total.toFixed(2)}</div>
-                        </div>
-                      ))}
+                        ))}
+                        {selectedSale.items.length > 6 && (
+                          <div className="text-center py-2 text-sm text-gray-500 border-t">
+                            Showing 6 of {selectedSale.items.length} items - scroll for more
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -813,7 +820,7 @@ export default function BillingHistoryPage() {
                 )}
               </div>
             )}
-            <DialogFooter>
+            <DialogFooter className="flex-shrink-0 border-t bg-background">
               <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
                 Close
               </Button>

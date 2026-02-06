@@ -418,7 +418,7 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
           quantity: 1,
           price: unitPrice,
           total: unitPrice,
-          barcodes: product.barcodes || [], // Include product barcodes
+          barcodes: product.barcode ? [product.barcode] : [], // Convert single barcode to array
         },
       ]
     }
@@ -1151,9 +1151,9 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                   </div>
                 </div>
               ) : (
-                <div className="p-4">
+                <div className="p-4 flex flex-col h-full">
                   <h3 className="font-semibold mb-2">Recent Bills</h3>
-                  <ScrollArea className="h-64">
+                  <ScrollArea className="flex-1 min-h-0">
                     <div className="space-y-2">
                       {recentBills.map((bill) => (
                         <Card key={bill.id}>

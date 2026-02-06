@@ -10,16 +10,6 @@
     "updated_at": "2026-02-03T19:27:51.392027"
   },
   {
-    "id": 14,
-    "billid": "BILL-6abb3162aa6f",
-    "productid": "5deff12b-c0be-4962-b7ca-d1df31ec675e",
-    "quantity": 1,
-    "price": 700.93,
-    "total": 700.93,
-    "created_at": "2026-02-04T05:36:12.490049",
-    "updated_at": "2026-02-04T05:36:12.490049"
-  },
-  {
     "id": 15,
     "billid": "BILL-85cce7cf3492",
     "productid": "5deff12b-c0be-4962-b7ca-d1df31ec675e",
@@ -88,16 +78,6 @@
     "total": 700.93,
     "created_at": "2026-02-04T15:18:25.157615",
     "updated_at": "2026-02-04T15:18:25.157615"
-  },
-  {
-    "id": 22,
-    "billid": "BILL-7b435b7dd348",
-    "productid": "5deff12b-c0be-4962-b7ca-d1df31ec675e",
-    "quantity": 1,
-    "price": 700.93,
-    "total": 700.93,
-    "created_at": "2026-02-04T15:23:24.533307",
-    "updated_at": "2026-02-04T15:23:24.533307"
   },
   {
     "id": 23,

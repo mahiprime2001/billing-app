@@ -1430,14 +1430,14 @@ export default function BillingPage() {
 
         {/* View Customer Dialog */}
         <Dialog open={isCustomerViewDialogOpen} onOpenChange={setIsCustomerViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Customer Details</DialogTitle>
               <DialogDescription>{selectedCustomer?.name}</DialogDescription>
             </DialogHeader>
 
             {selectedCustomer && (
-              <div className="space-y-6">
+              <div className="space-y-6 overflow-y-auto pr-2">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h4 className="font-medium">Contact Information</h4>
@@ -1472,50 +1472,67 @@ export default function BillingPage() {
                 </div>
 
                 <div>
-                  <h4 className="font-medium mb-2">Bills by {selectedCustomer.name}</h4>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Bill ID</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Total</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {currentBills
-                        .filter((bill: Bill) => {
-                          // FIX: Match by customerId
-                          const billCustomerId = (bill as any).customerId || (bill as any).customerid;
-                          return billCustomerId === selectedCustomer.id;
-                        })
-                        .map((bill: Bill) => (
-                          <TableRow key={bill.id}>
-                            <TableCell className="font-mono">{bill.id}</TableCell>
-                            <TableCell>{new Date(bill.date).toLocaleDateString()}</TableCell>
-                            <TableCell>₹{bill.total.toFixed(2)}</TableCell>
-                            <TableCell>
-                              <Badge variant="default">{bill.status}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedBill(bill);
-                                  setIsViewDialogOpen(true);
-                                  setIsCustomerViewDialogOpen(false);
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
-                </div>
+  <h4 className="font-medium mb-2">
+    Bills by {selectedCustomer.name}
+  </h4>
+
+  <div className="max-h-[360px] overflow-y-auto border rounded-md">
+    <Table>
+      <TableHeader className="sticky top-0 bg-white z-10">
+        <TableRow>
+          <TableHead>Bill ID</TableHead>
+          <TableHead>Date</TableHead>
+          <TableHead>Total</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+
+      <TableBody>
+        {currentBills
+          .filter((bill: Bill) => {
+            const billCustomerId =
+              (bill as any).customerId || (bill as any).customerid;
+            return billCustomerId === selectedCustomer.id;
+          })
+          .map((bill: Bill) => (
+            <TableRow key={bill.id}>
+              <TableCell className="font-mono">
+                {bill.id}
+              </TableCell>
+
+              <TableCell>
+                {new Date(bill.date).toLocaleDateString()}
+              </TableCell>
+
+              <TableCell>
+                ₹{bill.total.toFixed(2)}
+              </TableCell>
+
+              <TableCell>
+                <Badge>{bill.status}</Badge>
+              </TableCell>
+
+              <TableCell>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedBill(bill);
+                    setIsViewDialogOpen(true);
+                    setIsCustomerViewDialogOpen(false);
+                  }}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+      </TableBody>
+    </Table>
+  </div>
+</div>
+
               </div>
             )}
 

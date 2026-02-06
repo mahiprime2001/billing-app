@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 # Create Blueprint
 stores_bp = Blueprint('stores', __name__, url_prefix='/api')
 
-
 # ============================================
 # DIRECT SUPABASE/LOCAL ROUTES (FOR DEBUGGING)
 # ============================================
@@ -28,7 +27,6 @@ def get_supabase_stores():
         logger.error(f"Error in get_supabase_stores: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
-
 @stores_bp.route('/stores/local', methods=['GET'])
 def get_local_stores_only():
     """Get stores from local storage only (for debugging)"""
@@ -39,7 +37,6 @@ def get_local_stores_only():
     except Exception as e:
         logger.error(f"Error in get_local_stores_only: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
-
 
 @stores_bp.route('/stores/sync', methods=['POST'])
 def sync_stores():
@@ -53,7 +50,6 @@ def sync_stores():
     except Exception as e:
         logger.error(f"Error in sync_stores: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
-
 
 # ============================================
 # MAIN STORES ROUTES
@@ -75,7 +71,6 @@ def get_stores():
     except Exception as e:
         logger.error(f"Error in get_stores: {e}", exc_info=True)
         return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
-
 
 @stores_bp.route('/stores', methods=['POST'])
 def create_store():
@@ -99,7 +94,6 @@ def create_store():
         logger.error(f"Error in create_store: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
-
 @stores_bp.route('/stores/<store_id>', methods=['GET'])
 def get_store(store_id):
     """Get single store"""
@@ -118,7 +112,6 @@ def get_store(store_id):
     except Exception as e:
         logger.error(f"Error in get_store: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
-
 
 @stores_bp.route('/stores/<store_id>', methods=['PUT'])
 def update_store(store_id):
@@ -142,7 +135,6 @@ def update_store(store_id):
         logger.error(f"Error in update_store: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
-
 @stores_bp.route('/stores/<store_id>', methods=['DELETE'])
 def delete_store(store_id):
     """Delete store"""
@@ -164,6 +156,20 @@ def delete_store(store_id):
         logger.error(f"Error in delete_store: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
+# ============================================
+# NEW: AVAILABLE PRODUCTS ROUTES (CRITICAL FOR STOCK ASSIGNMENT)
+# ============================================
+
+@stores_bp.route('/stores/<store_id>/available-products', methods=['GET'])
+def get_available_products(store_id):
+    """Get products with available stock for assignment to this store"""
+    try:
+        products = stores_service.get_available_products_for_assignment(store_id)
+        logger.debug(f"Returning {len(products)} available products for store {store_id}")
+        return jsonify(products), 200
+    except Exception as e:
+        logger.error(f"Error getting available products for store {store_id}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 # ============================================
 # INVENTORY ROUTES
@@ -183,22 +189,22 @@ def get_store_inventory(store_id):
         logger.error(f"Error in get_store_inventory: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
-
 @stores_bp.route('/stores/<store_id>/assign-products', methods=['POST'])
 def assign_products_to_store(store_id):
-    """Assign products to a store"""
+    """Assign products to a store with stock validation"""
     try:
         products = request.json.get('products', [])
         success, message, status_code = stores_service.assign_products_to_store(store_id, products)
         
         if success:
+            logger.info(f"Successfully assigned {len(products)} products to store {store_id}")
             return jsonify({'message': message}), status_code
         else:
+            logger.warning(f"Failed to assign products to store {store_id}: {message}")
             return jsonify({'error': message}), status_code
     except Exception as e:
         logger.error(f"Error in assign_products_to_store: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
-
 
 @stores_bp.route('/inventory/assign', methods=['POST'])
 def assign_inventory():
@@ -208,6 +214,9 @@ def assign_inventory():
         store_id = data.get('storeId') or data.get('storeid')
         products = data.get('products', [])
         
+        if not store_id:
+            return jsonify({'error': 'storeId is required'}), 400
+            
         success, message, status_code = stores_service.assign_products_to_store(store_id, products)
         
         if success:
@@ -217,7 +226,6 @@ def assign_inventory():
     except Exception as e:
         logger.error(f"Error in assign_inventory: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
-
 
 @stores_bp.route('/inventory/<inventory_id>/adjust', methods=['PATCH'])
 def adjust_inventory(inventory_id):
@@ -234,7 +242,6 @@ def adjust_inventory(inventory_id):
         logger.error(f"Error in adjust_inventory: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
-
 @stores_bp.route('/stores/<store_id>/assigned-products', methods=['GET'])
 def get_assigned_products(store_id):
     """Get assigned products for a store"""
@@ -248,7 +255,6 @@ def get_assigned_products(store_id):
     except Exception as e:
         logger.error(f"Error in get_assigned_products: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
-
 
 @stores_bp.route('/stores/<store_id>/inventory-calendar', methods=['GET'])
 def get_inventory_calendar(store_id):
@@ -277,7 +283,6 @@ def get_inventory_calendar(store_id):
             'error': str(e),
             'calendar': []
         }), 500
-
 
 @stores_bp.route('/stores/<store_id>/inventory-by-date/<date_str>', methods=['GET'])
 def get_inventory_by_date(store_id, date_str):

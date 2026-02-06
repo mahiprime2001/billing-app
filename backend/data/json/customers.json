@@ -2,10 +2,10 @@
   {
     "id": "CUST-1754821420265",
     "name": "Walk-in Customer",
-    "phone": null,
     "email": null,
+    "phone": null,
     "address": null,
-    "createdat": "2025-08-10T15:53:40",
-    "updatedat": "2025-08-10T15:53:40"
+    "created_at": "2025-08-10T15:53:40",
+    "updated_at": "2025-08-10T15:53:40"
   }
 ]

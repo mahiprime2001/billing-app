@@ -84,15 +84,24 @@ def export_all_data_from_supabase():
         batches = SupabaseDBInstance.get_batches()
         save_json("batches.json", batches)
 
-        # 9. Returns
+        # 9. HSN Codes
+        try:
+            response = SupabaseDBInstance.client.table("hsn_codes").select("*").execute()
+            hsn_codes = response.data or []
+        except Exception as e:
+            logger.warning(f"Could not fetch hsn_codes: {e}")
+            hsn_codes = []
+        save_json("hsn_codes.json", hsn_codes)
+
+        # 10. Returns
         returns = SupabaseDBInstance.get_returns(limit=10000)
         save_json("returns.json", returns)
 
-        # 10. Notifications
+        # 11. Notifications
         notifications = SupabaseDBInstance.get_notifications(limit=10000)
         save_json("notifications.json", notifications)
 
-        # 11. StoreInventory
+        # 12. StoreInventory
         try:
             response = SupabaseDBInstance.client.table("storeinventory").select("*").execute()
             storeinventory = response.data or []
@@ -101,7 +110,7 @@ def export_all_data_from_supabase():
             storeinventory = []
         save_json("storeinventory.json", storeinventory)
 
-        # 12. SystemSettings
+        # 13. SystemSettings
         system_settings = SupabaseDBInstance.get_system_settings() or {}
         # Wrap in dict for consistency with your structure
         settings_data = {
@@ -111,7 +120,7 @@ def export_all_data_from_supabase():
         }
         save_json("settings.json", settings_data)
 
-        # 13. Optional: synctable if you want a local backup
+        # 14. Optional: synctable if you want a local backup
         try:
             response = SupabaseDBInstance.client.table("sync_table").select("*").execute()
             synctable = response.data or []

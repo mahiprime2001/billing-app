@@ -126,7 +126,7 @@ def delete_bill(bill_id):
             try:
                 from scripts.sync_manager import log_json_crud_operation
                 log_json_crud_operation(
-                    table_name="bills",
+                    json_type="bills",
                     operation="DELETE",
                     record_id=bill_id,
                     data={"id": bill_id},

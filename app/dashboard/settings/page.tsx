@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Settings, Building, Receipt, Save, User, Shield, RefreshCw } from "lucide-react"
+import { Settings, Building, Receipt, Save, User, Shield, RefreshCw, Hash } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Package, Trash2 } from "lucide-react"
 import { BatchManagementTab } from "@/components/BatchManagementTab"
+import { HSNManagementTab } from "@/components/HSNManagementTab"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -612,10 +613,14 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="batches" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="batches">
                   <Package className="h-4 w-4 mr-2" />
                   Batch Management
+                </TabsTrigger>
+                <TabsTrigger value="hsn">
+                  <Hash className="h-4 w-4 mr-2" />
+                  HSN Codes
                 </TabsTrigger>
                 <TabsTrigger value="flush">
                   <Trash2 className="h-4 w-4 mr-2" />
@@ -624,6 +629,9 @@ export default function SettingsPage() {
               </TabsList>
               <TabsContent value="batches" className="space-y-6">
                 <BatchManagementTab />
+              </TabsContent>
+              <TabsContent value="hsn" className="space-y-6">
+                <HSNManagementTab />
               </TabsContent>
 
               <TabsContent value="flush" className="space-y-6">

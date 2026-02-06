@@ -10,6 +10,7 @@ export interface Product {
   updatedAt: string;
   tax?: number;
   hsnCode?: string;
+  hsnCodeId?: string;
 }
 
 

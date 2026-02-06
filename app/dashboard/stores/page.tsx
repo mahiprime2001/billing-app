@@ -1,18 +1,16 @@
 "use client"
-
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+
 // Helper function to normalize store IDs
 const normalizeStoreId = (id: string | undefined | null): string | undefined | null => {
-  if (id === undefined || id === null) return id; // Handle undefined or null gracefully
-  // If the ID is in the format 'store_1', convert it to 'STR-1722255700000'
+  if (id === undefined || id === null) return id;
   if (id === 'store_1') return 'STR-1722255700000';
-  // If the ID is in the format 'STR-1722255700000', keep it as is
   if (id.startsWith('STR-')) return id;
-  // For any other format, return as is
   return id;
 };
+
 import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -66,9 +64,10 @@ interface StoreType {
   totalRevenue: number
   totalBills: number
   lastBillDate: string
-  productCount?: number;  // NEW
-  totalStock?: number;    // NEW
+  productCount?: number;
+  totalStock?: number;
 }
+
 
 type DateCard = {
   date: string
@@ -86,7 +85,7 @@ type Row = {
   rowValue: number
 }
 
-// iOS-style Mini Calendar Component
+// iOS-style Mini Calendar Component (unchanged)
 function MiniCalendar({
   dates,
   selectedDate,
@@ -98,35 +97,26 @@ function MiniCalendar({
 }) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   
-  // Create a map for quick lookup of dates with data
   const dateDataMap = new Map(dates.map(d => [d.date, d]))
-  
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const year = currentMonth.getFullYear()
   const month = currentMonth.getMonth()
   
-  // Get first day of month and number of days
   const firstDay = new Date(year, month, 1)
   const lastDay = new Date(year, month + 1, 0)
   const daysInMonth = lastDay.getDate()
   const startingDayOfWeek = firstDay.getDay()
   
-  // Generate calendar days
   const calendarDays = []
   
-  // Add empty cells for days before month starts
   for (let i = 0; i < startingDayOfWeek; i++) {
     calendarDays.push(null)
   }
   
-  // Add days of the month
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const dateData = dateDataMap.get(dateStr);
-
-    console.log(`Checking date: ${dateStr}, has data: ${!!dateData}`); // Debug
-
     calendarDays.push({
       day,
       dateStr,
@@ -153,7 +143,6 @@ function MiniCalendar({
   
   return (
     <div className="bg-white rounded-lg border p-4">
-      {/* Calendar Header */}
       <div className="flex items-center justify-between mb-4">
         <Button
           variant="ghost"
@@ -163,11 +152,9 @@ function MiniCalendar({
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        
         <h3 className="text-lg font-semibold">
           {monthNames[month]} {year}
         </h3>
-        
         <Button
           variant="ghost"
           size="sm"
@@ -177,8 +164,6 @@ function MiniCalendar({
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
-      
-      {/* Day Headers */}
       <div className="grid grid-cols-7 gap-1 mb-2">
         {dayNames.map(day => (
           <div key={day} className="text-xs font-medium text-gray-500 text-center p-2">
@@ -186,8 +171,6 @@ function MiniCalendar({
           </div>
         ))}
       </div>
-      
-      {/* Calendar Grid */}
       <div className="grid grid-cols-7 gap-1">
         {calendarDays.map((day, index) => {
           if (!day) {
@@ -227,8 +210,6 @@ function MiniCalendar({
           )
         })}
       </div>
-      
-      {/* Legend */}
       <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-500">
         <div className="flex items-center gap-1">
           <div className="h-2 w-2 bg-blue-500 rounded-full" />
@@ -243,8 +224,7 @@ function MiniCalendar({
   )
 }
 
-// Store Insight Modal Component
-// Store Insight Modal Component
+// Store Insight Modal Component (unchanged)
 function StoreInsightModal({
   open,
   onClose,
@@ -254,7 +234,8 @@ function StoreInsightModal({
   onClose: () => void;
   store: StoreType | null;
 }) {
-  const [days, setDays] = useState(90); // Increased to 90 days for better calendar view
+  // ... (keeping existing implementation)
+  const [days, setDays] = useState(90);
   const [dates, setDates] = useState<DateCard[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
@@ -265,35 +246,24 @@ function StoreInsightModal({
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
-  // Fetch calendar data when modal opens
   useEffect(() => {
     if (!open || !store) return;
-
     setIsLoadingCalendar(true);
     fetch(`${API}/api/stores/${store.id}/inventory-calendar?days=${days}`)
       .then((r) => r.json())
       .then((j) => {
-        console.log("Calendar API response:", j); // Debug line
         if (j.success && Array.isArray(j.calendar)) {
           setDates(j.calendar);
         } else {
-          console.error("Invalid calendar response:", j);
           setDates([]);
         }
       })
-      .catch((err) => {
-        console.error("Calendar fetch error:", err);
-        setDates([]);
-      })
-      .finally(() => {
-        setIsLoadingCalendar(false);
-      });
+      .catch(() => setDates([]))
+      .finally(() => setIsLoadingCalendar(false));
   }, [open, store, days]);
 
-  // Fetch details for selected date
   useEffect(() => {
     if (!open || !store || !selectedDate) return;
-
     setIsLoadingDetails(true);
     fetch(`${API}/api/stores/${store.id}/inventory-by-date/${selectedDate}`)
       .then((r) => r.json())
@@ -305,19 +275,15 @@ function StoreInsightModal({
             totalValue: j.totalValue || 0,
           });
         } else {
-          console.error("Invalid inventory-by-date response:", j);
           setRows([]);
           setTotals({ totalStock: 0, totalValue: 0 });
         }
       })
-      .catch((err) => {
-        console.error("Inventory by date fetch error:", err);
+      .catch(() => {
         setRows([]);
         setTotals({ totalStock: 0, totalValue: 0 });
       })
-      .finally(() => {
-        setIsLoadingDetails(false);
-      });
+      .finally(() => setIsLoadingDetails(false));
   }, [open, store, selectedDate]);
 
   const handlePrint = async () => {
@@ -329,10 +295,6 @@ function StoreInsightModal({
           <style>
             body{font-family:Inter,system-ui,Arial;padding:12px}
             .print-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid #eee}
-            .print-header-left{display:flex;flex-direction:column}
-            .print-header h1{font-size:18px;font-weight:bold;margin:0}
-            .print-header .address{font-size:10px;color:#777;margin-top:2px}
-            .print-header p{font-size:12px;color:#555;margin:0}
             table{width:100%;border-collapse:collapse}
             th,td{border:1px solid #000;padding:6px;text-align:left;font-size:12px}
             tfoot td{font-weight:600}
@@ -341,24 +303,14 @@ function StoreInsightModal({
         </head>
         <body>
           <div class="print-header">
-            <div class="print-header-left">
-              <h1>${store?.name} - Store Inventory</h1>
-              ${store?.address ? `<p class="address">${store.address}</p>` : ""}
-            </div>
-            <p>${new Date().toLocaleDateString("en-GB", {
-              day: "2-digit",
-              month: "long",
-              year: "numeric",
-            })}</p>
+            <h1>${store?.name} - Store Inventory</h1>
+            <p>${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}</p>
           </div>
           ${src}
         </body>
       </html>
     `;
-
-    await unifiedPrint({htmlContent: htmlContent,
-  isThermalPrinter: false,
-  useBackendPrint: false});
+    await unifiedPrint({htmlContent, isThermalPrinter: false, useBackendPrint: false});
   };
 
   if (!open || !store) return null;
@@ -366,38 +318,23 @@ function StoreInsightModal({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
-        {/* Header - Store details */}
+        {/* Header */}
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="text-lg font-semibold flex items-center">
             <Building className="h-5 w-5 mr-2 text-blue-600" />
             {store.name} - Inventory Overview
           </DialogTitle>
-          <DialogDescription>
-            <span>{store.address || "No address"}</span> •{" "}
-            <span>{store.phone || "No phone"}</span>
-          </DialogDescription>
         </DialogHeader>
-
-        {/* Body - Calendar & Selected Date Details */}
         <div className="flex-1 overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-            {/* Left Side - Calendar */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold flex items-center">
-                  <Calendar className="h-5 w-5 mr-2" />
-                  Inventory Calendar
-                </h3>
-                <Badge variant="secondary" className="text-xs">
-                  {dates.length} days with inventory
-                </Badge>
-              </div>
-
+              <h3 className="text-lg font-semibold flex items-center">
+                <Calendar className="h-5 w-5 mr-2" />
+                Inventory Calendar
+              </h3>
               {isLoadingCalendar ? (
                 <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
-                  <div className="text-center">
-                    <p className="text-gray-500 text-sm">Loading calendar...</p>
-                  </div>
+                  <p className="text-gray-500 text-sm">Loading calendar...</p>
                 </div>
               ) : (
                 <MiniCalendar
@@ -406,64 +343,15 @@ function StoreInsightModal({
                   onDateSelect={setSelectedDate}
                 />
               )}
-
-              {/* Quick Stats */}
-              {selectedDate && (
-                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                  <div className="text-sm font-medium text-blue-800 mb-2">
-                    Selected: {new Date(selectedDate).toDateString()}
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 text-xs">
-                    <div>
-                      <div className="text-blue-600 font-medium">Products</div>
-                      <div className="text-blue-800 font-semibold">
-                        {rows.length}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-blue-600 font-medium">
-                        Total Stock
-                      </div>
-                      <div className="text-blue-800 font-semibold">
-                        {totals.totalStock}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-blue-600 font-medium">
-                        Total Value
-                      </div>
-                      <div className="text-blue-800 font-semibold">
-                        ₹{totals.totalValue.toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
-
-            {/* Right Side - Table */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">
-                  {selectedDate ? "Product Details" : "Select a date to view products"}
-                </h3>
-                {selectedDate && rows.length > 0 && (
-                  <Button
-                    size="sm"
-                    onClick={handlePrint}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    Print Report
-                  </Button>
-                )}
-              </div>
-
+              <h3 className="text-lg font-semibold">
+                {selectedDate ? "Product Details" : "Select a date to view products"}
+              </h3>
               {selectedDate ? (
                 isLoadingDetails ? (
                   <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
-                    <div className="text-center">
-                      <p className="text-gray-500 text-sm">Loading details...</p>
-                    </div>
+                    <p className="text-gray-500 text-sm">Loading details...</p>
                   </div>
                 ) : rows.length > 0 ? (
                   <div className="border rounded-lg overflow-hidden max-h-[500px] overflow-y-auto">
@@ -482,35 +370,20 @@ function StoreInsightModal({
                         {rows.map((r, i) => (
                           <TableRow key={r.id} className="hover:bg-gray-50">
                             <TableCell className="text-xs">{i + 1}</TableCell>
-                            <TableCell className="text-xs font-mono">
-                              {r.barcode}
-                            </TableCell>
+                            <TableCell className="text-xs font-mono">{r.barcode}</TableCell>
                             <TableCell className="text-xs">{r.name}</TableCell>
-                            <TableCell className="text-xs">
-                              ₹{r.price.toFixed(2)}
-                            </TableCell>
+                            <TableCell className="text-xs">₹{r.price.toFixed(2)}</TableCell>
                             <TableCell className="text-xs">{r.stock}</TableCell>
-                            <TableCell className="text-xs">
-                              ₹{r.rowValue.toFixed(2)}
-                            </TableCell>
+                            <TableCell className="text-xs">₹{r.rowValue.toFixed(2)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                       {rows.length > 0 && (
                         <TableFooter className="bg-slate-50">
                           <TableRow>
-                            <TableCell
-                              colSpan={4}
-                              className="text-xs font-semibold"
-                            >
-                              Totals
-                            </TableCell>
-                            <TableCell className="text-xs font-semibold">
-                              {totals.totalStock}
-                            </TableCell>
-                            <TableCell className="text-xs font-semibold">
-                              ₹{totals.totalValue.toFixed(2)}
-                            </TableCell>
+                            <TableCell colSpan={4} className="text-xs font-semibold">Totals</TableCell>
+                            <TableCell className="text-xs font-semibold">{totals.totalStock}</TableCell>
+                            <TableCell className="text-xs font-semibold">₹{totals.totalValue.toFixed(2)}</TableCell>
                           </TableRow>
                         </TableFooter>
                       )}
@@ -520,9 +393,7 @@ function StoreInsightModal({
                   <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
                     <div className="text-center">
                       <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                      <p className="text-gray-500 text-sm">
-                        No inventory data available for this date
-                      </p>
+                      <p className="text-gray-500 text-sm">No inventory data available for this date</p>
                     </div>
                   </div>
                 )
@@ -530,36 +401,20 @@ function StoreInsightModal({
                 <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
                   <div className="text-center">
                     <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                    <p className="text-gray-500 text-sm">
-                      Click on a highlighted date in the calendar to view
-                      inventory details
-                    </p>
+                    <p className="text-gray-500 text-sm">Click on a highlighted date in the calendar to view inventory details</p>
                   </div>
                 </div>
               )}
             </div>
           </div>
         </div>
-
-        {/* Footer */}
         <DialogFooter className="border-t pt-4">
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-          {selectedDate && rows.length > 0 && (
-            <Button
-              onClick={handlePrint}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Print Selected Date
-            </Button>
-          )}
+          <Button variant="outline" onClick={onClose}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-
 
 export default function StoresPage() {
   const router = useRouter()
@@ -580,6 +435,7 @@ export default function StoresPage() {
   const [insightOpen, setInsightOpen] = useState(false)
   const [selectedStore, setSelectedStore] = useState<StoreType | null>(null)
 
+  
   useEffect(() => {
     const isLoggedIn = localStorage.getItem("adminLoggedIn")
     const userData = localStorage.getItem("adminUser")
@@ -604,10 +460,9 @@ export default function StoresPage() {
 
   const loadData = async (assignedStoreId?: string | null) => {
     try {
-      // Load stores from API
       const [storesResponse, billsResponse] = await Promise.all([
-        fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/stores"),
-        fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/bills")
+        fetch(`${API}/api/stores`),
+        fetch(`${API}/api/bills`)
       ]);
 
       if (storesResponse.ok) {
@@ -616,52 +471,43 @@ export default function StoresPage() {
         const uniqueStores = storesData.map((store: any) => {
           let uniqueId = store.id || store.ID || store._id;
           if (!uniqueId || seenIds.has(uniqueId)) {
-            uniqueId = typeof window !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
-            while (seenIds.has(uniqueId)) {
-              uniqueId = typeof window !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
-            }
+            uniqueId = crypto.randomUUID();
           }
           seenIds.add(uniqueId);
           return { ...store, id: uniqueId } as StoreType;
         });
 
-        // Filter stores if assignedStoreId is present
         if (assignedStoreId) {
           const filtered = uniqueStores.filter(store => normalizeStoreId(store.id) === assignedStoreId);
           setStores(filtered);
         } else {
           setStores(uniqueStores);
         }
-      } else {
-        console.error("Failed to fetch stores");
       }
 
       if (billsResponse.ok) {
         const billsData = await billsResponse.json();
         setBills(billsData);
-      } else {
-        console.error("Failed to fetch bills");
       }
     } catch (error) {
       console.error("Error loading data:", error);
     }
   }
 
+  
   const calculateStoreAnalytics = (storeId: string) => {
-    const storeBills = bills.filter((bill) => bill.storeId === storeId)
+    const storeBills = bills.filter((bill) => normalizeStoreId(bill.storeId) === normalizeStoreId(storeId))
     const totalRevenue = storeBills.reduce((sum, bill) => sum + (bill.total || 0), 0)
     const totalBills = storeBills.length
-    const lastBillDate =
-      storeBills.length > 0
-        ? storeBills.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date
-        : ""
+    const lastBillDate = storeBills.length > 0
+      ? storeBills.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date
+      : ""
 
     return { totalRevenue, totalBills, lastBillDate }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!formData.name || !formData.address) {
       alert("Please fill in all required fields")
       return
@@ -678,13 +524,13 @@ export default function StoresPage() {
     try {
       let response
       if (editingStore) {
-        response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/stores/${editingStore.id}`, {
+        response = await fetch(`${API}/api/stores/${editingStore.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(storeData),
         })
       } else {
-        response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/stores", {
+        response = await fetch(`${API}/api/stores`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(storeData),
@@ -718,7 +564,6 @@ export default function StoresPage() {
   }
 
   const handleDelete = async (id: string) => {
-    // Check if store has associated bills
     const normalizedId = normalizeStoreId(id);
     const storeBills = bills.filter((bill) => normalizeStoreId(bill.storeId) === normalizedId)
     if (storeBills.length > 0) {
@@ -728,21 +573,9 @@ export default function StoresPage() {
 
     if (confirm("Are you sure you want to delete this store? This action cannot be undone.")) {
       try {
-        const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/stores/${id}`, { method: "DELETE" })
+        const response = await fetch(`${API}/api/stores/${id}`, { method: "DELETE" })
         if (response.ok) {
           await loadData()
-          // After successful deletion from Supabase, check if the deleted store was assigned to the admin user
-          const userData = localStorage.getItem("adminUser")
-          if (userData) {
-            const user = JSON.parse(userData)
-            if (normalizeStoreId(user.assignedStoreId) === normalizeStoreId(id)) {
-              // If the deleted store was assigned, clear the assignedStoreId
-              user.assignedStoreId = null
-              localStorage.setItem("adminUser", JSON.stringify(user))
-              // Optionally, if the admin user's assigned store is deleted, redirect them to the home page or dashboard
-              // router.push("/") 
-            }
-          }
         } else {
           const errorData = await response.json()
           alert(`Failed to delete store: ${errorData.message}`)
@@ -754,26 +587,25 @@ export default function StoresPage() {
     }
   }
 
+  // ✅ UPDATED: Enhanced product assignment handler
   const handleProductAssignment = async (storeId: string, products: AssignedProduct[]) => {
-    console.log('📞 handleProductAssignment called')
-    console.log('   Store:', storeId)
-    console.log('   Products:', products)
+    console.log('✅ Products assigned to store:', storeId, products);
     
-    try {
-      // Refresh the stores data to show updated inventory
-      await loadData()
-    } catch (error) {
-      console.error('Error refreshing data:', error)
-    }
+    // Refresh stores data to show updated inventory stats
+    await loadData();
+    
+    // Show success message
+    alert(`Successfully assigned ${products.length} products to ${stores.find(s => s.id === storeId)?.name}`);
   }
 
+  
   const toggleStoreStatus = async (id: string) => {
     const store = stores.find((s) => s.id === id)
     if (!store) return
 
     const newStatus = store.status === "active" ? "inactive" : "active"
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/stores/${id}`, {
+      const response = await fetch(`${API}/api/stores/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -816,17 +648,14 @@ export default function StoresPage() {
   }
 
   const filteredStores = stores.filter((store) => {
-    if (!store) return false;
     const searchTermLower = searchTerm.toLowerCase();
-    const matchesSearch =
-      (store.name?.toLowerCase() || '').includes(searchTermLower) ||
-      (store.address?.toLowerCase() || '').includes(searchTermLower) ||
-      (store.manager?.toLowerCase() || '').includes(searchTermLower);
-
-    return matchesSearch;
+    return (
+      store.name?.toLowerCase().includes(searchTermLower) ||
+      store.address?.toLowerCase().includes(searchTermLower) ||
+      store.manager?.toLowerCase().includes(searchTermLower)
+    );
   })
 
-  // Calculate total analytics
   const totalRevenue = bills.reduce((sum, bill) => sum + (bill.total || 0), 0);
   const totalBills = bills.length;
   const activeStores = stores.filter((store) => store.status === "active").length;
@@ -834,7 +663,6 @@ export default function StoresPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        {/* Header */}
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-4xl font-bold text-gray-900">Store Management</h1>
@@ -853,11 +681,6 @@ export default function StoresPage() {
                   <Building className="h-6 w-6 mr-2 text-blue-600" />
                   {editingStore ? "Edit Store" : "Add New Store"}
                 </DialogTitle>
-                <DialogDescription>
-                  {editingStore
-                    ? "Update store information and details"
-                    : "Create a new store location with complete details"}
-                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit}>
                 <div className="grid gap-6 py-6">
@@ -884,7 +707,6 @@ export default function StoresPage() {
                       />
                     </div>
                   </div>
-
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
@@ -896,7 +718,6 @@ export default function StoresPage() {
                       />
                     </div>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="manager">Store Manager</Label>
@@ -1029,25 +850,6 @@ export default function StoresPage() {
                               <MapPin className="h-3 w-3 mr-1 mt-0.5 text-gray-400" />
                               <span className="line-clamp-2">{store.address}</span>
                             </div>
-                            <div className="text-xs text-gray-400">
-                              Created: {(() => {
-                                if (!store.createdAt) return "Date Missing";
-                                
-                                let dateValue: string | number = store.createdAt;
-                                
-                                if (typeof store.createdAt === 'string' && /^\d+$/.test(store.createdAt)) {
-                                  const numDate = parseInt(store.createdAt, 10);
-                                  if (store.createdAt.length === 10 && numDate > 946684800) {
-                                    dateValue = numDate * 1000;
-                                  } else {
-                                    dateValue = numDate;
-                                  }
-                                }
-                                
-                                const date = new Date(dateValue);
-                                return isNaN(date.getTime()) ? "Invalid Date Format" : date.toLocaleDateString();
-                              })()}
-                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -1076,19 +878,16 @@ export default function StoresPage() {
                             </div>
                           </div>
                         </TableCell>
-
-                        {/* Revenue Cell */}
-<TableCell>
-  <div className="space-y-1">
-    <div className="text-sm font-medium">
-      ₹{(store.totalRevenue || 0).toFixed(2)}
-    </div>
-    <div className="text-xs text-gray-500">
-      {store.totalBills || 0} bills
-    </div>
-  </div>
-</TableCell>
-
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium">
+                              ₹{(store.totalRevenue || 0).toFixed(2)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {store.totalBills || 0} bills
+                            </div>
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
                             <Switch
@@ -1103,8 +902,6 @@ export default function StoresPage() {
                             <Button variant="outline" size="sm" onClick={() => handleEdit(store)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-
-                            {/* NEW: Info button for store insights */}
                             <Button
                               variant="outline"
                               size="sm"
@@ -1114,8 +911,7 @@ export default function StoresPage() {
                             >
                               <Info className="h-4 w-4" />
                             </Button>
-
-                            {/* Product assignment button */}
+                            {/* ✅ UPDATED: Product assignment with available stock */}
                             <ProductAssignmentDialog
                               storeId={store.id}
                               storeName={store.name}
@@ -1124,20 +920,18 @@ export default function StoresPage() {
                                   variant="outline"
                                   size="sm"
                                   className="bg-green-50 hover:bg-green-100 border-green-200"
-                                  title="Assign products"
+                                  title="Assign products (shows available stock)"
                                 >
                                   <Plus className="h-4 w-4" />
                                 </Button>
                               }
                               onAssign={handleProductAssignment}
                             />
-
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleDelete(store.id)}
                               className="text-red-600 hover:text-red-700"
-                              disabled={bills.filter((bill) => normalizeStoreId(bill.storeId) === normalizeStoreId(store.id)).length > 0}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

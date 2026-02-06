@@ -29,6 +29,7 @@ from routes.printing import printing_bp
 from routes.analytics import analytics_bp
 from routes.sync import sync_bp
 from routes.admin import admin_bp
+from routes.hsn_codes import hsn_codes_bp
 
 # Import export script
 from scripts.export_data import export_all_data_from_supabase
@@ -98,6 +99,7 @@ def create_app(config_name='default'):
     app.register_blueprint(analytics_bp)
     app.register_blueprint(sync_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(hsn_codes_bp)
     
     # Register middleware
     @app.before_request

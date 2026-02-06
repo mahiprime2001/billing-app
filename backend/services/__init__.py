@@ -14,6 +14,7 @@ from . import notifications_service
 from . import settings_service
 from . import analytics_service
 from . import sync_service
+from . import hsn_codes_service
 
 __all__ = [
     'products_service',
@@ -27,5 +28,6 @@ __all__ = [
     'notifications_service',
     'settings_service',
     'analytics_service',
-    'sync_service'
+    'sync_service',
+    'hsn_codes_service'
 ]

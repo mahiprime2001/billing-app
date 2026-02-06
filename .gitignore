@@ -7,3 +7,4 @@ backend/dist/
 backend/*.spec
 backend/build/
 GEMINI.md
+backend/data/

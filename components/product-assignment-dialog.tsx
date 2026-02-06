@@ -32,6 +32,10 @@ export type AssignedProduct = {
   name: string
   price: number
   stock?: number
+  availableStock?: number // Available stock for assignment (global - total allocated)
+  currentStoreStock?: number // Current stock assigned to this store
+  totalAllocated?: number // Total allocated across all stores
+  globalStock?: number // Global stock from products table
 }
 
 type Props = {
@@ -63,7 +67,7 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
   const fetchProducts = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/api/products`)
+      const res = await fetch(`${API}/api/stores/${storeId}/available-products`)
       if (res.ok) {
         const data = await res.json()
         setProducts(data)
@@ -93,7 +97,7 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
 
   const getProductStock = (productId: string): number => {
     const product = products.find(p => (p.id || p.barcode) === productId)
-    return product?.stock || 0
+    return product?.availableStock || 0
   }
 
   const updateQuantity = (id: string, delta: number) => {
@@ -258,7 +262,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                       filteredProducts.map((p) => {
                         const key = p.id || p.barcode
                         const isSelected = selected[key]
-                        const hasStock = (p.stock || 0) > 0
+                        const hasStock = (p.availableStock || 0) > 0
                         
                         return (
                           <TableRow
@@ -287,8 +291,8 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                             <TableCell className="font-medium">{p.name}</TableCell>
                             <TableCell className="text-right font-semibold">₹{p.price?.toFixed(2)}</TableCell>
                             <TableCell className="text-center">
-                              <Badge variant={p.stock === 0 ? "destructive" : "outline"}>
-                                {p.stock || 0}
+                              <Badge variant={p.availableStock === 0 ? "destructive" : "outline"}>
+                                {p.availableStock || 0}
                               </Badge>
                             </TableCell>
                           </TableRow>
@@ -328,7 +332,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                 {selectedProductsList.map(p => {
                   const key = p.id || p.barcode
                   const qty = quantityMap[key] || 0
-                  const availableStock = p.stock || 0
+                  const availableStock = p.availableStock || 0
                   const isOverStock = qty > availableStock
                   
                   return (
@@ -338,7 +342,10 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                           <div className="font-medium truncate">{p.name}</div>
                           <div className="text-xs text-muted-foreground font-mono mt-0.5">{p.barcode}</div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            Stock: <span className="font-semibold">{availableStock}</span>
+                            Available: <span className="font-semibold">{availableStock}</span>
+                            {p.currentStoreStock && p.currentStoreStock > 0 && (
+                              <> • Already assigned: <span className="font-semibold">{p.currentStoreStock}</span></>
+                            )}
                           </div>
                         </div>
                         <Button

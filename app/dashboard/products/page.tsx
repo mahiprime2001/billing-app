@@ -69,6 +69,12 @@ interface SystemStore {
   status: string
 }
 
+// NEW: HSN Code interface
+interface HsnCode {
+  id: string;
+  hsnCode: string;
+}
+
 const fetcher = async (url: string) => {
   try {
     const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`);
@@ -84,13 +90,14 @@ const fetcher = async (url: string) => {
   }
 };
 
+
+
 export default function ProductsPage() {
   const router = useRouter();
   // Extend ProductType to include a 'barcodes' array for UI display purposes only
   interface Product extends ProductType {
     barcodes: string[];
   }
-
   const { data: productsData = [], error: productsError, isLoading: productsLoading, mutate } = useSWR<ProductType[]>(
     "/api/products",
     fetcher,
@@ -112,6 +119,17 @@ export default function ProductsPage() {
     }
   );
 
+  // Add this new SWR hook
+  const { data: hsnCodes = [], error: hsnError, isLoading: hsnLoading } = useSWR<HsnCode[]>(
+    "/api/hsn-codes",           // ← adjust endpoint to match your real API route
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 10000,
+      refreshInterval: 0,
+    }
+  );
   // Normalize data on fetch to create a 'barcodes' array from the 'barcode' string for UI
   const products: Product[] = useMemo(() => {
   if (!productsData || productsData.length === 0) return [];
@@ -129,7 +147,6 @@ export default function ProductsPage() {
     }))
     .filter(p => !(p as any)._deleted);
 }, [productsData]);
-
 
   // Debugging logs for SWR data
     // Debugging logs for SWR data
@@ -236,6 +253,9 @@ export default function ProductsPage() {
     setIsViewProductsForBatchDialogOpen(true);
   };
 
+  // NEW: Handle HSN code selection
+ 
+
   // Form states
   const [formData, setFormData] = useState({
     name: "",
@@ -248,6 +268,18 @@ export default function ProductsPage() {
     hsnCode: "",
   });
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
+
+   const handleHsnCodeChange = (value: string, isEdit: boolean = false) => {
+    const selectedHsn = hsnCodes.find((h) => h.id === value);
+    
+    // Auto-fill tax rate if HSN code selected and no manual tax entered
+    setFormData(prev => ({
+      ...prev,
+      hsnCode: value,
+      // Auto-fill tax only if tax field is empty
+      tax: !prev.tax && selectedHsn ? selectedHsn.hsnCode.toString() : prev.tax,
+    }));
+  };
 
   useEffect(() => {
     const userData = localStorage.getItem("adminUser");
@@ -416,7 +448,7 @@ export default function ProductsPage() {
       barcode: validBarcodes.join(","), // Join array into a comma-separated string for 'barcode' field
       batchid: formData.batchid === "" ? undefined : formData.batchid, // Send undefined if batchid is empty
       tax: formData.tax ? Number.parseFloat(formData.tax) : 0,
-      hsnCode: formData.hsnCode ? formData.hsnCode.trim() : undefined,
+      hsnCode: formData.hsnCode || undefined,
     };
 
     try {
@@ -1121,31 +1153,35 @@ const handleDeleteProduct = async (productId: string) => {
                       />
                     </div>
                     <div className="space-y-2">
-  <Label htmlFor="tax">Tax (%)</Label>
-  <Input
-    id="tax"
-    type="number"
-    min="0"
-    step="0.01"
-    value={formData.tax}
-    onChange={(e) => setFormData({ ...formData, tax: e.target.value })}
-    placeholder="0.00"
-  />
-</div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="hsnCode">HSN Code</Label>
-                      <Input
-                        id="hsnCode"
-                        value={formData.hsnCode}
-                        onChange={(e) => setFormData({ ...formData, hsnCode: e.target.value })}
-                        placeholder="Enter HSN code"
-                      />
+                      <Label htmlFor="tax">Tax (%)</Label>
+                      <Input id="tax" type="number" min="0" step="0.01" value={formData.tax}onChange={(e) => setFormData({ ...formData, tax: e.target.value })}placeholder="0.00"/>
                     </div>
                   </div>
-                  
-                  {/* Batch Selection (Optional) */}
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-2">
+                    <Label htmlFor="hsnCode">HSN Code</Label>
+                    <Select
+                      value={formData.hsnCode}
+                      onValueChange={(value) => handleHsnCodeChange(value, false)}
+                    >
+                      <SelectTrigger id="hsnCode">
+                        <SelectValue placeholder="Select HSN Code" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {hsnCodes.map((hsn) => (
+                          <SelectItem key={hsn.id} value={hsn.id}>
+                            {hsn.hsnCode}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formData.hsnCode && (
+                      <p className="text-xs text-muted-foreground">
+                        Tax rate auto-filled from HSN code
+                      </p>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="batch">Batch (Optional)</Label>
                     <Select
@@ -1179,6 +1215,10 @@ const handleDeleteProduct = async (productId: string) => {
                       </SelectContent>
                     </Select>
                   </div>
+                  </div>
+                  
+                  {/* Batch Selection (Optional) */}
+                  
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label>Barcodes *</Label>
@@ -1422,33 +1462,46 @@ const handleDeleteProduct = async (productId: string) => {
                           </div>
                         </td>
                        
-{/* Price column - Your cost price */}
-<td className="p-4">
-  <span className="font-medium">
-    ₹{Number(product.price ?? 0).toFixed(2)}
-  </span>
-</td>
+                        {/* Price column - Your cost price */}
+                        <td className="p-4">
+                          <span className="font-medium">
+                            ₹{Number(product.price ?? 0).toFixed(2)}
+                          </span>
+                        </td>
 
-{/* Selling Price column - Customer price */}
-<td className="p-4">
-  <span className="font-medium">
-    ₹{Number((product as any).sellingPrice ?? (product as any).selling_price ?? 0).toFixed(2)}
-  </span>
-</td>
+                        {/* Selling Price column - Customer price */}
+                        <td className="p-4">
+                          <span className="font-medium">
+                            ₹{Number((product as any).sellingPrice ?? (product as any).selling_price ?? 0).toFixed(2)}
+                          </span>
+                        </td>
 
-<td className="p-4">
-  <span className="font-medium">
-    {Number((product as any).tax ?? 0).toFixed(2)}%
-  </span>
-</td>
+                        <td className="p-4">
+                          <span className="font-medium">
+                            {Number((product as any).tax ?? 0).toFixed(2)}%
+                          </span>
+                        </td>
 
-<td className="p-4">
-  <span className="font-medium">
-    {(product as any).hsnCode != null ? String((product as any).hsnCode) : "N/A"}
-  </span>
-</td>
-
-
+                        <td className="p-4">
+                          <span className="font-medium">
+                          {(() => {
+                                  const hsnCodeId = product.hsnCode;
+                                  if (!hsnCodeId || hsnCodeId === "null" || hsnCodeId === null) {
+                                    return <span className="font-medium text-gray-400">N/A</span>;
+                                  }
+                                  
+                                  const hsnCode = hsnCodes.find(h => 
+                                    String(h.id) === String(hsnCodeId)
+                                  );
+                                  
+                                  return hsnCode ? (
+                                    <span className="font-medium">{hsnCode.hsnCode}</span>
+                                  ) : (
+                                    <span className="font-medium text-gray-500">{String(hsnCodeId)}</span>
+                                  );
+                                })()}
+                          </span>
+                        </td>
                         <td className="p-4">
                           <span className="font-medium">{product.stock}</span>
                         </td>
@@ -2017,16 +2070,29 @@ return (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-hsnCode">HSN Code</Label>
-                  <Input
-                    id="edit-hsnCode"
-                    value={formData.hsnCode}
-                    onChange={(e) => setFormData({ ...formData, hsnCode: e.target.value })}
-                    placeholder="Enter HSN code"
-                  />
+                  <Select
+                    value={formData.hsnCode || "none"}
+                    onValueChange={(value) => handleHsnCodeChange(value === "none" ? "" : value, true)}
+                  >
+                    <SelectTrigger id="edit-hsnCode">
+                      <SelectValue placeholder="Select HSN Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {hsnCodes.map((hsn) => (
+                        <SelectItem key={hsn.id} value={hsn.id}>
+                          {hsn.hsnCode}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formData.hsnCode && (
+                    <p className="text-xs text-muted-foreground">
+                      Tax rate auto-filled from HSN code
+                    </p>
+                  )}
                 </div>
-              </div>
-              {/* Batch Selection for Edit Product (Optional) */}
-              <div className="space-y-2">
+                <div className="space-y-2">
                 <Label htmlFor="edit-batch">Batch (Optional)</Label>
                 <Select
                   value={formData.batchid || ""}
@@ -2059,6 +2125,9 @@ return (
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+              {/* Batch Selection for Edit Product (Optional) */}
+              
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Barcodes *</Label>
@@ -2166,12 +2235,22 @@ return (
     <div className="grid gap-4 py-4">
       <div className="space-y-2">
         <Label htmlFor="bulk-hsn">HSN Code</Label>
-        <Input
-          id="bulk-hsn"
-          value={bulkHsnValue}
-          onChange={(e) => setBulkHsnValue(e.target.value)}
-          placeholder="Enter HSN code (e.g., 7113)"
-        />
+        <Select
+          value={bulkHsnValue || "none"}
+          onValueChange={(value) => setBulkHsnValue(value === "none" ? "" : value)}
+        >
+          <SelectTrigger id="bulk-hsn">
+            <SelectValue placeholder="Select HSN Code" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None</SelectItem>
+            {hsnCodes.map((hsn) => (
+              <SelectItem key={hsn.id} value={hsn.id}>
+                {hsn.hsnCode}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
     <DialogFooter>

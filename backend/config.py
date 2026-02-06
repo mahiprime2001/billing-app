@@ -65,6 +65,7 @@ class Config:
     SESSIONS_FILE = os.path.join(JSON_DIR, "user_sessions.json")
     USERSTORES_FILE = os.path.join(JSON_DIR, "userstores.json")
     STOREINVENTORY_FILE = os.path.join(JSON_DIR, "storeinventory.json")
+    HSN_CODES_FILE = os.path.join(JSON_DIR, "hsn_codes.json")
 
     # Tauri settings
     TAURI_BASE = os.environ.get("TAURI_HTTP_BASE", "http://127.0.0.1:5050")

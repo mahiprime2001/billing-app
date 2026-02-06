@@ -83,7 +83,7 @@ def get_products():
 
 @products_bp.route('/products', methods=['POST'])
 def create_product():
-    """Create product - OFFLINE FIRST approach"""
+    """Create product - OFFLINE FIRST approach with HSN auto-fill"""
     try:
         product_data = request.json
         product_id, message, status_code = products_service.create_product(product_data)
@@ -106,7 +106,7 @@ def create_product():
 
 @products_bp.route('/products/<product_id>', methods=['PUT'])
 def update_product(product_id):
-    """Update product - OFFLINE FIRST approach"""
+    """Update product - OFFLINE FIRST approach with HSN auto-fill"""
     try:
         update_data = request.json
         success, message, status_code = products_service.update_product(product_id, update_data)

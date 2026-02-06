@@ -155,6 +155,20 @@ def save_batches_data(batches: List[Dict]) -> bool:
 
 
 # ============================================
+# HSN CODES
+# ============================================
+
+def get_hsn_codes_data() -> List[Dict]:
+    """Get HSN codes from local JSON (PRIMARY source)"""
+    return _safe_json_load(Config.HSN_CODES_FILE, [])
+
+
+def save_hsn_codes_data(hsn_codes: List[Dict]) -> bool:
+    """Save HSN codes to local JSON (PRIMARY storage)"""
+    return _safe_json_dump(Config.HSN_CODES_FILE, hsn_codes)
+
+
+# ============================================
 # RETURNS
 # ============================================
 
