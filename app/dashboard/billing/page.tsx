@@ -845,7 +845,7 @@ export default function BillingPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-full overflow-x-auto">
         {!isOnline && <OfflineBanner />}
 
         <div className="flex justify-between items-center">

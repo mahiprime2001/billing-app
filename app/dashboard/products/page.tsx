@@ -384,6 +384,12 @@ export default function ProductsPage() {
       }
     }
 
+    const normalizeHsnCode = (value: unknown) => {
+      if (value == null) return undefined;
+      const str = String(value).trim();
+      return str === "" ? undefined : str;
+    };
+
     const newProduct: Omit<ProductType, "id" | "createdAt" | "updatedAt"> = {
       name: formData.name,
       price: Number.parseFloat(formData.price),
@@ -392,7 +398,7 @@ export default function ProductsPage() {
       barcode: validBarcodes.join(","), // Join array into a comma-separated string for 'barcode' field
       batchid: formData.batchid,
       tax: formData.tax ? Number.parseFloat(formData.tax) : 0,
-      hsnCode: formData.hsnCode ? formData.hsnCode.trim() : undefined,
+      hsnCode: normalizeHsnCode(formData.hsnCode),
     };
 
     try {
@@ -440,6 +446,12 @@ export default function ProductsPage() {
         }
     }
 
+    const normalizeHsnCode = (value: unknown) => {
+      if (value == null) return undefined;
+      const str = String(value).trim();
+      return str === "" ? undefined : str;
+    };
+
     const updatedProduct: Partial<ProductType> = {
       name: formData.name,
       price: Number.parseFloat(formData.price),
@@ -448,7 +460,7 @@ export default function ProductsPage() {
       barcode: validBarcodes.join(","), // Join array into a comma-separated string for 'barcode' field
       batchid: formData.batchid === "" ? undefined : formData.batchid, // Send undefined if batchid is empty
       tax: formData.tax ? Number.parseFloat(formData.tax) : 0,
-      hsnCode: formData.hsnCode || undefined,
+      hsnCode: normalizeHsnCode(formData.hsnCode),
     };
 
     try {
@@ -926,13 +938,13 @@ const handleDeleteProduct = async (productId: string) => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <div className="flex justify-between items-center">
+      <div className="w-full min-w-0 space-y-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Product Management</h1>
             <p className="text-gray-600 mt-2">Manage your inventory and product catalog</p>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-3">
             {/* Calendar popover */}
             <div className="relative">
               <Button variant="outline" onClick={() => setCalendarOpen((v) => !v)}>

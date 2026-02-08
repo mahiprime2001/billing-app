@@ -559,5 +559,27 @@
       "record_id": "BILL-314f8525ae6e",
       "operation_type": "DELETE"
     }
+  },
+  {
+    "id": 52,
+    "timestamp": "2026-02-08T15:00:37.521918",
+    "eventType": "Products_delete_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "84676894-f542-4651-9e0f-af8858bdea1f",
+      "operation_type": "DELETE"
+    }
+  },
+  {
+    "id": 53,
+    "timestamp": "2026-02-08T15:19:59.558439",
+    "eventType": "Products_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "5dc57f7a-0f7d-4325-9c59-776ecb469782",
+      "operation_type": "CREATE"
+    }
   }
 ]

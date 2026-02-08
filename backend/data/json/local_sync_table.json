@@ -127,22 +127,6 @@
     "created_at": "2026-02-02T13:52:06.906201"
   },
   {
-    "id": 25,
-    "sync_time": "2026-02-06T15:54:02.750365",
-    "table_name": "Products",
-    "change_type": "DELETE",
-    "record_id": "84676894-f542-4651-9e0f-af8858bdea1f",
-    "change_data": {
-      "id": "84676894-f542-4651-9e0f-af8858bdea1f",
-      "barcodes": null
-    },
-    "status": "pending",
-    "retry_count": 0,
-    "last_retry": null,
-    "error_message": null,
-    "created_at": "2026-02-06T15:54:02.750365"
-  },
-  {
     "id": 26,
     "sync_time": "2026-02-06T15:54:15.223366",
     "table_name": "Products",
@@ -344,5 +328,43 @@
     "last_retry": null,
     "error_message": null,
     "created_at": "2026-02-06T18:06:28.333697"
+  },
+  {
+    "id": 39,
+    "sync_time": "2026-02-08T15:00:37.516825",
+    "table_name": "Products",
+    "change_type": "DELETE",
+    "record_id": "84676894-f542-4651-9e0f-af8858bdea1f",
+    "change_data": {
+      "id": "84676894-f542-4651-9e0f-af8858bdea1f",
+      "barcodes": null
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-08T15:00:37.516862"
+  },
+  {
+    "id": 40,
+    "sync_time": "2026-02-08T15:19:59.553414",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "5dc57f7a-0f7d-4325-9c59-776ecb469782",
+    "change_data": {
+      "name": "testing2",
+      "price": 567,
+      "stock": 30,
+      "sellingPrice": 852,
+      "batchid": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+      "tax": 5,
+      "hsnCode": "2",
+      "barcodes": "2026020814655"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-08T15:19:59.553433"
   }
 ]

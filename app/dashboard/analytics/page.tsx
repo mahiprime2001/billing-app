@@ -602,7 +602,7 @@ export default function AdvancedAnalyticsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 p-6 max-w-full overflow-x-auto">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

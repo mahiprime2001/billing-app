@@ -256,7 +256,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset>
+      <SidebarInset className="min-w-0 w-full">
         <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background px-4">
           <SidebarTrigger />
           <div className="flex-1 text-sm font-medium">{pageTitle}</div>
@@ -275,7 +275,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         </header>
 
-        <main className="p-4">{children}</main>
+        <main className="p-4 min-w-0 w-full">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   )
