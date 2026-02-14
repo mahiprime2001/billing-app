@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Upload } from "lucide-react";
@@ -133,6 +134,9 @@ export default function BillingPage() {
   const [isCustomerViewDialogOpen, setIsCustomerViewDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedBillIds, setSelectedBillIds] = useState<string[]>([]);
+  const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Form state
   const [customerName, setCustomerName] = useState("");
@@ -517,21 +521,57 @@ export default function BillingPage() {
     }
   };
 
-  const deleteBill = async (id: string) => {
-    console.log("deleteBill: Deleting bill with ID", id);
+  const deleteBills = async (ids: string[]) => {
+    if (ids.length === 0) return;
     try {
-      const response = await api.delete(`/api/bills/${id}`);
-      console.log("deleteBill: API Response for deletion of", id, response);
-
-      if (!response.status.toString().startsWith("2")) {
+      const responses = await Promise.all(ids.map((id) => api.delete(`/api/bills/${id}`)));
+      const hasFailures = responses.some((response) => !response.status.toString().startsWith("2"));
+      if (hasFailures) {
         throw new Error("Failed to delete bill");
       }
 
-      // Immediate refresh after deleting
+      setSelectedBillIds((prev) => prev.filter((id) => !ids.includes(id)));
+      setDeleteTargetIds([]);
+      setIsDeleteDialogOpen(false);
       refetchBills();
     } catch (error) {
-      console.error("Error deleting bill", error);
+      console.error("Error deleting bills", error);
     }
+  };
+
+  const openDeleteDialog = (billId: string) => {
+    setDeleteTargetIds([billId]);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const openBulkDeleteDialog = () => {
+    if (selectedBillIds.length === 0) return;
+    setDeleteTargetIds(selectedBillIds);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const toggleBillSelection = (billId: string, checked: boolean) => {
+    setSelectedBillIds((prev) => {
+      if (checked) {
+        if (prev.includes(billId)) return prev;
+        return [...prev, billId];
+      }
+      return prev.filter((id) => id !== billId);
+    });
+  };
+
+  const toggleSelectAllFilteredBills = (checked: boolean) => {
+    const filteredIds = filteredBills.map((bill: Bill) => bill.id);
+
+    if (!checked) {
+      setSelectedBillIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
+      return;
+    }
+
+    setSelectedBillIds((prev) => {
+      const merged = new Set([...prev, ...filteredIds]);
+      return Array.from(merged);
+    });
   };
 
   const viewBill = (bill: Bill) => {
@@ -797,6 +837,10 @@ export default function BillingPage() {
     const searchLower = billSearchTerm.toLowerCase();
     return customerName.toLowerCase().includes(searchLower) || billId.includes(searchLower);
   });
+  const allFilteredBillsSelected =
+    filteredBills.length > 0 && filteredBills.every((bill) => selectedBillIds.includes(bill.id));
+  const someFilteredBillsSelected =
+    !allFilteredBillsSelected && filteredBills.some((bill) => selectedBillIds.includes(bill.id));
 
   const filteredCustomers = currentCustomers.filter((customer: Customer) => {
     const customerName = customer.name || "";
@@ -809,6 +853,11 @@ export default function BillingPage() {
       customerPhone.toLowerCase().includes(searchLower)
     );
   });
+
+  useEffect(() => {
+    const currentBillIdSet = new Set(currentBills.map((bill) => bill.id));
+    setSelectedBillIds((prev) => prev.filter((id) => currentBillIdSet.has(id)));
+  }, [currentBills]);
 
   const { subtotal, tax, discountAmount, total } = calculateTotals();
 
@@ -1132,14 +1181,22 @@ export default function BillingPage() {
               <CardHeader>
                 <CardTitle>Bills History</CardTitle>
                 <CardDescription>{currentBills.length} bills created</CardDescription>
-                <div className="flex items-center space-x-2">
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search bills..."
-                    value={billSearchTerm}
-                    onChange={(e) => setBillSearchTerm(e.target.value)}
-                    className="max-w-sm"
-                  />
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search bills..."
+                      value={billSearchTerm}
+                      onChange={(e) => setBillSearchTerm(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                  {selectedBillIds.length > 0 && (
+                    <Button variant="destructive" size="sm" onClick={openBulkDeleteDialog}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Selected ({selectedBillIds.length})
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -1147,6 +1204,13 @@ export default function BillingPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={allFilteredBillsSelected || (someFilteredBillsSelected ? "indeterminate" : false)}
+                            onCheckedChange={(checked) => toggleSelectAllFilteredBills(checked === true)}
+                            aria-label="Select all bills"
+                          />
+                        </TableHead>
                         <TableHead>Bill ID</TableHead>
                         <TableHead>Customer</TableHead>
                         <TableHead>Date</TableHead>
@@ -1160,6 +1224,13 @@ export default function BillingPage() {
                     <TableBody>
                       {filteredBills.map((bill: Bill) => (
                         <TableRow key={bill.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedBillIds.includes(bill.id)}
+                              onCheckedChange={(checked) => toggleBillSelection(bill.id, checked === true)}
+                              aria-label={`Select bill ${bill.id}`}
+                            />
+                          </TableCell>
                           <TableCell className="font-mono">{bill.id}</TableCell>
                           <TableCell>
                             <div>
@@ -1193,36 +1264,9 @@ export default function BillingPage() {
                               <Button variant="outline" size="sm" onClick={() => handlePrintBill(bill)}>
                                 <Printer className="h-4 w-4" />
                               </Button>
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button variant="outline" size="sm">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Are you sure?</DialogTitle>
-                                    <DialogDescription>
-                                      This action cannot be undone. This will permanently delete the bill {bill.id}.
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <DialogFooter>
-                                    <Button
-                                      variant="outline"
-                                      onClick={() =>
-                                        (
-                                          document.querySelector('[data-state="open"]') as HTMLElement
-                                        )?.click()
-                                      }
-                                    >
-                                      Cancel
-                                    </Button>
-                                    <Button variant="destructive" onClick={() => deleteBill(bill.id)}>
-                                      Delete
-                                    </Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
+                              <Button variant="outline" size="sm" onClick={() => openDeleteDialog(bill.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1424,6 +1468,38 @@ export default function BillingPage() {
                   Print Bill
                 </Button>
               )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={isDeleteDialogOpen}
+          onOpenChange={(open) => {
+            setIsDeleteDialogOpen(open);
+            if (!open) setDeleteTargetIds([]);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Are you sure?</DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. This will permanently delete{" "}
+                {deleteTargetIds.length > 1 ? `${deleteTargetIds.length} selected bills` : `bill ${deleteTargetIds[0] || ""}`}.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsDeleteDialogOpen(false);
+                  setDeleteTargetIds([]);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={() => deleteBills(deleteTargetIds)}>
+                Delete
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

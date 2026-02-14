@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   History,
   Search,
@@ -93,6 +94,8 @@ export default function BillingHistoryPage() {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [selectedSaleIds, setSelectedSaleIds] = useState<string[]>([])
+  const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([])
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [importLoading, setImportLoading] = useState(false)
@@ -272,27 +275,65 @@ export default function BillingHistoryPage() {
 
   const openDeleteDialog = (sale: Sale) => {
     setSelectedSale(sale)
+    setDeleteTargetIds([sale.id])
     setIsDeleteDialogOpen(true)
   }
 
+  const openBulkDeleteDialog = () => {
+    if (selectedSaleIds.length === 0) return
+    setSelectedSale(null)
+    setDeleteTargetIds(selectedSaleIds)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const toggleSaleSelection = (saleId: string, checked: boolean) => {
+    setSelectedSaleIds((prev) => {
+      if (checked) {
+        if (prev.includes(saleId)) return prev
+        return [...prev, saleId]
+      }
+      return prev.filter((id) => id !== saleId)
+    })
+  }
+
+  const toggleSelectAllFiltered = (checked: boolean) => {
+    const filteredIds = filteredSales.map((sale) => sale.id)
+    if (!checked) {
+      setSelectedSaleIds((prev) => prev.filter((id) => !filteredIds.includes(id)))
+      return
+    }
+
+    setSelectedSaleIds((prev) => {
+      const merged = new Set([...prev, ...filteredIds])
+      return Array.from(merged)
+    })
+  }
+
   const handleDeleteSale = async () => {
-    if (!selectedSale) return
+    if (deleteTargetIds.length === 0) return
 
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/bills/${selectedSale.id}`, {
-        method: "DELETE",
-      })
+      const deleteResponses = await Promise.all(
+        deleteTargetIds.map((billId) =>
+          fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/bills/${billId}`, {
+            method: "DELETE",
+          }),
+        ),
+      )
+      const allDeleted = deleteResponses.every((response) => response.ok)
 
-      if (response.ok) {
+      if (allDeleted) {
         // Reload sales to reflect the deletion
+        setSelectedSaleIds((prev) => prev.filter((id) => !deleteTargetIds.includes(id)))
         loadSales()
         setIsDeleteDialogOpen(false)
         setSelectedSale(null)
+        setDeleteTargetIds([])
       } else {
-        console.error("Failed to delete sale")
+        console.error("Failed to delete one or more sales")
       }
     } catch (error) {
-      console.error("Error deleting sale:", error)
+      console.error("Error deleting sales:", error)
     }
   }
 
@@ -410,6 +451,10 @@ export default function BillingHistoryPage() {
   }
 
   const stats = calculateStats()
+  const allFilteredSelected =
+    filteredSales.length > 0 && filteredSales.every((sale) => selectedSaleIds.includes(sale.id))
+  const someFilteredSelected =
+    !allFilteredSelected && filteredSales.some((sale) => selectedSaleIds.includes(sale.id))
 
   return (
     <BillingLayout>
@@ -553,7 +598,15 @@ export default function BillingHistoryPage() {
                 <FileText className="h-5 w-5 mr-2" />
                 Transaction History ({filteredSales.length})
               </div>
-              {filteredSales.length > 0 && <Badge variant="secondary">{filteredSales.length} results</Badge>}
+              <div className="flex items-center gap-2">
+                {selectedSaleIds.length > 0 && (
+                  <Button variant="destructive" size="sm" onClick={openBulkDeleteDialog}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Selected ({selectedSaleIds.length})
+                  </Button>
+                )}
+                {filteredSales.length > 0 && <Badge variant="secondary">{filteredSales.length} results</Badge>}
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -561,6 +614,13 @@ export default function BillingHistoryPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={allFilteredSelected || (someFilteredSelected ? "indeterminate" : false)}
+                        onCheckedChange={(checked) => toggleSelectAllFiltered(checked === true)}
+                        aria-label="Select all bills"
+                      />
+                    </TableHead>
                     <TableHead>Invoice ID</TableHead>
                     <TableHead>Date & Time</TableHead>
                     <TableHead>Customer</TableHead>
@@ -573,6 +633,13 @@ export default function BillingHistoryPage() {
                 <TableBody>
                   {filteredSales.map((sale) => (
                     <TableRow key={sale.id} className="hover:bg-gray-50">
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedSaleIds.includes(sale.id)}
+                          onCheckedChange={(checked) => toggleSaleSelection(sale.id, checked === true)}
+                          aria-label={`Select bill ${sale.id}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex flex-col">
                           <span>{sale.id}</span>
@@ -661,12 +728,22 @@ export default function BillingHistoryPage() {
             <DialogHeader>
               <DialogTitle>Are you sure?</DialogTitle>
               <DialogDescription>
-                This action cannot be undone. This will permanently delete the bill ({selectedSale?.id}) from the
-                system.
+                This action cannot be undone. This will permanently delete{" "}
+                {deleteTargetIds.length > 1
+                  ? `${deleteTargetIds.length} selected bills`
+                  : `the bill (${deleteTargetIds[0] ?? selectedSale?.id})`}{" "}
+                from the system.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsDeleteDialogOpen(false)
+                  setDeleteTargetIds([])
+                  setSelectedSale(null)
+                }}
+              >
                 Cancel
               </Button>
               <Button variant="destructive" onClick={handleDeleteSale}>

@@ -13,6 +13,7 @@ import useSWR, { mutate } from "swr"
 interface HsnCode {
   id: string
   hsnCode: string
+  tax: number
   createdAt?: string
 }
 
@@ -35,14 +36,17 @@ export const HSNManagementTab: React.FC = () => {
       return {
         id: String(uniqueId),
         hsnCode: c.hsnCode || c.hsn_code || c.code || "",
+        tax: Number(c.tax ?? 0),
         createdAt: c.createdAt || c.created_at || c.created || null,
       }
     })
   })()
 
   const [newHsnCode, setNewHsnCode] = useState("")
+  const [newTax, setNewTax] = useState("0")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editedHsnCode, setEditedHsnCode] = useState("")
+  const [editedTax, setEditedTax] = useState("0")
   const [isAdding, setIsAdding] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -55,13 +59,22 @@ export const HSNManagementTab: React.FC = () => {
       })
       return
     }
+    const parsedTax = Number.parseFloat(newTax)
+    if (Number.isNaN(parsedTax) || parsedTax < 0) {
+      toast({
+        title: "Error",
+        description: "Tax must be a valid non-negative number.",
+        variant: "destructive",
+      })
+      return
+    }
 
     setIsAdding(true)
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/hsn-codes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hsnCode: newHsnCode.trim() }),
+        body: JSON.stringify({ hsnCode: newHsnCode.trim(), tax: parsedTax }),
       })
 
       if (!response.ok) {
@@ -73,6 +86,7 @@ export const HSNManagementTab: React.FC = () => {
         description: "HSN code added successfully.",
       })
       setNewHsnCode("")
+      setNewTax("0")
       mutate("/api/hsn-codes")
     } catch (error) {
       console.error("Error adding HSN code:", error)
@@ -89,6 +103,7 @@ export const HSNManagementTab: React.FC = () => {
   const handleEditClick = (code: HsnCode) => {
     setEditingId(code.id)
     setEditedHsnCode(code.hsnCode)
+    setEditedTax(String(code.tax ?? 0))
   }
 
   const handleSaveEdit = async (hsnId: string) => {
@@ -100,13 +115,22 @@ export const HSNManagementTab: React.FC = () => {
       })
       return
     }
+    const parsedTax = Number.parseFloat(editedTax)
+    if (Number.isNaN(parsedTax) || parsedTax < 0) {
+      toast({
+        title: "Error",
+        description: "Tax must be a valid non-negative number.",
+        variant: "destructive",
+      })
+      return
+    }
 
     setIsSaving(true)
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/hsn-codes/${hsnId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hsnCode: editedHsnCode.trim() }),
+        body: JSON.stringify({ hsnCode: editedHsnCode.trim(), tax: parsedTax }),
       })
 
       if (!response.ok) {
@@ -188,6 +212,19 @@ export const HSNManagementTab: React.FC = () => {
                 disabled={isAdding}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="hsnTax">Tax (%)</Label>
+              <Input
+                id="hsnTax"
+                type="number"
+                min="0"
+                step="0.01"
+                value={newTax}
+                onChange={(e) => setNewTax(e.target.value)}
+                placeholder="e.g., 18"
+                disabled={isAdding}
+              />
+            </div>
             {isAdding ? (
               <Button disabled className="w-full">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -208,11 +245,12 @@ export const HSNManagementTab: React.FC = () => {
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>HSN Code</TableHead>
-                    <TableHead>Created At</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
+                    <TableRow>
+                      <TableHead>HSN Code</TableHead>
+                      <TableHead>Tax (%)</TableHead>
+                      <TableHead>Created At</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
                 </TableHeader>
                 <TableBody>
                   {codes.map((code) => (
@@ -226,6 +264,20 @@ export const HSNManagementTab: React.FC = () => {
                           />
                         ) : (
                           <span className="font-mono">{code.hsnCode}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {editingId === code.id ? (
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={editedTax}
+                            onChange={(e) => setEditedTax(e.target.value)}
+                            className="h-8"
+                          />
+                        ) : (
+                          <span>{Number(code.tax ?? 0).toFixed(2)}%</span>
                         )}
                       </TableCell>
                       <TableCell>

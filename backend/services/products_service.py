@@ -52,6 +52,43 @@ def process_barcodes(product_data: dict) -> str:
         return ','.join(sorted(list(set(all_barcodes))))
     return ""
 
+def _parse_tax_value(value) -> float:
+    """Safely parse numeric tax values."""
+    try:
+        if value is None or value == "":
+            return 0.0
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+def _get_hsn_tax_map() -> Dict[str, float]:
+    """Return HSN tax map keyed by HSN id from local JSON and Supabase."""
+    tax_map: Dict[str, float] = {}
+
+    # Local JSON (fallback)
+    try:
+        for code in get_hsn_codes_data():
+            code_id = code.get("id")
+            if code_id is None:
+                continue
+            tax_map[str(code_id)] = _parse_tax_value(code.get("tax"))
+    except Exception as e:
+        logger.warning(f"Failed to load HSN taxes from local JSON: {e}")
+
+    # Supabase (preferred)
+    try:
+        client = db.client
+        response = client.table("hsn_codes").select("id,tax").execute()
+        for code in response.data or []:
+            code_id = code.get("id")
+            if code_id is None:
+                continue
+            tax_map[str(code_id)] = _parse_tax_value(code.get("tax"))
+    except Exception as e:
+        logger.warning(f"Failed to load HSN taxes from Supabase: {e}")
+
+    return tax_map
+
 # ============================================
 # HSN CODE UTILITIES
 # ============================================
@@ -80,6 +117,7 @@ def get_local_products() -> List[Dict]:
     try:
         products = get_products_data()
         transformed_products = []
+        hsn_tax_map = _get_hsn_tax_map()
         
         for product in products:
             converted_product = convert_snake_to_camel(product)
@@ -87,6 +125,12 @@ def get_local_products() -> List[Dict]:
             # Convert hsn_code_id to hsnCode for frontend
             if 'hsnCodeId' in converted_product:
                 converted_product['hsnCode'] = converted_product.pop('hsnCodeId')
+
+            hsn_code_id = converted_product.get("hsnCode")
+            if hsn_code_id is not None and str(hsn_code_id).strip() != "":
+                converted_product["tax"] = hsn_tax_map.get(str(hsn_code_id), 0.0)
+            else:
+                converted_product["tax"] = 0.0
             
             # Set display price
             if 'sellingPrice' in converted_product and converted_product['sellingPrice']:
@@ -142,12 +186,19 @@ def get_supabase_products() -> List[Dict]:
         products = response.data or []
         
         transformed_products = []
+        hsn_tax_map = _get_hsn_tax_map()
         for product in products:
             converted_product = convert_snake_to_camel(product)
             
             # Convert hsn_code_id to hsnCode for frontend
             if 'hsnCodeId' in converted_product:
                 converted_product['hsnCode'] = converted_product.pop('hsnCodeId')
+
+            hsn_code_id = converted_product.get("hsnCode")
+            if hsn_code_id is not None and str(hsn_code_id).strip() != "":
+                converted_product["tax"] = hsn_tax_map.get(str(hsn_code_id), 0.0)
+            else:
+                converted_product["tax"] = 0.0
             
             # Set display price
             if 'sellingPrice' in converted_product and converted_product['sellingPrice']:
@@ -293,10 +344,15 @@ def create_product(product_data: dict) -> Tuple[Optional[str], str, int]:
         
         # Convert field names from camelCase to snake_case
         product_data = convert_camel_to_snake(product_data)
+
+        # Product tax is derived from HSN code; never store manual tax values on products.
+        product_data.pop("tax", None)
         
         # Convert hsn_code to hsn_code_id for database
         if 'hsn_code' in product_data:
             product_data['hsn_code_id'] = product_data.pop('hsn_code')
+        if "hsn_code_id" in product_data and not product_data.get("hsn_code_id"):
+            product_data["hsn_code_id"] = None
         
         # Generate ID if not present
         if 'id' not in product_data:
@@ -344,10 +400,15 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
         
         # Convert field names from camelCase to snake_case
         update_data = convert_camel_to_snake(update_data)
+
+        # Product tax is derived from HSN code; ignore manual tax updates.
+        update_data.pop("tax", None)
         
         # Convert hsn_code to hsn_code_id for database
         if 'hsn_code' in update_data:
             update_data['hsn_code_id'] = update_data.pop('hsn_code')
+        if "hsn_code_id" in update_data and not update_data.get("hsn_code_id"):
+            update_data["hsn_code_id"] = None
         
         # Find the product in local storage
         products = get_products_data()

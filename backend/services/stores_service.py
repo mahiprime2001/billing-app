@@ -117,22 +117,47 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
         
         if status_code != 200:
             return stores, status_code
-        
+
+        client = db.client
+        inventory_rows = client.table("storeinventory").select("storeid, productid, quantity").execute()
+        bill_rows = client.table("bills").select("storeid, total").execute()
+
+        inventory_by_store: Dict[str, Dict] = {}
+        for row in (inventory_rows.data or []):
+            sid = row.get("storeid")
+            if not sid:
+                continue
+            if sid not in inventory_by_store:
+                inventory_by_store[sid] = {"product_ids": set(), "total_stock": 0}
+            inventory_by_store[sid]["product_ids"].add(row.get("productid"))
+            inventory_by_store[sid]["total_stock"] += int(row.get("quantity") or 0)
+
+        bills_by_store: Dict[str, Dict] = {}
+        for row in (bill_rows.data or []):
+            sid = row.get("storeid")
+            if not sid:
+                continue
+            if sid not in bills_by_store:
+                bills_by_store[sid] = {"bill_count": 0, "total_revenue": 0.0}
+            bills_by_store[sid]["bill_count"] += 1
+            bills_by_store[sid]["total_revenue"] += float(row.get("total") or 0)
+
         for store in stores:
-            store_id = store.get('id')
-            if store_id:
-                product_count, total_stock = get_store_inventory_stats(store_id)
-                store['productCount'] = product_count
-                store['totalStock'] = total_stock
-                
-                total_revenue, bill_count = get_store_bill_stats(store_id)
-                store['totalRevenue'] = total_revenue
-                store['totalBills'] = bill_count
-            else:
-                store['productCount'] = 0
-                store['totalStock'] = 0
-                store['totalRevenue'] = 0.0
-                store['totalBills'] = 0
+            store_id = store.get("id")
+            if not store_id:
+                store["productCount"] = 0
+                store["totalStock"] = 0
+                store["totalRevenue"] = 0.0
+                store["totalBills"] = 0
+                continue
+
+            inv = inventory_by_store.get(store_id, {"product_ids": set(), "total_stock": 0})
+            bill = bills_by_store.get(store_id, {"bill_count": 0, "total_revenue": 0.0})
+
+            store["productCount"] = len(inv["product_ids"])
+            store["totalStock"] = inv["total_stock"]
+            store["totalRevenue"] = bill["total_revenue"]
+            store["totalBills"] = bill["bill_count"]
         
         logger.info(f"Returning {len(stores)} stores with inventory and bill stats")
         return stores, 200
@@ -149,49 +174,42 @@ def get_available_products_for_assignment(store_id: str) -> List[Dict]:
     try:
         client = db.client
         
-        # Get all products
         products_response = client.table("products").select("*").execute()
         if not products_response or not products_response.data:
             return []
-        
-        products = products_response.data
+
+        inventory_response = client.table("storeinventory").select("storeid, productid, quantity").execute()
+        inventory_rows = inventory_response.data or []
+
+        total_allocated_by_product: Dict[str, int] = defaultdict(int)
+        current_store_qty_by_product: Dict[str, int] = defaultdict(int)
+
+        for row in inventory_rows:
+            product_id = row.get("productid")
+            if not product_id:
+                continue
+            qty = int(row.get("quantity") or 0)
+            total_allocated_by_product[product_id] += qty
+            if row.get("storeid") == store_id:
+                current_store_qty_by_product[product_id] += qty
+
         result = []
-        
-        for product in products:
-            product_id = product['id']
-            global_stock = product.get('stock', 0)
-            
-            # Get TOTAL allocations across ALL stores
-            total_alloc_response = client.table("storeinventory")\
-                .select("quantity")\
-                .eq('productid', product_id)\
-                .execute()
-            
-            total_data = total_alloc_response.data if total_alloc_response and hasattr(total_alloc_response, 'data') else []
-            total_allocated = sum(item.get('quantity', 0) for item in total_data)
-            
+        for product in products_response.data:
+            product_id = product.get("id")
+            if not product_id:
+                continue
+
+            global_stock = int(product.get("stock") or 0)
+            total_allocated = total_allocated_by_product[product_id]
+            current_store_qty = current_store_qty_by_product[product_id]
             available_stock = max(0, global_stock - total_allocated)
-            
-            # Current store's allocation
-            current_response = client.table("storeinventory")\
-                .select("quantity")\
-                .eq('storeid', store_id)\
-                .eq('productid', product_id)\
-                .maybe_single()\
-                .execute()
-            
-            current_data = None
-            if current_response and hasattr(current_response, 'data'):
-                current_data = current_response.data
-            
-            current_store_qty = current_data.get('quantity', 0) if current_data else 0
-            
+
             result.append({
                 **product,
-                'availableStock': available_stock,
-                'currentStoreStock': current_store_qty,
-                'totalAllocated': total_allocated,
-                'globalStock': global_stock
+                "availableStock": available_stock,
+                "currentStoreStock": current_store_qty,
+                "totalAllocated": total_allocated,
+                "globalStock": global_stock
             })
         
         available_products = [convert_snake_to_camel(p) for p in result if p['availableStock'] > 0]
@@ -385,97 +403,143 @@ def get_store_inventory(store_id: str) -> Tuple[Optional[List[Dict]], int]:
         return [], 500
 
 def assign_products_to_store(store_id: str, products: List[Dict]) -> Tuple[bool, str, int]:
-    """Assign products to a store WITH STOCK VALIDATION - ✅ FIXED NoneType"""
+    """Assign products to a store with batched stock validation and writes."""
     try:
         client = db.client
-        
+
+        if not products:
+            return False, "No products provided", 400
+
+        requested_qty_by_product: Dict[str, int] = defaultdict(int)
         for product in products:
-            product_id = product.get('productId') or product.get('productid')
-            quantity = int(product.get('quantity', 0))
-            
+            product_id = product.get("productId") or product.get("productid")
+            try:
+                quantity = int(product.get("quantity", 0))
+            except (TypeError, ValueError):
+                quantity = 0
+
             if not product_id or quantity <= 0:
                 return False, f"Invalid product ID or quantity: {product_id}", 400
-            
-            # 1. Get global stock
-            product_response = client.table("products")\
-                .select("stock, name")\
-                .eq('id', product_id)\
-                .single()\
-                .execute()
-            
-            if not product_response or not product_response.data:
+            requested_qty_by_product[product_id] += quantity
+
+        product_ids = list(requested_qty_by_product.keys())
+
+        products_response = client.table("products").select("id, stock, name").in_("id", product_ids).execute()
+        product_rows = products_response.data or []
+        product_map = {row.get("id"): row for row in product_rows if row.get("id")}
+
+        for product_id in product_ids:
+            if product_id not in product_map:
                 return False, f"Product {product_id} not found", 404
-            
-            global_stock = product_response.data.get('stock', 0)
-            product_name = product_response.data.get('name', 'Unknown')
-            
-            # 2. Get total allocations across ALL stores
-            total_alloc_response = client.table("storeinventory")\
-                .select("quantity")\
-                .eq('productid', product_id)\
-                .execute()
-            
-            total_data = total_alloc_response.data if total_alloc_response and hasattr(total_alloc_response, 'data') else []
-            total_allocated = sum(item.get('quantity', 0) for item in total_data)
-            
-            # 3. Stock validation
-            if global_stock < (total_allocated + quantity):
-                available = global_stock - total_allocated
-                return False, f"❌ Insufficient stock '{product_name}'. Global: {global_stock}, Allocated: {total_allocated}, Available: {available}, Requested: {quantity}", 400
-            
-            # 4. Check existing store inventory - ✅ FIXED NoneType
-            existing_response = client.table("storeinventory")\
-                .select("*")\
-                .eq('storeid', store_id)\
-                .eq('productid', product_id)\
-                .maybe_single()\
-                .execute()
-            
-            existing_data = None
-            if existing_response and hasattr(existing_response, 'data'):
-                existing_data = existing_response.data
-            
-            if existing_data:
-                # Update existing record
-                current_qty = existing_data.get('quantity', 0)
-                new_qty = current_qty + quantity
-                client.table('storeinventory').update({
-                    'quantity': new_qty,
-                    'updatedat': datetime.now().isoformat()
-                }).eq('id', existing_data['id']).execute()
-                logger.info(f"✅ Updated {store_id}: {product_name} {current_qty}→{new_qty}")
+
+        allocations_response = client.table("storeinventory").select("id, storeid, productid, quantity").in_("productid", product_ids).execute()
+        allocation_rows = allocations_response.data or []
+
+        total_allocated_by_product: Dict[str, int] = defaultdict(int)
+        existing_for_store_by_product: Dict[str, Dict] = {}
+        for row in allocation_rows:
+            product_id = row.get("productid")
+            if not product_id:
+                continue
+
+            qty = int(row.get("quantity") or 0)
+            total_allocated_by_product[product_id] += qty
+            if row.get("storeid") == store_id:
+                existing_for_store_by_product[product_id] = row
+
+        for product_id, requested_qty in requested_qty_by_product.items():
+            product_row = product_map[product_id]
+            global_stock = int(product_row.get("stock") or 0)
+            total_allocated = total_allocated_by_product.get(product_id, 0)
+            available = global_stock - total_allocated
+            if requested_qty > available:
+                product_name = product_row.get("name", "Unknown")
+                return False, (
+                    f"Insufficient stock '{product_name}'. Global: {global_stock}, "
+                    f"Allocated: {total_allocated}, Available: {available}, Requested: {requested_qty}"
+                ), 400
+
+        local_inventory = get_store_inventory_data()
+        local_inventory_map = {
+            (row.get("storeid"), row.get("productid")): row for row in local_inventory
+        }
+        now_iso = datetime.now().isoformat()
+
+        for product_id, requested_qty in requested_qty_by_product.items():
+            product_name = product_map[product_id].get("name", "Unknown")
+            existing_row = existing_for_store_by_product.get(product_id)
+
+            if existing_row:
+                current_qty = int(existing_row.get("quantity") or 0)
+                new_qty = current_qty + requested_qty
+                client.table("storeinventory").update({
+                    "quantity": new_qty,
+                    "updatedat": now_iso
+                }).eq("id", existing_row["id"]).execute()
+                logger.info(f"Updated {store_id}: {product_name} {current_qty}->{new_qty}")
+
+                local_key = (store_id, product_id)
+                local_existing = local_inventory_map.get(local_key)
+                if local_existing:
+                    local_existing["quantity"] = new_qty
+                    local_existing["updatedat"] = now_iso
+                else:
+                    new_local = {
+                        "id": existing_row["id"],
+                        "storeid": store_id,
+                        "productid": product_id,
+                        "quantity": new_qty,
+                        "assignedat": existing_row.get("assignedat") or now_iso,
+                        "updatedat": now_iso
+                    }
+                    local_inventory.append(new_local)
+                    local_inventory_map[local_key] = new_local
             else:
-                # Create new record
-                new_inv = {
-                    'id': str(uuid.uuid4()),
-                    'storeid': store_id,
-                    'productid': product_id,
-                    'quantity': quantity,
-                    'assignedat': datetime.now().isoformat(),
-                    'updatedat': datetime.now().isoformat()
+                new_row = {
+                    "id": str(uuid.uuid4()),
+                    "storeid": store_id,
+                    "productid": product_id,
+                    "quantity": requested_qty,
+                    "assignedat": now_iso,
+                    "updatedat": now_iso
                 }
-                client.table('storeinventory').insert(new_inv).execute()
-                logger.info(f"✅ Created {store_id}: {product_name}={quantity}")
-            
-            # Update local JSON
-            inventory = get_store_inventory_data()
-            inv_index = next((i for i, inv in enumerate(inventory) 
-                            if inv.get('storeid') == store_id and inv.get('productid') == product_id), -1)
-            
-            if inv_index != -1:
-                inventory[inv_index]['quantity'] = new_qty if 'new_qty' in locals() else quantity
-                inventory[inv_index]['updatedat'] = datetime.now().isoformat()
-            else:
-                inventory.append(new_inv)
-            
-            save_store_inventory_data(inventory)
-        
-        logger.info(f"✅ Assigned {len(products)} products to store {store_id}")
-        return True, f"Successfully assigned {len(products)} products", 200
-        
+                client.table("storeinventory").insert(new_row).execute()
+                logger.info(f"Created {store_id}: {product_name}={requested_qty}")
+                local_inventory.append(dict(new_row))
+                local_inventory_map[(store_id, product_id)] = new_row
+
+        save_store_inventory_data(local_inventory)
+
+        logger.info(f"Assigned {len(product_ids)} products to store {store_id}")
+        return True, f"Successfully assigned {len(product_ids)} products", 200
+
     except Exception as e:
-        logger.error(f"❌ Error assigning products to store {store_id}: {e}", exc_info=True)
+        logger.error(f"Error assigning products to store {store_id}: {e}", exc_info=True)
         return False, f"Assignment failed: {str(e)}", 500
+
+
+def get_store_stats(store_id: str) -> Tuple[Dict, int]:
+    """Get lightweight inventory and billing stats for one store."""
+    try:
+        product_count, total_stock = get_store_inventory_stats(store_id)
+        total_revenue, total_bills = get_store_bill_stats(store_id)
+
+        return {
+            "storeId": store_id,
+            "productCount": product_count,
+            "totalStock": total_stock,
+            "totalRevenue": total_revenue,
+            "totalBills": total_bills
+        }, 200
+    except Exception as e:
+        logger.error(f"Error getting store stats for {store_id}: {e}", exc_info=True)
+        return {
+            "storeId": store_id,
+            "productCount": 0,
+            "totalStock": 0,
+            "totalRevenue": 0.0,
+            "totalBills": 0
+        }, 500
 
 def adjust_inventory(inventory_id: str, adjustment: int) -> Tuple[bool, str, int]:
     """Adjust inventory quantity"""

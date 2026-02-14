@@ -366,5 +366,26 @@
     "last_retry": null,
     "error_message": null,
     "created_at": "2026-02-08T15:19:59.553433"
+  },
+  {
+    "id": 41,
+    "sync_time": "2026-02-14T18:30:59.782814",
+    "table_name": "Products",
+    "change_type": "CREATE",
+    "record_id": "eaf55b6b-c3c3-42e9-86e2-5d78c4be44b4",
+    "change_data": {
+      "name": "testing",
+      "price": 500,
+      "stock": 50,
+      "sellingPrice": 1050,
+      "batchid": "d05f9ea1-7bf5-4cb4-ab9d-41550923d86a",
+      "hsnCode": "2",
+      "barcodes": "2026021492854"
+    },
+    "status": "pending",
+    "retry_count": 0,
+    "last_retry": null,
+    "error_message": null,
+    "created_at": "2026-02-14T18:30:59.782814"
   }
 ]

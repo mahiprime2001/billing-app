@@ -94,6 +94,12 @@ def create_hsn_code(hsn_data: dict) -> Tuple[Optional[str], str, int]:
 
         hsn_data = convert_camel_to_snake(hsn_data)
 
+        tax_value = hsn_data.get("tax", 0)
+        try:
+            hsn_data["tax"] = float(tax_value)
+        except (TypeError, ValueError):
+            return None, "Invalid tax value", 400
+
         now_naive = datetime.now().isoformat()
         if "created_at" not in hsn_data:
             hsn_data["created_at"] = now_naive
@@ -129,6 +135,11 @@ def update_hsn_code(hsn_id: str, update_data: dict) -> Tuple[bool, str, int]:
             return False, "No update data provided", 400
 
         update_data = convert_camel_to_snake(update_data)
+        if "tax" in update_data:
+            try:
+                update_data["tax"] = float(update_data.get("tax", 0))
+            except (TypeError, ValueError):
+                return False, "Invalid tax value", 400
         update_data["updated_at"] = datetime.now().isoformat()
 
         hsn_codes = get_hsn_codes_data()

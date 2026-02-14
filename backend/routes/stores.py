@@ -256,6 +256,17 @@ def get_assigned_products(store_id):
         logger.error(f"Error in get_assigned_products: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
+
+@stores_bp.route('/stores/<store_id>/stats', methods=['GET'])
+def get_store_stats(store_id):
+    """Get lightweight stats for one store."""
+    try:
+        stats, status_code = stores_service.get_store_stats(store_id)
+        return jsonify(stats), status_code
+    except Exception as e:
+        logger.error(f"Error in get_store_stats: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
 @stores_bp.route('/stores/<store_id>/inventory-calendar', methods=['GET'])
 def get_inventory_calendar(store_id):
     """Get inventory calendar for a store"""

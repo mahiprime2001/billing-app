@@ -581,5 +581,16 @@
       "record_id": "5dc57f7a-0f7d-4325-9c59-776ecb469782",
       "operation_type": "CREATE"
     }
+  },
+  {
+    "id": 54,
+    "timestamp": "2026-02-14T18:30:59.789326",
+    "eventType": "Products_create_logged",
+    "status": "pending",
+    "details": {
+      "table_name": "Products",
+      "record_id": "eaf55b6b-c3c3-42e9-86e2-5d78c4be44b4",
+      "operation_type": "CREATE"
+    }
   }
 ]

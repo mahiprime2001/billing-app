@@ -44,6 +44,8 @@ interface ForgotPasswordState {
   message: string
 }
 
+const normalizeEmail = (value: string): string => value.trim().toLowerCase()
+
 export default function LoginPage() {
   console.log("LoginPage component rendered");
   const router = useRouter()
@@ -81,6 +83,38 @@ export default function LoginPage() {
     setIsLoading(true)
     setError("")
     setSuccess("")
+    const normalizedEmail = normalizeEmail(email)
+
+    const saveLoginSession = (
+      userData: AdminUser,
+      userRole: AdminUser["role"],
+      isOffline = false,
+    ) => {
+      if (rememberEmail) {
+        localStorage.setItem("rememberedAdminEmail", normalizedEmail)
+      } else {
+        localStorage.removeItem("rememberedAdminEmail")
+      }
+
+      localStorage.setItem("adminLoggedIn", "true")
+      localStorage.setItem("adminUser", JSON.stringify({ ...userData, role: userRole }))
+
+      setSuccess(isOffline ? "Offline login successful! Redirecting..." : "Login successful! Redirecting...")
+      toast({
+        title: isOffline ? "Offline Login" : "Login Successful",
+        description: isOffline
+          ? `Welcome back, ${userData.name}. You're signed in with cached credentials.`
+          : `Welcome back, ${userData.name}!`,
+      })
+
+      setTimeout(() => {
+        if (userRole === "super_admin") {
+          router.push("/dashboard")
+        } else {
+          router.push("/billing")
+        }
+      }, 1000)
+    }
 
     try {
       // Validate input
@@ -92,7 +126,8 @@ export default function LoginPage() {
 
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(email)) {
+
+      if (!emailRegex.test(normalizedEmail)) {
         setError("Please enter a valid email address")
         setIsLoading(false)
         return
@@ -102,7 +137,7 @@ export default function LoginPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: normalizedEmail, password }),
       })
 
       if (!response.ok) {
@@ -122,40 +157,30 @@ export default function LoginPage() {
         return
       }
 
-      // Handle remember email
-      if (rememberEmail) {
-        localStorage.setItem("rememberedAdminEmail", email)
-      } else {
-        localStorage.removeItem("rememberedAdminEmail")
-      }
-
-      // Store user data and role directly
-      localStorage.setItem("adminLoggedIn", "true"); // NEW: Set adminLoggedIn flag
-      localStorage.setItem("adminUser", JSON.stringify({ ...userData, role: user_role }))
-
-      setSuccess("Login successful! Redirecting...")
-
-      toast({
-        title: "Login Successful",
-        description: `Welcome back, ${userData.name}!`,
-      })
-
-      // Redirect based on role
-      setTimeout(() => {
-        if (user_role === "super_admin") {
-          console.log("handleLogin - Redirecting to /dashboard");
-          router.push("/dashboard")
-        } else {
-          console.log("handleLogin - Redirecting to /billing");
-          router.push("/billing")
-        }
-      }, 1000)
+      saveLoginSession(userData, user_role)
     } catch (error) {
       console.error("Login error:", error)
-      setError("An error occurred during login. Please try again.")
+      const cachedUserRaw = localStorage.getItem("adminUser")
+
+      if (cachedUserRaw) {
+        try {
+          const cachedUser = JSON.parse(cachedUserRaw) as AdminUser
+          const cachedEmail = normalizeEmail(cachedUser.email || "")
+          const cachedPassword = cachedUser.password || ""
+
+          if (cachedEmail === normalizedEmail && cachedPassword === password) {
+            saveLoginSession(cachedUser, cachedUser.role, true)
+            return
+          }
+        } catch (parseError) {
+          console.error("Failed to parse cached user for offline login:", parseError)
+        }
+      }
+
+      setError("Cannot reach server. Connect to internet once for first login, or use the last account used on this device.")
       toast({
         title: "Login Error",
-        description: "An error occurred during login. Please try again.",
+        description: "Server unreachable. Offline login is only available for previously signed-in users.",
         variant: "destructive",
       })
     } finally {

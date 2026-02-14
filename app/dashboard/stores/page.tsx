@@ -506,6 +506,30 @@ export default function StoresPage() {
     return { totalRevenue, totalBills, lastBillDate }
   }
 
+  const refreshStoreStats = async (storeId: string) => {
+    try {
+      const response = await fetch(`${API}/api/stores/${storeId}/stats`);
+      if (!response.ok) return;
+
+      const stats = await response.json();
+      setStores((prev) =>
+        prev.map((store) =>
+          store.id === storeId
+            ? {
+                ...store,
+                productCount: stats.productCount ?? store.productCount,
+                totalStock: stats.totalStock ?? store.totalStock,
+                totalRevenue: stats.totalRevenue ?? store.totalRevenue,
+                totalBills: stats.totalBills ?? store.totalBills,
+              }
+            : store
+        )
+      );
+    } catch (error) {
+      console.error("Error refreshing store stats:", error);
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name || !formData.address) {
@@ -591,8 +615,8 @@ export default function StoresPage() {
   const handleProductAssignment = async (storeId: string, products: AssignedProduct[]) => {
     console.log('✅ Products assigned to store:', storeId, products);
     
-    // Refresh stores data to show updated inventory stats
-    await loadData();
+    // Refresh only this store stats instead of reloading all stores and bills
+    await refreshStoreStats(storeId);
     
     // Show success message
     alert(`Successfully assigned ${products.length} products to ${stores.find(s => s.id === storeId)?.name}`);
