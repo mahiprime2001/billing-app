@@ -177,10 +177,11 @@ export default function ProductsPage() {
   }, [products, productsError, batches, batchesError]);
 
   const scrollableDivRef = useRef<HTMLDivElement>(null);
+  const productTableTopScrollRef = useRef<HTMLDivElement>(null);
+  const productTableContentRef = useRef<HTMLTableElement>(null);
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [assignedStores, setAssignedStores] = useState<SystemStore[]>([])
   const [searchTerm, setSearchTerm] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("all")
   const [stockFilter, setStockFilter] = useState("all")
   // NEW: Advanced filters state
   const [priceRange, setPriceRange] = useState({ min: "", max: "" });
@@ -503,6 +504,53 @@ const handleDeleteProduct = async (productId: string) => {
   }
 };
 
+  const handleBulkDeleteProducts = async () => {
+    if (selectedProducts.length === 0) {
+      return;
+    }
+
+    const productIdsToDelete = [...selectedProducts];
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${productIdsToDelete.length} selected product(s)? This action cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const selectedSet = new Set(productIdsToDelete);
+    mutate(productsData.filter((p) => !selectedSet.has(p.id)), false);
+    setSelectedProducts([]);
+
+    try {
+      const deleteResults = await Promise.allSettled(
+        productIdsToDelete.map((productId) =>
+          fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`, {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+        )
+      );
+
+      const failedDeletes = deleteResults.filter(
+        (result) => result.status === "rejected" || (result.status === "fulfilled" && !result.value.ok)
+      );
+
+      if (failedDeletes.length > 0) {
+        throw new Error(`Failed to delete ${failedDeletes.length} product(s)`);
+      }
+
+      await mutate();
+      alert(`Successfully deleted ${productIdsToDelete.length} product(s)`);
+    } catch (error) {
+      console.error("Error deleting products in bulk:", error);
+      alert("Failed to delete some products. Please try again.");
+      mutate();
+    }
+  };
+
   const handleBulkHsnUpdate = async () => {
     if (!bulkHsnValue || selectedProducts.length === 0) {
       alert("Please enter an HSN code value and select products");
@@ -618,11 +666,58 @@ const handleDeleteProduct = async (productId: string) => {
     setDateAddedFilter({ from: "", to: "" });
   };
 
-  // Dynamically get unique categories
-  const uniqueCategories = useMemo(() => {
-    const cats = [...new Set(products.map(p => (p as any).category).filter(Boolean))];
-    return ["all", ...cats];
-  }, [products]);
+  useEffect(() => {
+    const topScroll = productTableTopScrollRef.current;
+    const bottomScroll = scrollableDivRef.current;
+    const content = productTableContentRef.current;
+
+    if (!topScroll || !bottomScroll || !content) {
+      return;
+    }
+
+    const topTrack = topScroll.firstElementChild as HTMLDivElement | null;
+    if (!topTrack) {
+      return;
+    }
+
+    let syncing = false;
+
+    const syncTrackWidth = () => {
+      topTrack.style.width = `${content.scrollWidth}px`;
+    };
+
+    const onTopScroll = () => {
+      if (syncing) return;
+      syncing = true;
+      bottomScroll.scrollLeft = topScroll.scrollLeft;
+      syncing = false;
+    };
+
+    const onBottomScroll = () => {
+      if (syncing) return;
+      syncing = true;
+      topScroll.scrollLeft = bottomScroll.scrollLeft;
+      syncing = false;
+    };
+
+    syncTrackWidth();
+
+    topScroll.addEventListener("scroll", onTopScroll, { passive: true });
+    bottomScroll.addEventListener("scroll", onBottomScroll, { passive: true });
+
+    const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(syncTrackWidth) : null;
+    if (resizeObserver) {
+      resizeObserver.observe(content);
+    }
+    window.addEventListener("resize", syncTrackWidth);
+
+    return () => {
+      topScroll.removeEventListener("scroll", onTopScroll);
+      bottomScroll.removeEventListener("scroll", onBottomScroll);
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", syncTrackWidth);
+    };
+  }, [products.length, productsLoading]);
 
   // Extended filtered products logic
   const filteredProducts = useMemo(() => {
@@ -642,10 +737,6 @@ const handleDeleteProduct = async (productId: string) => {
       (stockFilter === "low" && product.stock <= 5) ||
       (stockFilter === "out" && product.stock === 0) ||
       (stockFilter === "available" && product.stock > 5);
-
-    const matchesCategory =
-      categoryFilter === "all" ||
-      (product as any).category?.toLowerCase() === categoryFilter.toLowerCase();
 
     // NEW: Price range filter
     const productPrice = Number(product.price) || 0; // Ensure price is a number, default to 0
@@ -676,7 +767,7 @@ const handleDeleteProduct = async (productId: string) => {
       }
     }
 
-    const match = matchesSearch && matchesStock && matchesCategory && matchesPrice && matchesBatch && matchesSellingPrice && matchesDate;
+    const match = matchesSearch && matchesStock && matchesPrice && matchesBatch && matchesSellingPrice && matchesDate;
     // console.log(`Product ${product.name} (ID: ${product.id}) - Matches: ${match}`); // Too verbose, enable if needed
     return match;
   });
@@ -690,11 +781,11 @@ const handleDeleteProduct = async (productId: string) => {
   
   // console.log("Filtered Products:", sortedFilteredProducts);
   return sortedFilteredProducts;
-}, [products, searchTerm, stockFilter, categoryFilter, priceRange, batchFilter, sellingPriceRange, dateAddedFilter]);
+}, [products, searchTerm, stockFilter, priceRange, batchFilter, sellingPriceRange, dateAddedFilter]);
 
   // Memoized total inventory value calculation (based on selling price)
   const totalSellingValue = useMemo(() => {
-    const totalValue = products.reduce((sum, p) => {
+    const totalValue = filteredProducts.reduce((sum, p) => {
       const stock = Number(p.stock ?? 0);
       const sellingPrice = Number((p as any).sellingPrice ?? (p as any).price ?? 0);
       if (isNaN(stock) || isNaN(sellingPrice)) {
@@ -706,11 +797,11 @@ const handleDeleteProduct = async (productId: string) => {
     
     console.log("Calculated Total Selling Value:", totalValue.toFixed(2));
     return totalValue.toFixed(2);
-  }, [products]);
+  }, [filteredProducts]);
 
   // Memoized total inventory cost value calculation (based on cost price)
   const totalCostValue = useMemo(() => {
-    const totalValue = products.reduce((sum, p) => {
+    const totalValue = filteredProducts.reduce((sum, p) => {
       const stock = Number(p.stock ?? 0);
       const costPrice = Number(p.price ?? 0);
       if (isNaN(stock) || isNaN(costPrice)) {
@@ -722,7 +813,12 @@ const handleDeleteProduct = async (productId: string) => {
     
     console.log("Calculated Total Cost Value:", totalValue.toFixed(2));
     return totalValue.toFixed(2);
-  }, [products]);
+  }, [filteredProducts]);
+
+  const totalFilteredStock = useMemo(
+    () => filteredProducts.reduce((sum, p) => sum + Number(p.stock ?? 0), 0),
+    [filteredProducts]
+  );
 
   const getStockStatus = (stock: number) => {
     if (stock === 0) return { label: "Out of Stock", variant: "destructive" as const, icon: XCircle }
@@ -796,13 +892,22 @@ const handleDeleteProduct = async (productId: string) => {
 
   const selectedKey = selectedDate ? toKey(selectedDate) : "";
 
-  const generatePrintHtml = (list: Product[], titleDate: Date, storeName?: string) => { // Keep type as Product[]
+  const generatePrintHtml = (
+    list: Product[],
+    titleDate: Date,
+    storeName?: string,
+    printMeta?: {
+      batchId?: string;
+      batchName?: string;
+      batchPlace?: string;
+      printedAt?: Date;
+    }
+  ) => { // Keep type as Product[]
     let totalStock = 0;
     let totalValue = 0;
 
     const rows = list
       .map((p) => {
-        const productBatch = batches.find(batch => batch.id === p.batchid);
         const stock = (p as any).stock ?? 0;
         const price = Number((p as any).price ?? 0);
         const value = stock * price;
@@ -818,7 +923,6 @@ const handleDeleteProduct = async (productId: string) => {
         <tr>
           <td style="padding:6px;border:1px solid #ddd;">${allBarcodes}</td>
           <td style="padding:6px;border:1px solid #ddd;">${p.name}</td>
-          <td style="padding:6px;border:1px solid #ddd;">${productBatch?.batchNumber || "N/A"} (${productBatch?.place || "N/A"})</td>
           <td style="padding:6px;border:1px solid #ddd; text-align:right;">${stock}</td>
           <td style="padding:6px;border:1px solid #ddd; text-align:right;">₹${price.toFixed(2)}</td>
           <td style="padding:6px;border:1px solid #ddd; text-align:right;">₹${value.toFixed(2)}</td>
@@ -826,7 +930,17 @@ const handleDeleteProduct = async (productId: string) => {
       })
       .join("");
 
-    const storeInfoHtml = storeName ? `<p style="font-size: 14px; margin-bottom: 8px;">Store: ${storeName}</p>` : '';
+    const storeInfoHtml = storeName ? `<p style="font-size: 8px; margin-bottom: 6px;">Store: ${storeName}</p>` : '';
+    const printedAt = (printMeta?.printedAt ?? new Date()).toLocaleString();
+    const detailsHtml = `
+      <div style="font-size:8px; margin-bottom:8px; border:1px solid #ddd; padding:6px;">
+        <div><strong>Batch ID:</strong> ${printMeta?.batchId || "N/A"}</div>
+        <div><strong>Batch Name:</strong> ${printMeta?.batchName || "N/A"}</div>
+        <div><strong>Batch Place:</strong> ${printMeta?.batchPlace || "N/A"}</div>
+        <div><strong>Date:</strong> ${titleDate.toDateString()}</div>
+        <div><strong>Printed At:</strong> ${printedAt}</div>
+      </div>
+    `;
 
     return `
       <!DOCTYPE html>
@@ -837,9 +951,10 @@ const handleDeleteProduct = async (productId: string) => {
           <style>
             @media print {
               @page { margin: 12mm; }
-              body { font-family: ui-sans-serif, system-ui, Arial, sans-serif; }
-              h1 { font-size: 18px; margin-bottom: 12px; }
+              body { font-family: ui-sans-serif, system-ui, Arial, sans-serif; font-size: 8px; line-height: 1.25; }
+              h1 { font-size: 10px; margin-bottom: 8px; }
               table { width: 100%; border-collapse: collapse; }
+              th, td { font-size: 8px; padding: 4px !important; }
               th { background:#f3f4f6; }
               tfoot { font-weight: bold; }
               tfoot { display: table-footer-group; }
@@ -859,12 +974,12 @@ const handleDeleteProduct = async (productId: string) => {
         <body>
           <h1>Products on ${titleDate.toDateString()}</h1>
           ${storeInfoHtml}
+          ${detailsHtml}
           <table>
             <thead>
               <tr>
                 <th style="padding:6px;border:1px solid #ddd; text-align:left;">Product Barcode Number</th>
                 <th style="padding:6px;border:1px solid #ddd; text-align:left;">Product Name</th>
-                <th style="padding:6px;border:1px solid #ddd; text-align:left;">Product Batch</th>
                 <th style="padding:6px;border:1px solid #ddd; text-align:right;">Stock</th>
                 <th style="padding:6px;border:1px solid #ddd; text-align:right;">Price</th>
                 <th style="padding:6px;border:1px solid #ddd; text-align:right;">Value (Total Value)</th>
@@ -873,7 +988,7 @@ const handleDeleteProduct = async (productId: string) => {
             <tbody>${rows}</tbody>
             <tfoot>
               <tr>
-                <td colspan="3" style="padding:6px;border:1px solid #ddd; text-align:right;">Total:</td>
+                <td colspan="2" style="padding:6px;border:1px solid #ddd; text-align:right;">Total:</td>
                 <td style="padding:6px;border:1px solid #ddd; text-align:right;">${totalStock}</td>
                 <td style="padding:6px;border:1px solid #ddd; text-align:right;"></td>
                 <td style="padding:6px;border:1px solid #ddd; text-align:right;">₹${totalValue.toFixed(2)}</td>
@@ -1253,7 +1368,7 @@ const handleDeleteProduct = async (productId: string) => {
                 <Package className="h-8 w-8 text-blue-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Products</p>
-                  <p className="text-2xl font-bold text-gray-900">{products.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">{filteredProducts.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -1265,7 +1380,7 @@ const handleDeleteProduct = async (productId: string) => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Stock</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {products.reduce((sum, p) => sum + p.stock, 0)}
+                    {totalFilteredStock}
                   </p>
                 </div>
               </div>
@@ -1317,19 +1432,6 @@ const handleDeleteProduct = async (productId: string) => {
                   />
                 </div>
               </div>
-              {/* Inline Category Filter (dynamic) */}
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Filter by category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {uniqueCategories.map(cat => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat === "all" ? "All Categories" : cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Select value={stockFilter} onValueChange={setStockFilter}>
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by stock" />
@@ -1354,6 +1456,15 @@ const handleDeleteProduct = async (productId: string) => {
                     <Button variant="outline" size="sm" onClick={() => setIsBulkHsnDialogOpen(true)}>
                       Update HSN Code
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkDeleteProducts}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Selected
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => openPrintDialog(selectedProducts)}>
                       <Printer className="h-4 w-4 mr-2" />
                       Print Labels
@@ -1367,8 +1478,11 @@ const handleDeleteProduct = async (productId: string) => {
             )}
 
             {/* Products Table */}
+            <div ref={productTableTopScrollRef} className="overflow-x-auto overflow-y-hidden mb-2">
+              <div className="h-px" />
+            </div>
             <div className="overflow-x-auto max-h-[500px] overflow-y-auto relative" ref={scrollableDivRef}>
-              <table className="w-full">
+              <table ref={productTableContentRef} className="w-full">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left p-4">
@@ -1536,7 +1650,7 @@ const handleDeleteProduct = async (productId: string) => {
                   <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-xl font-medium text-gray-900 mb-2">No products found</h3>
                   <p className="text-gray-500 mb-4">
-                    {searchTerm || categoryFilter !== "all" || stockFilter !== "all" ||
+                    {searchTerm || stockFilter !== "all" ||
                     (priceRange.min !== "" || priceRange.max !== "") ||
                     batchFilter !== "all" ||
                     (sellingPriceRange.min !== "" || sellingPriceRange.max !== "") ||
@@ -1544,7 +1658,7 @@ const handleDeleteProduct = async (productId: string) => {
                       ? "Try adjusting your search or filters"
                       : "Get started by adding your first product"}
                   </p>
-                  {!searchTerm && categoryFilter === "all" && stockFilter === "all" && (
+                  {!searchTerm && stockFilter === "all" && (
                     <Button onClick={() => setIsAddDialogOpen(true)} type="button">
                       <Plus className="h-4 w-4 mr-2" />
                       Add Your First Product
@@ -1805,7 +1919,12 @@ return (
                   const htmlContent = generatePrintHtml(
                     productsToPrint as Product[],
                     selectedDate,
-                    assignedStores?.[0]?.name || "Siri Art Jewellers"
+                    assignedStores?.[0]?.name || "Siri Art Jewellers",
+                    {
+                      batchId: selectedBatchForProducts.id,
+                      batchName: selectedBatchForProducts.batchNumber,
+                      batchPlace: selectedBatchForProducts.place,
+                    }
                   );
                   unifiedPrint({
                     htmlContent,
@@ -1911,7 +2030,11 @@ return (
                   const htmlContent = generatePrintHtml(
                     productsToPrint,
                     selectedDate,
-                    assignedStores?.[0]?.name || "Siri Art Jewellers"
+                    assignedStores?.[0]?.name || "Siri Art Jewellers",
+                    {
+                      batchId: "N/A",
+                      batchName: "Un-batched / Mixed",
+                    }
                   );
                   unifiedPrint({
                     htmlContent,
