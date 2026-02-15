@@ -142,7 +142,11 @@ export default function ProductsPage() {
         ? p.barcode.split(',')
         : [],
       price: typeof p.price === 'number' ? p.price : Number((p as any).price ?? 0),
-      displayPrice: (p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).price ?? 0,
+      sellingPrice:
+        typeof (p as any).sellingPrice === "number"
+          ? (p as any).sellingPrice
+          : Number((p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).displayPrice ?? (p as any).price ?? 0),
+      displayPrice: (p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).displayPrice ?? (p as any).price ?? 0,
       // ✅ NEW: Normalize createdAt to handle both camelCase and lowercase from database
       createdAt: p.createdAt || (p as any).createdat || (p as any).created_at,
     }))
@@ -844,7 +848,13 @@ const handleDeleteProduct = async (productId: string) => {
 
       const sellingPriceMin = sellingPriceRange.min ? parseFloat(sellingPriceRange.min) : 0;
       const sellingPriceMax = sellingPriceRange.max ? parseFloat(sellingPriceRange.max) : Infinity;
-      const productSellingPrice = Number((product as any).sellingPrice) || 0;
+      const productSellingPrice = Number(
+        (product as any).sellingPrice ??
+        (product as any).selling_price ??
+        (product as any).displayPrice ??
+        product.price ??
+        0
+      ) || 0;
       const matchesSellingPrice = productSellingPrice >= sellingPriceMin && productSellingPrice <= sellingPriceMax;
 
       let matchesDate = true;
@@ -933,7 +943,13 @@ const handleDeleteProduct = async (productId: string) => {
   const totalSellingValue = useMemo(() => {
     const totalValue = filteredProducts.reduce((sum, p) => {
       const stock = Number(p.stock ?? 0);
-      const sellingPrice = Number((p as any).sellingPrice ?? (p as any).price ?? 0);
+      const sellingPrice = Number(
+        (p as any).sellingPrice ??
+        (p as any).selling_price ??
+        (p as any).displayPrice ??
+        (p as any).price ??
+        0
+      );
       if (isNaN(stock) || isNaN(sellingPrice)) {
         console.warn(`Invalid stock or selling price for product ${p.id}: stock=${p.stock}, sellingPrice=${sellingPrice}`);
         return sum;
@@ -1718,7 +1734,7 @@ const handleDeleteProduct = async (productId: string) => {
                         {/* Selling Price column - Customer price */}
                         <td className="p-4">
                           <span className="font-medium">
-                            ₹{Number((product as any).sellingPrice ?? (product as any).selling_price ?? 0).toFixed(2)}
+                            ₹{Number((product as any).sellingPrice ?? (product as any).selling_price ?? (product as any).displayPrice ?? 0).toFixed(2)}
                           </span>
                         </td>
 
