@@ -25,6 +25,13 @@ def get_base_dir() -> str:
     # Normal Python run
     return os.path.dirname(os.path.abspath(__file__))
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    """Parse boolean environment variables safely."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
 
 class Config:
     """Base configuration"""
@@ -75,6 +82,7 @@ class Config:
 
     # Sync settings
     ENHANCED_SYNC_AVAILABLE = True
+    ENABLE_DESTRUCTIVE_ADMIN_ACTIONS = _env_bool("ENABLE_DESTRUCTIVE_ADMIN_ACTIONS", False)
 
     # Log settings
     LOG_RETENTION_DAYS = 30

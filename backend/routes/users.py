@@ -44,8 +44,11 @@ def get_admin_users():
         
         if status_code == 200:
             # Filter for admin users
-            admin_users = [u for u in users if u.get('role') == 'admin']
-            return jsonify(admin_users), 200
+            admin_users = [
+                u for u in users
+                if str(u.get('role', '')).strip().lower() in {'admin', 'super_admin'}
+            ]
+            return jsonify({"adminUsers": admin_users}), 200
         else:
             return jsonify({
                 "error": "Internal server error",
