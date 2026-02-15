@@ -182,12 +182,24 @@ export default function ProductsPage() {
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [assignedStores, setAssignedStores] = useState<SystemStore[]>([])
   const [searchTerm, setSearchTerm] = useState("")
+  const [searchScope, setSearchScope] = useState("all")
   const [stockFilter, setStockFilter] = useState("all")
   // NEW: Advanced filters state
   const [priceRange, setPriceRange] = useState({ min: "", max: "" });
   const [batchFilter, setBatchFilter] = useState("all");
   const [sellingPriceRange, setSellingPriceRange] = useState({ min: "", max: "" });
   const [dateAddedFilter, setDateAddedFilter] = useState({ from: "", to: "" });
+  const [hsnFilter, setHsnFilter] = useState("all");
+  const [batchAssignmentFilter, setBatchAssignmentFilter] = useState("all");
+  const [taxRange, setTaxRange] = useState({ min: "", max: "" });
+  const [sortBy, setSortBy] = useState("newest");
+  const [draftPriceRange, setDraftPriceRange] = useState({ min: "", max: "" });
+  const [draftBatchFilter, setDraftBatchFilter] = useState("all");
+  const [draftSellingPriceRange, setDraftSellingPriceRange] = useState({ min: "", max: "" });
+  const [draftDateAddedFilter, setDraftDateAddedFilter] = useState({ from: "", to: "" });
+  const [draftHsnFilter, setDraftHsnFilter] = useState("all");
+  const [draftBatchAssignmentFilter, setDraftBatchAssignmentFilter] = useState("all");
+  const [draftTaxRange, setDraftTaxRange] = useState({ min: "", max: "" });
   const [isFiltersDialogOpen, setIsFiltersDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -211,6 +223,18 @@ export default function ProductsPage() {
   const [selectedBatchForProducts, setSelectedBatchForProducts] = useState<Batch | null>(null);
   const [isViewProductsForBatchDialogOpen, setIsViewProductsForBatchDialogOpen] = useState(false);
   const [productsToDisplayInByDateDialog, setProductsToDisplayInByDateDialog] = useState<Product[]>([]); // NEW STATE
+  const todayDateInput = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const clampDateToToday = (value: string) => {
+    if (!value) return "";
+    return value > todayDateInput ? todayDateInput : value;
+  };
 
   useEffect(() => {
     if (calendarOpen) {
@@ -664,7 +688,60 @@ const handleDeleteProduct = async (productId: string) => {
     setBatchFilter("all");
     setSellingPriceRange({ min: "", max: "" });
     setDateAddedFilter({ from: "", to: "" });
+    setHsnFilter("all");
+    setBatchAssignmentFilter("all");
+    setTaxRange({ min: "", max: "" });
+    setSortBy("newest");
+    setSearchScope("all");
+    setDraftPriceRange({ min: "", max: "" });
+    setDraftBatchFilter("all");
+    setDraftSellingPriceRange({ min: "", max: "" });
+    setDraftDateAddedFilter({ from: "", to: "" });
+    setDraftHsnFilter("all");
+    setDraftBatchAssignmentFilter("all");
+    setDraftTaxRange({ min: "", max: "" });
   };
+
+  const syncDraftFiltersFromApplied = () => {
+    setDraftPriceRange(priceRange);
+    setDraftBatchFilter(batchFilter);
+    setDraftSellingPriceRange(sellingPriceRange);
+    setDraftDateAddedFilter(dateAddedFilter);
+    setDraftHsnFilter(hsnFilter);
+    setDraftBatchAssignmentFilter(batchAssignmentFilter);
+    setDraftTaxRange(taxRange);
+  };
+
+  const openFiltersDialog = () => {
+    syncDraftFiltersFromApplied();
+    setIsFiltersDialogOpen(true);
+  };
+
+  const applyAdvancedFilters = () => {
+    const normalizedDateAddedFilter = {
+      from: clampDateToToday(draftDateAddedFilter.from),
+      to: clampDateToToday(draftDateAddedFilter.to),
+    };
+
+    setPriceRange(draftPriceRange);
+    setBatchFilter(draftBatchFilter);
+    setSellingPriceRange(draftSellingPriceRange);
+    setDateAddedFilter(normalizedDateAddedFilter);
+    setHsnFilter(draftHsnFilter);
+    setBatchAssignmentFilter(draftBatchAssignmentFilter);
+    setTaxRange(draftTaxRange);
+    setIsFiltersDialogOpen(false);
+  };
+
+  const hsnCodeMap = useMemo(
+    () => new Map(hsnCodes.map((hsn) => [String(hsn.id), hsn])),
+    [hsnCodes]
+  );
+
+  const batchMap = useMemo(
+    () => new Map(batches.map((batch) => [batch.id, batch])),
+    [batches]
+  );
 
   useEffect(() => {
     const topScroll = productTableTopScrollRef.current;
@@ -724,64 +801,133 @@ const handleDeleteProduct = async (productId: string) => {
     // console.log("Filtering products. Current products array:", products);
     const typedProducts: Product[] = products;
     const filtered = typedProducts.filter((product) => {
-    const q = searchTerm.toLowerCase();
-    const matchesSearch = searchTerm === "" ||
-      product.name.toLowerCase().includes(q) ||
-      (() => {
-        const bc = getBarcode(product);
-        return bc ? bc.toLowerCase().includes(q) : false;
-      })();
+      const q = searchTerm.toLowerCase();
+      const batch = product.batchid ? batchMap.get(product.batchid) : undefined;
+      const batchText = `${batch?.batchNumber ?? ""} ${batch?.place ?? ""}`.toLowerCase();
+      const barcodeText = (getBarcode(product) || "").toLowerCase();
+      const hsnCodeId = String((product as any).hsnCode ?? "");
+      const hsnCodeText = (hsnCodeMap.get(hsnCodeId)?.hsnCode || hsnCodeId).toLowerCase();
 
-    const matchesStock =
-      stockFilter === "all" ||
-      (stockFilter === "low" && product.stock <= 5) ||
-      (stockFilter === "out" && product.stock === 0) ||
-      (stockFilter === "available" && product.stock > 5);
+      const matchesSearchByScope = (scope: string) => {
+        if (!q) return true;
+        if (scope === "name") return product.name.toLowerCase().includes(q);
+        if (scope === "barcode") return barcodeText.includes(q);
+        if (scope === "batch") return batchText.includes(q);
+        if (scope === "hsn") return hsnCodeText.includes(q);
+        return (
+          product.name.toLowerCase().includes(q) ||
+          barcodeText.includes(q) ||
+          batchText.includes(q) ||
+          hsnCodeText.includes(q)
+        );
+      };
+      const matchesSearch = matchesSearchByScope(searchScope);
 
-    // NEW: Price range filter
-    const productPrice = Number(product.price) || 0; // Ensure price is a number, default to 0
-    const priceMin = priceRange.min ? parseFloat(priceRange.min) : 0;
-    const priceMax = priceRange.max ? parseFloat(priceRange.max) : Infinity;
-    const matchesPrice = productPrice >= priceMin && productPrice <= priceMax;
+      const matchesStock =
+        stockFilter === "all" ||
+        (stockFilter === "low" && product.stock <= 5) ||
+        (stockFilter === "out" && product.stock === 0) ||
+        (stockFilter === "available" && product.stock > 5);
 
-    // NEW: Batch filter
-    const matchesBatch = batchFilter === "all" || product.batchid === batchFilter;
+      const productPrice = Number(product.price) || 0;
+      const priceMin = priceRange.min ? parseFloat(priceRange.min) : 0;
+      const priceMax = priceRange.max ? parseFloat(priceRange.max) : Infinity;
+      const matchesPrice = productPrice >= priceMin && productPrice <= priceMax;
 
-    // NEW: Selling Price range filter
-    const sellingPriceMin = sellingPriceRange.min ? parseFloat(sellingPriceRange.min) : 0;
-    const sellingPriceMax = sellingPriceRange.max ? parseFloat(sellingPriceRange.max) : Infinity;
-    const productSellingPrice = Number((product as any).sellingPrice) || 0; // Ensure sellingPrice is a number, default to 0
-    const matchesSellingPrice = productSellingPrice >= sellingPriceMin && productSellingPrice <= sellingPriceMax;
+      const matchesBatch = batchFilter === "all" || product.batchid === batchFilter;
 
-    // NEW: Date added filter (using createdAt if available)
-    let matchesDate = true;
-    if (dateAddedFilter.from || dateAddedFilter.to) {
-      const createdAt = (product as any).createdAt ? new Date((product as any).createdAt) : null;
-      if (createdAt && !isNaN(createdAt.getTime())) {
-        const fromDate = dateAddedFilter.from ? new Date(dateAddedFilter.from) : null;
-        const toDate = dateAddedFilter.to ? new Date(dateAddedFilter.to) : null;
-        if (fromDate) matchesDate = matchesDate && createdAt >= fromDate;
-        if (toDate) matchesDate = matchesDate && createdAt <= toDate;
-      } else {
-        matchesDate = false; // Skip if no createdAt
+      const hasBatch = Boolean(product.batchid);
+      const matchesBatchAssignment =
+        batchAssignmentFilter === "all" ||
+        (batchAssignmentFilter === "with-batch" && hasBatch) ||
+        (batchAssignmentFilter === "without-batch" && !hasBatch);
+
+      const sellingPriceMin = sellingPriceRange.min ? parseFloat(sellingPriceRange.min) : 0;
+      const sellingPriceMax = sellingPriceRange.max ? parseFloat(sellingPriceRange.max) : Infinity;
+      const productSellingPrice = Number((product as any).sellingPrice) || 0;
+      const matchesSellingPrice = productSellingPrice >= sellingPriceMin && productSellingPrice <= sellingPriceMax;
+
+      let matchesDate = true;
+      if (dateAddedFilter.from || dateAddedFilter.to) {
+        const createdAt = (product as any).createdAt ? new Date((product as any).createdAt) : null;
+        if (createdAt && !isNaN(createdAt.getTime())) {
+          const fromDate = dateAddedFilter.from ? new Date(dateAddedFilter.from) : null;
+          const toDate = dateAddedFilter.to ? new Date(dateAddedFilter.to) : null;
+
+          if (fromDate && !isNaN(fromDate.getTime())) {
+            fromDate.setHours(0, 0, 0, 0);
+          }
+          if (toDate && !isNaN(toDate.getTime())) {
+            toDate.setHours(23, 59, 59, 999);
+          }
+
+          if (fromDate) matchesDate = matchesDate && createdAt >= fromDate;
+          if (toDate) matchesDate = matchesDate && createdAt <= toDate;
+        } else {
+          matchesDate = false;
+        }
       }
-    }
 
-    const match = matchesSearch && matchesStock && matchesPrice && matchesBatch && matchesSellingPrice && matchesDate;
-    // console.log(`Product ${product.name} (ID: ${product.id}) - Matches: ${match}`); // Too verbose, enable if needed
-    return match;
-  });
-  
-  // Sort filtered products by date (newest first)
-  const sortedFilteredProducts = filtered.sort((a, b) => {
-    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return dateB - dateA; // Descending order (newest first)
-  });
+      const matchesHsn =
+        hsnFilter === "all" ||
+        (hsnFilter === "none" && hsnCodeId.trim() === "") ||
+        hsnCodeId === hsnFilter;
+
+      const productTax = Number(hsnCodeMap.get(hsnCodeId)?.tax ?? (product as any).tax ?? 0);
+      const taxMin = taxRange.min ? parseFloat(taxRange.min) : 0;
+      const taxMax = taxRange.max ? parseFloat(taxRange.max) : Infinity;
+      const matchesTax = productTax >= taxMin && productTax <= taxMax;
+
+      return (
+        matchesSearch &&
+        matchesStock &&
+        matchesPrice &&
+        matchesBatch &&
+        matchesBatchAssignment &&
+        matchesSellingPrice &&
+        matchesDate &&
+        matchesHsn &&
+        matchesTax
+      );
+    });
+
+    const sortedFilteredProducts = [...filtered].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      const nameA = a.name.toLowerCase();
+      const nameB = b.name.toLowerCase();
+      const stockA = Number(a.stock ?? 0);
+      const stockB = Number(b.stock ?? 0);
+      const priceA = Number(a.price ?? 0);
+      const priceB = Number(b.price ?? 0);
+
+      if (sortBy === "oldest") return dateA - dateB;
+      if (sortBy === "name_asc") return nameA.localeCompare(nameB);
+      if (sortBy === "name_desc") return nameB.localeCompare(nameA);
+      if (sortBy === "stock_desc") return stockB - stockA;
+      if (sortBy === "price_asc") return priceA - priceB;
+      if (sortBy === "price_desc") return priceB - priceA;
+      return dateB - dateA;
+    });
   
   // console.log("Filtered Products:", sortedFilteredProducts);
   return sortedFilteredProducts;
-}, [products, searchTerm, stockFilter, priceRange, batchFilter, sellingPriceRange, dateAddedFilter]);
+}, [
+  products,
+  searchTerm,
+  searchScope,
+  stockFilter,
+  priceRange,
+  batchFilter,
+  batchAssignmentFilter,
+  sellingPriceRange,
+  dateAddedFilter,
+  hsnFilter,
+  taxRange,
+  sortBy,
+  hsnCodeMap,
+  batchMap,
+]);
 
   // Memoized total inventory value calculation (based on selling price)
   const totalSellingValue = useMemo(() => {
@@ -1140,7 +1286,7 @@ const handleDeleteProduct = async (productId: string) => {
             </Button>
 
             {/* NEW: Filters Button */}
-            <Button variant="outline" onClick={() => setIsFiltersDialogOpen(true)}>
+            <Button variant="outline" onClick={openFiltersDialog}>
               <Filter className="h-4 w-4 mr-2" />
               Filters
             </Button>
@@ -1425,13 +1571,25 @@ const handleDeleteProduct = async (productId: string) => {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    placeholder="Search products or barcodes..."
+                    placeholder="Search products, barcodes, batch, HSN..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
                   />
                 </div>
               </div>
+              <Select value={searchScope} onValueChange={setSearchScope}>
+                <SelectTrigger className="w-full md:w-52">
+                  <SelectValue placeholder="Search in" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Search All Fields</SelectItem>
+                  <SelectItem value="name">Product Name</SelectItem>
+                  <SelectItem value="barcode">Barcode</SelectItem>
+                  <SelectItem value="batch">Batch</SelectItem>
+                  <SelectItem value="hsn">HSN Code</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={stockFilter} onValueChange={setStockFilter}>
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Filter by stock" />
@@ -1441,6 +1599,20 @@ const handleDeleteProduct = async (productId: string) => {
                   <SelectItem value="available">In Stock</SelectItem>
                   <SelectItem value="low">Low Stock</SelectItem>
                   <SelectItem value="out">Out of Stock</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full md:w-52">
+                  <SelectValue placeholder="Sort products" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest First</SelectItem>
+                  <SelectItem value="oldest">Oldest First</SelectItem>
+                  <SelectItem value="name_asc">Name A-Z</SelectItem>
+                  <SelectItem value="name_desc">Name Z-A</SelectItem>
+                  <SelectItem value="stock_desc">Stock High-Low</SelectItem>
+                  <SelectItem value="price_asc">Price Low-High</SelectItem>
+                  <SelectItem value="price_desc">Price High-Low</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1654,11 +1826,16 @@ const handleDeleteProduct = async (productId: string) => {
                     (priceRange.min !== "" || priceRange.max !== "") ||
                     batchFilter !== "all" ||
                     (sellingPriceRange.min !== "" || sellingPriceRange.max !== "") ||
-                    (dateAddedFilter.from !== "" || dateAddedFilter.to !== "")
+                    (dateAddedFilter.from !== "" || dateAddedFilter.to !== "") ||
+                    hsnFilter !== "all" ||
+                    batchAssignmentFilter !== "all" ||
+                    (taxRange.min !== "" || taxRange.max !== "") ||
+                    sortBy !== "newest" ||
+                    searchScope !== "all"
                       ? "Try adjusting your search or filters"
                       : "Get started by adding your first product"}
                   </p>
-                  {!searchTerm && stockFilter === "all" && (
+                  {!searchTerm && stockFilter === "all" && searchScope === "all" && (
                     <Button onClick={() => setIsAddDialogOpen(true)} type="button">
                       <Plus className="h-4 w-4 mr-2" />
                       Add Your First Product
@@ -1677,8 +1854,14 @@ const handleDeleteProduct = async (productId: string) => {
         </Card>
 
         {/* NEW: Advanced Filters Dialog */}
-        <Dialog open={isFiltersDialogOpen} onOpenChange={setIsFiltersDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+        <Dialog
+          open={isFiltersDialogOpen}
+          onOpenChange={(open) => {
+            if (open) syncDraftFiltersFromApplied();
+            setIsFiltersDialogOpen(open);
+          }}
+        >
+          <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Advanced Filters</DialogTitle>
               <DialogDescription>Refine your product search with additional criteria.</DialogDescription>
@@ -1691,14 +1874,14 @@ const handleDeleteProduct = async (productId: string) => {
                   <Input
                     type="number"
                     placeholder="Min"
-                    value={priceRange.min}
-                    onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
+                    value={draftPriceRange.min}
+                    onChange={(e) => setDraftPriceRange({ ...draftPriceRange, min: e.target.value })}
                   />
                   <Input
                     type="number"
                     placeholder="Max"
-                    value={priceRange.max}
-                    onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
+                    value={draftPriceRange.max}
+                    onChange={(e) => setDraftPriceRange({ ...draftPriceRange, max: e.target.value })}
                   />
                 </div>
               </div>
@@ -1706,7 +1889,7 @@ const handleDeleteProduct = async (productId: string) => {
               {/* Batch Filter */}
               <div className="space-y-2">
                 <Label>Batch</Label>
-                <Select value={batchFilter} onValueChange={setBatchFilter}>
+                <Select value={draftBatchFilter} onValueChange={setDraftBatchFilter}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select batch" />
                   </SelectTrigger>
@@ -1729,15 +1912,15 @@ const handleDeleteProduct = async (productId: string) => {
                     type="number"
                     step="0.01"
                     placeholder="Min"
-                    value={sellingPriceRange.min}
-                    onChange={(e) => setSellingPriceRange({ ...sellingPriceRange, min: e.target.value })}
+                    value={draftSellingPriceRange.min}
+                    onChange={(e) => setDraftSellingPriceRange({ ...draftSellingPriceRange, min: e.target.value })}
                   />
                   <Input
                     type="number"
                     step="0.01"
                     placeholder="Max"
-                    value={sellingPriceRange.max}
-                    onChange={(e) => setSellingPriceRange({ ...sellingPriceRange, max: e.target.value })}
+                    value={draftSellingPriceRange.max}
+                    onChange={(e) => setDraftSellingPriceRange({ ...draftSellingPriceRange, max: e.target.value })}
                   />
                 </div>
               </div>
@@ -1748,13 +1931,81 @@ const handleDeleteProduct = async (productId: string) => {
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     type="date"
-                    value={dateAddedFilter.from}
-                    onChange={(e) => setDateAddedFilter({ ...dateAddedFilter, from: e.target.value })}
+                    value={draftDateAddedFilter.from}
+                    max={todayDateInput}
+                    onChange={(e) => {
+                      const nextFrom = clampDateToToday(e.target.value);
+                      setDraftDateAddedFilter((prev) => ({
+                        ...prev,
+                        from: nextFrom,
+                        to: prev.to && nextFrom && prev.to < nextFrom ? nextFrom : prev.to,
+                      }));
+                    }}
                   />
                   <Input
                     type="date"
-                    value={dateAddedFilter.to}
-                    onChange={(e) => setDateAddedFilter({ ...dateAddedFilter, to: e.target.value })}
+                    value={draftDateAddedFilter.to}
+                    max={todayDateInput}
+                    onChange={(e) => {
+                      const nextTo = clampDateToToday(e.target.value);
+                      setDraftDateAddedFilter((prev) => ({
+                        ...prev,
+                        to: nextTo,
+                        from: prev.from && nextTo && prev.from > nextTo ? nextTo : prev.from,
+                      }));
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>HSN Code</Label>
+                <Select value={draftHsnFilter} onValueChange={setDraftHsnFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select HSN code" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All HSN Codes</SelectItem>
+                    <SelectItem value="none">No HSN Assigned</SelectItem>
+                    {hsnCodes.map((hsn) => (
+                      <SelectItem key={hsn.id} value={String(hsn.id)}>
+                        {hsn.hsnCode}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Batch Assignment</Label>
+                <Select value={draftBatchAssignmentFilter} onValueChange={setDraftBatchAssignmentFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter batch assignment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Products</SelectItem>
+                    <SelectItem value="with-batch">With Batch</SelectItem>
+                    <SelectItem value="without-batch">Without Batch</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Tax Range (%)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Min"
+                    value={draftTaxRange.min}
+                    onChange={(e) => setDraftTaxRange({ ...draftTaxRange, min: e.target.value })}
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Max"
+                    value={draftTaxRange.max}
+                    onChange={(e) => setDraftTaxRange({ ...draftTaxRange, max: e.target.value })}
                   />
                 </div>
               </div>
@@ -1763,7 +2014,7 @@ const handleDeleteProduct = async (productId: string) => {
               <Button variant="outline" onClick={resetAdvancedFilters}>
                 Reset All
               </Button>
-              <Button onClick={() => setIsFiltersDialogOpen(false)}>
+              <Button onClick={applyAdvancedFilters}>
                 Apply Filters
               </Button>
             </DialogFooter>
