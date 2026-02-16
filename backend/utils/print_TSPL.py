@@ -19,9 +19,9 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
     
     # Printer setup - ONCE at the start
     logger.info("⚙️  Adding printer setup commands...")
-    tspl.append("GAPDETECT")
-    #tspl.append("SIZE 80 mm,12 mm")
-    #tspl.append("GAP 3 mm,0 mm")
+    #tspl.append("GAPDETECT")
+    tspl.append("SIZE 80 mm,12 mm")
+    tspl.append("GAP 4 mm,0 mm")
     tspl.append("DENSITY 10")
     tspl.append("SPEED 4")
     tspl.append("DIRECTION 1")
