@@ -26,7 +26,8 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
     tspl.append("SPEED 4")
     tspl.append("DIRECTION 1")
     tspl.append("REFERENCE 0,0")
-    tspl.append("OFFSET 0,-1000")
+    tspl.append("OFFSET 0, 0")
+    tspl.append("SET PEEL OFF")
     logger.info(f"✅ Setup commands added ({len(tspl)} commands)")
     
     # Generate all labels (copies * products)
