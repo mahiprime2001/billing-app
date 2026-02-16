@@ -514,7 +514,7 @@ export default function PrintDialog({
                           Batch: {getBatchInfo(product.id)?.batchNumber || "N/A"}
                         </div>
                         <div style={{ fontSize: "7px", fontWeight: "bold", marginTop: "2px" }}>
-                          Price: {(product.price ?? 0).toFixed(2)}
+                          Price: {(product.sellingPrice ?? 0).toFixed(2)}
                         </div>
                       </div>
                     </div>

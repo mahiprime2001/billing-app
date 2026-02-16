@@ -89,7 +89,7 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
             except Exception:
                 selling_val = 0.0
             logger.info(f"    💰 Selling Price: Rs.{selling_val:.2f}")
-            tspl.append(f'TEXT 225,60,"2",0,1,1,"Rs.{selling_val:.2f}"')
+            tspl.append(f'TEXT 225,60,"2",0,1,1,"MRP.{selling_val:.2f}"')
             
             # Print ONE label
             tspl.append("PRINT 1")
