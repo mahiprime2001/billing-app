@@ -25,6 +25,37 @@ import { getBarcode } from "@/app/utils/getBarcode";
 import { unifiedPrint } from "@/app/utils/printUtils";
 import type { Product } from "@/lib/types";
 
+type LabelProfile = {
+  id: string;
+  name: string;
+  widthMm: number;
+  heightMm: number;
+  barcodeWidth: number;
+  barcodeHeight: number;
+  barcodeDisplayValue: boolean;
+};
+
+const LABEL_PROFILES: LabelProfile[] = [
+  {
+    id: "default-80x12",
+    name: "Default 80x12 mm",
+    widthMm: 80,
+    heightMm: 12,
+    barcodeWidth: 2,
+    barcodeHeight: 35,
+    barcodeDisplayValue: false,
+  },
+  {
+    id: "dummy-small-label",
+    name: "Dummy Small Label 60x20 mm",
+    widthMm: 60,
+    heightMm: 20,
+    barcodeWidth: 2,
+    barcodeHeight: 35,
+    barcodeDisplayValue: false,
+  },
+];
+
 interface PrintDialogProps {
   products: Product[];
   isOpen: boolean;
@@ -61,8 +92,11 @@ export default function PrintDialog({
   const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
   const [selectedPrinter, setSelectedPrinter] = useState("");
   const [directPrint, setDirectPrint] = useState(false);
+  const [selectedProfileId, setSelectedProfileId] = useState<string>(
+    LABEL_PROFILES[0].id
+  );
 
-  const [labelWidth, setLabelWidth] = useState(81);
+  const [labelWidth, setLabelWidth] = useState(80);
   const [labelHeight, setLabelHeight] = useState(12);
   const [barcodeWidthOption, setBarcodeWidthOption] = useState(2);
   const [barcodeHeightOption, setBarcodeHeightOption] = useState(35);
@@ -169,6 +203,19 @@ export default function PrintDialog({
     }
   }, [isOpen, products, labelWidth, labelHeight, barcodeWidthOption, barcodeHeightOption, barcodeDisplayValue]);
 
+  useEffect(() => {
+    const selectedProfile = LABEL_PROFILES.find(
+      (profile) => profile.id === selectedProfileId
+    );
+    if (!selectedProfile) return;
+
+    setLabelWidth(selectedProfile.widthMm);
+    setLabelHeight(selectedProfile.heightMm);
+    setBarcodeWidthOption(selectedProfile.barcodeWidth);
+    setBarcodeHeightOption(selectedProfile.barcodeHeight);
+    setBarcodeDisplayValue(selectedProfile.barcodeDisplayValue);
+  }, [selectedProfileId]);
+
   const handlePrint = async () => {
     if (products.length === 0) {
       alert("No products selected");
@@ -180,6 +227,10 @@ export default function PrintDialog({
       const shouldUseBackend = forceBackendPrint || directPrint;
 
       if (shouldUseBackend) {
+        const selectedProfile =
+          LABEL_PROFILES.find((profile) => profile.id === selectedProfileId) ||
+          LABEL_PROFILES[0];
+
         // ✅ FIXED: Send selling_price instead of price for labels
         const labelData = products.map((product) => {
           const batchInfo = getBatchInfo(product.id);
@@ -198,6 +249,14 @@ export default function PrintDialog({
           copies,
           printerName: selectedPrinter || undefined,
           storeName,
+          labelProfile: {
+            id: selectedProfile.id,
+            name: selectedProfile.name,
+          },
+          labelDimensions: {
+            widthMm: labelWidth,
+            heightMm: labelHeight,
+          },
         });
 
         alert("Print job sent to backend.");
@@ -362,28 +421,23 @@ export default function PrintDialog({
             </div>
 
             <div>
-              <Label className="text-base font-medium">Label Dimensions (mm)</Label>
-              <div className="flex space-x-2">
-                <div className="flex-1">
-                  <Input
-                    type="number"
-                    min={1}
-                    value={labelWidth}
-                    onChange={(e) => setLabelWidth(Number.parseInt(e.target.value) || 1)}
-                    placeholder="Width"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Width</p>
-                </div>
-                <div className="flex-1">
-                  <Input
-                    type="number"
-                    min={1}
-                    value={labelHeight}
-                    onChange={(e) => setLabelHeight(Number.parseInt(e.target.value) || 1)}
-                    placeholder="Height"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Height</p>
-                </div>
+              <Label htmlFor="label-profile-select" className="text-base font-medium">
+                Label Dimension Profile
+              </Label>
+              <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+                <SelectTrigger id="label-profile-select">
+                  <SelectValue placeholder="Select a label profile" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LABEL_PROFILES.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-xs text-gray-500 mt-2">
+                Active dimensions: {labelWidth} mm x {labelHeight} mm
               </div>
             </div>
 

@@ -1,7 +1,20 @@
 import win32print
 import logging
 
-def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
+def _format_mm(value):
+    if float(value).is_integer():
+        return str(int(float(value)))
+    return f"{float(value):.2f}".rstrip("0").rstrip(".")
+
+
+def generate_tspl(
+    products,
+    copies=1,
+    store_name="Company Name",
+    label_size=None,
+    label_profile=None,
+    logger=None
+):
     if logger is None:
         logger = logging.getLogger(__name__)
         logger.setLevel(logging.INFO)
@@ -13,14 +26,32 @@ def generate_tspl(products, copies=1, store_name="Company Name", logger=None):
     logger.info(f"📄 Copies Requested: {copies}")
     logger.info(f"🏷️  Total Labels to Print: {len(products) * copies}")
     logger.info(f"🏪 Store Name: {store_name}")
+    logger.info(f"📐 Label Profile: {label_profile if isinstance(label_profile, dict) else {}}")
     logger.info("="*60)
 
     tspl = []
+
+    width_mm = 80.0
+    height_mm = 12.0
+    if isinstance(label_size, dict):
+        try:
+            width_value = label_size.get("widthMm", width_mm)
+            height_value = label_size.get("heightMm", height_mm)
+            width_mm = float(width_value)
+            height_mm = float(height_value)
+            if width_mm <= 0 or height_mm <= 0:
+                raise ValueError
+        except Exception:
+            logger.warning(
+                f"Invalid label_size received ({label_size}), falling back to default 80x12 mm"
+            )
+            width_mm = 80.0
+            height_mm = 12.0
     
     # Printer setup - ONCE at the start
     logger.info("⚙️  Adding printer setup commands...")
     #tspl.append("GAPDETECT")
-    tspl.append("SIZE 80 mm,12 mm")
+    tspl.append(f"SIZE {_format_mm(width_mm)} mm,{_format_mm(height_mm)} mm")
     tspl.append("GAP 4 mm,0 mm")
     tspl.append("DENSITY 10")
     tspl.append("SPEED 4")

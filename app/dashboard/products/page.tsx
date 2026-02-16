@@ -296,7 +296,24 @@ export default function ProductsPage() {
   });
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
 
-   const handleHsnCodeChange = (value: string) => {
+  const normalizeHsnCodeValue = (value: unknown): string => {
+    if (value == null) return "";
+    const normalized = String(value).trim();
+    if (!normalized || normalized === "null" || normalized === "undefined") {
+      return "";
+    }
+    return normalized;
+  };
+
+  const getProductHsnCodeId = (product: ProductType | Product | Record<string, unknown>): string => {
+    const rawValue =
+      (product as any).hsnCode ??
+      (product as any).hsnCodeId ??
+      (product as any).hsn_code_id;
+    return normalizeHsnCodeValue(rawValue);
+  };
+
+  const handleHsnCodeChange = (value: string) => {
     setFormData(prev => ({
       ...prev,
       hsnCode: value,
@@ -623,7 +640,7 @@ const handleDeleteProduct = async (productId: string) => {
         ? product.barcode.split(',')
         : [""], // Initialize with existing barcode string parsed to array, or one empty field
       batchid: product.batchid || "",
-      hsnCode: (product as any).hsnCode != null ? String((product as any).hsnCode) : "",
+      hsnCode: getProductHsnCodeId(product),
     })
     setIsEditDialogOpen(true)
   }
@@ -809,7 +826,7 @@ const handleDeleteProduct = async (productId: string) => {
       const batch = product.batchid ? batchMap.get(product.batchid) : undefined;
       const batchText = `${batch?.batchNumber ?? ""} ${batch?.place ?? ""}`.toLowerCase();
       const barcodeText = (getBarcode(product) || "").toLowerCase();
-      const hsnCodeId = String((product as any).hsnCode ?? "");
+      const hsnCodeId = getProductHsnCodeId(product);
       const hsnCodeText = (hsnCodeMap.get(hsnCodeId)?.hsnCode || hsnCodeId).toLowerCase();
 
       const matchesSearchByScope = (scope: string) => {
@@ -1410,7 +1427,7 @@ const handleDeleteProduct = async (productId: string) => {
                       <SelectContent>
                         <SelectItem value="none">None</SelectItem>
                         {hsnCodes.map((hsn) => (
-                          <SelectItem key={hsn.id} value={hsn.id}>
+                          <SelectItem key={hsn.id} value={String(hsn.id)}>
                             {hsn.hsnCode}
                           </SelectItem>
                         ))}
@@ -1741,7 +1758,7 @@ const handleDeleteProduct = async (productId: string) => {
                         <td className="p-4">
                           <span className="font-medium">
                             {(() => {
-                              const hsnCodeId = (product as any).hsnCode;
+                              const hsnCodeId = getProductHsnCodeId(product);
                               const hsnTax = hsnCodes.find((h) => String(h.id) === String(hsnCodeId))?.tax;
                               return Number(hsnTax ?? (product as any).tax ?? 0).toFixed(2);
                             })()}%
@@ -1751,7 +1768,7 @@ const handleDeleteProduct = async (productId: string) => {
                         <td className="p-4">
                           <span className="font-medium">
                           {(() => {
-                                  const hsnCodeId = product.hsnCode;
+                                  const hsnCodeId = getProductHsnCodeId(product);
                                   if (!hsnCodeId || hsnCodeId === "null" || hsnCodeId === null) {
                                     return <span className="font-medium text-gray-400">N/A</span>;
                                   }
@@ -2422,7 +2439,7 @@ return (
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
                       {hsnCodes.map((hsn) => (
-                        <SelectItem key={hsn.id} value={hsn.id}>
+                        <SelectItem key={hsn.id} value={String(hsn.id)}>
                           {hsn.hsnCode}
                         </SelectItem>
                       ))}
@@ -2548,7 +2565,7 @@ return (
           <SelectContent>
             <SelectItem value="none">None</SelectItem>
             {hsnCodes.map((hsn) => (
-              <SelectItem key={hsn.id} value={hsn.id}>
+              <SelectItem key={hsn.id} value={String(hsn.id)}>
                 {hsn.hsnCode}
               </SelectItem>
             ))}

@@ -56,6 +56,8 @@ def print_label():
         products = data.get("labelData")
         copies = data.get("copies", 1)
         store_name = data.get("storeName", "Company Name")
+        label_profile = data.get("labelProfile") or {}
+        label_dimensions = data.get("labelDimensions") or {}
 
         # ---- VALIDATION ----
         if not printer_name:
@@ -71,9 +73,28 @@ def print_label():
         except Exception:
             return jsonify({"error": "copies must be a positive integer"}), 400
 
+        normalized_dimensions = None
+        if isinstance(label_dimensions, dict) and label_dimensions:
+            width_mm = label_dimensions.get("widthMm")
+            height_mm = label_dimensions.get("heightMm")
+            try:
+                if width_mm is not None and height_mm is not None:
+                    width_mm = float(width_mm)
+                    height_mm = float(height_mm)
+                    if width_mm <= 0 or height_mm <= 0:
+                        raise ValueError
+                    normalized_dimensions = {
+                        "widthMm": width_mm,
+                        "heightMm": height_mm,
+                    }
+            except Exception:
+                return jsonify({"error": "labelDimensions must contain positive widthMm and heightMm"}), 400
+
         logger.info(
             f"PRINT REQUEST → Printer='{printer_name}', "
-            f"Products={len(products)}, Copies={copies}, Store='{store_name}'"
+            f"Products={len(products)}, Copies={copies}, Store='{store_name}', "
+            f"LabelProfile='{label_profile.get('name', '')}', "
+            f"LabelSize='{normalized_dimensions}'"
         )
         # Print the full payload to the terminal for debug
         import pprint
@@ -81,7 +102,9 @@ def print_label():
         pprint.pprint({
             'printerName': printer_name,
             'copies': copies,
-            'storeName': store_name
+            'storeName': store_name,
+            'labelProfile': label_profile,
+            'labelDimensions': normalized_dimensions,
         })
         print("-- Product Details --")
         for idx, prod in enumerate(products, 1):
@@ -102,6 +125,8 @@ def print_label():
             products=products,
             copies=copies,
             store_name=store_name,
+            label_size=normalized_dimensions,
+            label_profile=label_profile,
             logger=logger
         )
 

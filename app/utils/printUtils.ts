@@ -107,6 +107,8 @@ export async function unifiedPrint({
   useBackendPrint = false,
   printerName,
   storeName,
+  labelProfile,
+  labelDimensions,
 }: {
   htmlContent?: string;
   thermalContent?: string;
@@ -122,6 +124,14 @@ export async function unifiedPrint({
   useBackendPrint?: boolean;
   printerName?: string | undefined;
   storeName?: string | undefined;
+  labelProfile?: {
+    id: string;
+    name: string;
+  };
+  labelDimensions?: {
+    widthMm: number;
+    heightMm: number;
+  };
 }): Promise<void> {
   // ✅ FIXED: Properly typed payload
   if (useBackendPrint && labelData && labelData.length > 0) {
@@ -145,6 +155,8 @@ export async function unifiedPrint({
       };
       if (printerName) payload.printerName = printerName;
       if (storeName) payload.storeName = storeName;
+      if (labelProfile) payload.labelProfile = labelProfile;
+      if (labelDimensions) payload.labelDimensions = labelDimensions;
       console.log("📤 Sending backend print request (selling_price only):", payload);
       const response = await fetch(`${backendApiUrl}/api/print-label`, {
         method: "POST",
