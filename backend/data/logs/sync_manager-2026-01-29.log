@@ -1,6 +1,0 @@
-2026-01-29 12:39:49,305 - scripts.sync_manager - INFO - Logged CRUD operation: Stores - CREATE - 130dc0bd-e877-4d0b-9111-d1885ca7b850
-2026-01-29 13:03:33,657 - scripts.sync_manager - INFO - Logged CRUD operation: Users - UPDATE - 0497138a-918d-4859-9fda-56f413f1f97e
-2026-01-29 13:06:11,353 - scripts.sync_manager - INFO - Logged CRUD operation: Users - UPDATE - 0497138a-918d-4859-9fda-56f413f1f97e
-2026-01-29 13:07:50,037 - scripts.sync_manager - INFO - Logged CRUD operation: Users - UPDATE - 0497138a-918d-4859-9fda-56f413f1f97e
-2026-01-29 13:16:14,424 - scripts.sync_manager - INFO - Logged CRUD operation: Users - CREATE - ee1e680b-4299-4d8f-8fc3-c5f7e58318a0
-2026-01-29 14:58:06,844 - scripts.sync_manager - INFO - Logged CRUD operation: Products - DELETE - 60b39918-5ca3-4e7b-91c9-ca700ff8f4b3
