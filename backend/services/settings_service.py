@@ -129,6 +129,9 @@ def get_merged_settings() -> Tuple[Dict, int]:
         system_settings = {}
         system_settings.update(local_system)
         system_settings.update(supabase_settings)  # Supabase takes precedence
+        # Tax percentage is deprecated in settings and should not be exposed.
+        system_settings.pop("taxpercentage", None)
+        system_settings.pop("taxPercentage", None)
         
         # Extract bill_formats and store_formats from Supabase if they exist
         bill_formats = local_bill_formats.copy()
@@ -184,6 +187,11 @@ def update_settings(settings_data: dict) -> Tuple[bool, str, int]:
             return False, "No settings data provided", 400
         
         system_settings_from_frontend = settings_data.get('systemSettings', {})
+        if not isinstance(system_settings_from_frontend, dict):
+            system_settings_from_frontend = {}
+        # Tax percentage is deprecated in settings and should not be persisted.
+        system_settings_from_frontend.pop("taxPercentage", None)
+        system_settings_from_frontend.pop("taxpercentage", None)
         bill_formats_from_frontend = settings_data.get('billFormats', {})
         store_formats_from_frontend = settings_data.get('storeFormats', {})
         
@@ -209,6 +217,8 @@ def update_settings(settings_data: dict) -> Tuple[bool, str, int]:
         # Remove 'id' from update fields (it's used in .eq() clause)
         update_fields = converted_system_settings.copy()
         record_id = update_fields.pop('id', None)
+        # Ensure legacy tax percentage value is cleared in DB.
+        update_fields['taxpercentage'] = None
         
         # Don't update created_at
         update_fields.pop('created_at', None)

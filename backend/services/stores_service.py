@@ -119,28 +119,32 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
             return stores, status_code
 
         client = db.client
-        inventory_rows = client.table("storeinventory").select("storeid, productid, quantity").execute()
-        bill_rows = client.table("bills").select("storeid, total").execute()
+        # Use select("*") so this works across deployments that may use either
+        # snake/lowercase keys (storeid/productid) or camelCase keys (storeId/productId).
+        inventory_rows = client.table("storeinventory").select("*").execute()
+        bill_rows = client.table("bills").select("*").execute()
 
         inventory_by_store: Dict[str, Dict] = {}
         for row in (inventory_rows.data or []):
-            sid = row.get("storeid")
+            sid = row.get("storeid") or row.get("storeId")
             if not sid:
                 continue
             if sid not in inventory_by_store:
                 inventory_by_store[sid] = {"product_ids": set(), "total_stock": 0}
-            inventory_by_store[sid]["product_ids"].add(row.get("productid"))
+            product_id = row.get("productid") or row.get("productId")
+            if product_id:
+                inventory_by_store[sid]["product_ids"].add(product_id)
             inventory_by_store[sid]["total_stock"] += int(row.get("quantity") or 0)
 
         bills_by_store: Dict[str, Dict] = {}
         for row in (bill_rows.data or []):
-            sid = row.get("storeid")
+            sid = row.get("storeid") or row.get("storeId")
             if not sid:
                 continue
             if sid not in bills_by_store:
                 bills_by_store[sid] = {"bill_count": 0, "total_revenue": 0.0}
             bills_by_store[sid]["bill_count"] += 1
-            bills_by_store[sid]["total_revenue"] += float(row.get("total") or 0)
+            bills_by_store[sid]["total_revenue"] += float(row.get("total") or row.get("grandTotal") or 0)
 
         for store in stores:
             store_id = store.get("id")

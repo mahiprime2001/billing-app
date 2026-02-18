@@ -34,8 +34,17 @@ type DiscountRequest = {
   approvedByName?: string
 }
 
+type UserInfo = {
+  id?: string
+  user_id?: string
+  name?: string
+  fullName?: string
+  full_name?: string
+}
+
 export default function DiscountsPage() {
   const [requests, setRequests] = useState<DiscountRequest[]>([])
+  const [userNameById, setUserNameById] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [adminUser, setAdminUser] = useState<{ id?: string; userId?: string; name?: string }>({})
@@ -51,13 +60,25 @@ export default function DiscountsPage() {
       }
     }
     loadDiscounts()
+    loadUsers()
+
+    const intervalId = setInterval(() => {
+      loadDiscounts(false)
+      loadUsers()
+    }, 5000)
+
+    return () => clearInterval(intervalId)
   }, [])
 
-  const loadDiscounts = async () => {
-    setLoading(true)
+  const loadDiscounts = async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true)
+    }
     setError(null)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/discounts`)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/discounts?t=${Date.now()}`, {
+        cache: "no-store",
+      })
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
@@ -71,6 +92,34 @@ export default function DiscountsPage() {
     }
   }
 
+  const loadUsers = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/users?t=${Date.now()}`, {
+        cache: "no-store",
+      })
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const data: UserInfo[] = await response.json()
+      const userMap = (Array.isArray(data) ? data : []).reduce<Record<string, string>>((acc, user) => {
+        const userId = user.id || user.user_id
+        const userName = user.name || user.fullName || user.full_name
+        if (userId && userName) {
+          acc[userId] = userName
+        }
+        return acc
+      }, {})
+      setUserNameById(userMap)
+    } catch (err) {
+      console.error("Error loading users:", err)
+      setUserNameById({})
+    }
+  }
+
+  const formatDate = (value: string) => new Date(value).toLocaleDateString()
+  const formatTime = (value: string) =>
+    new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+
   const pendingRequests = useMemo(
     () => requests.filter((item) => (item.status || "").toLowerCase() === "pending"),
     [requests],
@@ -82,8 +131,16 @@ export default function DiscountsPage() {
 
   const getDiscountId = (item: DiscountRequest) => item.discountId || item.discount_id || ""
   const getBillId = (item: DiscountRequest) => item.billId || item.bill_id || "-"
+<<<<<<< HEAD
   const getUserName = (item: DiscountRequest) =>
     item.userName || (item as any).user_name || item.userId || item.user_id || "-"
+=======
+  const getUserId = (item: DiscountRequest) => item.userId || item.user_id || "-"
+  const getUserDisplayName = (item: DiscountRequest) => {
+    const userId = getUserId(item)
+    return userNameById[userId] || userId
+  }
+>>>>>>> 3cfe1d7771b106db27c032749a5370170e339fbb
   const getDiscountPercent = (item: DiscountRequest) => item.discount ?? 0
   const getDiscountAmount = (item: DiscountRequest) =>
     item.discountAmount ?? item.discount_amount ?? 0
@@ -295,6 +352,7 @@ export default function DiscountsPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-gray-500" />
+<<<<<<< HEAD
                             {getUserName(item)}
                           </div>
                         </TableCell>
@@ -302,6 +360,9 @@ export default function DiscountsPage() {
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-gray-500" />
                             -
+=======
+                            {getUserDisplayName(item)}
+>>>>>>> 3cfe1d7771b106db27c032749a5370170e339fbb
                           </div>
                         </TableCell>
                         <TableCell>
@@ -313,7 +374,10 @@ export default function DiscountsPage() {
                         <TableCell>
                           <div className="flex items-center gap-2 text-sm text-gray-500">
                             <Calendar className="h-4 w-4" />
-                            {new Date(getCreatedAt(item)).toLocaleDateString()}
+                            <div>
+                              <div>{formatDate(getCreatedAt(item))}</div>
+                              <div className="text-xs text-gray-400">{formatTime(getCreatedAt(item))}</div>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -440,7 +504,11 @@ export default function DiscountsPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-gray-500" />
+<<<<<<< HEAD
                             {getUserName(item)}
+=======
+                            {getUserDisplayName(item)}
+>>>>>>> 3cfe1d7771b106db27c032749a5370170e339fbb
                           </div>
                         </TableCell>
                         <TableCell>
@@ -458,7 +526,10 @@ export default function DiscountsPage() {
                         <TableCell>
                           <div className="flex items-center gap-2 text-sm text-gray-500">
                             <Calendar className="h-4 w-4" />
-                            {new Date(getUpdatedAt(item)).toLocaleDateString()}
+                            <div>
+                              <div>{formatDate(getUpdatedAt(item))}</div>
+                              <div className="text-xs text-gray-400">{formatTime(getUpdatedAt(item))}</div>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
