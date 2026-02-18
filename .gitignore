@@ -8,3 +8,5 @@ backend/*.spec
 backend/build/
 GEMINI.md
 backend/data/
+**/__pycache__/
+**/*.pyc
