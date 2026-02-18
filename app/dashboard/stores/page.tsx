@@ -617,9 +617,6 @@ export default function StoresPage() {
     
     // Refresh only this store stats instead of reloading all stores and bills
     await refreshStoreStats(storeId);
-    
-    // Show success message
-    alert(`Successfully assigned ${products.length} products to ${stores.find(s => s.id === storeId)?.name}`);
   }
 
   

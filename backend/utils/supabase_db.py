@@ -619,9 +619,12 @@ class SupabaseDB:
             logger.error(f"Error updating discount {discount_id}: {e}")
             return None
     
-    def update_discount_status(self, discount_id: str, status: str) -> Optional[Dict]:
-        """Update discount status"""
-        return self.update_discount(discount_id, {"status": status})
+    def update_discount_status(self, discount_id: str, status: str, approved_by: Optional[str] = None) -> Optional[Dict]:
+        """Update discount status (and optionally record approver)"""
+        update_data = {"status": status}
+        if approved_by:
+            update_data["approved_by"] = approved_by
+        return self.update_discount(discount_id, update_data)
     
     # ==========================================
     # NOTIFICATIONS

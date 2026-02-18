@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { Settings, Building, Receipt, Save, User, Shield, RefreshCw, Hash } from "lucide-react"
+import { Building, Save, User, Shield, RefreshCw, Hash, ShieldCheck, KeyRound } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
@@ -50,10 +49,16 @@ interface SystemSettings {
 }
 
 interface AdminUser {
+  id?: string
   name: string
   email: string
   role: "super_admin" | "billing_user"
   assignedStores?: string[]
+  twofa?: {
+    is_enabled: boolean
+    verified_at?: string
+    updated_at?: string
+  } | null
 }
 
 
@@ -84,6 +89,13 @@ export default function SettingsPage() {
   const [isSecondConfirmOpen, setIsSecondConfirmOpen] = useState(false)
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
   const [adminUsersToKeep, setAdminUsersToKeep] = useState<string[]>([])
+  const [twofaAdmins, setTwofaAdmins] = useState<AdminUser[]>([])
+  const [selectedTwofaUser, setSelectedTwofaUser] = useState<string>("")
+  const [qrDataUrl, setQrDataUrl] = useState<string>("")
+  const [otpCode, setOtpCode] = useState<string>("")
+  const [isGenerating2fa, setIsGenerating2fa] = useState(false)
+  const [isVerifying2fa, setIsVerifying2fa] = useState(false)
+  const [deletingTwofaUserId, setDeletingTwofaUserId] = useState<string>("")
 
   const defaultSystemSettings: SystemSettings = {
     gstin: "XX-XXXXX-XXXXX-X",
@@ -118,6 +130,7 @@ export default function SettingsPage() {
 
     loadSettings()
     fetchAdminUsers()
+    fetchSuperAdmins()
   }, [router])
 
   useEffect(() => {
@@ -178,6 +191,109 @@ export default function SettingsPage() {
       // Fallback to default settings if API call fails
       setSettings(defaultSystemSettings);
       console.error("Failed to load settings:", error);
+    }
+  }
+
+  const fetchSuperAdmins = async () => {
+    try {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/2fa/super-admins")
+      if (response.ok) {
+        const data = await response.json()
+        setTwofaAdmins(data.admins || [])
+      } else {
+        console.error("Failed to fetch super admins:", response.statusText)
+      }
+    } catch (error) {
+      console.error("Failed to fetch super admins:", error)
+    }
+  }
+
+  const handleGenerate2fa = async () => {
+    if (!selectedTwofaUser) {
+      toast({ title: "Select a user", description: "Choose a super admin to set up 2FA." })
+      return
+    }
+    setIsGenerating2fa(true)
+    try {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/2fa/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: selectedTwofaUser }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to generate 2FA")
+      }
+      setQrDataUrl(data.qr_data_url || "")
+      toast({ title: "2FA created", description: "Scan the QR with any authenticator app." })
+      fetchSuperAdmins()
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Could not generate 2FA",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGenerating2fa(false)
+    }
+  }
+
+  const handleVerify2fa = async () => {
+    if (!selectedTwofaUser || !otpCode) {
+      toast({ title: "Missing info", description: "Select a user and enter the OTP." })
+      return
+    }
+    setIsVerifying2fa(true)
+    try {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/2fa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: selectedTwofaUser, code: otpCode }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.verified) {
+        throw new Error(data.message || "Verification failed")
+      }
+      toast({ title: "Verified", description: "2FA is now enabled for this user." })
+      setOtpCode("")
+      fetchSuperAdmins()
+    } catch (error: any) {
+      toast({
+        title: "Verification failed",
+        description: error.message || "Invalid code",
+        variant: "destructive",
+      })
+    } finally {
+      setIsVerifying2fa(false)
+    }
+  }
+
+  const handleDeleteTwofa = async (userId: string) => {
+    setDeletingTwofaUserId(userId)
+    try {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/2fa/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to delete 2FA")
+      }
+      toast({ title: "2FA removed", description: "Secret deleted for this user." })
+      if (selectedTwofaUser === userId) {
+        setQrDataUrl("")
+        setOtpCode("")
+      }
+      fetchSuperAdmins()
+    } catch (error: any) {
+      toast({
+        title: "Delete failed",
+        description: error.message || "Could not delete 2FA",
+        variant: "destructive",
+      })
+    } finally {
+      setDeletingTwofaUserId("")
     }
   }
 
@@ -488,7 +604,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 gap-8">
           {/* Company Information */}
           <Card>
             <CardHeader>
@@ -540,19 +656,7 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Tax & Legal Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Receipt className="h-5 w-5 mr-2" />
-                Tax & Legal Settings
-              </CardTitle>
-              <CardDescription>Configure tax rates and legal information for billing</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="gstin">GSTIN Number</Label>
                 <Input
@@ -563,40 +667,6 @@ export default function SettingsPage() {
                   className="font-mono"
                 />
                 <p className="text-sm text-gray-500">Goods and Services Tax Identification Number</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="taxPercentage">Tax Percentage (%)</Label>
-                <Input
-                  id="taxPercentage"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={settings.taxPercentage ?? 0}
-                  onChange={(e) => handleInputChange("taxPercentage", Number.parseFloat(e.target.value) || 0)}
-                  placeholder="Enter tax percentage"
-                />
-                <p className="text-sm text-gray-500">Default tax rate applied to all bills</p>
-              </div>
-
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-medium mb-2 text-blue-800">Tax Calculation Preview</h4>
-                <div className="text-sm text-blue-700 space-y-1">
-                  <div className="flex justify-between">
-                    <span>Sample Amount:</span>
-                    <span>₹1,000.00</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Tax ({settings.taxPercentage}%):</span>
-                    <span>₹{((1000 * settings.taxPercentage) / 100).toFixed(2)}</span>
-                  </div>
-                  <Separator className="my-2" />
-                  <div className="flex justify-between font-medium">
-                    <span>Total Amount:</span>
-                    <span>₹{(1000 + (1000 * settings.taxPercentage) / 100).toFixed(2)}</span>
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -613,7 +683,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="batches" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="batches">
                   <Package className="h-4 w-4 mr-2" />
                   Batch Management
@@ -625,6 +695,10 @@ export default function SettingsPage() {
                 <TabsTrigger value="flush">
                   <Trash2 className="h-4 w-4 mr-2" />
                   Flush Data
+                </TabsTrigger>
+                <TabsTrigger value="twofa">
+                  <ShieldCheck className="h-4 w-4 mr-2" />
+                  2FA
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="batches" className="space-y-6">
@@ -754,53 +828,123 @@ export default function SettingsPage() {
   </CardContent>
 </Card>
               </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
 
-        {/* Settings Preview */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Settings className="h-5 w-5 mr-2" />
-              Settings Preview
-            </CardTitle>
-            <CardDescription>Preview how your settings will appear on bills and documents</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="border-2 border-dashed border-gray-300 p-6 bg-gray-50 rounded-lg">
-              <div className="text-center space-y-2">
-                <h3 className="text-xl font-bold">{settings.companyName}</h3>
-                <p className="text-sm text-gray-600">{settings.companyAddress}</p>
-                <div className="flex justify-center space-x-4 text-sm text-gray-600">
-                  <span>Phone: {settings.companyPhone}</span>
-                  <span>Email: {settings.companyEmail}</span>
-                </div>
-                <p className="text-sm font-mono">GSTIN: {settings.gstin}</p>
-                {settings.id !== undefined && (
-                  <p className="text-xs text-gray-500">Settings ID: {settings.id}</p>
-                )}
-                {settings.last_sync_time && (
-                  <p className="text-xs text-gray-500">Last Sync: {new Date(settings.last_sync_time).toLocaleString()}</p>
-                )}
-                <div className="mt-4 p-3 bg-white rounded border">
-                  <div className="text-sm space-y-1">
-                    <div className="flex justify-between">
-                      <span>Subtotal:</span>
-                      <span>₹1,000.00</span>
+              <TabsContent value="twofa" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <KeyRound className="h-5 w-5 mr-2" />
+                      Two-Factor Authentication
+                    </CardTitle>
+                    <CardDescription>Enable TOTP-based 2FA for super admin accounts.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="twofa-user">Select super admin</Label>
+                      <Select
+                        value={selectedTwofaUser}
+                        onValueChange={(value) => setSelectedTwofaUser(value)}
+                      >
+                        <SelectTrigger id="twofa-user">
+                          <SelectValue placeholder="Choose a user" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {twofaAdmins.map((admin) => {
+                            const value = admin.id || admin.email
+                            return (
+                              <SelectItem key={value} value={value}>
+                              {admin.name || admin.email} ({admin.email})
+                            </SelectItem>
+                            )
+                          })}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Tax ({settings.taxPercentage}%):</span>
-                      <span>₹{((1000 * settings.taxPercentage) / 100).toFixed(2)}</span>
+
+                    <div className="space-y-2">
+                      <Label>Existing 2FA status</Label>
+                      <div className="space-y-2">
+                        {twofaAdmins.length === 0 ? (
+                          <p className="text-sm text-gray-500">No super admins found.</p>
+                        ) : (
+                          twofaAdmins.map((admin) => {
+                            const status = admin.twofa?.is_enabled ? "Enabled" : admin.twofa ? "Pending verification" : "Not set"
+                            const updated = admin.twofa?.updated_at
+                            return (
+                              <div
+                                key={admin.id}
+                                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2 bg-gray-50"
+                              >
+                                <div>
+                                  <p className="font-medium">
+                                    {admin.name || admin.email} <span className="text-gray-500 text-xs">({admin.email})</span>
+                                  </p>
+                                  <p className="text-xs text-gray-600">
+                                    {status}
+                                    {updated ? ` • Updated ${new Date(updated).toLocaleString()}` : ""}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={admin.twofa?.is_enabled ? "default" : "secondary"}>{status}</Badge>
+                                  {admin.twofa && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDeleteTwofa(admin.id)}
+                                      disabled={deletingTwofaUserId === admin.id}
+                                    >
+                                      {deletingTwofaUserId === admin.id ? "Removing..." : "Delete 2FA"}
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })
+                        )}
+                      </div>
                     </div>
-                    <div className="flex justify-between font-bold border-t pt-1">
-                      <span>Total:</span>
-                      <span>₹{(1000 + (1000 * settings.taxPercentage) / 100).toFixed(2)}</span>
+
+                    <div className="flex flex-wrap gap-3">
+                      <Button onClick={handleGenerate2fa} disabled={isGenerating2fa || !selectedTwofaUser}>
+                        {isGenerating2fa ? "Generating..." : "Generate 2FA"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleVerify2fa}
+                        disabled={isVerifying2fa || !otpCode || !selectedTwofaUser}
+                      >
+                        {isVerifying2fa ? "Verifying..." : "Verify Code"}
+                      </Button>
                     </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+
+                    <div className="space-y-3">
+                      <Label>Scan QR in your authenticator app</Label>
+                      {qrDataUrl ? (
+                        <div className="flex items-center space-x-4">
+                          <img src={qrDataUrl} alt="2FA QR" className="w-40 h-40 border rounded-lg" />
+                          <p className="text-sm text-gray-600 max-w-md">
+                            Use Google Authenticator, Authy, 1Password, or any TOTP app. After scanning, enter the 6‑digit code below to verify.
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">Generate to view QR.</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 max-w-xs">
+                      <Label htmlFor="otp">Enter 6-digit code</Label>
+                      <Input
+                        id="otp"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value)}
+                        placeholder="123456"
+                        maxLength={6}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 

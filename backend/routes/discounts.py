@@ -58,9 +58,10 @@ def update_discount_status(discount_id):
     try:
         data = request.json
         status = data.get("status")
+        approved_by = data.get("approved_by") or data.get("approvedBy")
 
         success, message, status_code = discounts_service.update_discount_status(
-            discount_id, status
+            discount_id, status, approved_by
         )
 
         if success:
@@ -76,4 +77,50 @@ def update_discount_status(discount_id):
         return jsonify({"error": message}), status_code
     except Exception as e:
         logger.error(f"Error in update_discount_status: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@discounts_bp.route("/discounts/<discount_id>", methods=["DELETE"])
+def delete_discount(discount_id):
+    """Delete a single discount"""
+    try:
+        success, message, status_code = discounts_service.delete_discounts([discount_id])
+        if success:
+            try:
+                from scripts.sync_manager import log_json_crud_operation
+
+                log_json_crud_operation("discounts", "DELETE", discount_id, {"discount_id": discount_id})
+            except ImportError:
+                logger.warning("Sync manager not available, skipping sync log")
+
+            return jsonify({"message": message}), status_code
+        return jsonify({"error": message}), status_code
+    except Exception as e:
+        logger.error(f"Error in delete_discount: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@discounts_bp.route("/discounts/bulk-delete", methods=["POST"])
+def bulk_delete_discounts():
+    """Delete multiple discounts by ids"""
+    try:
+        data = request.json or {}
+        ids = data.get("ids") or data.get("discount_ids") or []
+        if not isinstance(ids, list):
+            return jsonify({"error": "ids must be a list"}), 400
+
+        success, message, status_code = discounts_service.delete_discounts(ids)
+        if success:
+            try:
+                from scripts.sync_manager import log_json_crud_operation
+
+                for disc_id in ids:
+                    log_json_crud_operation("discounts", "DELETE", disc_id, {"discount_id": disc_id})
+            except ImportError:
+                logger.warning("Sync manager not available, skipping sync log")
+
+            return jsonify({"message": message}), status_code
+        return jsonify({"error": message}), status_code
+    except Exception as e:
+        logger.error(f"Error in bulk_delete_discounts: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500

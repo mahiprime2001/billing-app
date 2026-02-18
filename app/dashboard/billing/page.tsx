@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard-layout";
 import OfflineBanner from "@/components/OfflineBanner";
@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw } from "lucide-react";
+import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw, ArrowUpDown } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Upload } from "lucide-react";
 import { unifiedPrint } from "@/app/utils/printUtils";
@@ -121,6 +121,8 @@ interface Customer {
   totalSpent?: number;
 }
 
+type BillSortKey = "date" | "total" | "discount" | "customer" | "items";
+
 export default function BillingPage() {
   const router = useRouter();
   const [isOnline, setIsOnline] = useState(true);
@@ -137,6 +139,8 @@ export default function BillingPage() {
   const [selectedBillIds, setSelectedBillIds] = useState<string[]>([]);
   const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [billSortKey, setBillSortKey] = useState<BillSortKey>("date");
+  const [billSortDirection, setBillSortDirection] = useState<"asc" | "desc">("desc");
 
   // Form state
   const [customerName, setCustomerName] = useState("");
@@ -574,6 +578,10 @@ export default function BillingPage() {
     });
   };
 
+  const toggleBillSortDirection = () => {
+    setBillSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+  };
+
   const viewBill = (bill: Bill) => {
     console.log("viewBill: Viewing bill", bill);
     setSelectedBill(bill);
@@ -831,12 +839,46 @@ export default function BillingPage() {
     }
   };
 
-  const filteredBills = currentBills.filter((bill: Bill) => {
-    const customerName = bill.customerName || "";
-    const billId = bill.id || "";
+  const filteredBills = useMemo(() => {
     const searchLower = billSearchTerm.toLowerCase();
-    return customerName.toLowerCase().includes(searchLower) || billId.includes(searchLower);
-  });
+    const filtered = currentBills.filter((bill: Bill) => {
+      const customerName = bill.customerName || "";
+      const billId = bill.id || "";
+      return customerName.toLowerCase().includes(searchLower) || billId.includes(searchLower);
+    });
+
+    const getComparableValue = (bill: Bill) => {
+      switch (billSortKey) {
+        case "total":
+          return bill.total || 0;
+        case "discount":
+          return bill.discountAmount || 0;
+        case "customer":
+          return (bill.customerName || "").toLowerCase();
+        case "items":
+          return bill.items?.length || 0;
+        case "date":
+        default:
+          return new Date(bill.date).getTime();
+      }
+    };
+
+    const sorted = [...filtered].sort((a, b) => {
+      const aVal = getComparableValue(a);
+      const bVal = getComparableValue(b);
+
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        const comp = aVal.localeCompare(bVal);
+        return billSortDirection === "asc" ? comp : -comp;
+      }
+
+      const comp = Number(aVal) - Number(bVal);
+      return billSortDirection === "asc" ? comp : -comp;
+    });
+
+    return sorted;
+  }, [currentBills, billSearchTerm, billSortDirection, billSortKey]);
+
   const allFilteredBillsSelected =
     filteredBills.length > 0 && filteredBills.every((bill) => selectedBillIds.includes(bill.id));
   const someFilteredBillsSelected =
@@ -1191,6 +1233,22 @@ export default function BillingPage() {
                       className="max-w-sm"
                     />
                   </div>
+                  <Select value={billSortKey} onValueChange={(value) => setBillSortKey(value as BillSortKey)}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date">Date</SelectItem>
+                      <SelectItem value="total">Total</SelectItem>
+                      <SelectItem value="discount">Discount Amount</SelectItem>
+                      <SelectItem value="items">Items Count</SelectItem>
+                      <SelectItem value="customer">Customer Name</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={toggleBillSortDirection}>
+                    <ArrowUpDown className="h-4 w-4 mr-1" />
+                    {billSortDirection === "asc" ? "Ascending" : "Descending"}
+                  </Button>
                   {selectedBillIds.length > 0 && (
                     <Button variant="destructive" size="sm" onClick={openBulkDeleteDialog}>
                       <Trash2 className="h-4 w-4 mr-2" />

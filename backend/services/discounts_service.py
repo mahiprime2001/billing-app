@@ -40,7 +40,46 @@ def get_supabase_discounts() -> List[Dict]:
         client = db.client
         response = client.table("discounts").select("*").execute()
         discounts = response.data or []
-        transformed = [convert_snake_to_camel(item) for item in discounts]
+
+        # Collect all user ids referenced by discounts (requester + approver)
+        user_ids = {
+            item.get("user_id")
+            for item in discounts
+            if item.get("user_id")
+        } | {
+            item.get("approved_by")
+            for item in discounts
+            if item.get("approved_by")
+        }
+
+        user_name_map: Dict[str, str] = {}
+        if user_ids:
+            try:
+                users_resp = (
+                    client.table("users")
+                    .select("id,name")
+                    .in_("id", list(user_ids))
+                    .execute()
+                )
+                for user in users_resp.data or []:
+                    user_name_map[user["id"]] = user.get("name") or user["id"]
+            except Exception as user_err:
+                logger.warning(f"Failed to load user names for discounts: {user_err}")
+
+        transformed: List[Dict] = []
+        for item in discounts:
+            camel_item = convert_snake_to_camel(item)
+
+            requester_id = item.get("user_id")
+            approver_id = item.get("approved_by")
+
+            if requester_id:
+                camel_item["userName"] = user_name_map.get(requester_id, requester_id)
+            if approver_id:
+                camel_item["approvedByName"] = user_name_map.get(approver_id, approver_id)
+
+            transformed.append(camel_item)
+
         logger.debug(f"Returning {len(transformed)} discounts from Supabase.")
         return transformed
     except Exception as e:
@@ -127,7 +166,7 @@ def create_discount_request(discount_data: dict) -> Tuple[Optional[str], str, in
         return None, str(e), 500
 
 
-def update_discount_status(discount_id: str, status: str) -> Tuple[bool, str, int]:
+def update_discount_status(discount_id: str, status: str, approved_by: Optional[str] = None) -> Tuple[bool, str, int]:
     """
     Update discount request status.
     Returns (success, message, status_code)
@@ -147,6 +186,8 @@ def update_discount_status(discount_id: str, status: str) -> Tuple[bool, str, in
             return False, "Discount not found", 404
 
         update_data = {"status": status, "updated_at": datetime.now().isoformat()}
+        if approved_by:
+            update_data["approved_by"] = approved_by
 
         discounts[discount_index].update(update_data)
         save_discounts_data(discounts)
@@ -170,4 +211,35 @@ def update_discount_status(discount_id: str, status: str) -> Tuple[bool, str, in
         return True, "Discount status updated", 200
     except Exception as e:
         logger.error(f"Error updating discount status: {e}", exc_info=True)
+        return False, str(e), 500
+
+
+def delete_discounts(discount_ids: List[str]) -> Tuple[bool, str, int]:
+    """
+    Delete one or more discounts (local JSON + Supabase).
+    Returns (success, message, status_code)
+    """
+    try:
+        if not discount_ids:
+            return False, "No discount ids provided", 400
+
+        # Update local JSON
+        discounts = get_discounts_data()
+        remaining = [d for d in discounts if d.get("discount_id") not in discount_ids]
+        if len(remaining) == len(discounts):
+            return False, "No matching discounts found", 404
+
+        save_discounts_data(remaining)
+
+        # Remove from Supabase (best-effort)
+        try:
+            client = db.client
+            client.table("discounts").delete().in_("discount_id", discount_ids).execute()
+        except Exception as supabase_error:
+            logger.error(f"Error deleting discounts from Supabase: {supabase_error}")
+
+        logger.info(f"Deleted {len(discounts) - len(remaining)} discount(s)")
+        return True, "Discount(s) deleted", 200
+    except Exception as e:
+        logger.error(f"Error deleting discounts: {e}", exc_info=True)
         return False, str(e), 500

@@ -732,34 +732,51 @@ const handleDeleteProduct = async (productId: string) => {
         return bc ? bc.toLowerCase().includes(q) : false;
       })();
 
+    const stock = Number(product.stock ?? 0);
     const matchesStock =
       stockFilter === "all" ||
-      (stockFilter === "low" && product.stock <= 5) ||
-      (stockFilter === "out" && product.stock === 0) ||
-      (stockFilter === "available" && product.stock > 5);
+      (stockFilter === "low" && stock > 0 && stock <= 5) ||
+      (stockFilter === "out" && stock === 0) ||
+      (stockFilter === "available" && stock > 5);
 
     // NEW: Price range filter
     const productPrice = Number(product.price) || 0; // Ensure price is a number, default to 0
-    const priceMin = priceRange.min ? parseFloat(priceRange.min) : 0;
-    const priceMax = priceRange.max ? parseFloat(priceRange.max) : Infinity;
+    const priceMin = priceRange.min !== "" ? parseFloat(priceRange.min) : -Infinity;
+    const priceMax = priceRange.max !== "" ? parseFloat(priceRange.max) : Infinity;
     const matchesPrice = productPrice >= priceMin && productPrice <= priceMax;
 
     // NEW: Batch filter
-    const matchesBatch = batchFilter === "all" || product.batchid === batchFilter;
+    const productBatchId = product.batchid !== undefined && product.batchid !== null ? String(product.batchid) : "";
+    const matchesBatch = batchFilter === "all" || productBatchId === String(batchFilter);
 
     // NEW: Selling Price range filter
-    const sellingPriceMin = sellingPriceRange.min ? parseFloat(sellingPriceRange.min) : 0;
-    const sellingPriceMax = sellingPriceRange.max ? parseFloat(sellingPriceRange.max) : Infinity;
-    const productSellingPrice = Number((product as any).sellingPrice) || 0; // Ensure sellingPrice is a number, default to 0
+    const sellingPriceMin = sellingPriceRange.min !== "" ? parseFloat(sellingPriceRange.min) : -Infinity;
+    const sellingPriceMax = sellingPriceRange.max !== "" ? parseFloat(sellingPriceRange.max) : Infinity;
+    const productSellingPrice = Number((product as any).sellingPrice ?? (product as any).price ?? 0); // Ensure sellingPrice is a number, default to 0
     const matchesSellingPrice = productSellingPrice >= sellingPriceMin && productSellingPrice <= sellingPriceMax;
 
     // NEW: Date added filter (using createdAt if available)
     let matchesDate = true;
     if (dateAddedFilter.from || dateAddedFilter.to) {
-      const createdAt = (product as any).createdAt ? new Date((product as any).createdAt) : null;
+      const createdAtRaw =
+        (product as any).createdAt ??
+        (product as any).createdat ??
+        (product as any).created_at ??
+        null;
+
+      const createdAt =
+        createdAtRaw === null
+          ? null
+          : new Date(typeof createdAtRaw === "number" ? createdAtRaw : String(createdAtRaw));
+
       if (createdAt && !isNaN(createdAt.getTime())) {
-        const fromDate = dateAddedFilter.from ? new Date(dateAddedFilter.from) : null;
-        const toDate = dateAddedFilter.to ? new Date(dateAddedFilter.to) : null;
+        const fromDate = dateAddedFilter.from
+          ? new Date(`${dateAddedFilter.from}T00:00:00.000`)
+          : null;
+        const toDate = dateAddedFilter.to
+          ? new Date(`${dateAddedFilter.to}T23:59:59.999`)
+          : null;
+
         if (fromDate) matchesDate = matchesDate && createdAt >= fromDate;
         if (toDate) matchesDate = matchesDate && createdAt <= toDate;
       } else {
@@ -852,6 +869,14 @@ const handleDeleteProduct = async (productId: string) => {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
 
+  const formatDateDMY = (d?: Date | null) => {
+    if (!d) return "";
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
   const toKey = (d: Date) => {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -937,7 +962,7 @@ const handleDeleteProduct = async (productId: string) => {
         <div><strong>Batch ID:</strong> ${printMeta?.batchId || "N/A"}</div>
         <div><strong>Batch Name:</strong> ${printMeta?.batchName || "N/A"}</div>
         <div><strong>Batch Place:</strong> ${printMeta?.batchPlace || "N/A"}</div>
-        <div><strong>Date:</strong> ${titleDate.toDateString()}</div>
+        <div><strong>Date:</strong> ${formatDateDMY(titleDate)}</div>
         <div><strong>Printed At:</strong> ${printedAt}</div>
       </div>
     `;
@@ -947,7 +972,7 @@ const handleDeleteProduct = async (productId: string) => {
       <html>
         <head>
           <meta charset="utf-8" />
-          <title>Products on ${titleDate.toDateString()}</title>
+          <title>Products on ${formatDateDMY(titleDate)}</title>
           <style>
             @media print {
               @page { margin: 12mm; }
@@ -972,7 +997,7 @@ const handleDeleteProduct = async (productId: string) => {
           </style>
         </head>
         <body>
-          <h1>Products on ${titleDate.toDateString()}</h1>
+      <h1>Products on ${formatDateDMY(titleDate)}</h1>
           ${storeInfoHtml}
           ${detailsHtml}
           <table>
@@ -1112,7 +1137,7 @@ const handleDeleteProduct = async (productId: string) => {
                   {selectedDate && (
                     <div className="mt-3 border-t pt-3">
                       <div className="text-sm mb-2">
-                        {(dateCounts[selectedKey] ?? 0).toString()} products on {selectedDate.toDateString()}
+                        {(dateCounts[selectedKey] ?? 0).toString()} products on {formatDateDMY(selectedDate)}
                       </div>
                       {/* Removed "View all products" and "Print all products" buttons */}
                     </div>
@@ -1774,7 +1799,7 @@ const handleDeleteProduct = async (productId: string) => {
         <Dialog open={isBatchesForDayDialogOpen} onOpenChange={setIsBatchesForDayDialogOpen}>
           <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Batches on {selectedDate ? selectedDate.toDateString() : ""}</DialogTitle>
+              <DialogTitle>Batches on {selectedDate ? formatDateDMY(selectedDate) : ""}</DialogTitle>
               <DialogDescription>Select a batch to view its products.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -1825,7 +1850,7 @@ const handleDeleteProduct = async (productId: string) => {
           <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                Products in Batch {selectedBatchForProducts?.batchNumber} on {selectedDate ? selectedDate.toDateString() : ""}
+                Products in Batch {selectedBatchForProducts?.batchNumber} on {selectedDate ? formatDateDMY(selectedDate) : ""}
               </DialogTitle>
               <DialogDescription>
                 Listed by product id, name, stock, and price.
@@ -1945,7 +1970,7 @@ return (
           <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                Products on {selectedDate ? selectedDate.toDateString() : ""}
+                Products on {selectedDate ? formatDateDMY(selectedDate) : ""}
               </DialogTitle>
               <DialogDescription>
                 Listed by product id, name, stock, and price.
