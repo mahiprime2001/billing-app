@@ -376,6 +376,9 @@ class EnhancedSyncManager:
             'Users': 'users.json',
             'Bills': 'bills.json',
             'BillItems': 'billitems.json',  # NEW: Added BillItems mapping
+            'Returns': 'returns.json',
+            'Discounts': 'discounts.json',
+            'HSNCodes': 'hsn_codes.json',
             'Customers': 'customers.json',
             'Stores': 'stores.json',
             'SystemSettings': 'settings.json',
@@ -405,8 +408,13 @@ class EnhancedSyncManager:
             logger.info(f"Applied {operation} to {json_file}")
             return
         
-        # Get record_id from change_data
-        record_id = change_data.get('id')
+        # Get record_id from change_data (table-specific keys where applicable)
+        if tn_normalized == "Returns":
+            record_id = change_data.get("return_id") or change_data.get("id")
+        elif tn_normalized == "Discounts":
+            record_id = change_data.get("discount_id") or change_data.get("id")
+        else:
+            record_id = change_data.get("id")
         
         # If this is products.json, update all discovered copies
         if json_file == 'products.json':
@@ -444,10 +452,15 @@ class EnhancedSyncManager:
         
         # Non-products JSON (single file) - including billitems.json and userstores.json
         data = self._safe_json_load(file_path, [])
+        id_key = "id"
+        if tn_normalized == "Returns":
+            id_key = "return_id"
+        elif tn_normalized == "Discounts":
+            id_key = "discount_id"
         if operation in ['CREATE', 'UPDATE']:
             found = False
             for i, item in enumerate(data):
-                if item.get('id') == record_id:
+                if item.get(id_key) == record_id:
                     merged = dict(item)
                     merged.update(change_data)
                     data[i] = merged
@@ -456,7 +469,7 @@ class EnhancedSyncManager:
             if not found:
                 data.append(change_data)
         elif operation == 'DELETE':
-            data = [item for item in data if item.get('id') != record_id]
+            data = [item for item in data if item.get(id_key) != record_id]
         
         self._safe_json_dump(file_path, data)
         logger.info(f"Applied {operation} to {json_file} for record {record_id}")
@@ -521,6 +534,9 @@ class EnhancedSyncManager:
     def apply_change_to_supabase_db(self, table_name: str, change_type: str, record_id: str, change_data: Dict) -> bool:
         """Apply change to Supabase database"""
         try:
+            if not isinstance(change_data, dict):
+                change_data = {}
+
             # Convert barcodes array to string for products table
             if table_name.lower() == 'products' and 'barcodes' in change_data:
                 if isinstance(change_data['barcodes'], list):
@@ -538,6 +554,8 @@ class EnhancedSyncManager:
                 'batch': self.supabase_db.client.table("batch"),
                 'BillItems': self.supabase_db.client.table("billitems"),
                 'Returns': self.supabase_db.client.table("returns"),
+                'Discounts': self.supabase_db.client.table("discounts"),
+                'HSNCodes': self.supabase_db.client.table("hsn_codes"),
                 'UserStores': self.supabase_db.client.table("userstores"),
                 'StoreInventory': self.supabase_db.client.table("storeinventory"),
             }
@@ -564,6 +582,22 @@ class EnhancedSyncManager:
                     logger.info(f"Specific DELETE cleanup for product {record_id} successful via sync.apply_change_to_db.")
                     return True # apply_change_to_db already performed the actual deletion
 
+                if table_name.lower() == "bills":
+                    self.supabase_db.client.table("billitems").delete().eq("billid", record_id).execute()
+                    table_client.delete().eq("id", record_id).execute()
+                    logger.info(f"DELETE operation on Bills for {record_id} successful")
+                    return True
+
+                if table_name.lower() == "returns":
+                    table_client.delete().eq("return_id", record_id).execute()
+                    logger.info(f"DELETE operation on Returns for {record_id} successful")
+                    return True
+
+                if table_name.lower() == "discounts":
+                    table_client.delete().eq("discount_id", record_id).execute()
+                    logger.info(f"DELETE operation on Discounts for {record_id} successful")
+                    return True
+
                 # General DELETE for other tables:
                 response = table_client.delete().eq("id", record_id).execute()
                 if response.data:
@@ -575,6 +609,72 @@ class EnhancedSyncManager:
 
             elif change_type in ['CREATE', 'UPDATE']:
                 logger.debug(f"Executing {change_type} operation on Supabase for {table_name} with ID: {record_id}, Data: {change_data}")
+
+                # Bills need special handling to split bill header + items
+                if table_name.lower() == "bills":
+                    bill_payload = dict(change_data)
+                    items = bill_payload.pop("items", []) or []
+                    bill_payload["id"] = bill_payload.get("id") or record_id
+
+                    # normalize common frontend keys to Supabase snake_case keys
+                    if "storeId" in bill_payload and "storeid" not in bill_payload:
+                        bill_payload["storeid"] = bill_payload.pop("storeId")
+                    if "customerId" in bill_payload and "customerid" not in bill_payload:
+                        bill_payload["customerid"] = bill_payload.pop("customerId")
+                    if "paymentMethod" in bill_payload and "paymentmethod" not in bill_payload:
+                        bill_payload["paymentmethod"] = bill_payload.pop("paymentMethod")
+                    if "createdAt" in bill_payload and "created_at" not in bill_payload:
+                        bill_payload["created_at"] = bill_payload.pop("createdAt")
+                    if "updatedAt" in bill_payload and "updated_at" not in bill_payload:
+                        bill_payload["updated_at"] = bill_payload.pop("updatedAt")
+
+                    if change_type == "CREATE":
+                        self.supabase_db.client.table("bills").upsert(bill_payload).execute()
+                    else:
+                        self.supabase_db.client.table("bills").update(bill_payload).eq("id", record_id).execute()
+
+                    if isinstance(items, list):
+                        self.supabase_db.client.table("billitems").delete().eq("billid", record_id).execute()
+                        db_items = []
+                        for item in items:
+                            if not isinstance(item, dict):
+                                continue
+                            db_items.append(
+                                {
+                                    "billid": record_id,
+                                    "productid": item.get("productid")
+                                    or item.get("product_id")
+                                    or item.get("productId"),
+                                    "quantity": item.get("quantity"),
+                                    "price": item.get("price"),
+                                    "total": item.get("total"),
+                                }
+                            )
+                        if db_items:
+                            self.supabase_db.client.table("billitems").insert(db_items).execute()
+
+                    logger.info(f"{change_type} operation on Bills for {record_id} successful")
+                    return True
+
+                if table_name.lower() == "returns":
+                    payload = dict(change_data)
+                    payload["return_id"] = payload.get("return_id") or record_id
+                    if change_type == "CREATE":
+                        table_client.upsert(payload).execute()
+                    else:
+                        table_client.update(payload).eq("return_id", record_id).execute()
+                    logger.info(f"{change_type} operation on Returns for {record_id} successful")
+                    return True
+
+                if table_name.lower() == "discounts":
+                    payload = dict(change_data)
+                    payload["discount_id"] = payload.get("discount_id") or record_id
+                    if change_type == "CREATE":
+                        table_client.upsert(payload).execute()
+                    else:
+                        table_client.update(payload).eq("discount_id", record_id).execute()
+                    logger.info(f"{change_type} operation on Discounts for {record_id} successful")
+                    return True
                 
                 # For products, ensure barcodes are handled as a string for Supabase
                 if table_name.lower() == 'products' and 'barcodes' in change_data:
@@ -785,6 +885,9 @@ def log_json_crud_operation(json_type: str, operation: str, record_id: str, data
         'products': 'Products',
         'users': 'Users',
         'bills': 'Bills',
+        'returns': 'Returns',
+        'discounts': 'Discounts',
+        'hsn_codes': 'HSNCodes',
         'customers': 'Customers',
         'stores': 'Stores',
         'notifications': 'Notifications',

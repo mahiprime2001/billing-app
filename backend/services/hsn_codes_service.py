@@ -3,6 +3,7 @@ HSN Codes Service
 Handles all HSN code-related business logic and database operations
 """
 import logging
+import uuid
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 
@@ -105,17 +106,25 @@ def create_hsn_code(hsn_data: dict) -> Tuple[Optional[str], str, int]:
             hsn_data["created_at"] = now_naive
         hsn_data["updated_at"] = now_naive
 
-        client = db.client
-        supabase_response = client.table("hsn_codes").insert(hsn_data).execute()
-
-        if not supabase_response.data:
-            return None, "Failed to insert HSN code into Supabase", 500
-
-        inserted = supabase_response.data[0]
-
         hsn_codes = get_hsn_codes_data()
-        hsn_codes.append(inserted)
+        if "id" not in hsn_data or not hsn_data.get("id"):
+            hsn_data["id"] = str(uuid.uuid4())
+        inserted = hsn_data
+        existing_idx = next((i for i, h in enumerate(hsn_codes) if str(h.get("id")) == str(inserted.get("id"))), -1)
+        if existing_idx >= 0:
+            hsn_codes[existing_idx] = inserted
+        else:
+            hsn_codes.append(inserted)
         save_hsn_codes_data(hsn_codes)
+
+        try:
+            client = db.client
+            client.table("hsn_codes").upsert(inserted).execute()
+        except Exception as supabase_error:
+            logger.warning(
+                f"HSN code {inserted.get('id')} saved locally; Supabase sync deferred: {supabase_error}"
+            )
+            return str(inserted.get("id")), "HSN code saved locally and queued for sync", 201
 
         logger.info(f"HSN code created {inserted.get('id')}")
         return str(inserted.get("id")), "HSN code created", 201

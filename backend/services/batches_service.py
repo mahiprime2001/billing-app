@@ -115,17 +115,24 @@ def create_batch(batch_data: dict) -> Tuple[Optional[str], str, int]:
             batch_data['createdat'] = now_naive
         batch_data['updatedat'] = now_naive
         
-        # Insert into Supabase
-        client = db.client
-        supabase_response = client.table('batch').insert(batch_data).execute()
-        
-        if not supabase_response.data:
-            return None, "Failed to insert batch into Supabase", 500
-        
-        # Save to local JSON
+        # Save to local JSON first (offline-first)
         batches = get_batches_data()
-        batches.append(batch_data)
+        existing_idx = next((i for i, b in enumerate(batches) if b.get("id") == batch_data["id"]), -1)
+        if existing_idx >= 0:
+            batches[existing_idx] = batch_data
+        else:
+            batches.append(batch_data)
         save_batches_data(batches)
+
+        # Best-effort Supabase sync now; queue handles retry on failure
+        try:
+            client = db.client
+            client.table('batch').upsert(batch_data).execute()
+        except Exception as supabase_error:
+            logger.warning(
+                f"Batch {batch_data['id']} saved locally; Supabase sync deferred: {supabase_error}"
+            )
+            return batch_data["id"], "Batch saved locally and queued for sync", 201
         
         logger.info(f"Batch created {batch_data['id']}")
         return batch_data['id'], "Batch created", 201

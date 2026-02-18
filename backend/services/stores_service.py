@@ -268,15 +268,22 @@ def create_store(store_data: dict) -> Tuple[Optional[str], str, int]:
         store_data.pop('email', None)
         store_data.pop('manager', None)
         
-        client = db.client
-        supabase_response = client.table('stores').insert(store_data).execute()
-        
-        if not supabase_response or not supabase_response.data:
-            return None, "Failed to insert store into Supabase", 500
-        
         stores = get_stores_data()
-        stores.append(store_data)
+        existing_idx = next((i for i, s in enumerate(stores) if s.get("id") == store_data["id"]), -1)
+        if existing_idx >= 0:
+            stores[existing_idx] = store_data
+        else:
+            stores.append(store_data)
         save_stores_data(stores)
+
+        try:
+            client = db.client
+            client.table('stores').upsert(store_data).execute()
+        except Exception as supabase_error:
+            logger.warning(
+                f"Store {store_data['id']} saved locally; Supabase sync deferred: {supabase_error}"
+            )
+            return store_data["id"], "Store saved locally and queued for sync", 201
         
         logger.info(f"Store created {store_data['id']}")
         return store_data['id'], "Store created", 201

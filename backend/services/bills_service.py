@@ -302,49 +302,57 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
         # Extract items if present
         items = db_bill_data.pop("items", [])
         print(f"📦 Items: {len(items)}")
-        
-        # Insert bill into Supabase
-        client = db.client
-        print(f"💾 Inserting bill...")
-        supabase_response = client.table("bills").insert(db_bill_data).execute()
-        
-        if not supabase_response.data:
-            print(f"❌ Failed to insert bill")
-            return None, "Failed to insert bill into Supabase", 500
-        
-        print(f"✅ Bill inserted")
-        
-        # Insert bill items if present
-        if items:
-            bill_items_for_db = []
-            for idx, item in enumerate(items):
-                db_item = {
-                    "billid": bill_id,  # Schema field name
-                    "productid": item.get("product_id") or item.get("productid"),  # Schema field name
-                    "quantity": item.get("quantity"),
-                    "price": item.get("price"),
-                    "total": item.get("total"),
-                }
-                
-                # Don't set ID, let it auto-increment
-                bill_items_for_db.append(db_item)
-            
-            print(f"📝 Inserting {len(bill_items_for_db)} items...")
-            client.table("billitems").insert(bill_items_for_db).execute()
-            print(f"✅ Items inserted")
-        
-        # Save to local JSON
+
+        # Save to local JSON first (offline-first)
         bills = get_bills_data()
-        
-        # Add items back to the snake_cased bill data so it is complete
         db_bill_data["items"] = items
-        bills.append(db_bill_data)
+        existing_idx = next((i for i, b in enumerate(bills) if b.get("id") == bill_id), -1)
+        if existing_idx >= 0:
+            bills[existing_idx] = db_bill_data
+        else:
+            bills.append(db_bill_data)
         save_bills_data(bills)
         print(f"💾 Saved to local JSON")
+
+        # Best-effort cloud sync now (queued sync will retry if this fails)
+        supabase_synced = False
+        try:
+            client = db.client
+            print(f"☁️ Attempting immediate Supabase sync for bill...")
+            cloud_bill_data = dict(db_bill_data)
+            cloud_bill_data.pop("items", None)
+            supabase_response = client.table("bills").upsert(cloud_bill_data).execute()
+            supabase_synced = bool(supabase_response.data)
+
+            if items:
+                client.table("billitems").delete().eq("billid", bill_id).execute()
+                bill_items_for_db = []
+                for item in items:
+                    bill_items_for_db.append(
+                        {
+                            "billid": bill_id,
+                            "productid": item.get("product_id")
+                            or item.get("productid")
+                            or item.get("productId"),
+                            "quantity": item.get("quantity"),
+                            "price": item.get("price"),
+                            "total": item.get("total"),
+                        }
+                    )
+                if bill_items_for_db:
+                    client.table("billitems").insert(bill_items_for_db).execute()
+            if supabase_synced:
+                print("✅ Immediate Supabase sync completed for bill")
+        except Exception as supabase_error:
+            logger.warning(
+                f"Bill {bill_id} saved locally; Supabase sync deferred: {supabase_error}"
+            )
         
         print(f"✅ Bill created: {bill_id}")
         logger.info(f"Bill created: {bill_id}")
-        return bill_id, "Bill created", 201
+        if supabase_synced:
+            return bill_id, "Bill created and synced", 201
+        return bill_id, "Bill saved locally and queued for sync", 201
         
     except Exception as e:
         print(f"❌ Error creating bill: {e}")
@@ -373,17 +381,17 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
         else:
             print(f"⚠️  Bill not found in local storage")
         
-        # Delete from Supabase
-        client = db.client
-        print(f"🗑️ Deleting from Supabase...")
-        
-        # Delete bill items first (foreign key constraint)
-        client.table("billitems").delete().eq("billid", bill_id).execute()
-        
-        # Then delete the bill
-        client.table("bills").delete().eq("id", bill_id).execute()
-        
-        print(f"✅ Deleted from Supabase")
+        # Best-effort delete from Supabase (if offline, queue will handle later)
+        try:
+            client = db.client
+            print(f"🗑️ Deleting from Supabase...")
+            client.table("billitems").delete().eq("billid", bill_id).execute()
+            client.table("bills").delete().eq("id", bill_id).execute()
+            print(f"✅ Deleted from Supabase")
+        except Exception as supabase_error:
+            logger.warning(
+                f"Bill {bill_id} deleted locally; Supabase delete deferred: {supabase_error}"
+            )
         print(f"✅ Bill deleted: {bill_id}")
         logger.info(f"Bill deleted: {bill_id}")
         return True, "Bill deleted", 200

@@ -79,6 +79,33 @@ def get_supabase_bills_with_details():
 # MAIN / MERGED BILLS ENDPOINT (FIXED)
 # ======================================================
 
+@bills_bp.route("/bills", methods=["POST"])
+def create_bill():
+    """Create bill - always saves locally, syncs to Supabase when available"""
+    try:
+        bill_data = request.json or {}
+        bill_id, message, status_code = bills_service.create_bill(bill_data)
+
+        if status_code == 201 and bill_id:
+            try:
+                from scripts.sync_manager import log_json_crud_operation
+                log_json_crud_operation(
+                    json_type="bills",
+                    operation="CREATE",
+                    record_id=bill_id,
+                    data=bill_data,
+                )
+            except ImportError:
+                logger.warning("Sync manager not available")
+
+            return jsonify({"message": message, "id": bill_id}), 201
+
+        return jsonify({"error": message}), status_code
+
+    except Exception as e:
+        logger.error("Error creating bill", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
 @bills_bp.route("/bills", methods=["GET"])
 def get_bills():
     """

@@ -155,17 +155,24 @@ def create_customer(customer_data: dict) -> Tuple[Optional[str], str, int]:
             customer_data['createdat'] = now_naive
         customer_data['updatedat'] = now_naive
         
-        # Insert into Supabase
-        client = db.client
-        supabase_response = client.table('customers').insert(customer_data).execute()
-        
-        if not supabase_response.data:
-            return None, "Failed to insert customer into Supabase", 500
-        
-        # Save to local JSON
+        # Save to local JSON first (offline-first)
         customers = get_customers_data()
-        customers.append(customer_data)
+        existing_idx = next((i for i, c in enumerate(customers) if c.get("id") == customer_data["id"]), -1)
+        if existing_idx >= 0:
+            customers[existing_idx] = customer_data
+        else:
+            customers.append(customer_data)
         save_customers_data(customers)
+
+        # Best-effort Supabase sync now; queue handles retry on failure
+        try:
+            client = db.client
+            client.table('customers').upsert(customer_data).execute()
+        except Exception as supabase_error:
+            logger.warning(
+                f"Customer {customer_data['id']} saved locally; Supabase sync deferred: {supabase_error}"
+            )
+            return customer_data["id"], "Customer saved locally and queued for sync", 201
         
         logger.info(f"Customer created {customer_data['id']}")
         return customer_data['id'], "Customer created", 201
