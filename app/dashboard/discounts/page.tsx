@@ -131,16 +131,13 @@ export default function DiscountsPage() {
 
   const getDiscountId = (item: DiscountRequest) => item.discountId || item.discount_id || ""
   const getBillId = (item: DiscountRequest) => item.billId || item.bill_id || "-"
-<<<<<<< HEAD
   const getUserName = (item: DiscountRequest) =>
     item.userName || (item as any).user_name || item.userId || item.user_id || "-"
-=======
   const getUserId = (item: DiscountRequest) => item.userId || item.user_id || "-"
   const getUserDisplayName = (item: DiscountRequest) => {
     const userId = getUserId(item)
-    return userNameById[userId] || userId
+    return userNameById[userId] || getUserName(item) || "-"
   }
->>>>>>> 3cfe1d7771b106db27c032749a5370170e339fbb
   const getDiscountPercent = (item: DiscountRequest) => item.discount ?? 0
   const getDiscountAmount = (item: DiscountRequest) =>
     item.discountAmount ?? item.discount_amount ?? 0
@@ -352,17 +349,13 @@ export default function DiscountsPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-gray-500" />
-<<<<<<< HEAD
-                            {getUserName(item)}
+                            {getUserDisplayName(item)}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-gray-500" />
-                            -
-=======
-                            {getUserDisplayName(item)}
->>>>>>> 3cfe1d7771b106db27c032749a5370170e339fbb
+                            {getApprovedBy(item)}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -504,11 +497,7 @@ export default function DiscountsPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-gray-500" />
-<<<<<<< HEAD
-                            {getUserName(item)}
-=======
                             {getUserDisplayName(item)}
->>>>>>> 3cfe1d7771b106db27c032749a5370170e339fbb
                           </div>
                         </TableCell>
                         <TableCell>

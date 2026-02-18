@@ -829,57 +829,6 @@ const handleDeleteProduct = async (productId: string) => {
       const hsnCodeId = getProductHsnCodeId(product);
       const hsnCodeText = (hsnCodeMap.get(hsnCodeId)?.hsnCode || hsnCodeId).toLowerCase();
 
-<<<<<<< HEAD
-    const stock = Number(product.stock ?? 0);
-    const matchesStock =
-      stockFilter === "all" ||
-      (stockFilter === "low" && stock > 0 && stock <= 5) ||
-      (stockFilter === "out" && stock === 0) ||
-      (stockFilter === "available" && stock > 5);
-
-    // NEW: Price range filter
-    const productPrice = Number(product.price) || 0; // Ensure price is a number, default to 0
-    const priceMin = priceRange.min !== "" ? parseFloat(priceRange.min) : -Infinity;
-    const priceMax = priceRange.max !== "" ? parseFloat(priceRange.max) : Infinity;
-    const matchesPrice = productPrice >= priceMin && productPrice <= priceMax;
-
-    // NEW: Batch filter
-    const productBatchId = product.batchid !== undefined && product.batchid !== null ? String(product.batchid) : "";
-    const matchesBatch = batchFilter === "all" || productBatchId === String(batchFilter);
-
-    // NEW: Selling Price range filter
-    const sellingPriceMin = sellingPriceRange.min !== "" ? parseFloat(sellingPriceRange.min) : -Infinity;
-    const sellingPriceMax = sellingPriceRange.max !== "" ? parseFloat(sellingPriceRange.max) : Infinity;
-    const productSellingPrice = Number((product as any).sellingPrice ?? (product as any).price ?? 0); // Ensure sellingPrice is a number, default to 0
-    const matchesSellingPrice = productSellingPrice >= sellingPriceMin && productSellingPrice <= sellingPriceMax;
-
-    // NEW: Date added filter (using createdAt if available)
-    let matchesDate = true;
-    if (dateAddedFilter.from || dateAddedFilter.to) {
-      const createdAtRaw =
-        (product as any).createdAt ??
-        (product as any).createdat ??
-        (product as any).created_at ??
-        null;
-
-      const createdAt =
-        createdAtRaw === null
-          ? null
-          : new Date(typeof createdAtRaw === "number" ? createdAtRaw : String(createdAtRaw));
-
-      if (createdAt && !isNaN(createdAt.getTime())) {
-        const fromDate = dateAddedFilter.from
-          ? new Date(`${dateAddedFilter.from}T00:00:00.000`)
-          : null;
-        const toDate = dateAddedFilter.to
-          ? new Date(`${dateAddedFilter.to}T23:59:59.999`)
-          : null;
-
-        if (fromDate) matchesDate = matchesDate && createdAt >= fromDate;
-        if (toDate) matchesDate = matchesDate && createdAt <= toDate;
-      } else {
-        matchesDate = false; // Skip if no createdAt
-=======
       const matchesSearchByScope = (scope: string) => {
         if (!q) return true;
         if (scope === "name") return product.name.toLowerCase().includes(q);
@@ -895,18 +844,20 @@ const handleDeleteProduct = async (productId: string) => {
       };
       const matchesSearch = matchesSearchByScope(searchScope);
 
+      const stock = Number(product.stock ?? 0);
       const matchesStock =
         stockFilter === "all" ||
-        (stockFilter === "low" && product.stock <= 5) ||
-        (stockFilter === "out" && product.stock === 0) ||
-        (stockFilter === "available" && product.stock > 5);
+        (stockFilter === "low" && stock > 0 && stock <= 5) ||
+        (stockFilter === "out" && stock === 0) ||
+        (stockFilter === "available" && stock > 5);
 
       const productPrice = Number(product.price) || 0;
-      const priceMin = priceRange.min ? parseFloat(priceRange.min) : 0;
-      const priceMax = priceRange.max ? parseFloat(priceRange.max) : Infinity;
+      const priceMin = priceRange.min !== "" ? parseFloat(priceRange.min) : -Infinity;
+      const priceMax = priceRange.max !== "" ? parseFloat(priceRange.max) : Infinity;
       const matchesPrice = productPrice >= priceMin && productPrice <= priceMax;
 
-      const matchesBatch = batchFilter === "all" || product.batchid === batchFilter;
+      const productBatchId = product.batchid !== undefined && product.batchid !== null ? String(product.batchid) : "";
+      const matchesBatch = batchFilter === "all" || productBatchId === String(batchFilter);
 
       const hasBatch = Boolean(product.batchid);
       const matchesBatchAssignment =
@@ -914,37 +865,43 @@ const handleDeleteProduct = async (productId: string) => {
         (batchAssignmentFilter === "with-batch" && hasBatch) ||
         (batchAssignmentFilter === "without-batch" && !hasBatch);
 
-      const sellingPriceMin = sellingPriceRange.min ? parseFloat(sellingPriceRange.min) : 0;
-      const sellingPriceMax = sellingPriceRange.max ? parseFloat(sellingPriceRange.max) : Infinity;
+      const sellingPriceMin = sellingPriceRange.min !== "" ? parseFloat(sellingPriceRange.min) : -Infinity;
+      const sellingPriceMax = sellingPriceRange.max !== "" ? parseFloat(sellingPriceRange.max) : Infinity;
       const productSellingPrice = Number(
         (product as any).sellingPrice ??
-        (product as any).selling_price ??
-        (product as any).displayPrice ??
-        product.price ??
-        0
+          (product as any).selling_price ??
+          (product as any).displayPrice ??
+          product.price ??
+          0,
       ) || 0;
       const matchesSellingPrice = productSellingPrice >= sellingPriceMin && productSellingPrice <= sellingPriceMax;
 
       let matchesDate = true;
       if (dateAddedFilter.from || dateAddedFilter.to) {
-        const createdAt = (product as any).createdAt ? new Date((product as any).createdAt) : null;
-        if (createdAt && !isNaN(createdAt.getTime())) {
-          const fromDate = dateAddedFilter.from ? new Date(dateAddedFilter.from) : null;
-          const toDate = dateAddedFilter.to ? new Date(dateAddedFilter.to) : null;
+        const createdAtRaw =
+          (product as any).createdAt ??
+          (product as any).createdat ??
+          (product as any).created_at ??
+          null;
 
-          if (fromDate && !isNaN(fromDate.getTime())) {
-            fromDate.setHours(0, 0, 0, 0);
-          }
-          if (toDate && !isNaN(toDate.getTime())) {
-            toDate.setHours(23, 59, 59, 999);
-          }
+        const createdAt =
+          createdAtRaw === null
+            ? null
+            : new Date(typeof createdAtRaw === "number" ? createdAtRaw : String(createdAtRaw));
+
+        if (createdAt && !isNaN(createdAt.getTime())) {
+          const fromDate = dateAddedFilter.from
+            ? new Date(`${dateAddedFilter.from}T00:00:00.000`)
+            : null;
+          const toDate = dateAddedFilter.to
+            ? new Date(`${dateAddedFilter.to}T23:59:59.999`)
+            : null;
 
           if (fromDate) matchesDate = matchesDate && createdAt >= fromDate;
           if (toDate) matchesDate = matchesDate && createdAt <= toDate;
         } else {
           matchesDate = false;
         }
->>>>>>> 3cfe1d7771b106db27c032749a5370170e339fbb
       }
 
       const matchesHsn =
