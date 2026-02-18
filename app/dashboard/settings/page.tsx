@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building, Save, User, Shield, RefreshCw, Hash } from "lucide-react"
+import { Building, Save, User, Shield, RefreshCw, Hash, QrCode, ShieldCheck, AlertCircle, Loader2 } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 interface SystemSettings {
   gstin: string
@@ -54,6 +55,19 @@ interface AdminUser {
   assignedStores?: string[]
 }
 
+interface TwoFactorStatus {
+  is_enabled?: boolean
+  verified_at?: string | null
+  updated_at?: string | null
+}
+
+interface SuperAdminUser {
+  id: string
+  name: string
+  email: string
+  role?: string
+  twofa?: TwoFactorStatus | null
+}
 
 
 interface UpdateStatus {
@@ -81,6 +95,15 @@ export default function SettingsPage() {
   const [isSecondConfirmOpen, setIsSecondConfirmOpen] = useState(false)
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
   const [adminUsersToKeep, setAdminUsersToKeep] = useState<string[]>([])
+  const [superAdmins, setSuperAdmins] = useState<SuperAdminUser[]>([])
+  const [selectedTwofaUser, setSelectedTwofaUser] = useState<string | null>(null)
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+  const [otpAuthUri, setOtpAuthUri] = useState<string | null>(null)
+  const [verifyCode, setVerifyCode] = useState("")
+  const [isInitiating2fa, setIsInitiating2fa] = useState(false)
+  const [isVerifying2fa, setIsVerifying2fa] = useState(false)
+  const [twofaMessage, setTwofaMessage] = useState<string | null>(null)
+  const [isTwofaDialogOpen, setIsTwofaDialogOpen] = useState(false)
 
   const defaultSystemSettings: SystemSettings = {
     gstin: "XX-XXXXX-XXXXX-X",
@@ -114,6 +137,7 @@ export default function SettingsPage() {
 
     loadSettings()
     fetchAdminUsers()
+    fetchSuperAdmins()
   }, [router])
 
   useEffect(() => {
@@ -143,6 +167,25 @@ export default function SettingsPage() {
           title: "Error",
           description: "Failed to load admin users for flush option.",
           variant: "destructive",
+      })
+    }
+  }
+
+  const fetchSuperAdmins = async () => {
+    try {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/2fa/super-admins")
+      if (!response.ok) {
+        throw new Error(response.statusText)
+      }
+      const data = await response.json()
+      const admins = Array.isArray(data?.admins) ? data.admins : []
+      setSuperAdmins(admins)
+    } catch (error) {
+      console.error("Failed to load super admins for 2FA:", error)
+      toast({
+        title: "Error",
+        description: "Unable to load super admin list for 2FA.",
+        variant: "destructive",
       })
     }
   }
@@ -287,6 +330,144 @@ export default function SettingsPage() {
     }
   }
 
+  const resetTwofaState = () => {
+    setQrDataUrl(null)
+    setOtpAuthUri(null)
+    setVerifyCode("")
+    setTwofaMessage(null)
+  }
+
+  const openTwofaDialog = async (userId: string) => {
+    setSelectedTwofaUser(userId)
+    setIsTwofaDialogOpen(true)
+    resetTwofaState()
+    await handleInitiate2fa(userId)
+  }
+
+  const handleInitiate2fa = async (userId: string) => {
+    setIsInitiating2fa(true)
+    setSelectedTwofaUser(userId)
+    resetTwofaState()
+
+    try {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/2fa/initiate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(currentUser?.email ? { "X-User-Id": currentUser.email } : {}),
+        },
+        body: JSON.stringify({ user_id: userId }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to start 2FA")
+      }
+
+      setQrDataUrl(data.qr_data_url || null)
+      setOtpAuthUri(data.otp_auth || null)
+
+      toast({
+        title: "2FA secret created",
+        description: "Scan the QR code with an authenticator app and verify once.",
+      })
+    } catch (error) {
+      console.error("Error initiating 2FA:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start 2FA",
+        variant: "destructive",
+      })
+    } finally {
+      setIsInitiating2fa(false)
+    }
+  }
+
+  const handleVerify2fa = async () => {
+    if (!selectedTwofaUser) {
+      toast({
+        title: "Select a user",
+        description: "Choose a super admin to verify.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!verifyCode.trim()) {
+      toast({
+        title: "Enter code",
+        description: "Type the 6-digit code from the authenticator app.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsVerifying2fa(true)
+    try {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/2fa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: selectedTwofaUser, code: verifyCode.trim() }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || !data?.verified) {
+        throw new Error(data?.message || "Verification failed")
+      }
+
+      setTwofaMessage("2FA verified and saved to Supabase.")
+      setQrDataUrl(null)
+      setOtpAuthUri(null)
+      setVerifyCode("")
+      fetchSuperAdmins()
+
+      toast({
+        title: "2FA Verified",
+        description: "Verification successful. Secret stored for this user.",
+      })
+    } catch (error) {
+      console.error("Error verifying 2FA:", error)
+      setTwofaMessage(error instanceof Error ? error.message : "Verification failed")
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to verify 2FA",
+        variant: "destructive",
+      })
+    } finally {
+      setIsVerifying2fa(false)
+    }
+  }
+
+  const handleDelete2fa = async (userId: string) => {
+    try {
+      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/2fa/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to delete 2FA")
+      }
+      toast({
+        title: "2FA removed",
+        description: "The user's 2FA secret has been deleted.",
+      })
+      fetchSuperAdmins()
+      if (selectedTwofaUser === userId) {
+        resetTwofaState()
+        setIsTwofaDialogOpen(false)
+      }
+    } catch (error) {
+      console.error("Error deleting 2FA:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete 2FA",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleInputChange = (field: keyof SystemSettings, value: string | number) => {
     setSettings((prev) => ({
       ...prev,
@@ -355,6 +536,10 @@ export default function SettingsPage() {
   if (!currentUser) {
     return <div>Loading...</div>
   }
+
+  const selectedAdmin = selectedTwofaUser
+    ? superAdmins.find((admin) => admin.id === selectedTwofaUser)
+    : null
 
   return (
     <DashboardLayout>
@@ -586,25 +771,212 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <Tabs defaultValue="batches" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="batches">
-                      <Package className="h-4 w-4 mr-2" />
-                      Batch Management
-                    </TabsTrigger>
-                    <TabsTrigger value="hsn">
-                      <Hash className="h-4 w-4 mr-2" />
-                      HSN Codes
-                    </TabsTrigger>
-                    <TabsTrigger value="flush">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Flush Data
-                    </TabsTrigger>
-                  </TabsList>
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="batches">
+                    <Package className="h-4 w-4 mr-2" />
+                    Batch Management
+                  </TabsTrigger>
+                  <TabsTrigger value="hsn">
+                    <Hash className="h-4 w-4 mr-2" />
+                    HSN Codes
+                  </TabsTrigger>
+                  <TabsTrigger value="twofa">
+                    <ShieldCheck className="h-4 w-4 mr-2" />
+                    2FA
+                  </TabsTrigger>
+                  <TabsTrigger value="flush">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Flush Data
+                  </TabsTrigger>
+                </TabsList>
                   <TabsContent value="batches" className="space-y-6">
                     <BatchManagementTab />
                   </TabsContent>
-                  <TabsContent value="hsn" className="space-y-6">
-                    <HSNManagementTab />
+                <TabsContent value="hsn" className="space-y-6">
+                  <HSNManagementTab />
+                </TabsContent>
+
+                <TabsContent value="twofa" className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center">
+                          <ShieldCheck className="h-5 w-5 mr-2" />
+                          Two-Factor Authentication
+                        </CardTitle>
+                        <CardDescription>
+                          Generate a QR code for a super admin, verify once, and store the secret in Supabase. One secret per user.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {superAdmins.length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={4} className="text-center text-gray-500">
+                                  No super admin users found.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            {superAdmins.map((admin) => {
+                              const status = admin.twofa?.is_enabled
+                                ? "Verified"
+                                : admin.twofa
+                                  ? "Pending verification"
+                                  : "Not set"
+                              return (
+                                <TableRow key={admin.id}>
+                                  <TableCell className="font-medium">{admin.name}</TableCell>
+                                  <TableCell className="text-gray-600">{admin.email}</TableCell>
+                                  <TableCell>
+                                    {status === "Verified" && <Badge className="bg-green-100 text-green-800">Verified</Badge>}
+                                    {status === "Pending verification" && <Badge className="bg-amber-100 text-amber-800">Pending</Badge>}
+                                    {status === "Not set" && <Badge variant="outline">Not set</Badge>}
+                                  </TableCell>
+                                  <TableCell className="text-right space-x-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => openTwofaDialog(admin.id)}
+                                      disabled={isInitiating2fa && selectedTwofaUser === admin.id}
+                                    >
+                                      {isInitiating2fa && selectedTwofaUser === admin.id ? (
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      ) : (
+                                        <QrCode className="h-4 w-4 mr-2" />
+                                      )}
+                                      Setup / Verify
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-red-600 hover:text-red-700"
+                                      onClick={() => handleDelete2fa(admin.id)}
+                                    >
+                                      Remove 2FA
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })}
+                          </TableBody>
+                        </Table>
+
+                        <Dialog open={isTwofaDialogOpen} onOpenChange={(open) => {
+                          setIsTwofaDialogOpen(open)
+                          if (!open) {
+                            resetTwofaState()
+                            setSelectedTwofaUser(null)
+                          }
+                        }}>
+                          <DialogContent className="max-w-3xl">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center gap-2">
+                                <ShieldCheck className="h-5 w-5" />
+                                Setup 2FA for {selectedAdmin?.name || "User"}
+                              </DialogTitle>
+                              <DialogDescription>
+                                Scan the QR code, then enter a single 6-digit code to verify and save the secret.
+                              </DialogDescription>
+                            </DialogHeader>
+
+                            {qrDataUrl ? (
+                              <div className="grid gap-6 lg:grid-cols-3 items-start">
+                                <div className="lg:col-span-1 flex flex-col items-center">
+                                  <img
+                                    src={qrDataUrl}
+                                    alt="2FA QR code"
+                                    className="h-56 w-56 rounded-md border bg-white shadow-sm"
+                                  />
+                                  {otpAuthUri && (
+                                    <p className="mt-3 text-xs text-gray-500 break-all text-center">
+                                      {otpAuthUri}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="lg:col-span-2 space-y-3">
+                                  <div className="flex items-center space-x-2">
+                                    <AlertCircle className="h-4 w-4 text-blue-600" />
+                                    <p className="text-sm text-gray-700">
+                                      Enter the current code from the authenticator app. On success the secret is stored in Supabase.
+                                    </p>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="verify-code">Authenticator Code</Label>
+                                    <Input
+                                      id="verify-code"
+                                      value={verifyCode}
+                                      onChange={(e) => setVerifyCode(e.target.value)}
+                                      placeholder="123456"
+                                      maxLength={6}
+                                      inputMode="numeric"
+                                    />
+                                  </div>
+                                  <div className="flex gap-3">
+                                    <Button onClick={handleVerify2fa} disabled={isVerifying2fa}>
+                                      {isVerifying2fa ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Verifying...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ShieldCheck className="h-4 w-4 mr-2" />
+                                          Verify & Enable
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      disabled={isVerifying2fa}
+                                      onClick={() => {
+                                        resetTwofaState()
+                                        if (selectedTwofaUser) handleInitiate2fa(selectedTwofaUser)
+                                      }}
+                                    >
+                                      Regenerate QR
+                                    </Button>
+                                  </div>
+                                  {twofaMessage && (
+                                    <p className={`text-sm ${twofaMessage.toLowerCase().includes("verified") ? "text-green-700" : "text-red-600"}`}>
+                                      {twofaMessage}
+                                    </p>
+                                  )}
+                                  <div className="pt-2 border-t">
+                                    <Button
+                                      variant="ghost"
+                                      className="text-red-600 hover:text-red-700"
+                                      onClick={() => selectedTwofaUser && handleDelete2fa(selectedTwofaUser)}
+                                    >
+                                      Remove 2FA for this user
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center py-10 text-sm text-gray-500">
+                                {isInitiating2fa ? (
+                                  <div className="flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Generating QR code...
+                                  </div>
+                                ) : (
+                                  "Select a user to start 2FA setup."
+                                )}
+                              </div>
+                            )}
+                          </DialogContent>
+                        </Dialog>
+                      </CardContent>
+                    </Card>
                   </TabsContent>
 
                   <TabsContent value="flush" className="space-y-6">

@@ -121,8 +121,9 @@ def get_supabase_bills_with_details() -> List[Dict]:
         items_missing_product = 0
         
         for item in all_items:
-            bill_id = item.get("billid")  # Schema: billid (no underscore)
-            product_id = item.get("productid")  # Schema: productid (no underscore)
+            # Support multiple column naming styles across deployments
+            bill_id = item.get("billid") or item.get("bill_id") or item.get("billId")
+            product_id = item.get("productid") or item.get("product_id") or item.get("productId")
             
             if not bill_id:
                 continue
@@ -131,11 +132,15 @@ def get_supabase_bills_with_details() -> List[Dict]:
             product_info = products_map.get(product_id)
             if product_info:
                 item["productname"] = product_info["name"]
+                item["productName"] = product_info["name"]
+                item["productId"] = product_id
                 items_enriched += 1
                 if items_enriched <= 5:  # Show first 5 items
                     print(f"  ✓ Item: {product_info['name']} x{item.get('quantity')} = ${item.get('total')}")
             else:
                 item["productname"] = "Unknown Product"
+                item["productName"] = "Unknown Product"
+                item["productId"] = product_id
                 items_missing_product += 1
                 if product_id:
                     print(f"  ⚠️  Product ID {product_id[:20]}... not found in products map")
@@ -156,7 +161,15 @@ def get_supabase_bills_with_details() -> List[Dict]:
         for bill in bills:
             bill_id = bill.get("id")
             bill_items = items_by_bill.get(bill_id, [])
-            bill["items"] = bill_items
+            # If bill already carried inline items, merge them to avoid data loss
+            existing_items = bill.get("items") or []
+            if existing_items and isinstance(existing_items, str):
+                try:
+                    import json
+                    existing_items = json.loads(existing_items)
+                except Exception:
+                    existing_items = []
+            bill["items"] = bill_items or existing_items
             
             if bill_items:
                 bills_with_items += 1

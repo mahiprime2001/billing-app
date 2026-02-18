@@ -393,9 +393,9 @@ export default function BillingPage() {
     if (customersError) console.error("Failed to load customers", customersError);
   }, [productsError, billsError, customersError]);
 
-  const currentProducts: Product[] = productsData || [];
-  const currentBills: Bill[] = billsData || [];
-  const currentCustomers: Customer[] = customersData || [];
+  const currentProducts = useMemo<Product[]>(() => productsData ?? [], [productsData]);
+  const currentBills = useMemo<Bill[]>(() => billsData ?? [], [billsData]);
+  const currentCustomers = useMemo<Customer[]>(() => customersData ?? [], [customersData]);
 
   useEffect(() => {
     console.log("Products: Updated products data", productsData);
@@ -898,7 +898,14 @@ export default function BillingPage() {
 
   useEffect(() => {
     const currentBillIdSet = new Set(currentBills.map((bill) => bill.id));
-    setSelectedBillIds((prev) => prev.filter((id) => currentBillIdSet.has(id)));
+    setSelectedBillIds((prev) => {
+      const next = prev.filter((id) => currentBillIdSet.has(id));
+      // Avoid triggering renders when the filtered list is unchanged
+      if (next.length === prev.length && next.every((id, idx) => id === prev[idx])) {
+        return prev;
+      }
+      return next;
+    });
   }, [currentBills]);
 
   const { subtotal, tax, discountAmount, total } = calculateTotals();
