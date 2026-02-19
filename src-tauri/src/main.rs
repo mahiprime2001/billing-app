@@ -10,6 +10,7 @@ use warp::Filter;
 use serde::{Deserialize, Serialize};
 use log::{info, error, warn};
 use std::path::PathBuf;
+use std::fs;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_updater::UpdaterExt;
 use tauri_plugin_log::{Target, TargetKind};
@@ -17,12 +18,19 @@ use tauri_plugin_log::{Target, TargetKind};
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::HWND;
 
-// Global state for backend management
+// ============================================================================
+// GLOBAL STATE
+// ============================================================================
+
 static BACKEND_SPAWNING: Lazy<Arc<AtomicBool>> = Lazy::new(|| Arc::new(AtomicBool::new(false)));
 static BACKEND_PID: Lazy<Arc<Mutex<Option<u32>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 
-// Update flag system
-use std::fs;
+// ============================================================================
+// UPDATE FLAG SYSTEM
+// Writes a flag file before auto-restart so the next boot knows it was an
+// update restart and waits longer before spawning the backend (giving Windows
+// time to release any file locks left by the force-killed PyInstaller process).
+// ============================================================================
 
 fn get_update_flag_path() -> PathBuf {
     if let Ok(exe) = std::env::current_exe() {
@@ -46,27 +54,75 @@ fn was_just_updated() -> bool {
     exists
 }
 
+// ============================================================================
+// PYINSTALLER TEMP CLEANUP
+//
+// FIX: This is the core fix for the "Could not create temporary directory!"
+// crash after updates.
+//
+// PyInstaller --onefile extracts itself into a _MEIxxxxxx folder inside %TEMP%
+// at startup. When the process is force-killed (as happens during update),
+// Windows keeps a file lock on that folder. The next launch then fails because
+// PyInstaller cannot create a new extraction dir in %TEMP%.
+//
+// This function deletes all leftover _MEI* folders before we restart so the
+// next launch always starts with a clean slate.
+// ============================================================================
+
+fn cleanup_pyinstaller_temp() {
+    #[cfg(target_os = "windows")]
+    {
+        let temp_dir = std::env::var("TEMP")
+            .or_else(|_| std::env::var("TMP"))
+            .unwrap_or_else(|_| "C:\\Windows\\Temp".to_string());
+
+        info!("Cleaning up PyInstaller temp dirs in: {}", temp_dir);
+
+        match fs::read_dir(&temp_dir) {
+            Ok(entries) => {
+                for entry in entries.flatten() {
+                    let name = entry.file_name();
+                    let name_str = name.to_string_lossy();
+                    if name_str.starts_with("_MEI") {
+                        info!("Removing PyInstaller temp dir: {}", name_str);
+                        if let Err(e) = fs::remove_dir_all(entry.path()) {
+                            // Non-fatal — Windows may still hold a lock on some files.
+                            // Log and move on; the important ones will already be gone.
+                            warn!("Could not remove {}: {}", name_str, e);
+                        }
+                    }
+                }
+                info!("PyInstaller temp cleanup complete");
+            }
+            Err(e) => {
+                warn!("Could not read temp dir for cleanup: {}", e);
+            }
+        }
+    }
+}
+
+// ============================================================================
 // UPDATER COMMANDS
+// ============================================================================
+
 #[tauri::command]
 async fn check_for_updates(app_handle: AppHandle) -> Result<String, String> {
     info!("Checking for updates...");
     match app_handle.updater() {
-        Ok(updater) => {
-            match updater.check().await {
-                Ok(Some(update)) => {
-                    info!("Update available: {}", update.version);
-                    Ok(format!("Update available: {}", update.version))
-                }
-                Ok(None) => {
-                    info!("No update available.");
-                    Ok("No update available.".to_string())
-                }
-                Err(e) => {
-                    error!("Failed to check for updates: {}", e);
-                    Err(format!("Failed to check for updates: {}", e))
-                }
+        Ok(updater) => match updater.check().await {
+            Ok(Some(update)) => {
+                info!("Update available: {}", update.version);
+                Ok(format!("Update available: {}", update.version))
             }
-        }
+            Ok(None) => {
+                info!("No update available.");
+                Ok("No update available.".to_string())
+            }
+            Err(e) => {
+                error!("Failed to check for updates: {}", e);
+                Err(format!("Failed to check for updates: {}", e))
+            }
+        },
         Err(e) => {
             error!("Failed to get updater: {}", e);
             Err(format!("Failed to get updater: {}", e))
@@ -78,34 +134,62 @@ async fn check_for_updates(app_handle: AppHandle) -> Result<String, String> {
 async fn install_update(app_handle: AppHandle) -> Result<String, String> {
     info!("Installing update...");
 
-    // Gracefully shutdown backend
+    // Step 1: Ask the backend to shut itself down gracefully.
+    // This lets PyInstaller clean up its own _MEI* temp dir properly.
     shutdown_backend().await;
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    // Step 2: Force-kill anything that didn't exit on its own.
+    kill_all_backend_processes();
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    // fallback kill
-    kill_all_backend_processes();
+    // Step 3: Clean up any leftover PyInstaller temp dirs BEFORE restarting.
+    // Without this step the new instance will fail with:
+    //   [PYI-XXXXX:ERROR] Could not create temporary directory!
+    cleanup_pyinstaller_temp();
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    // mark update restart
+    // Step 4: Write flag so the next boot waits before spawning the backend,
+    // giving Windows extra time to finish releasing any remaining file locks.
     mark_just_updated();
 
     match app_handle.updater() {
-        Ok(updater) => {
-            match updater.check().await {
-                Ok(Some(update)) => {
-                    info!("Update found, downloading...");
-                    let _ = update.download_and_install(|_, _| {}, || {}).await;
-                    info!("Update installed. Restarting...");
-                    app_handle.restart();
+        Ok(updater) => match updater.check().await {
+            Ok(Some(update)) => {
+                info!("Update found, downloading and installing...");
+                match update.download_and_install(
+                    |chunk, total| {
+                        info!("Download progress: {} / {:?}", chunk, total);
+                    },
+                    || {
+                        info!("Download complete, applying update...");
+                    },
+                )
+                .await
+                {
+                    Ok(_) => {
+                        info!("Update installed. Restarting...");
+                        app_handle.restart();
+                    }
+                    Err(e) => {
+                        error!("Failed to download/install update: {}", e);
+                        return Err(format!("Failed to download/install update: {}", e));
+                    }
                 }
-                Ok(None) => Ok("No update available".into()),
-                Err(e) => Err(format!("Check failed: {}", e)),
             }
-        }
-        Err(e) => Err(format!("Updater error: {}", e)),
+            Ok(None) => return Ok("No update available.".into()),
+            Err(e) => return Err(format!("Update check failed: {}", e)),
+        },
+        Err(e) => return Err(format!("Updater error: {}", e)),
     }
+
+    Ok("Update complete.".into())
 }
 
-// PRINTER COMMANDS (unchanged - keeping your working code)
+// ============================================================================
+// PRINTER STRUCTS
+// ============================================================================
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PrintRequest {
@@ -133,6 +217,10 @@ struct PrintersResponse {
 }
 
 type PrinterList = Arc<Mutex<Vec<String>>>;
+
+// ============================================================================
+// PRINTER COMMANDS
+// ============================================================================
 
 #[tauri::command]
 async fn print_to_thermal_printer(
@@ -164,12 +252,11 @@ async fn print_to_thermal_printer(
 
 #[tauri::command]
 async fn get_available_printers() -> Result<Vec<String>, String> {
-    #[cfg(target_os = "windows")]
-    use std::process::Command;
     info!("Searching for available printers...");
 
     #[cfg(target_os = "windows")]
     {
+        use std::process::Command;
         let output = Command::new("wmic")
             .args(["printer", "get", "name"])
             .output()
@@ -291,7 +378,10 @@ async fn send_tspl_to_printer(
     })
 }
 
-// HTTP SERVER (unchanged)
+// ============================================================================
+// HTTP SERVER
+// ============================================================================
+
 fn with_cors() -> warp::filters::cors::Builder {
     warp::cors()
         .allow_any_origin()
@@ -375,7 +465,10 @@ async fn start_http_server(printer_list: PrinterList) {
     warp::serve(routes).run(([127, 0, 0, 1], 5050)).await;
 }
 
-// HTML PRINT COMMAND (unchanged)
+// ============================================================================
+// HTML PRINT COMMAND
+// ============================================================================
+
 #[tauri::command]
 async fn print_html(app: AppHandle, html: String) -> Result<(), String> {
     use uuid::Uuid;
@@ -411,7 +504,9 @@ async fn print_html(app: AppHandle, html: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         let tmp = std::env::temp_dir().join(format!(".html-{}", Uuid::new_v4()));
-        tokio::fs::write(&tmp, html.as_bytes()).await.map_err(|e| e.to_string())?;
+        tokio::fs::write(&tmp, html.as_bytes())
+            .await
+            .map_err(|e| e.to_string())?;
 
         let wide_path: Vec<u16> = OsString::from(tmp)
             .encode_wide()
@@ -452,7 +547,10 @@ async fn print_html(app: AppHandle, html: String) -> Result<(), String> {
     Ok(())
 }
 
+// ============================================================================
 // BACKEND MANAGEMENT FUNCTIONS
+// ============================================================================
+
 fn get_app_log_dir(_app_handle: AppHandle) -> Option<PathBuf> {
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
@@ -473,11 +571,7 @@ async fn is_backend_running() -> bool {
         .build()
         .unwrap_or_else(|_| reqwest::Client::new());
 
-    match client
-        .get("http://127.0.0.1:8080/health")
-        .send()
-        .await
-    {
+    match client.get("http://127.0.0.1:8080/health").send().await {
         Ok(response) if response.status().is_success() => {
             info!("Backend already running and healthy");
             true
@@ -499,8 +593,12 @@ fn kill_all_backend_processes() {
             .args(["/F", "/IM", "Siriadmin-backend.exe", "/T"])
             .output();
 
+        // Also kill anything holding port 8080
         let output = Command::new("cmd")
-            .args(["/C", "for /f \"tokens=5\" %a in ('netstat -ano | findstr :8080 | findstr LISTENING') do echo %a"])
+            .args([
+                "/C",
+                "for /f \"tokens=5\" %a in ('netstat -ano | findstr :8080 | findstr LISTENING') do echo %a",
+            ])
             .output();
 
         if let Ok(output) = output {
@@ -536,14 +634,12 @@ fn kill_all_backend_processes() {
 
         if let Ok(pids) = output {
             for pid in pids.lines() {
-                Command::new("kill")
-                    .args(["-9", pid])
-                    .output()
-                    .ok();
+                Command::new("kill").args(["-9", pid]).output().ok();
             }
         }
 
         std::thread::sleep(std::time::Duration::from_millis(1000));
+        info!("Backend process cleanup complete");
     }
 }
 
@@ -566,13 +662,24 @@ fn spawn_sidecar(app_handle: &AppHandle) -> Result<(), String> {
         Err(e) => {
             BACKEND_SPAWNING.store(false, Ordering::SeqCst);
             error!("Failed to create sidecar command: {}", e);
-            error!("Make sure Siriadmin-backend is configured in tauri.conf.json under bundle.externalBin...");
+            error!("Make sure Siriadmin-backend is configured in tauri.conf.json under bundle.externalBin");
             return Err(format!("Failed to create sidecar command: {}", e));
         }
     };
 
+    // FIX: Explicitly pass TEMP and TMP env vars when spawning.
+    // If these env vars are missing or corrupted in the process environment,
+    // PyInstaller --onefile cannot find a writable temp dir and crashes with:
+    //   [PYI-XXXXX:ERROR] Could not create temporary directory!
+    let temp_path = std::env::temp_dir();
+    let temp_str = temp_path.to_str().unwrap_or("C:\\Windows\\Temp");
+
     info!("Spawning sidecar process...");
-    let (mut rx, command_child) = match cmd.spawn() {
+    let (mut rx, command_child) = match cmd
+        .env("TEMP", temp_str)
+        .env("TMP", temp_str)
+        .spawn()
+    {
         Ok(result) => {
             info!("Sidecar spawn initiated");
             result
@@ -620,6 +727,8 @@ fn spawn_sidecar(app_handle: &AppHandle) -> Result<(), String> {
         }
         warn!("Sidecar PID {} output stream ended", pid_for_monitor);
 
+        // Safety net: ensure the spawning flag is always cleared even if the
+        // Terminated event was never received (e.g. stream closed unexpectedly).
         let spawning_flag = BACKEND_SPAWNING.clone();
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
@@ -631,12 +740,25 @@ fn spawn_sidecar(app_handle: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-// Retry spawn logic
+// FIX: Added BACKEND_SPAWNING check at the top of every retry loop iteration.
+// Previously, spawn_backend_with_retry would keep hammering spawn_sidecar even
+// while a spawn was already in progress, producing the log spam:
+//   "Backend spawn already in progress, skipping..."
+//   "Retrying backend spawn..."
+// Now it waits for the flag to clear before attempting another spawn.
 async fn spawn_backend_with_retry(app: AppHandle) {
     for attempt in 1..=5 {
+        // Wait for any in-progress spawn to finish before trying again
+        if BACKEND_SPAWNING.load(Ordering::SeqCst) {
+            info!("Spawn in progress, waiting before attempt {}...", attempt);
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            continue;
+        }
+
         info!("Backend spawn attempt {}", attempt);
 
         if spawn_sidecar(&app).is_ok() {
+            // Give the backend time to initialize before checking health
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 
             if is_backend_running().await {
@@ -649,17 +771,24 @@ async fn spawn_backend_with_retry(app: AppHandle) {
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     }
 
-    error!("Backend failed after retries");
+    error!("Backend failed to start after all retry attempts");
 }
 
 async fn shutdown_backend() {
     info!("Sending shutdown request...");
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new());
 
-    let _ = client
+    match client
         .post("http://127.0.0.1:8080/api/shutdown")
         .send()
-        .await;
+        .await
+    {
+        Ok(_) => info!("Shutdown request sent successfully"),
+        Err(e) => warn!("Shutdown request failed (backend may already be down): {}", e),
+    }
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 }
@@ -677,11 +806,7 @@ async fn ensure_backend_running(app_handle: AppHandle) -> Result<String, String>
         .build()
         .unwrap_or_else(|_| reqwest::Client::new());
 
-    match client
-        .get("http://127.0.0.1:8080/health")
-        .send()
-        .await
-    {
+    match client.get("http://127.0.0.1:8080/health").send().await {
         Ok(response) if response.status().is_success() => Ok("Backend running.".to_string()),
         _ => {
             warn!("Backend not responding, attempting to spawn...");
@@ -692,6 +817,10 @@ async fn ensure_backend_running(app_handle: AppHandle) -> Result<String, String>
         }
     }
 }
+
+// ============================================================================
+// MAIN
+// ============================================================================
 
 fn main() {
     tauri::Builder::default()
@@ -727,19 +856,23 @@ fn main() {
             info!("Log file location: {}", log_path.display());
             info!("");
 
-            // Starting backend lifecycle manager (UPDATED)
-            info!("🔧 Starting backend lifecycle manager...");
+            info!("Starting backend lifecycle manager...");
             let handle = app.app_handle().clone();
 
             tauri::async_runtime::spawn(async move {
                 let just_updated = was_just_updated();
 
-                if !just_updated {
+                if just_updated {
+                    // FIX: Increased wait from 6s → 10s after an update restart.
+                    // app_handle.restart() force-kills the backend, which leaves
+                    // Windows file locks that take time to release. 10 seconds
+                    // gives Windows enough room to fully clear them before we
+                    // try spawning a new PyInstaller --onefile process.
+                    info!("App restarted after update. Waiting for Windows file lock release...");
+                    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                } else {
                     info!("Cleaning previous backend...");
                     kill_all_backend_processes();
-                } else {
-                    info!("App restarted after update. Waiting for Windows file unlock...");
-                    tokio::time::sleep(std::time::Duration::from_secs(6)).await;
                 }
 
                 if is_backend_running().await {

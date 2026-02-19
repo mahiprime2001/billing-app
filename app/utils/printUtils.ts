@@ -6,9 +6,27 @@ declare global {
   }
 }
 
-async function printInBrowserWindow(html: string): Promise<void> {
+async function printInBrowserWindow(html: string, preferNewWindow = false): Promise<void> {
   return new Promise((resolve, reject) => {
     try {
+      if (preferNewWindow) {
+        const printWindow = window.open("", "_blank", "width=800,height=900");
+        if (!printWindow) {
+          reject(new Error("Failed to open print window"));
+          return;
+        }
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        setTimeout(() => {
+          printWindow.close();
+          resolve();
+        }, 500);
+        return;
+      }
+
       let printExecuted = false;
 
       const iframe = document.createElement('iframe');
@@ -176,7 +194,9 @@ export async function unifiedPrint({
 
   if (htmlContent) {
     console.log("🖨️ Using browser-based HTML printing");
-    await printInBrowserWindow(htmlContent);
+    const preferNewWindow =
+      typeof window !== "undefined" && Boolean((window as any).__TAURI__);
+    await printInBrowserWindow(htmlContent, preferNewWindow);
     return;
   }
 
@@ -198,7 +218,9 @@ export async function unifiedPrint({
 </head>
 <body><pre>${escapeHtml(thermalContent)}</pre></body>
 </html>`;
-    await printInBrowserWindow(html);
+    const preferNewWindow =
+      typeof window !== "undefined" && Boolean((window as any).__TAURI__);
+    await printInBrowserWindow(html, preferNewWindow);
     return;
   }
 

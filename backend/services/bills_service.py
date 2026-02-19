@@ -9,7 +9,12 @@ from typing import List, Dict, Optional, Tuple
 from decimal import Decimal
 
 from utils.supabase_db import db
-from utils.json_helpers import get_bills_data, save_bills_data
+from utils.json_helpers import (
+    get_bills_data,
+    save_bills_data,
+    get_discounts_data,
+    save_discounts_data,
+)
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 from services import products_service
 
@@ -282,25 +287,47 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
             return None, "No bill data provided", 400
         
         print(f"📝 Creating new bill...")
-        
-        # Convert field names from camelCase to snake_case for Supabase
-        db_bill_data = convert_camel_to_snake(bill_data)
-        
-        # Generate ID if not present
-        if "id" not in db_bill_data:
-            db_bill_data["id"] = str(uuid.uuid4())
-        
-        bill_id = db_bill_data["id"]
-        print(f"🆔 Bill ID: {bill_id}")
-        
-        # Add timestamps
-        now_naive = datetime.now().isoformat()
-        if "created_at" not in db_bill_data:
-            db_bill_data["created_at"] = now_naive
-        db_bill_data["updated_at"] = now_naive
-        
-        # Extract items if present
-        items = db_bill_data.pop("items", [])
+
+        # Required schema fields
+        bill_id = bill_data.get("id") or str(uuid.uuid4())
+        customer_id = (
+            bill_data.get("customerId")
+            or bill_data.get("customerid")
+            or "CUST-1754821420265"
+        )
+        store_id = bill_data.get("storeId") or bill_data.get("storeid")
+        user_id = bill_data.get("userId") or bill_data.get("userid")
+        payment_method = bill_data.get("paymentMethod") or "cash"
+        timestamp = bill_data.get("timestamp") or datetime.now().isoformat()
+        status = bill_data.get("status") or "completed"
+        created_by = bill_data.get("createdBy") or bill_data.get("createdby")
+
+        # Convert numerics to plain floats to avoid JSON serialization errors
+        subtotal = float(bill_data.get("subtotal", 0) or 0)
+        total = float(bill_data.get("total", 0) or 0)
+        discount_amount = float(bill_data.get("discountAmount", 0) or 0)
+        discount_percentage = float(bill_data.get("discountPercentage", 0) or 0)
+
+        # Prepare payload strictly matching Supabase schema
+        db_bill_data = {
+          "id": bill_id,
+          "storeid": store_id,
+          "customerid": customer_id,
+          "userid": user_id,
+          "subtotal": subtotal,
+          "total": total,
+          "paymentmethod": payment_method,
+          "timestamp": timestamp,
+          "status": status,
+          "createdby": created_by,
+          "created_at": bill_data.get("created_at") or datetime.now().isoformat(),
+          "updated_at": datetime.now().isoformat(),
+          "discount_amount": discount_amount,
+          "discount_percentage": discount_percentage,
+        }
+
+        # Extract items from original bill_data (not snake-cased)
+        items = bill_data.get("items", [])
         print(f"📦 Items: {len(items)}")
         
         # Insert bill into Supabase
@@ -320,25 +347,25 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
             for idx, item in enumerate(items):
                 db_item = {
                     "billid": bill_id,  # Schema field name
-                    "productid": item.get("product_id") or item.get("productid"),  # Schema field name
+                    "productid": item.get("productId") or item.get("product_id") or item.get("productid"),
                     "quantity": item.get("quantity"),
-                    "price": item.get("price"),
-                    "total": item.get("total"),
+                    "price": float(item.get("price", 0) or 0),
+                    "total": float(item.get("total", 0) or 0),
                 }
                 
-                # Don't set ID, let it auto-increment
                 bill_items_for_db.append(db_item)
             
             print(f"📝 Inserting {len(bill_items_for_db)} items...")
             client.table("billitems").insert(bill_items_for_db).execute()
             print(f"✅ Items inserted")
         
-        # Save to local JSON
+        # Save to local JSON (keep richer fields for UI)
         bills = get_bills_data()
-        
-        # Add items back to the snake_cased bill data so it is complete
-        db_bill_data["items"] = items
-        bills.append(db_bill_data)
+        local_bill = convert_camel_to_snake(bill_data)
+        local_bill["id"] = bill_id
+        local_bill["customerid"] = customer_id
+        local_bill["items"] = items
+        bills.append(local_bill)
         save_bills_data(bills)
         print(f"💾 Saved to local JSON")
         
@@ -376,10 +403,50 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
         # Delete from Supabase
         client = db.client
         print(f"🗑️ Deleting from Supabase...")
-        
-        # Delete bill items first (foreign key constraint)
+
+        # Delete related discounts first (foreign key constraint discounts_bill_fk)
+        related_discount_ids: List[str] = []
+        try:
+            discounts_resp = (
+                client.table("discounts")
+                .select("discount_id")
+                .eq("bill_id", bill_id)
+                .execute()
+            )
+            related_discount_ids = [
+                d.get("discount_id")
+                for d in (discounts_resp.data or [])
+                if d.get("discount_id")
+            ]
+        except Exception as discount_query_error:
+            logger.error(
+                f"Error fetching discounts for bill {bill_id}: {discount_query_error}"
+            )
+
+        if related_discount_ids:
+            try:
+                client.table("discounts").delete().in_("discount_id", related_discount_ids).execute()
+            except Exception as discount_delete_error:
+                logger.error(
+                    f"Error deleting discounts for bill {bill_id}: {discount_delete_error}"
+                )
+                return False, "Unable to delete discounts linked to bill", 500
+
+            # Best-effort local JSON cleanup
+            try:
+                discounts = get_discounts_data()
+                remaining_discounts = [
+                    d for d in discounts if d.get("discount_id") not in related_discount_ids
+                ]
+                save_discounts_data(remaining_discounts)
+            except Exception as local_discount_error:
+                logger.warning(
+                    f"Failed to update local discounts JSON for {bill_id}: {local_discount_error}"
+                )
+
+        # Delete bill items next (foreign key constraint)
         client.table("billitems").delete().eq("billid", bill_id).execute()
-        
+
         # Then delete the bill
         client.table("bills").delete().eq("id", bill_id).execute()
         

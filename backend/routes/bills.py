@@ -111,6 +111,22 @@ def get_bills():
         return jsonify([]), 200
 
 
+@bills_bp.route("/bills", methods=["POST"])
+def create_bill_route():
+    """Create a new bill (supabase first, then local JSON)."""
+    try:
+        bill_data = request.json or {}
+        bill_id, message, status_code = bills_service.create_bill(bill_data)
+
+        if status_code == 201:
+            return jsonify({"message": message, "id": bill_id}), 201
+
+        return jsonify({"error": message or "Failed to create bill"}), status_code
+    except Exception as e:
+        logger.error("Error creating bill", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 # ======================================================
 # DELETE BILL
 # ======================================================

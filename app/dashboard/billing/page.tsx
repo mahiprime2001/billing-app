@@ -87,6 +87,7 @@ interface BillItem {
 
 interface Bill {
   id: string;
+  customerId?: string;
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
@@ -110,6 +111,16 @@ interface Bill {
   storeAddress?: string;
   storePhone?: string;
 }
+
+const WALK_IN_CUSTOMER_ID = "CUST-1754821420265";
+const WALK_IN_CUSTOMER_NAME = "Walk-in Customer";
+const WALK_IN_CUSTOMER_FALLBACK: Customer = {
+  id: WALK_IN_CUSTOMER_ID,
+  name: WALK_IN_CUSTOMER_NAME,
+  email: "",
+  phone: "",
+  address: "",
+};
 
 interface Customer {
   id: string;
@@ -143,13 +154,16 @@ export default function BillingPage() {
   const [billSortDirection, setBillSortDirection] = useState<"asc" | "desc">("desc");
 
   // Form state
-  const [customerName, setCustomerName] = useState("");
+  const [customerName, setCustomerName] = useState(WALK_IN_CUSTOMER_NAME);
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(WALK_IN_CUSTOMER_ID);
   const [billItems, setBillItems] = useState<BillItem[]>([]);
-  const [selectedProductId, setSelectedProductId] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [discountPercentage, setDiscountPercentage] = useState(0);
+  const [productSearchTerm, setProductSearchTerm] = useState("");
+  const [discountMode, setDiscountMode] = useState<"percent" | "amount">("percent");
+  const [discountValue, setDiscountValue] = useState(0);
+  const [lastScanValue, setLastScanValue] = useState("");
 
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
     gstin: "",
@@ -409,27 +423,56 @@ export default function BillingPage() {
     console.log("Customers: Updated customers data", customersData);
   }, [customersData]);
 
-  const addItemToBill = () => {
-    if (!selectedProductId) return;
+  // Auto-select Walk-in customer from Supabase (or fallback constant)
+  useEffect(() => {
+    if (!customersData) return;
+    const match =
+      customersData.find(
+        (c) =>
+          c.id === WALK_IN_CUSTOMER_ID ||
+          (c.name || "").toLowerCase() === WALK_IN_CUSTOMER_NAME.toLowerCase(),
+      ) || WALK_IN_CUSTOMER_FALLBACK;
 
-    const product = currentProducts.find((p: Product) => p.id === selectedProductId);
+    setSelectedCustomerId(match.id || WALK_IN_CUSTOMER_ID);
+    setCustomerName(match.name || WALK_IN_CUSTOMER_NAME);
+    setCustomerEmail(match.email || "");
+    setCustomerPhone(match.phone || "");
+  }, [customersData]);
+
+  const getProductBarcodes = (product: Product): string[] => {
+    const raw = (product as any).barcodes ?? product.barcode ?? "";
+    if (Array.isArray(raw)) {
+      return raw.map((b) => `${b}`.trim()).filter(Boolean);
+    }
+    if (typeof raw === "string") {
+      return raw
+        .split(",")
+        .map((b) => b.trim())
+        .filter(Boolean);
+    }
+    return [];
+  };
+
+  const addItemToBill = (product: Product, qtyOverride?: number) => {
     if (!product) return;
 
-    console.log("addItemToBill: Adding product to bill", product, "Quantity:", quantity);
+    const desiredQty = Math.max(1, qtyOverride ?? quantity);
+
+    console.log("addItemToBill: Adding product to bill", product, "Quantity:", desiredQty);
 
     const price = product.price !== undefined && product.price !== null ? product.price : 0;
     const availableStock = product.stock !== undefined && product.stock !== null ? product.stock : Infinity;
 
-    const existingItemIndex = billItems.findIndex((item) => item.productId === selectedProductId);
+    const existingItemIndex = billItems.findIndex((item) => item.productId === product.id);
 
-    let newQuantity = quantity;
+    let newQuantity = desiredQty;
     if (existingItemIndex >= 0) {
-      newQuantity = billItems[existingItemIndex].quantity + quantity;
+      newQuantity = billItems[existingItemIndex].quantity + desiredQty;
     }
 
     if (newQuantity > availableStock) {
       alert(
-        `Cannot add ${quantity} more units of ${product.name}. Only ${availableStock - (existingItemIndex >= 0 ? billItems[existingItemIndex].quantity : 0)} units available.`
+        `Cannot add ${desiredQty} more units of ${product.name}. Only ${availableStock - (existingItemIndex >= 0 ? billItems[existingItemIndex].quantity : 0)} units available.`
       );
       return;
     }
@@ -444,14 +487,14 @@ export default function BillingPage() {
         productId: product.id,
         productName: product.name,
         price: price,
-        quantity: quantity,
-        total: price * quantity,
+        quantity: desiredQty,
+        total: price * desiredQty,
       };
       setBillItems([...billItems, newItem]);
     }
 
-    setSelectedProductId("");
     setQuantity(1);
+    setProductSearchTerm("");
   };
 
   const removeItemFromBill = (productId: string) => {
@@ -461,15 +504,58 @@ export default function BillingPage() {
 
   const calculateTotals = () => {
     const subtotal = billItems.reduce((sum, item) => sum + item.total, 0);
-    const tax = subtotal * 0.1;
-    const discountAmount = (subtotal * discountPercentage) / 100;
-    const total = subtotal + tax - discountAmount;
-    return { subtotal, tax, discountAmount, total };
+    const taxRate = Number.isFinite(systemSettings.taxPercentage) ? systemSettings.taxPercentage : 0;
+
+    let discountAmount =
+      discountMode === "percent"
+        ? (subtotal * discountValue) / 100
+        : discountValue;
+    // Clamp so totals never go negative
+    discountAmount = Math.max(0, Math.min(discountAmount, subtotal));
+
+    const taxableBase = Math.max(0, subtotal - discountAmount);
+    const tax = (taxableBase * taxRate) / 100;
+    const total = taxableBase + tax;
+    const effectiveDiscountPct = subtotal > 0 ? (discountAmount / subtotal) * 100 : 0;
+
+    return { subtotal, tax, discountAmount, total, effectiveDiscountPct, taxRate };
   };
 
-  const handleDiscountPercentageChange = (newPercentage: number) => {
-    const validPercentage = Math.max(0, Math.min(100, newPercentage));
-    setDiscountPercentage(validPercentage);
+  const handleDiscountChange = (value: number) => {
+    setDiscountValue(Math.max(0, value));
+  };
+
+  const productSearchResults = useMemo(() => {
+    if (!productSearchTerm) {
+      return currentProducts.slice(0, 12);
+    }
+    const q = productSearchTerm.toLowerCase();
+    return currentProducts
+      .filter((p) => {
+        const nameMatch = (p.name || "").toLowerCase().includes(q);
+        const barcodeMatch = getProductBarcodes(p).some((b) => b.toLowerCase().includes(q));
+        return nameMatch || barcodeMatch;
+      })
+      .slice(0, 20);
+  }, [currentProducts, productSearchTerm]);
+
+  const handleProductSearchAdd = () => {
+    if (!productSearchTerm) return;
+    const raw = productSearchTerm.trim();
+    const exactBarcodeMatch = currentProducts.find((p) =>
+      getProductBarcodes(p).some((b) => b === raw),
+    );
+    if (exactBarcodeMatch) {
+      addItemToBill(exactBarcodeMatch);
+      setLastScanValue(raw);
+      return;
+    }
+
+    const firstResult = productSearchResults[0];
+    if (firstResult) {
+      addItemToBill(firstResult);
+      setLastScanValue(raw);
+    }
   };
 
   const createBill = async () => {
@@ -477,17 +563,22 @@ export default function BillingPage() {
 
     console.log("createBill: Attempting to create bill...");
 
-    const { subtotal, tax, discountAmount, total } = calculateTotals();
+    const { subtotal, tax, discountAmount, total, effectiveDiscountPct, taxRate } = calculateTotals();
+    const selectedCustomer =
+      customersData?.find((c) => c.id === selectedCustomerId) || WALK_IN_CUSTOMER_FALLBACK;
 
     const newBill: Bill = {
       id: Date.now().toString(),
+      customerId: selectedCustomerId || WALK_IN_CUSTOMER_ID,
       customerName,
       customerEmail,
       customerPhone,
+      customerAddress: selectedCustomer?.address,
       items: billItems,
       subtotal,
       tax,
-      discountPercentage,
+      taxPercentage: taxRate,
+      discountPercentage: effectiveDiscountPct,
       discountAmount,
       total,
       date: new Date().toISOString(),
@@ -510,11 +601,14 @@ export default function BillingPage() {
         throw new Error("Failed to create bill");
       }
 
-      setCustomerName("");
-      setCustomerEmail("");
-      setCustomerPhone("");
+      setCustomerName(selectedCustomer?.name || WALK_IN_CUSTOMER_NAME);
+      setCustomerEmail(selectedCustomer?.email || "");
+      setCustomerPhone(selectedCustomer?.phone || "");
+      setSelectedCustomerId(selectedCustomer?.id || WALK_IN_CUSTOMER_ID);
       setBillItems([]);
-      setDiscountPercentage(0);
+      setDiscountValue(0);
+      setDiscountMode("percent");
+      setProductSearchTerm("");
       setIsCreateDialogOpen(false);
 
       // Immediate refresh after creating bill
@@ -908,7 +1002,7 @@ export default function BillingPage() {
     });
   }, [currentBills]);
 
-  const { subtotal, tax, discountAmount, total } = calculateTotals();
+  const { subtotal, tax, discountAmount, total, effectiveDiscountPct, taxRate } = calculateTotals();
 
   const discountPresets = [5, 10, 15, 20, 25];
 
@@ -1017,11 +1111,52 @@ export default function BillingPage() {
                     <h3 className="text-lg font-medium">Customer Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
+                        <Label htmlFor="customerSelect">Select Customer</Label>
+                        <Select
+                          value={selectedCustomerId || "custom"}
+                          onValueChange={(value) => {
+                            if (value === "custom") {
+                              setSelectedCustomerId(null);
+                              return;
+                            }
+                            const picked =
+                              customersData?.find((c) => c.id === value) || WALK_IN_CUSTOMER_FALLBACK;
+                            setSelectedCustomerId(value);
+                            setCustomerName(picked.name || "");
+                            setCustomerEmail(picked.email || "");
+                            setCustomerPhone(picked.phone || "");
+                          }}
+                        >
+                          <SelectTrigger id="customerSelect">
+                            <SelectValue placeholder="Choose customer (default Walk-in)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={WALK_IN_CUSTOMER_ID}>
+                              {WALK_IN_CUSTOMER_NAME} (default)
+                            </SelectItem>
+                            {(customersData || [])
+                              .filter((c) => c.id !== WALK_IN_CUSTOMER_ID)
+                              .slice(0, 15)
+                              .map((c) => (
+                                <SelectItem key={c.id} value={c.id}>
+                                  {c.name || "Unnamed"} {c.phone ? `• ${c.phone}` : ""}
+                                </SelectItem>
+                              ))}
+                            <SelectItem value="custom">Custom</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
                         <Label htmlFor="customerName">Customer Name</Label>
                         <Input
                           id="customerName"
                           value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
+                          onChange={(e) => {
+                            setCustomerName(e.target.value);
+                            setSelectedCustomerId(null);
+                          }}
                           required
                         />
                       </div>
@@ -1031,7 +1166,10 @@ export default function BillingPage() {
                           id="customerEmail"
                           type="email"
                           value={customerEmail}
-                          onChange={(e) => setCustomerEmail(e.target.value)}
+                          onChange={(e) => {
+                            setCustomerEmail(e.target.value);
+                            setSelectedCustomerId(null);
+                          }}
                         />
                       </div>
                       <div className="space-y-2">
@@ -1039,7 +1177,10 @@ export default function BillingPage() {
                         <Input
                           id="customerPhone"
                           value={customerPhone}
-                          onChange={(e) => setCustomerPhone(e.target.value)}
+                          onChange={(e) => {
+                            setCustomerPhone(e.target.value);
+                            setSelectedCustomerId(null);
+                          }}
                         />
                       </div>
                     </div>
@@ -1050,23 +1191,28 @@ export default function BillingPage() {
                   {/* Add Products */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium">Add Products</h3>
-                    <div className="flex gap-4 items-end">
-                      <div className="flex-1">
-                        <Label htmlFor="productSelect">Product</Label>
-                        <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choose a product" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {currentProducts.map((product: Product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                {product.name} - ₹{product.price ? product.price.toFixed(2) : "0.00"} (Stock: {product.stock})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                      <div className="md:col-span-3 space-y-2">
+                        <Label htmlFor="productSearch">Search by name or scan barcode</Label>
+                        <Input
+                          id="productSearch"
+                          placeholder="Scan a barcode and press Enter, or type product name"
+                          value={productSearchTerm}
+                          onChange={(e) => setProductSearchTerm(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleProductSearchAdd();
+                            }
+                          }}
+                        />
+                        {lastScanValue && (
+                          <p className="text-xs text-green-600">
+                            Last scanned: {lastScanValue}
+                          </p>
+                        )}
                       </div>
-                      <div className="w-24">
+                      <div className="space-y-2">
                         <Label htmlFor="quantity">Quantity</Label>
                         <Input
                           id="quantity"
@@ -1075,10 +1221,45 @@ export default function BillingPage() {
                           value={quantity}
                           onChange={(e) => setQuantity(Number.parseInt(e.target.value) || 1)}
                         />
+                        <Button className="w-full" onClick={handleProductSearchAdd} disabled={productSearchTerm.trim() === ""}>
+                          Add Item
+                        </Button>
                       </div>
-                      <Button onClick={addItemToBill} disabled={!selectedProductId}>
-                        Add Item
-                      </Button>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {productSearchResults.map((product: Product) => {
+                        const productBarcodes = getProductBarcodes(product);
+                        return (
+                          <Card
+                            key={product.id}
+                            className="cursor-pointer hover:shadow-md transition-shadow"
+                            onClick={() => addItemToBill(product)}
+                          >
+                            <CardContent className="p-3">
+                              <div className="flex justify-between">
+                                <div>
+                                  <div className="font-medium">{product.name}</div>
+                                  {productBarcodes.length > 0 && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {productBarcodes.join(", ")}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-semibold">₹{(product.price ?? 0).toFixed(2)}</div>
+                                  <div className="text-xs text-muted-foreground">Stock: {product.stock ?? "∞"}</div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                      {productSearchResults.length === 0 && (
+                        <div className="text-sm text-muted-foreground">
+                          No matching products. Try a different name or barcode.
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1125,63 +1306,78 @@ export default function BillingPage() {
                         </div>
 
                         <div className="flex justify-between text-base">
-                          <span>Tax (10%)</span>
+                          <span>Tax ({taxRate.toFixed(1)}%)</span>
                           <span className="font-medium">₹{tax.toFixed(2)}</span>
                         </div>
 
                         {/* Discount Section */}
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label className="flex items-center text-base">
-                              <Percent className="h-4 w-4 mr-2" />
-                              Discount Percentage
-                            </Label>
-                            <div className="flex items-center space-x-2">
-                              <Input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.1"
-                                value={discountPercentage.toFixed(1)}
-                                onChange={(e) =>
-                                  handleDiscountPercentageChange(Number.parseFloat(e.target.value) || 0)
-                                }
-                                className="w-20 text-right"
-                              />
-                              <span className="text-sm">%</span>
-                            </div>
-                          </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="flex items-center text-base">
+                          <Percent className="h-4 w-4 mr-2" />
+                          Discount
+                        </Label>
+                        <div className="flex items-center space-x-2">
+                          <Select value={discountMode} onValueChange={(val) => setDiscountMode(val as "percent" | "amount")}>
+                            <SelectTrigger className="w-28">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="percent">Percent</SelectItem>
+                              <SelectItem value="amount">Amount</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={discountValue}
+                            onChange={(e) => handleDiscountChange(Number.parseFloat(e.target.value) || 0)}
+                            className="w-24 text-right"
+                          />
+                          <span className="text-sm">{discountMode === "percent" ? "%" : "₹"}</span>
+                        </div>
+                      </div>
 
-                          {/* Quick Discount Presets */}
-                          <div className="flex flex-wrap gap-2">
-                            <span className="text-sm text-gray-600 mr-2">Quick:</span>
-                            {discountPresets.map((preset) => (
+                      {/* Quick Discount Presets */}
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <span className="text-sm text-gray-600 mr-2">Quick:</span>
+                        {discountMode === "percent"
+                          ? discountPresets.map((preset) => (
                               <Button
                                 key={preset}
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setDiscountPercentage(preset)}
+                                onClick={() => handleDiscountChange(preset)}
                                 className="text-xs h-7"
                               >
                                 {preset}%
                               </Button>
+                            ))
+                          : [50, 100, 200, 500].map((amt) => (
+                              <Button
+                                key={amt}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDiscountChange(amt)}
+                                className="text-xs h-7"
+                              >
+                                ₹{amt}
+                              </Button>
                             ))}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setDiscountPercentage(0)}
-                              className="text-xs h-7"
-                            >
-                              Clear
-                            </Button>
-                          </div>
+                        <Button variant="outline" size="sm" onClick={() => handleDiscountChange(0)} className="text-xs h-7">
+                          Clear
+                        </Button>
+                      </div>
 
-                          {discountPercentage > 0 && (
-                            <div className="flex justify-between text-base text-red-600">
-                              <span>Discount ({discountPercentage.toFixed(1)}%)</span>
-                              <span className="font-medium">-₹{discountAmount.toFixed(2)}</span>
-                            </div>
-                          )}
+                      {discountAmount > 0 && (
+                        <div className="flex justify-between text-base text-red-600">
+                          <span>
+                            Discount ({(discountMode === "percent" ? discountValue : (discountAmount / Math.max(subtotal, 0.0001)) * 100).toFixed(1)}%)
+                          </span>
+                          <span className="font-medium">-₹{discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
                         </div>
 
                         <Separator />
@@ -1192,10 +1388,10 @@ export default function BillingPage() {
                           <span>₹{total.toFixed(2)}</span>
                         </div>
 
-                        {discountPercentage > 0 && (
+                        {discountAmount > 0 && (
                           <div className="text-center">
                             <p className="text-sm text-green-600 font-medium">
-                              Customer saves ₹{discountAmount.toFixed(2)} ({discountPercentage.toFixed(1)}% discount)
+                              Customer saves ₹{discountAmount.toFixed(2)} ({effectiveDiscountPct.toFixed(1)}% discount)
                             </p>
                           </div>
                         )}
