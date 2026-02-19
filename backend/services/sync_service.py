@@ -23,11 +23,14 @@ def get_sync_status() -> Tuple[Dict, int]:
             from scripts.sync_manager import get_sync_manager
             sync_manager = get_sync_manager()
             
-            # Get status from sync manager
+            # Get status from sync manager (normalized for frontend)
+            raw_status = sync_manager.get_sync_status() if hasattr(sync_manager, "get_sync_status") else {}
             status = {
-                'available': True,
-                'lastSync': sync_manager.get_last_sync_time() if hasattr(sync_manager, 'get_last_sync_time') else None,
-                'pendingChanges': sync_manager.get_pending_count() if hasattr(sync_manager, 'get_pending_count') else 0
+                "available": True,
+                "isRunning": raw_status.get("is_running", False),
+                "lastSync": raw_status.get("last_sync"),
+                "pendingChanges": raw_status.get("pending_logs", 0),
+                "failedChanges": raw_status.get("failed_logs", 0),
             }
         except ImportError:
             status = {
@@ -55,12 +58,10 @@ def trigger_push_sync() -> Tuple[bool, str, int]:
         from scripts.sync_manager import get_sync_manager
         sync_manager = get_sync_manager()
         
-        # Trigger sync
-        if hasattr(sync_manager, 'push_changes'):
-            sync_manager.push_changes()
-            return True, "Push sync triggered", 200
-        else:
-            return False, "Push sync not supported", 501
+        if hasattr(sync_manager, "process_pending_logs"):
+            result = sync_manager.process_pending_logs()
+            return True, f"Push sync completed: {result}", 200
+        return False, "Push sync not supported", 501
         
     except ImportError:
         return False, "Sync manager not available", 503
@@ -78,12 +79,10 @@ def trigger_pull_sync() -> Tuple[bool, str, int]:
         from scripts.sync_manager import get_sync_manager
         sync_manager = get_sync_manager()
         
-        # Trigger sync
-        if hasattr(sync_manager, 'pull_changes'):
-            sync_manager.pull_changes()
-            return True, "Pull sync triggered", 200
-        else:
-            return False, "Pull sync not supported", 501
+        if hasattr(sync_manager, "pull_from_supabase_sync_table"):
+            result = sync_manager.pull_from_supabase_sync_table()
+            return True, f"Pull sync completed: {result}", 200
+        return False, "Pull sync not supported", 501
         
     except ImportError:
         return False, "Sync manager not available", 503
@@ -101,12 +100,10 @@ def retry_failed_syncs() -> Tuple[bool, str, int]:
         from scripts.sync_manager import get_sync_manager
         sync_manager = get_sync_manager()
         
-        # Retry failed syncs
-        if hasattr(sync_manager, 'retry_failed'):
-            count = sync_manager.retry_failed()
-            return True, f"Retried {count} failed syncs", 200
-        else:
-            return False, "Retry not supported", 501
+        if hasattr(sync_manager, "retry_failed_logs"):
+            result = sync_manager.retry_failed_logs()
+            return True, f"Retry completed: {result}", 200
+        return False, "Retry not supported", 501
         
     except ImportError:
         return False, "Sync manager not available", 503
@@ -124,12 +121,10 @@ def cleanup_old_syncs() -> Tuple[bool, str, int]:
         from scripts.sync_manager import get_sync_manager
         sync_manager = get_sync_manager()
         
-        # Cleanup
-        if hasattr(sync_manager, 'cleanup_old_records'):
-            count = sync_manager.cleanup_old_records()
-            return True, f"Cleaned up {count} old records", 200
-        else:
-            return False, "Cleanup not supported", 501
+        if hasattr(sync_manager, "cleanup_old_logs"):
+            result = sync_manager.cleanup_old_logs()
+            return True, f"Cleanup completed: {result}", 200
+        return False, "Cleanup not supported", 501
         
     except ImportError:
         return False, "Sync manager not available", 503

@@ -80,6 +80,11 @@ def create_app(config_name='default'):
     if ENHANCED_SYNC_AVAILABLE:
         app.sync_manager = get_sync_manager(app.config['BASE_DIR'])
         app.logger.info("Enhanced sync manager initialized")
+        try:
+            app.sync_manager.start_background_sync()
+            app.logger.info("Background sync scheduler started")
+        except Exception as e:
+            app.logger.error(f"Failed to start background sync scheduler: {e}", exc_info=True)
     else:
         app.sync_manager = None
         app.logger.warning("Running without enhanced sync manager")

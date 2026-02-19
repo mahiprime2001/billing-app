@@ -329,6 +329,7 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
         # Extract items from original bill_data (not snake-cased)
         items = bill_data.get("items", [])
         print(f"📦 Items: {len(items)}")
+<<<<<<< HEAD
         
         # Insert bill into Supabase
         client = db.client
@@ -366,12 +367,59 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
         local_bill["customerid"] = customer_id
         local_bill["items"] = items
         bills.append(local_bill)
+=======
+
+        # Save to local JSON first (offline-first)
+        bills = get_bills_data()
+        db_bill_data["items"] = items
+        existing_idx = next((i for i, b in enumerate(bills) if b.get("id") == bill_id), -1)
+        if existing_idx >= 0:
+            bills[existing_idx] = db_bill_data
+        else:
+            bills.append(db_bill_data)
+>>>>>>> 2e805f3ee374dcd12af0523e708c844aeb170fd1
         save_bills_data(bills)
         print(f"💾 Saved to local JSON")
+
+        # Best-effort cloud sync now (queued sync will retry if this fails)
+        supabase_synced = False
+        try:
+            client = db.client
+            print(f"☁️ Attempting immediate Supabase sync for bill...")
+            cloud_bill_data = dict(db_bill_data)
+            cloud_bill_data.pop("items", None)
+            supabase_response = client.table("bills").upsert(cloud_bill_data).execute()
+            supabase_synced = bool(supabase_response.data)
+
+            if items:
+                client.table("billitems").delete().eq("billid", bill_id).execute()
+                bill_items_for_db = []
+                for item in items:
+                    bill_items_for_db.append(
+                        {
+                            "billid": bill_id,
+                            "productid": item.get("product_id")
+                            or item.get("productid")
+                            or item.get("productId"),
+                            "quantity": item.get("quantity"),
+                            "price": item.get("price"),
+                            "total": item.get("total"),
+                        }
+                    )
+                if bill_items_for_db:
+                    client.table("billitems").insert(bill_items_for_db).execute()
+            if supabase_synced:
+                print("✅ Immediate Supabase sync completed for bill")
+        except Exception as supabase_error:
+            logger.warning(
+                f"Bill {bill_id} saved locally; Supabase sync deferred: {supabase_error}"
+            )
         
         print(f"✅ Bill created: {bill_id}")
         logger.info(f"Bill created: {bill_id}")
-        return bill_id, "Bill created", 201
+        if supabase_synced:
+            return bill_id, "Bill created and synced", 201
+        return bill_id, "Bill saved locally and queued for sync", 201
         
     except Exception as e:
         print(f"❌ Error creating bill: {e}")
@@ -400,6 +448,7 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
         else:
             print(f"⚠️  Bill not found in local storage")
         
+<<<<<<< HEAD
         # Delete from Supabase
         client = db.client
         print(f"🗑️ Deleting from Supabase...")
@@ -451,6 +500,19 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
         client.table("bills").delete().eq("id", bill_id).execute()
         
         print(f"✅ Deleted from Supabase")
+=======
+        # Best-effort delete from Supabase (if offline, queue will handle later)
+        try:
+            client = db.client
+            print(f"🗑️ Deleting from Supabase...")
+            client.table("billitems").delete().eq("billid", bill_id).execute()
+            client.table("bills").delete().eq("id", bill_id).execute()
+            print(f"✅ Deleted from Supabase")
+        except Exception as supabase_error:
+            logger.warning(
+                f"Bill {bill_id} deleted locally; Supabase delete deferred: {supabase_error}"
+            )
+>>>>>>> 2e805f3ee374dcd12af0523e708c844aeb170fd1
         print(f"✅ Bill deleted: {bill_id}")
         logger.info(f"Bill deleted: {bill_id}")
         return True, "Bill deleted", 200

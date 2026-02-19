@@ -119,17 +119,24 @@ def create_notification(notification_data: dict) -> Tuple[Optional[str], str, in
         if 'is_read' not in notification_data:
             notification_data['is_read'] = False
         
-        # Insert into Supabase
-        client = db.client
-        supabase_response = client.table('notifications').insert(notification_data).execute()
-        
-        if not supabase_response.data:
-            return None, "Failed to insert notification into Supabase", 500
-        
-        # Save to local JSON
+        # Save to local JSON first (offline-first)
         notifications = get_notifications_data()
-        notifications.append(notification_data)
+        existing_idx = next((i for i, n in enumerate(notifications) if n.get("id") == notification_data["id"]), -1)
+        if existing_idx >= 0:
+            notifications[existing_idx] = notification_data
+        else:
+            notifications.append(notification_data)
         save_notifications_data(notifications)
+
+        # Best-effort Supabase sync now; queue handles retry on failure
+        try:
+            client = db.client
+            client.table('notifications').upsert(notification_data).execute()
+        except Exception as supabase_error:
+            logger.warning(
+                f"Notification {notification_data['id']} saved locally; Supabase sync deferred: {supabase_error}"
+            )
+            return notification_data["id"], "Notification saved locally and queued for sync", 201
         
         logger.info(f"Notification created {notification_data['id']}")
         return notification_data['id'], "Notification created", 201

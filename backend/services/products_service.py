@@ -373,15 +373,22 @@ def create_product(product_data: dict) -> Tuple[Optional[str], str, int]:
         if 'batchid' in product_data and not product_data['batchid']:
             product_data['batchid'] = None
         
-        # STEP 1: Insert into Supabase
+        # STEP 1: Save to local JSON first (offline-first)
+        products = get_products_data()
+        existing_idx = next((i for i, p in enumerate(products) if p.get("id") == product_data["id"]), -1)
+        if existing_idx >= 0:
+            products[existing_idx] = product_data
+        else:
+            products.append(product_data)
+        save_products_data(products)
+
+        # STEP 2: Best-effort sync to Supabase now (queue will retry on failure)
         supabase_result = insert_product_to_supabase(product_data)
         if not supabase_result:
-            return None, "Failed to insert product into Supabase", 500
-        
-        # STEP 2: Save to local JSON
-        products = get_products_data()
-        products.append(product_data)
-        save_products_data(products)
+            logger.warning(
+                f"Product {product_data['id']} saved locally; Supabase sync deferred"
+            )
+            return product_data["id"], "Product saved locally and queued for sync", 201
         
         logger.info(f"Product created {product_data['id']} (Supabase + local JSON)")
         return product_data['id'], "Product created", 201

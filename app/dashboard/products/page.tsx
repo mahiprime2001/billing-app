@@ -295,6 +295,21 @@ export default function ProductsPage() {
     hsnCode: "",
   });
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
+  const [showAddNameSuggestions, setShowAddNameSuggestions] = useState(false);
+  const [showEditNameSuggestions, setShowEditNameSuggestions] = useState(false);
+  const MAX_NAME_SUGGESTIONS = 100;
+
+  const getNameSuggestions = (inputValue: string) => {
+    const input = inputValue.trim().toLowerCase();
+    if (!input) return [];
+
+    return Array.from(new Set(products.map((p) => p.name)))
+      .filter((name) => {
+        const normalized = name.toLowerCase();
+        return normalized.includes(input) && normalized !== input;
+      })
+      .slice(0, MAX_NAME_SUGGESTIONS);
+  };
 
   const normalizeHsnCodeValue = (value: unknown): string => {
     if (value == null) return "";
@@ -348,7 +363,10 @@ export default function ProductsPage() {
       barcodes: [""], // Reset to one empty barcode field
       batchid: "",
       hsnCode: "",
-    })
+    });
+    setNameSuggestions([]);
+    setShowAddNameSuggestions(false);
+    setShowEditNameSuggestions(false);
   }
 
   const addBarcodeField = () => {
@@ -642,6 +660,8 @@ const handleDeleteProduct = async (productId: string) => {
       batchid: product.batchid || "",
       hsnCode: getProductHsnCodeId(product),
     })
+    setNameSuggestions([]);
+    setShowEditNameSuggestions(false);
     setIsEditDialogOpen(true)
   }
 
@@ -1368,28 +1388,45 @@ const handleDeleteProduct = async (productId: string) => {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                    <div className="space-y-2 relative">
                       <Label htmlFor="name">Product Name *</Label>
                       <Input
                         id="name"
+                        name="new-product-name"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         value={formData.name}
                         onChange={(e) => {
                           setFormData({ ...formData, name: e.target.value });
-                          const input = e.target.value.toLowerCase();
-                          const suggestions = products
-                            .map((p) => p.name)
-                            .filter((name) => name.toLowerCase().includes(input) && name.toLowerCase() !== input)
-                            .slice(0, 5);
+                          const suggestions = getNameSuggestions(e.target.value);
                           setNameSuggestions(suggestions);
+                          setShowAddNameSuggestions(suggestions.length > 0);
+                        }}
+                        onFocus={() => setShowAddNameSuggestions(nameSuggestions.length > 0)}
+                        onBlur={() => {
+                          setTimeout(() => setShowAddNameSuggestions(false), 120);
                         }}
                         placeholder="Enter product name"
-                        list="product-name-suggestions"
                       />
-                      <datalist id="product-name-suggestions">
-                        {nameSuggestions.map((name, index) => (
-                          <option key={`${name}-${index}`} value={name} />
-                        ))}
-                      </datalist>
+                      {showAddNameSuggestions && nameSuggestions.length > 0 && (
+                        <div className="absolute z-50 mt-1 w-full rounded-md border bg-white shadow-md max-h-40 overflow-y-auto">
+                          {nameSuggestions.map((name, index) => (
+                            <button
+                              key={`${name}-${index}`}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setFormData((prev) => ({ ...prev, name }));
+                                setShowAddNameSuggestions(false);
+                              }}
+                            >
+                              {name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -2380,28 +2417,45 @@ return (
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                   <Label htmlFor="edit-name">Product Name *</Label>
                   <Input
                     id="edit-name"
+                    name="edit-product-name"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={formData.name}
                     onChange={(e) => {
                       setFormData({ ...formData, name: e.target.value });
-                      const input = e.target.value.toLowerCase();
-                      const suggestions = products
-                        .map((p) => p.name)
-                        .filter((name) => name.toLowerCase().includes(input) && name.toLowerCase() !== input)
-                        .slice(0, 5);
+                      const suggestions = getNameSuggestions(e.target.value);
                       setNameSuggestions(suggestions);
+                      setShowEditNameSuggestions(suggestions.length > 0);
+                    }}
+                    onFocus={() => setShowEditNameSuggestions(nameSuggestions.length > 0)}
+                    onBlur={() => {
+                      setTimeout(() => setShowEditNameSuggestions(false), 120);
                     }}
                     placeholder="Enter product name"
-                    list="product-name-suggestions-edit"
                   />
-                  <datalist id="product-name-suggestions-edit">
-                    {nameSuggestions.map((name, index) => (
-                      <option key={`${name}-${index}`} value={name} />
-                    ))}
-                  </datalist>
+                  {showEditNameSuggestions && nameSuggestions.length > 0 && (
+                    <div className="absolute z-50 mt-1 w-full rounded-md border bg-white shadow-md max-h-40 overflow-y-auto">
+                      {nameSuggestions.map((name, index) => (
+                        <button
+                          key={`${name}-${index}`}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setFormData((prev) => ({ ...prev, name }));
+                            setShowEditNameSuggestions(false);
+                          }}
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

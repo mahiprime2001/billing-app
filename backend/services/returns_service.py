@@ -118,17 +118,24 @@ def create_return(return_data: dict) -> Tuple[Optional[str], str, int]:
         if 'status' not in return_data:
             return_data['status'] = 'pending'
         
-        # Insert into Supabase
-        client = db.client
-        supabase_response = client.table('returns').insert(return_data).execute()
-        
-        if not supabase_response.data:
-            return None, "Failed to insert return into Supabase", 500
-        
-        # Save to local JSON
+        # Save to local JSON first (offline-first)
         returns = get_returns_data()
-        returns.append(return_data)
+        existing_idx = next((i for i, r in enumerate(returns) if r.get("return_id") == return_data["return_id"]), -1)
+        if existing_idx >= 0:
+            returns[existing_idx] = return_data
+        else:
+            returns.append(return_data)
         save_returns_data(returns)
+
+        # Best-effort Supabase sync now; queue handles retry on failure
+        try:
+            client = db.client
+            client.table('returns').upsert(return_data).execute()
+        except Exception as supabase_error:
+            logger.warning(
+                f"Return {return_data['return_id']} saved locally; Supabase sync deferred: {supabase_error}"
+            )
+            return return_data["return_id"], "Return saved locally and queued for sync", 201
         
         logger.info(f"Return created {return_data['return_id']}")
         return return_data['return_id'], "Return created", 201

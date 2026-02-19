@@ -150,14 +150,25 @@ def create_discount_request(discount_data: dict) -> Tuple[Optional[str], str, in
         if "status" not in discount_data:
             discount_data["status"] = "pending"
 
-        client = db.client
-        response = client.table("discounts").insert(discount_data).execute()
-        if not response.data:
-            return None, "Failed to insert discount into Supabase", 500
-
         discounts = get_discounts_data()
-        discounts.append(discount_data)
+        existing_idx = next(
+            (i for i, d in enumerate(discounts) if d.get("discount_id") == discount_data["discount_id"]),
+            -1,
+        )
+        if existing_idx >= 0:
+            discounts[existing_idx] = discount_data
+        else:
+            discounts.append(discount_data)
         save_discounts_data(discounts)
+
+        try:
+            client = db.client
+            client.table("discounts").upsert(discount_data).execute()
+        except Exception as supabase_error:
+            logger.warning(
+                f"Discount {discount_data['discount_id']} saved locally; Supabase sync deferred: {supabase_error}"
+            )
+            return discount_data["discount_id"], "Discount saved locally and queued for sync", 201
 
         logger.info(f"Discount request created {discount_data['discount_id']}")
         return discount_data["discount_id"], "Discount request created", 201
