@@ -186,23 +186,30 @@ def update_discount_status(discount_id: str, status: str, approved_by: Optional[
         if not status:
             return False, "No status provided", 400
 
-        discounts = get_discounts_data()
-        discount_index = next(
-            (i for i, d in enumerate(discounts) if d.get("discount_id") == discount_id),
-            -1,
-        )
-
-        if discount_index == -1:
-            logger.warning(f"Discount {discount_id} not found in local storage")
-            return False, "Discount not found", 404
-
         update_data = {"status": status, "updated_at": datetime.now().isoformat()}
         if approved_by:
             update_data["approved_by"] = approved_by
 
-        discounts[discount_index].update(update_data)
-        save_discounts_data(discounts)
+        discounts = get_discounts_data()
+        discount_index = next(
+            (
+                i
+                for i, d in enumerate(discounts)
+                if d.get("discount_id") == discount_id
+                or d.get("discountId") == discount_id
+            ),
+            -1,
+        )
 
+        local_updated = False
+        if discount_index != -1:
+            discounts[discount_index].update(update_data)
+            # normalize key in case older entries used camelCase id key
+            discounts[discount_index]["discount_id"] = discount_id
+            save_discounts_data(discounts)
+            local_updated = True
+
+        supabase_updated = False
         try:
             client = db.client
             response = (
@@ -211,12 +218,23 @@ def update_discount_status(discount_id: str, status: str, approved_by: Optional[
                 .eq("discount_id", discount_id)
                 .execute()
             )
-            if not response.data:
+            supabase_updated = bool(response.data)
+            if not supabase_updated:
                 logger.warning(f"No rows updated in Supabase for discount_id {discount_id}")
         except Exception as supabase_error:
-            logger.error(
-                f"Error updating Supabase for discount {discount_id}: {supabase_error}"
+            logger.warning(
+                f"Supabase update deferred for discount {discount_id}: {supabase_error}"
             )
+
+        if not local_updated and supabase_updated:
+            # keep local JSON aligned even if entry was missing locally
+            discounts.append({"discount_id": discount_id, **update_data})
+            save_discounts_data(discounts)
+            local_updated = True
+
+        if not local_updated and not supabase_updated:
+            logger.warning(f"Discount {discount_id} not found in local storage or Supabase")
+            return False, "Discount not found", 404
 
         logger.info(f"Discount {discount_id} status updated to {status}")
         return True, "Discount status updated", 200

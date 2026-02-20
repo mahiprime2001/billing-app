@@ -90,14 +90,41 @@ def get_supabase_bills_with_details() -> List[Dict]:
         
         print(f"✅ Fetched {len(products_list)} products from merged products")
         
+        # Build HSN lookup map: id -> readable HSN code
+        hsn_map = {}
+        try:
+            hsn_response = client.table("hsn_codes").select("*").execute()
+            for code in hsn_response.data or []:
+                code_id = code.get("id")
+                if code_id is None:
+                    continue
+                display_code = (
+                    code.get("hsn_code")
+                    or code.get("hsncode")
+                    or code.get("code")
+                    or str(code_id)
+                )
+                hsn_map[str(code_id)] = str(display_code)
+        except Exception as hsn_error:
+            logger.warning(f"Failed to load HSN codes for bill enrichment: {hsn_error}")
+
         # Build product lookup map from products service
         print("\n🗂️ Building product lookup map...")
         products_map = {}
         for product in products_list:
             product_id = product.get("id")
+            hsn_code_id = (
+                product.get("hsnCode")
+                or product.get("hsnCodeId")
+                or product.get("hsn_code_id")
+            )
+            hsn_code = hsn_map.get(str(hsn_code_id), str(hsn_code_id)) if hsn_code_id else None
             products_map[product_id] = {
                 "name": product.get("name", "Unknown Product"),
-                "price": product.get("price", 0)
+                "price": product.get("price", 0),
+                "tax": product.get("tax", 0),
+                "hsn_code_id": hsn_code_id,
+                "hsn_code": hsn_code,
             }
         print(f"✅ Product map: {len(products_map)} products indexed")
         
@@ -139,6 +166,13 @@ def get_supabase_bills_with_details() -> List[Dict]:
                 item["productname"] = product_info["name"]
                 item["productName"] = product_info["name"]
                 item["productId"] = product_id
+                item["tax"] = product_info.get("tax", 0)
+                if product_info.get("hsn_code_id") is not None:
+                    item["hsn_code_id"] = product_info.get("hsn_code_id")
+                    item["hsnCodeId"] = product_info.get("hsn_code_id")
+                if product_info.get("hsn_code"):
+                    item["hsn_code"] = product_info.get("hsn_code")
+                    item["hsnCode"] = product_info.get("hsn_code")
                 items_enriched += 1
                 if items_enriched <= 5:  # Show first 5 items
                     print(f"  ✓ Item: {product_info['name']} x{item.get('quantity')} = ${item.get('total')}")
@@ -329,46 +363,6 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
         # Extract items from original bill_data (not snake-cased)
         items = bill_data.get("items", [])
         print(f"📦 Items: {len(items)}")
-<<<<<<< HEAD
-        
-        # Insert bill into Supabase
-        client = db.client
-        print(f"💾 Inserting bill...")
-        supabase_response = client.table("bills").insert(db_bill_data).execute()
-        
-        if not supabase_response.data:
-            print(f"❌ Failed to insert bill")
-            return None, "Failed to insert bill into Supabase", 500
-        
-        print(f"✅ Bill inserted")
-        
-        # Insert bill items if present
-        if items:
-            bill_items_for_db = []
-            for idx, item in enumerate(items):
-                db_item = {
-                    "billid": bill_id,  # Schema field name
-                    "productid": item.get("productId") or item.get("product_id") or item.get("productid"),
-                    "quantity": item.get("quantity"),
-                    "price": float(item.get("price", 0) or 0),
-                    "total": float(item.get("total", 0) or 0),
-                }
-                
-                bill_items_for_db.append(db_item)
-            
-            print(f"📝 Inserting {len(bill_items_for_db)} items...")
-            client.table("billitems").insert(bill_items_for_db).execute()
-            print(f"✅ Items inserted")
-        
-        # Save to local JSON (keep richer fields for UI)
-        bills = get_bills_data()
-        local_bill = convert_camel_to_snake(bill_data)
-        local_bill["id"] = bill_id
-        local_bill["customerid"] = customer_id
-        local_bill["items"] = items
-        bills.append(local_bill)
-=======
-
         # Save to local JSON first (offline-first)
         bills = get_bills_data()
         db_bill_data["items"] = items
@@ -377,7 +371,6 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
             bills[existing_idx] = db_bill_data
         else:
             bills.append(db_bill_data)
->>>>>>> 2e805f3ee374dcd12af0523e708c844aeb170fd1
         save_bills_data(bills)
         print(f"💾 Saved to local JSON")
 
@@ -448,14 +441,12 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
         else:
             print(f"⚠️  Bill not found in local storage")
         
-<<<<<<< HEAD
-        # Delete from Supabase
-        client = db.client
-        print(f"🗑️ Deleting from Supabase...")
-
-        # Delete related discounts first (foreign key constraint discounts_bill_fk)
-        related_discount_ids: List[str] = []
+        # Best-effort delete from Supabase (if offline, queue will handle later)
         try:
+            client = db.client
+            print(f"🗑️ Deleting from Supabase...")
+            # Delete related discounts first (foreign key constraint discounts_bill_fk)
+            related_discount_ids: List[str] = []
             discounts_resp = (
                 client.table("discounts")
                 .select("discount_id")
@@ -467,44 +458,22 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
                 for d in (discounts_resp.data or [])
                 if d.get("discount_id")
             ]
-        except Exception as discount_query_error:
-            logger.error(
-                f"Error fetching discounts for bill {bill_id}: {discount_query_error}"
-            )
 
-        if related_discount_ids:
-            try:
+            if related_discount_ids:
                 client.table("discounts").delete().in_("discount_id", related_discount_ids).execute()
-            except Exception as discount_delete_error:
-                logger.error(
-                    f"Error deleting discounts for bill {bill_id}: {discount_delete_error}"
-                )
-                return False, "Unable to delete discounts linked to bill", 500
 
-            # Best-effort local JSON cleanup
-            try:
-                discounts = get_discounts_data()
-                remaining_discounts = [
-                    d for d in discounts if d.get("discount_id") not in related_discount_ids
-                ]
-                save_discounts_data(remaining_discounts)
-            except Exception as local_discount_error:
-                logger.warning(
-                    f"Failed to update local discounts JSON for {bill_id}: {local_discount_error}"
-                )
+                # Best-effort local JSON cleanup
+                try:
+                    discounts = get_discounts_data()
+                    remaining_discounts = [
+                        d for d in discounts if d.get("discount_id") not in related_discount_ids
+                    ]
+                    save_discounts_data(remaining_discounts)
+                except Exception as local_discount_error:
+                    logger.warning(
+                        f"Failed to update local discounts JSON for {bill_id}: {local_discount_error}"
+                    )
 
-        # Delete bill items next (foreign key constraint)
-        client.table("billitems").delete().eq("billid", bill_id).execute()
-
-        # Then delete the bill
-        client.table("bills").delete().eq("id", bill_id).execute()
-        
-        print(f"✅ Deleted from Supabase")
-=======
-        # Best-effort delete from Supabase (if offline, queue will handle later)
-        try:
-            client = db.client
-            print(f"🗑️ Deleting from Supabase...")
             client.table("billitems").delete().eq("billid", bill_id).execute()
             client.table("bills").delete().eq("id", bill_id).execute()
             print(f"✅ Deleted from Supabase")
@@ -512,7 +481,6 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
             logger.warning(
                 f"Bill {bill_id} deleted locally; Supabase delete deferred: {supabase_error}"
             )
->>>>>>> 2e805f3ee374dcd12af0523e708c844aeb170fd1
         print(f"✅ Bill deleted: {bill_id}")
         logger.info(f"Bill deleted: {bill_id}")
         return True, "Bill deleted", 200

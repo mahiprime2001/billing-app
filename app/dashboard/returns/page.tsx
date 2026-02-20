@@ -199,7 +199,6 @@ export default function ReturnsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 font-semibold text-green-600">
-                            <DollarSign className="h-4 w-4" />
                             ₹{getReturnAmount(item).toFixed(2)}
                           </div>
                         </TableCell>

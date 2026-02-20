@@ -4,9 +4,11 @@ Handles all user-related business logic and database operations
 """
 
 import logging
+import time
 import uuid
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
+from httpx import RemoteProtocolError
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from utils.supabase_db import db
@@ -87,7 +89,16 @@ def get_supabase_users() -> List[Dict]:
         print("="*80)
         
         client = db.client
-        response = client.table("users").select("*").execute()
+
+        def _execute_with_retry(build_query, label: str):
+            try:
+                return build_query().execute()
+            except RemoteProtocolError as err:
+                logger.warning(f"Supabase {label} request disconnected, retrying once: {err}")
+                time.sleep(0.2)
+                return build_query().execute()
+
+        response = _execute_with_retry(lambda: client.table("users").select("*"), "users")
         users = response.data or []
         
         print(f"[BACKEND] Found {len(users)} users in Supabase")
@@ -98,7 +109,10 @@ def get_supabase_users() -> List[Dict]:
             if user_id:
                 try:
                     print(f"[BACKEND] Fetching stores for user {user_id}")
-                    stores_response = client.table("userstores").select("storeId").eq('userId', user_id).execute()
+                    stores_response = _execute_with_retry(
+                        lambda: client.table("userstores").select("storeId").eq('userId', user_id),
+                        f"userstores for user {user_id}",
+                    )
                     
                     if hasattr(stores_response, 'data') and stores_response.data is not None:
                         assigned_stores = [store['storeId'] for store in stores_response.data]
@@ -116,10 +130,14 @@ def get_supabase_users() -> List[Dict]:
         print(f"[BACKEND] Returning {len(users)} users with store assignments")
         print("="*80 + "\n")
         return users
+    except RemoteProtocolError as e:
+        # Network/protocol blips should not spam stack traces; local fallback will be used.
+        logger.warning(f"Supabase users fetch failed (protocol disconnect): {e}")
+        print(f"[BACKEND] ⚠️ Supabase users fetch failed: {e}")
+        return []
     except Exception as e:
-        print(f"[BACKEND] ❌ ERROR fetching users from Supabase: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.warning(f"Supabase users fetch failed: {e}")
+        print(f"[BACKEND] ⚠️ Supabase users fetch failed: {e}")
         return []
 
 
@@ -180,9 +198,8 @@ def get_merged_users() -> Tuple[List[Dict], int]:
         
         return final_users, 200
     except Exception as e:
+        logger.error(f"Error getting merged users: {e}", exc_info=True)
         print(f"[BACKEND] ❌ ERROR getting merged users: {e}")
-        import traceback
-        traceback.print_exc()
         return [], 500
 
 # ============================================

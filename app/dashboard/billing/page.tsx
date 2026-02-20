@@ -196,10 +196,10 @@ export default function BillingPage() {
           const normalizedSettings = {
             gstin: settings.gstin || "",
             taxPercentage: settings.taxPercentage || settings.tax_percentage || 0,
-            companyName: settings.companyName || settings.company_name || "",
-            companyAddress: settings.companyAddress || settings.company_address || "",
-            companyPhone: settings.companyPhone || settings.company_phone || "",
-            companyEmail: settings.companyEmail || settings.company_email || "",
+            companyName: settings.companyName || settings.company_name || settings.companyname || "",
+            companyAddress: settings.companyAddress || settings.company_address || settings.companyaddress || "",
+            companyPhone: settings.companyPhone || settings.company_phone || settings.companyphone || "",
+            companyEmail: settings.companyEmail || settings.company_email || settings.companyemail || "",
           };
           console.log("Settings: Normalized settings", normalizedSettings);
           setSystemSettings(normalizedSettings);
@@ -700,10 +700,10 @@ export default function BillingPage() {
 
     // FIX: Handle both camelCase and snake_case from settings
     const settingsAny = systemSettings as any;
-    const companyName = bill.companyName || systemSettings.companyName || settingsAny.company_name || "UNDEFINED";
-    const companyAddress = bill.companyAddress || systemSettings.companyAddress || settingsAny.company_address || undefined;
-    const companyPhone = bill.companyPhone || systemSettings.companyPhone || settingsAny.company_phone || undefined;
-    const companyEmail = bill.companyEmail || systemSettings.companyEmail || settingsAny.company_email || undefined;
+    const companyName = bill.companyName || bill.storeName || systemSettings.companyName || settingsAny.company_name || settingsAny.companyname || "UNDEFINED";
+    const companyAddress = bill.companyAddress || bill.storeAddress || systemSettings.companyAddress || settingsAny.company_address || settingsAny.companyaddress || undefined;
+    const companyPhone = bill.companyPhone || bill.storePhone || systemSettings.companyPhone || settingsAny.company_phone || settingsAny.companyphone || undefined;
+    const companyEmail = bill.companyEmail || systemSettings.companyEmail || settingsAny.company_email || settingsAny.companyemail || undefined;
     const gstin = bill.gstin || systemSettings.gstin || settingsAny.gstin || "";
     const taxPercentage = bill.taxPercentage || systemSettings.taxPercentage || settingsAny.tax_percentage || 0;
 
@@ -716,10 +716,56 @@ export default function BillingPage() {
       taxPercentage,
     });
 
-    // Responsive font sizes based on format
-    const headerFontSize = isThermal ? "14px" : "18px";
-    const bodyFontSize = isThermal ? "11px" : "13px";
-    const titleFontSize = isThermal ? "13px" : "16px";
+    const toNumber = (value: unknown): number => {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : 0;
+    };
+    const formatNumber = (value: unknown): string => toNumber(value).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+    const safeItems = (Array.isArray(bill.items) ? bill.items : []).map((item: any) => {
+      const quantity = toNumber(item.quantity);
+      const price = toNumber(item.price);
+      const total = toNumber(item.total || quantity * price);
+      const taxPercentageItem = toNumber(item.taxPercentage || item.tax_percentage || item.tax || item.gst || taxPercentage);
+      const hsnCode = item.hsnCode || item.hsn || item.hsn_code || item.hsnCodeId || item.hsn_code_id || "-";
+      const productName = item.productName || item.product_name || item.productname || item.name || "Item";
+
+      return { ...item, quantity, price, total, taxPercentageItem, hsnCode, productName };
+    });
+
+    const subtotal = toNumber(bill.subtotal);
+    const discountPercentage = toNumber(bill.discountPercentage);
+    const discountAmount = toNumber(bill.discountAmount);
+    const tax = toNumber(bill.tax);
+    const total = toNumber(bill.total);
+
+    const taxClassificationRows = safeItems.map((item) => {
+      const taxableAmount = Math.max(0, item.total - (item.total * discountPercentage) / 100);
+      const totalTax = (taxableAmount * item.taxPercentageItem) / 100;
+      const cgst = totalTax / 2;
+      const sgst = totalTax / 2;
+      return {
+        gst: item.taxPercentageItem,
+        hsnCode: item.hsnCode,
+        cgst,
+        sgst,
+        igst: 0,
+        totalTax,
+      };
+    });
+
+    const totalCGST = taxClassificationRows.reduce((sum, row) => sum + row.cgst, 0);
+    const totalSGST = taxClassificationRows.reduce((sum, row) => sum + row.sgst, 0);
+    const computedTaxAmount = taxClassificationRows.reduce((sum, row) => sum + row.totalTax, 0);
+    const totalTaxAmount = computedTaxAmount > 0 ? computedTaxAmount : tax;
+
+    const dateValue = bill.date ? new Date(bill.date) : new Date();
+    const dateString = Number.isNaN(dateValue.getTime()) ? new Date().toLocaleDateString() : dateValue.toLocaleDateString();
+    const timeString = Number.isNaN(dateValue.getTime()) ? new Date().toLocaleTimeString() : dateValue.toLocaleTimeString();
+    const billNumber = bill.id?.startsWith("BILL-") ? bill.id.substring(5, 17) : bill.id;
 
     return `<!DOCTYPE html>
 <html>
@@ -731,91 +777,97 @@ export default function BillingPage() {
       margin: ${format.margins.top}mm ${format.margins.right}mm ${format.margins.bottom}mm ${format.margins.left}mm;
     }
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Courier New', monospace;
       max-width: ${maxWidth};
       margin: 0 auto;
-      font-size: ${bodyFontSize};
+      font-size: ${isThermal ? "11px" : "12px"};
       color: #000;
-      padding: ${isThermal ? "5px 0" : "0"};
+      padding: ${isThermal ? "0 3mm" : "8mm"};
+      font-weight: bold;
+      line-height: 1.35;
     }
     .header, .footer {
       text-align: center;
-      padding: ${isThermal ? "5px 0" : "10px 0"};
+      padding: ${isThermal ? "5px 0" : "8px 0"};
     }
     .company-name {
-      font-size: ${headerFontSize};
+      font-size: ${isThermal ? "15px" : "20px"};
       font-weight: bold;
-      text-transform: uppercase;
-      margin-bottom: 3px;
+      margin-bottom: 2px;
     }
     .company-details {
-      font-size: ${isThermal ? "10px" : "12px"};
+      font-size: ${isThermal ? "9px" : "11px"};
       line-height: 1.4;
     }
-    .invoice-title {
-      font-size: ${titleFontSize};
-      font-weight: bold;
-      margin-top: ${isThermal ? "5px" : "10px"};
-      border-top: 1px solid #000;
-      border-bottom: 1px solid #000;
-      padding: ${isThermal ? "3px 0" : "5px 0"};
+    .line {
+      border-top: 1px dashed #000;
+      margin: 5px 0;
     }
     .section {
-      margin: ${isThermal ? "10px 0" : "15px 0"};
-    }
-    .section-title {
-      font-weight: bold;
-      border-bottom: 1px dashed #000;
-      margin-bottom: 5px;
-      padding-bottom: 2px;
+      margin: ${isThermal ? "6px 0" : "10px 0"};
     }
     .row {
       display: flex;
       justify-content: space-between;
-      margin-bottom: ${isThermal ? "3px" : "5px"};
-      font-size: ${isThermal ? "10px" : "12px"};
+      margin-bottom: 3px;
+      font-size: ${isThermal ? "9px" : "11px"};
     }
     .items-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: ${isThermal ? "5px" : "10px"};
-      font-size: ${isThermal ? "10px" : bodyFontSize};
+      margin-top: 4px;
+      font-size: ${isThermal ? "9px" : "10px"};
     }
     .items-table th, .items-table td {
-      border: 1px solid #000;
-      padding: ${isThermal ? "3px 4px" : "6px 8px"};
+      border: none;
+      border-bottom: 1px dashed #000;
+      padding: ${isThermal ? "2px 0" : "4px 2px"};
       text-align: left;
-    }
-    .items-table th {
-      background-color: #f2f2f2;
-      font-weight: bold;
     }
     .items-table td.number {
       text-align: right;
     }
-    .totals {
-      margin-top: ${isThermal ? "10px" : "15px"};
+    .tax-header, .tax-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 7px;
+    }
+    .tax-header {
+      border-bottom: 1px dashed #000;
+      padding-bottom: 2px;
+      margin-bottom: 2px;
+    }
+    .tax-total {
       border-top: 1px dashed #000;
-      padding-top: ${isThermal ? "5px" : "10px"};
+      padding-top: 2px;
+      margin-top: 2px;
+      font-weight: bold;
+    }
+    .tax-col { text-align: right; }
+    .tax-col-gst { width: 12%; text-align: left; }
+    .tax-col-hsn { width: 20%; text-align: left; }
+    .tax-col-mid { width: 17%; }
+    .tax-col-igst { width: 15%; }
+    .tax-col-tax { width: 19%; }
+    .totals {
+      margin-top: 8px;
     }
     .totals-row {
       display: flex;
       justify-content: space-between;
-      margin-bottom: ${isThermal ? "3px" : "5px"};
-      font-size: ${isThermal ? "11px" : "13px"};
+      margin-bottom: 3px;
+      font-size: ${isThermal ? "9px" : "11px"};
     }
     .totals-row.total {
       font-weight: bold;
       font-size: ${isThermal ? "13px" : "15px"};
-      border-top: 2px solid #000;
-      padding-top: 5px;
+      border-top: 1px dashed #000;
+      padding-top: 4px;
       margin-top: 5px;
     }
     .footer {
-      margin-top: ${isThermal ? "10px" : "20px"};
-      font-size: ${isThermal ? "10px" : "12px"};
-      border-top: 1px dashed #000;
-      padding-top: 10px;
+      margin-top: ${isThermal ? "6px" : "12px"};
+      font-size: ${isThermal ? "9px" : "11px"};
     }
   </style>
 </head>
@@ -823,85 +875,118 @@ export default function BillingPage() {
   <div class="header">
     <div class="company-name">${companyName}</div>
     <div class="company-details">
-      ${companyAddress}<br>
-      Phone: ${companyPhone}<br>
-      Email: ${companyEmail}
+      ${companyAddress || ""}
+      ${companyPhone ? `<br>Ph: ${companyPhone}` : ""}
+      ${companyEmail ? `<br>Email: ${companyEmail}` : ""}
       ${gstin ? `<br>GSTIN: ${gstin}` : ""}
     </div>
   </div>
 
-  <div class="invoice-title">INVOICE</div>
+  <div class="line"></div>
 
   <div class="section">
     <div class="row">
-      <span><strong>Invoice:</strong> ${bill.id.substring(5, 17)}</span>
-      <span><strong>Date:</strong> ${new Date(bill.date).toLocaleDateString()}</span>
+      <span>Invoice #${billNumber || "N/A"}</span>
+      <span>${dateString}</span>
     </div>
-    ${
-      bill.customerName || bill.customerPhone
-        ? `
     <div class="row">
-      <span><strong>Customer:</strong> ${bill.customerName || "Walk-in"}</span>
-      ${bill.customerPhone ? `<span>${bill.customerPhone}</span>` : ""}
-    </div>`
-        : ""
-    }
+      <span>Time: ${timeString}</span>
+      <span>Payment: CASH</span>
+    </div>
+    <div class="row"><span>Customer: ${bill.customerName || "Walk-in Customer"}</span></div>
+    ${bill.customerPhone ? `<div class="row"><span>Phone: ${bill.customerPhone}</span></div>` : ""}
   </div>
+
+  <div class="line"></div>
 
   <table class="items-table">
     <thead>
       <tr>
-        <th style="width: ${isThermal ? "10%" : "8%"}">#</th>
-        <th style="width: ${isThermal ? "40%" : "45%"}">Item</th>
-        <th style="width: ${isThermal ? "15%" : "12%"}" class="number">Qty</th>
-        <th style="width: ${isThermal ? "17%" : "17%"}" class="number">Rate</th>
-        <th style="width: ${isThermal ? "18%" : "18%"}" class="number">Total</th>
+        <th style="width: 48%;">Item</th>
+        <th style="width: 26%;" class="number">Qty x Rate</th>
+        <th style="width: 26%;" class="number">Total</th>
       </tr>
     </thead>
     <tbody>
-      ${bill.items
-        .map((item: any, i: number) => {
-          const productName = item.productName || item.product_name || item.productname || "Item";
+      ${safeItems
+        .map((item: any) => {
           return `
         <tr>
-          <td>${i + 1}</td>
-          <td>${productName}</td>
-          <td class="number">${item.quantity}</td>
-          <td class="number">₹${item.price.toFixed(2)}</td>
-          <td class="number">₹${item.total.toFixed(2)}</td>
+          <td>${item.productName}</td>
+          <td class="number">${item.quantity} x ₹${formatNumber(item.price)}</td>
+          <td class="number">₹${formatNumber(item.total)}</td>
         </tr>`;
         })
         .join("")}
     </tbody>
   </table>
 
+  <div class="line"></div>
+
   <div class="totals">
     <div class="totals-row">
       <span>Subtotal</span>
-      <span>₹${bill.subtotal.toFixed(2)}</span>
+      <span>₹${formatNumber(subtotal)}</span>
     </div>
-    ${
-      bill.discountAmount && bill.discountAmount > 0
-        ? `
+    ${discountAmount > 0
+      ? `
     <div class="totals-row" style="color: #c00">
-      <span>Discount (${bill.discountPercentage.toFixed(1)}%)</span>
-      <span>-₹${bill.discountAmount.toFixed(2)}</span>
+      <span>Discount (${discountPercentage.toFixed(2)}%)</span>
+      <span>-₹${formatNumber(discountAmount)}</span>
     </div>`
-        : ""
+      : ""
     }
     <div class="totals-row">
-      <span>Tax (${taxPercentage.toFixed(1)}%)</span>
-      <span>₹${bill.tax.toFixed(2)}</span>
+      <span>Total Tax (CGST+SGST)</span>
+      <span>₹${formatNumber(totalTaxAmount)}</span>
     </div>
+
+    <div style="margin-top: 6px; margin-bottom: 6px;">
+      <div style="font-size: 9px; margin-bottom: 3px;">Tax Classification</div>
+      <div class="tax-header">
+        <span class="tax-col-gst">GST%</span>
+        <span class="tax-col-hsn">HSN</span>
+        <span class="tax-col tax-col-mid">SGST</span>
+        <span class="tax-col tax-col-mid">CGST</span>
+        <span class="tax-col tax-col-igst">IGST</span>
+        <span class="tax-col tax-col-tax">Tax</span>
+      </div>
+      ${taxClassificationRows
+        .map(
+          (row) => `
+      <div class="tax-row">
+        <span class="tax-col-gst">${formatNumber(row.gst).replace(".00", "")}%</span>
+        <span class="tax-col-hsn">${row.hsnCode}</span>
+        <span class="tax-col tax-col-mid">₹${formatNumber(row.sgst)}</span>
+        <span class="tax-col tax-col-mid">₹${formatNumber(row.cgst)}</span>
+        <span class="tax-col tax-col-igst">₹${formatNumber(row.igst)}</span>
+        <span class="tax-col tax-col-tax">₹${formatNumber(row.totalTax)}</span>
+      </div>`,
+        )
+        .join("")}
+      <div class="tax-row tax-total">
+        <span class="tax-col-gst">Total</span>
+        <span class="tax-col-hsn">-</span>
+        <span class="tax-col tax-col-mid">₹${formatNumber(totalSGST)}</span>
+        <span class="tax-col tax-col-mid">₹${formatNumber(totalCGST)}</span>
+        <span class="tax-col tax-col-igst">₹0.00</span>
+        <span class="tax-col tax-col-tax">₹${formatNumber(totalTaxAmount)}</span>
+      </div>
+    </div>
+
     <div class="totals-row total">
       <span>TOTAL</span>
-      <span>₹${bill.total.toFixed(2)}</span>
+      <span>₹${formatNumber(total)}</span>
     </div>
   </div>
 
+  <div class="line"></div>
+
   <div class="footer">
-    <p style="margin: 5px 0;">Thank you for your business!</p>
-    ${isThermal ? '<p style="margin: 5px 0; font-size: 9px;">Powered by SIRI Billing System</p>' : ""}
+    <p style="margin: 3px 0;">This is a computer-generated invoice</p>
+    ${discountAmount > 0 ? `<p style="margin: 3px 0;">You have saved ₹${formatNumber(discountAmount)} by shopping here!</p>` : ""}
+    <p style="margin: 5px 0;"><strong>Thank You!</strong></p>
+    <p style="margin: 3px 0;">Please visit us again</p>
   </div>
 </body>
 </html>`;
