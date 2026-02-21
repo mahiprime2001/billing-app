@@ -14,6 +14,43 @@ from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
 logger = logging.getLogger(__name__)
 
+
+def _create_discount_notification(discount_data: Dict) -> None:
+    """Best-effort notification for new discount requests."""
+    try:
+        from services import notifications_service
+
+        discount_id = discount_data.get("discount_id", "")
+        user_id = discount_data.get("user_id", "")
+        discount_pct = discount_data.get("discount")
+        discount_amount = discount_data.get("discount_amount")
+        bill_id = discount_data.get("bill_id", "")
+
+        parts = [f"Discount request {discount_id}"]
+        if user_id:
+            parts.append(f"by user {user_id}")
+        if bill_id:
+            parts.append(f"for bill {bill_id}")
+        if discount_pct is not None:
+            parts.append(f"({discount_pct}%")
+            if discount_amount is not None:
+                parts[-1] = f"{parts[-1]}, amount ₹{discount_amount})"
+            else:
+                parts[-1] = f"{parts[-1]})"
+        elif discount_amount is not None:
+            parts.append(f"(amount ₹{discount_amount})")
+
+        notifications_service.create_notification(
+            {
+                "type": "DISCOUNT_REQUEST",
+                "notification": " ".join(parts),
+                "relatedId": discount_id,
+                "isRead": False,
+            }
+        )
+    except Exception as notification_error:
+        logger.warning(f"Failed to create discount notification: {notification_error}")
+
 # ============================================
 # LOCAL JSON OPERATIONS
 # ============================================
@@ -168,8 +205,10 @@ def create_discount_request(discount_data: dict) -> Tuple[Optional[str], str, in
             logger.warning(
                 f"Discount {discount_data['discount_id']} saved locally; Supabase sync deferred: {supabase_error}"
             )
+            _create_discount_notification(discount_data)
             return discount_data["discount_id"], "Discount saved locally and queued for sync", 201
 
+        _create_discount_notification(discount_data)
         logger.info(f"Discount request created {discount_data['discount_id']}")
         return discount_data["discount_id"], "Discount request created", 201
     except Exception as e:

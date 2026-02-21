@@ -78,7 +78,7 @@ def get_notification(notification_id):
         if status_code != 200:
             return jsonify({"error": "Failed to fetch notifications"}), status_code
         
-        notification = next((n for n in notifications if n.get('id') == notification_id), None)
+        notification = next((n for n in notifications if str(n.get('id')) == str(notification_id)), None)
         
         if notification:
             return jsonify(notification), 200

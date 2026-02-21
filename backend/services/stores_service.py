@@ -10,6 +10,7 @@ from typing import List, Dict, Optional, Tuple
 from collections import defaultdict
 
 from utils.supabase_db import db
+from utils.supabase_resilience import execute_with_retry
 from utils.json_helpers import get_stores_data, save_stores_data, get_store_inventory_data, save_store_inventory_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
@@ -38,7 +39,10 @@ def get_supabase_stores() -> List[Dict]:
     """Get stores directly from Supabase"""
     try:
         client = db.client
-        response = client.table("stores").select("*").execute()
+        response = execute_with_retry(
+            lambda: client.table("stores").select("*"),
+            "stores",
+        )
         stores = response.data or []
         transformed_stores = [convert_snake_to_camel(store) for store in stores]
         logger.debug(f"Returning {len(transformed_stores)} stores from Supabase.")
@@ -76,7 +80,10 @@ def get_store_inventory_stats(store_id: str) -> Tuple[int, int]:
     """Get inventory statistics for a store"""
     try:
         client = db.client
-        response = client.table("storeinventory").select("*").eq('storeid', store_id).execute()
+        response = execute_with_retry(
+            lambda: client.table("storeinventory").select("*").eq('storeid', store_id),
+            f"storeinventory for store {store_id}",
+        )
         
         if not response or not response.data:
             return 0, 0
@@ -95,7 +102,10 @@ def get_store_bill_stats(store_id: str) -> Tuple[float, int]:
     """Get bill statistics for a store from Supabase"""
     try:
         client = db.client
-        response = client.table("bills").select("*").eq('storeid', store_id).execute()
+        response = execute_with_retry(
+            lambda: client.table("bills").select("*").eq('storeid', store_id),
+            f"bills for store {store_id}",
+        )
         
         if not response or not response.data:
             return 0.0, 0
@@ -121,11 +131,34 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
         client = db.client
         # Use select("*") so this works across deployments that may use either
         # snake/lowercase keys (storeid/productid) or camelCase keys (storeId/productId).
-        inventory_rows = client.table("storeinventory").select("*").execute()
-        bill_rows = client.table("bills").select("*").execute()
+        inventory_rows_data = []
+        bill_rows_data = []
+        try:
+            inventory_rows = execute_with_retry(
+                lambda: client.table("storeinventory").select("*"),
+                "storeinventory (all stores)",
+            )
+            inventory_rows_data = inventory_rows.data or []
+        except Exception as inventory_error:
+            logger.warning(
+                "Supabase inventory fetch failed in get_all_stores_with_inventory; continuing with empty inventory: %s",
+                inventory_error,
+            )
+
+        try:
+            bill_rows = execute_with_retry(
+                lambda: client.table("bills").select("*"),
+                "bills (all stores)",
+            )
+            bill_rows_data = bill_rows.data or []
+        except Exception as bills_error:
+            logger.warning(
+                "Supabase bills fetch failed in get_all_stores_with_inventory; continuing with empty bill stats: %s",
+                bills_error,
+            )
 
         inventory_by_store: Dict[str, Dict] = {}
-        for row in (inventory_rows.data or []):
+        for row in inventory_rows_data:
             sid = row.get("storeid") or row.get("storeId")
             if not sid:
                 continue
@@ -137,7 +170,7 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
             inventory_by_store[sid]["total_stock"] += int(row.get("quantity") or 0)
 
         bills_by_store: Dict[str, Dict] = {}
-        for row in (bill_rows.data or []):
+        for row in bill_rows_data:
             sid = row.get("storeid") or row.get("storeId")
             if not sid:
                 continue
@@ -178,11 +211,17 @@ def get_available_products_for_assignment(store_id: str) -> List[Dict]:
     try:
         client = db.client
         
-        products_response = client.table("products").select("*").execute()
+        products_response = execute_with_retry(
+            lambda: client.table("products").select("*"),
+            "products for available-products",
+        )
         if not products_response or not products_response.data:
             return []
 
-        inventory_response = client.table("storeinventory").select("storeid, productid, quantity").execute()
+        inventory_response = execute_with_retry(
+            lambda: client.table("storeinventory").select("storeid, productid, quantity"),
+            "storeinventory for available-products",
+        )
         inventory_rows = inventory_response.data or []
 
         total_allocated_by_product: Dict[str, int] = defaultdict(int)
@@ -234,7 +273,10 @@ def sync_local_from_supabase() -> Tuple[bool, str, int]:
         logger.info("Starting sync from Supabase to local storage")
         
         client = db.client
-        response = client.table("stores").select("*").execute()
+        response = execute_with_retry(
+            lambda: client.table("stores").select("*"),
+            "stores sync",
+        )
         stores = response.data or []
         
         stores_snake = [convert_camel_to_snake(store) for store in stores]

@@ -13,6 +13,36 @@ from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
 logger = logging.getLogger(__name__)
 
+
+def _create_return_notification(return_data: Dict) -> None:
+    """Best-effort notification for new return requests."""
+    try:
+        from services import notifications_service
+
+        return_id = return_data.get("return_id", "")
+        product_id = return_data.get("product_id", "")
+        bill_id = return_data.get("bill_id", "")
+        return_amount = return_data.get("return_amount")
+
+        parts = [f"Return request {return_id}"]
+        if product_id:
+            parts.append(f"for product {product_id}")
+        if bill_id:
+            parts.append(f"(bill {bill_id})")
+        if return_amount is not None:
+            parts.append(f"amount ₹{return_amount}")
+
+        notifications_service.create_notification(
+            {
+                "type": "RETURN_REQUEST",
+                "notification": " ".join(parts),
+                "relatedId": return_id,
+                "isRead": False,
+            }
+        )
+    except Exception as notification_error:
+        logger.warning(f"Failed to create return notification: {notification_error}")
+
 # ============================================
 # LOCAL JSON OPERATIONS
 # ============================================
@@ -135,8 +165,10 @@ def create_return(return_data: dict) -> Tuple[Optional[str], str, int]:
             logger.warning(
                 f"Return {return_data['return_id']} saved locally; Supabase sync deferred: {supabase_error}"
             )
+            _create_return_notification(return_data)
             return return_data["return_id"], "Return saved locally and queued for sync", 201
         
+        _create_return_notification(return_data)
         logger.info(f"Return created {return_data['return_id']}")
         return return_data['return_id'], "Return created", 201
         

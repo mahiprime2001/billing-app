@@ -1,9 +1,11 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Bell, Check, Clock, User, X, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "@/hooks/use-toast"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,31 +19,67 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 // Notification types
 export interface Notification {
   id: string
-  type: "PASSWORD_RESET" | "USER_LOGIN" | "SYSTEM_ALERT" | "RETURN_REQUEST" // Added RETURN_REQUEST
-  title: string
+  type: "PASSWORD_RESET" | "USER_LOGIN" | "SYSTEM_ALERT" | "RETURN_REQUEST" | "DISCOUNT_REQUEST"
+  title?: string
   message: string
-  userId: string
-  userName: string
-  userEmail: string
+  userId?: string
+  userName?: string
+  userEmail?: string
   isRead: boolean
   createdAt: string
-  syncLogId: number
-  _internalKey?: string // Add an internal key for React list reconciliation
-  link?: string // Optional link for redirection
+  syncLogId?: number
+  _internalKey?: string
+  link?: string
+  relatedId?: string
+  isVirtual?: boolean
 }
 
 interface NotificationResponse {
-  success: boolean
-  notifications: Notification[]
-  unreadCount: number
-  total: number
+  success?: boolean
+  notifications?: Notification[]
+  unreadCount?: number
+  total?: number
+}
+
+type ReturnRequest = {
+  returnId?: string
+  return_id?: string
+  status?: string
+  createdAt?: string
+  created_at?: string
+  customerName?: string
+  customer_name?: string
+  productName?: string
+  product_name?: string
+  returnAmount?: number
+  return_amount?: number
+  createdBy?: string
+  created_by?: string
+}
+
+type DiscountRequest = {
+  discountId?: string
+  discount_id?: string
+  status?: string
+  createdAt?: string
+  created_at?: string
+  discount?: number
+  discountAmount?: number
+  discount_amount?: number
+  billId?: string
+  bill_id?: string
+  userName?: string
+  user_name?: string
+  userId?: string
+  user_id?: string
 }
 
 const NotificationItem: React.FC<{
   notification: Notification
   onMarkAsRead: (id: string) => void
   onDismiss: (id: string) => void
-}> = ({ notification, onMarkAsRead, onDismiss }) => {
+  onNavigate: (link: string) => void
+}> = ({ notification, onMarkAsRead, onDismiss, onNavigate }) => {
   const getTimeAgo = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
@@ -57,7 +95,9 @@ const NotificationItem: React.FC<{
     switch (notification.type) {
       case "PASSWORD_RESET":
         return <User className="h-4 w-4 text-blue-600" />
-      case "RETURN_REQUEST": // Added icon for return requests
+      case "RETURN_REQUEST":
+        return <RefreshCw className="h-4 w-4 text-purple-600" />
+      case "DISCOUNT_REQUEST":
         return <RefreshCw className="h-4 w-4 text-purple-600" />
       default:
         return <Bell className="h-4 w-4 text-gray-600" />
@@ -66,10 +106,12 @@ const NotificationItem: React.FC<{
 
   const handleNotificationClick = () => {
     if (notification.link) {
-      window.location.href = notification.link;
+      onNavigate(notification.link)
     }
-    onMarkAsRead(notification.id);
-  };
+    if (!notification.isVirtual) {
+      onMarkAsRead(notification.id)
+    }
+  }
 
   return (
     <div 
@@ -88,7 +130,7 @@ const NotificationItem: React.FC<{
             <div className="flex items-center space-x-2">
               {getNotificationIcon()}
               <p className="text-sm font-medium text-foreground">
-                {notification.title}
+                {notification.title || "Notification"}
               </p>
               {!notification.isRead && (
                 <Badge variant="default" className="bg-blue-600 text-xs px-1.5 py-0">
@@ -97,7 +139,7 @@ const NotificationItem: React.FC<{
               )}
             </div>
             <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {!notification.isRead && (
+              {!notification.isRead && !notification.isVirtual && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -111,18 +153,20 @@ const NotificationItem: React.FC<{
                   <Check className="h-3 w-3" />
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 hover:bg-red-100 hover:text-red-600"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDismiss(notification.id)
-                }}
-                title="Dismiss notification"
-              >
-                <X className="h-3 w-3" />
-              </Button>
+              {!notification.isVirtual && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 hover:bg-red-100 hover:text-red-600"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDismiss(notification.id)
+                  }}
+                  title="Dismiss notification"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
             </div>
           </div>
           
@@ -143,34 +187,222 @@ const NotificationItem: React.FC<{
 }
 
 export const NotificationBell: React.FC = () => {
+  const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const loginPendingSnapshotRef = useRef<Set<string>>(new Set())
+  const activeNewPendingRef = useRef<Set<string>>(new Set())
+  const isSnapshotInitializedRef = useRef(false)
+  const lastReminderTsRef = useRef(0)
+
+  const getDefaultTitle = (type: string): string => {
+    switch (type) {
+      case "RETURN_REQUEST":
+        return "Return request"
+      case "DISCOUNT_REQUEST":
+        return "Discount request"
+      case "PASSWORD_RESET":
+        return "Password reset"
+      case "USER_LOGIN":
+        return "User login"
+      default:
+        return "System alert"
+    }
+  }
+
+  const getNotificationLink = (type: string): string | undefined => {
+    if (type === "RETURN_REQUEST") return "/dashboard/returns"
+    if (type === "DISCOUNT_REQUEST") return "/dashboard/discounts"
+    return undefined
+  }
+
+  const isPendingStatus = (value: unknown) => String(value || "").toLowerCase() === "pending"
+
+  const getPendingReturnId = (item: ReturnRequest) => item.returnId || item.return_id || ""
+  const getPendingDiscountId = (item: DiscountRequest) => item.discountId || item.discount_id || ""
+
+  const normalizeNotification = (raw: any): Notification => {
+    const id = String(raw.id ?? raw.notificationId ?? crypto.randomUUID())
+    const type = String(raw.type || "SYSTEM_ALERT") as Notification["type"]
+    const message = String(raw.message || raw.notification || "")
+    const userName = raw.userName || raw.user_name || "System"
+    const title = raw.title || getDefaultTitle(type)
+    const isRead = Boolean(raw.isRead ?? raw.is_read ?? false)
+    const createdAt = raw.createdAt || raw.created_at || new Date().toISOString()
+    const relatedId = raw.relatedId || raw.related_id
+    const link = raw.link || getNotificationLink(type)
+
+    return {
+      id,
+      type,
+      title,
+      message,
+      userName,
+      userId: raw.userId || raw.user_id,
+      userEmail: raw.userEmail || raw.user_email,
+      isRead,
+      createdAt,
+      syncLogId: raw.syncLogId || raw.sync_log_id,
+      _internalKey: `${id}-${createdAt}`,
+      link,
+      relatedId,
+      isVirtual: false,
+    }
+  }
+
+  const buildPendingReturnNotification = (item: ReturnRequest): Notification | null => {
+    const returnId = getPendingReturnId(item)
+    if (!returnId || !isPendingStatus(item.status)) return null
+
+    const customerName = item.customerName || item.customer_name || "customer"
+    const productName = item.productName || item.product_name || "product"
+    const amount = item.returnAmount ?? item.return_amount
+    const amountText = typeof amount === "number" ? ` for ₹${amount.toFixed(2)}` : ""
+    const createdAt = item.createdAt || item.created_at || new Date().toISOString()
+    const userName = item.createdBy || item.created_by || customerName
+
+    return {
+      id: `pending-return-${returnId}`,
+      type: "RETURN_REQUEST",
+      title: "Pending return request",
+      message: `Return ${returnId} for ${productName} by ${customerName}${amountText} is waiting for review.`,
+      userName,
+      isRead: false,
+      createdAt,
+      link: "/dashboard/returns",
+      relatedId: returnId,
+      isVirtual: true,
+    }
+  }
+
+  const buildPendingDiscountNotification = (item: DiscountRequest): Notification | null => {
+    const discountId = getPendingDiscountId(item)
+    if (!discountId || !isPendingStatus(item.status)) return null
+
+    const discountPercent = item.discount
+    const discountAmount = item.discountAmount ?? item.discount_amount
+    const billId = item.billId || item.bill_id
+    const userName = item.userName || item.user_name || item.userId || item.user_id || "user"
+    const createdAt = item.createdAt || item.created_at || new Date().toISOString()
+
+    const detailParts: string[] = []
+    if (typeof discountPercent === "number") detailParts.push(`${discountPercent}%`)
+    if (typeof discountAmount === "number") detailParts.push(`₹${discountAmount.toFixed(2)}`)
+    const detailText = detailParts.length ? ` (${detailParts.join(", ")})` : ""
+    const billText = billId ? ` for bill ${billId}` : ""
+
+    return {
+      id: `pending-discount-${discountId}`,
+      type: "DISCOUNT_REQUEST",
+      title: "Pending discount request",
+      message: `Discount ${discountId}${billText}${detailText} by ${userName} is waiting for review.`,
+      userName: String(userName),
+      isRead: false,
+      createdAt,
+      link: "/dashboard/discounts",
+      relatedId: discountId,
+      isVirtual: true,
+    }
+  }
   
   // Fetch notifications from API
   const fetchNotifications = async () => {
     try {
       setLoading(true)
       setError(null)
-      
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + '/api/notifications?limit=20')
-      const data: NotificationResponse = await response.json()
-      
-      if (data.success) {
-        setNotifications(prev => {
-          const newNotifications = data.notifications.filter(newNotif => 
-            !prev.some(existingNotif => existingNotif.id === newNotif.id)
-          ).map(notification => ({
-            ...notification,
-            _internalKey: crypto.randomUUID(), // Assign a unique internal key
-          }));
-          return [...prev, ...newNotifications];
-        });
-        setUnreadCount(data.unreadCount);
-      } else {
-        setError('Failed to load notifications');
+
+      const [notificationsRes, returnsRes, discountsRes] = await Promise.all([
+        fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/notifications?limit=50", { cache: "no-store" }),
+        fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/returns?t=" + Date.now(), { cache: "no-store" }),
+        fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/discounts?t=" + Date.now(), { cache: "no-store" }),
+      ])
+
+      if (!notificationsRes.ok) {
+        throw new Error(`HTTP ${notificationsRes.status}`)
       }
+
+      const notificationData: NotificationResponse | Notification[] = await notificationsRes.json()
+      const persistedList = Array.isArray(notificationData) ? notificationData : notificationData.notifications || []
+      const persistedNotifications = persistedList.map(normalizeNotification)
+
+      const returnsData: ReturnRequest[] = returnsRes.ok ? await returnsRes.json() : []
+      const discountsData: DiscountRequest[] = discountsRes.ok ? await discountsRes.json() : []
+
+      const existingKeys = new Set(
+        persistedNotifications
+          .filter((item) => item.relatedId && (item.type === "RETURN_REQUEST" || item.type === "DISCOUNT_REQUEST"))
+          .map((item) => `${item.type}:${item.relatedId}`),
+      )
+
+      const pendingNotifications: Notification[] = []
+      for (const item of Array.isArray(returnsData) ? returnsData : []) {
+        const notification = buildPendingReturnNotification(item)
+        if (!notification) continue
+        const key = `${notification.type}:${notification.relatedId}`
+        if (!existingKeys.has(key)) pendingNotifications.push(notification)
+      }
+
+      for (const item of Array.isArray(discountsData) ? discountsData : []) {
+        const notification = buildPendingDiscountNotification(item)
+        if (!notification) continue
+        const key = `${notification.type}:${notification.relatedId}`
+        if (!existingKeys.has(key)) pendingNotifications.push(notification)
+      }
+
+      const pendingKeys = new Set(
+        pendingNotifications
+          .filter((item) => item.relatedId)
+          .map((item) => `${item.type}:${item.relatedId}`),
+      )
+
+      if (!isSnapshotInitializedRef.current) {
+        loginPendingSnapshotRef.current = new Set(pendingKeys)
+        isSnapshotInitializedRef.current = true
+      } else {
+        const activeSet = activeNewPendingRef.current
+        for (const key of Array.from(activeSet)) {
+          if (!pendingKeys.has(key)) {
+            activeSet.delete(key)
+          }
+        }
+
+        let newItemsSinceLogin = 0
+        for (const key of Array.from(pendingKeys)) {
+          if (!loginPendingSnapshotRef.current.has(key) && !activeSet.has(key)) {
+            activeSet.add(key)
+            newItemsSinceLogin += 1
+          }
+        }
+
+        const now = Date.now()
+        if (isSuperAdmin && newItemsSinceLogin > 0) {
+          toast({
+            title: "New pending request",
+            description: `${newItemsSinceLogin} new request(s) need approval.`,
+          })
+          lastReminderTsRef.current = now
+        } else if (
+          isSuperAdmin &&
+          activeSet.size > 0 &&
+          now - lastReminderTsRef.current >= 30000
+        ) {
+          toast({
+            title: "Pending requests reminder",
+            description: `${activeSet.size} pending request(s) still need approval/rejection.`,
+          })
+          lastReminderTsRef.current = now
+        }
+      }
+
+      const normalized = [...pendingNotifications, ...persistedNotifications].sort((a, b) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      }).slice(0, 50)
+
+      setNotifications(normalized)
+      setUnreadCount(normalized.filter((item) => !item.isRead).length)
     } catch (err) {
       console.error('Error fetching notifications:', err)
       setError('Failed to load notifications')
@@ -182,6 +414,19 @@ export const NotificationBell: React.FC = () => {
   // Mark notification as read
   const markAsRead = async (id: string) => {
     try {
+      const target = notifications.find((notification) => notification.id === id)
+      if (target?.isVirtual) {
+        setNotifications(prev =>
+          prev.map(notification =>
+            notification.id === id
+              ? { ...notification, isRead: true }
+              : notification
+          )
+        )
+        setUnreadCount((prev) => Math.max(0, prev - 1))
+        return
+      }
+
       const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/notifications/${id}`, {
         method: 'PUT'
       })
@@ -194,7 +439,7 @@ export const NotificationBell: React.FC = () => {
               : notification
           )
         )
-        setUnreadCount(prev => Math.max(0, prev - 1))
+        setUnreadCount((prev) => Math.max(0, prev - 1))
       }
     } catch (err) {
       console.error('Error marking notification as read:', err)
@@ -204,6 +449,13 @@ export const NotificationBell: React.FC = () => {
   // Dismiss notification
   const dismissNotification = async (id: string) => {
     try {
+      const target = notifications.find((n) => n.id === id)
+      if (target?.isVirtual) {
+        setNotifications(prev => prev.filter(notification => notification.id !== id))
+        setUnreadCount(prev => Math.max(0, prev - 1))
+        return
+      }
+
       const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/notifications/${id}`, {
         method: 'DELETE'
       })
@@ -224,20 +476,23 @@ export const NotificationBell: React.FC = () => {
   // Mark all as read
   const markAllAsRead = async () => {
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + '/api/notifications', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ action: 'markAllRead' })
-      })
-      
-      if (response.ok) {
-        setNotifications(prev => 
-          prev.map(notification => ({ ...notification, isRead: true }))
+      const unreadPersistedIds = notifications
+        .filter((notification) => !notification.isRead && !notification.isVirtual)
+        .map((n) => n.id)
+      await Promise.all(
+        unreadPersistedIds.map((id) =>
+          fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/notifications/${id}`, {
+            method: "PUT",
+          }),
+        ),
+      )
+      setNotifications((prev) => {
+        const next = prev.map((notification) =>
+          notification.isVirtual ? notification : { ...notification, isRead: true },
         )
-        setUnreadCount(0)
-      }
+        setUnreadCount(next.filter((item) => !item.isRead).length)
+        return next
+      })
     } catch (err) {
       console.error('Error marking all as read:', err)
     }
@@ -245,10 +500,20 @@ export const NotificationBell: React.FC = () => {
 
   // Load notifications on component mount
   useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("adminUser") : null
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        setIsSuperAdmin(parsed?.role === "super_admin")
+      }
+    } catch {
+      setIsSuperAdmin(false)
+    }
+
     fetchNotifications()
     
-    // Set up polling for new notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000)
+    // Continuously poll for pending requests + notifications.
+    const interval = setInterval(fetchNotifications, 10000)
     
     return () => clearInterval(interval)
   }, [])
@@ -343,6 +608,7 @@ export const NotificationBell: React.FC = () => {
                 notification={notification}
                 onMarkAsRead={markAsRead}
                 onDismiss={dismissNotification}
+                onNavigate={(link) => router.push(link)}
               />
             ))}
           </div>

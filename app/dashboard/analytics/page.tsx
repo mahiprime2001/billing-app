@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { eachDayOfInterval, format, subDays } from 'date-fns'
+import { differenceInCalendarDays, eachDayOfInterval, endOfDay, format, startOfDay, subDays } from 'date-fns'
+import * as XLSX from 'xlsx'
 import {
   AlertTriangle,
   BarChart3,
@@ -39,6 +40,14 @@ import DashboardLayout from '@/components/dashboard-layout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -72,6 +81,8 @@ interface Bill {
   customerId?: string
   items: BillItem[]
   total: number
+  discountAmount: number
+  discountPercentage: number
   createdAt: string
   timestamp: string
 }
@@ -103,6 +114,7 @@ interface ReturnItem {
 interface DailyStats {
   date: string
   revenue: number
+  discount: number
   bills: number
   items: number
   avgBill: number
@@ -112,6 +124,7 @@ interface StoreAnalytics {
   storeId: string
   storeName: string
   revenue: number
+  discount: number
   bills: number
   items: number
   avgBill: number
@@ -123,6 +136,7 @@ interface ProductSalesStats {
   category: string
   quantity: number
   revenue: number
+  discount: number
   bills: number
   avgSellingPrice: number
   lastSoldAt?: string
@@ -179,6 +193,7 @@ interface AlertItem {
 
 interface MetricSummary {
   revenue: number
+  discount: number
   bills: number
   items: number
   customers: number
@@ -190,6 +205,7 @@ const LOW_STOCK_THRESHOLD = 10
 const PANEL_CARD_CLASS = 'border-slate-200/80 shadow-sm bg-white/90 backdrop-blur'
 const KPI_CARD_CLASS =
   'relative overflow-hidden border-slate-200/80 shadow-sm bg-gradient-to-br from-white to-slate-50'
+const RANGE_PRESETS = [30, 45, 90, 150, 365] as const
 
 type TabValue =
   | 'overview'
@@ -230,6 +246,10 @@ const normalizeBills = (rawBills: any[]): Bill[] => {
     storeName: bill.storeName || bill.store_name,
     customerId: bill.customerId || bill.customer_id || bill.customerid,
     total: Number(bill.total || 0),
+    discountAmount: Number(bill.discountAmount ?? bill.discount_amount ?? bill.discountamount ?? 0),
+    discountPercentage: Number(
+      bill.discountPercentage ?? bill.discount_percentage ?? bill.discountpercentage ?? 0,
+    ),
     createdAt: bill.createdAt || bill.created_at || bill.timestamp || '',
     timestamp: bill.timestamp || bill.createdAt || bill.created_at || '',
     items: Array.isArray(bill.items)
@@ -282,6 +302,7 @@ const normalizeReturns = (rawReturns: any[]): ReturnItem[] => {
 
 const summarizeBills = (rows: Bill[]): MetricSummary => {
   const revenue = rows.reduce((sum, bill) => sum + bill.total, 0)
+  const discount = rows.reduce((sum, bill) => sum + bill.discountAmount, 0)
   const bills = rows.length
   const items = rows.reduce(
     (sum, bill) => sum + bill.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
@@ -291,6 +312,7 @@ const summarizeBills = (rows: Bill[]): MetricSummary => {
 
   return {
     revenue,
+    discount,
     bills,
     items,
     customers,
@@ -298,29 +320,75 @@ const summarizeBills = (rows: Bill[]): MetricSummary => {
   }
 }
 
-const escapeCsv = (value: string | number): string => {
-  const text = String(value ?? '')
-  if (text.includes(',') || text.includes('"') || text.includes('\n')) {
-    return `"${text.replace(/"/g, '""')}"`
+const buildSheet = (rows: Array<Record<string, unknown>>) => {
+  const sheet = XLSX.utils.json_to_sheet(rows)
+  const keys = rows.length > 0 ? Object.keys(rows[0]) : []
+  sheet['!cols'] = keys.map((key) => {
+    const maxValueLen = rows.reduce((max, row) => {
+      const text = String((row as Record<string, unknown>)[key] ?? '')
+      return Math.max(max, text.length)
+    }, key.length)
+    return { wch: Math.min(Math.max(maxValueLen + 2, 12), 45) }
+  })
+  sheet['!autofilter'] = {
+    ref: XLSX.utils.encode_range({
+      s: { r: 0, c: 0 },
+      e: { r: Math.max(rows.length, 1), c: Math.max(keys.length - 1, 0) },
+    }),
   }
-  return text
+  const range = sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : null
+  if (range) {
+    for (let r = range.s.r; r <= range.e.r; r += 1) {
+      for (let c = range.s.c; c <= range.e.c; c += 1) {
+        const ref = XLSX.utils.encode_cell({ r, c })
+        const cell = (sheet as any)[ref]
+        if (!cell) continue
+        const isHeader = r === 0
+        const isTotal = r === range.e.r
+        cell.s = {
+          border: {
+            top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            right: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          },
+          ...(isHeader
+            ? { fill: { patternType: 'solid', fgColor: { rgb: 'E2E8F0' } }, font: { bold: true } }
+            : {}),
+          ...(isTotal ? { font: { bold: true } } : {}),
+        }
+      }
+    }
+  }
+  return sheet
 }
 
-const downloadCsv = (
-  filename: string,
-  headers: string[],
-  rows: Array<Array<string | number>>,
+const appendTotalRow = (
+  rows: Array<Record<string, unknown>>,
+  numericKeys: string[],
+  labelKey?: string,
 ) => {
-  const csvLines = [headers.map(escapeCsv).join(','), ...rows.map((row) => row.map(escapeCsv).join(','))]
-  const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.setAttribute('download', filename)
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  if (rows.length === 0) return rows
+
+  const totalRow: Record<string, unknown> = {}
+  Object.keys(rows[0]).forEach((key) => {
+    totalRow[key] = numericKeys.includes(key)
+      ? Number(
+          rows
+            .reduce((sum, row) => sum + Number((row as Record<string, unknown>)[key] || 0), 0)
+            .toFixed(2),
+        )
+      : ''
+  })
+
+  if (labelKey && Object.prototype.hasOwnProperty.call(totalRow, labelKey)) {
+    totalRow[labelKey] = 'TOTAL'
+  } else {
+    const firstKey = Object.keys(totalRow)[0]
+    if (firstKey) totalRow[firstKey] = 'TOTAL'
+  }
+
+  return [...rows, totalRow]
 }
 
 interface MetricCardProps {
@@ -368,7 +436,10 @@ export default function AnalyticsPage() {
   const [products, setProducts] = useState<ProductRecord[]>([])
   const [returns, setReturns] = useState<ReturnItem[]>([])
   const [selectedStore, setSelectedStore] = useState('all')
-  const [selectedDays, setSelectedDays] = useState(30)
+  const [selectedDaysPreset, setSelectedDaysPreset] = useState('30')
+  const [rangeFrom, setRangeFrom] = useState(format(subDays(new Date(), 29), 'yyyy-MM-dd'))
+  const [rangeTo, setRangeTo] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<TabValue>('overview')
   const [loading, setLoading] = useState(true)
   const [authChecked, setAuthChecked] = useState(false)
@@ -418,12 +489,21 @@ export default function AnalyticsPage() {
 
   const dateWindows = useMemo(() => {
     const now = new Date()
-    const currentStart = subDays(now, Math.max(selectedDays - 1, 0))
-    const previousStart = subDays(currentStart, selectedDays)
-    const staleNinetyStart = subDays(now, 90)
+    const fromDate = startOfDay(new Date(`${rangeFrom}T00:00:00`))
+    const toDate = endOfDay(new Date(`${rangeTo}T00:00:00`))
+    const hasValidRange =
+      !Number.isNaN(fromDate.getTime()) &&
+      !Number.isNaN(toDate.getTime()) &&
+      fromDate.getTime() <= toDate.getTime()
 
-    return { now, currentStart, previousStart, staleNinetyStart }
-  }, [selectedDays])
+    const currentStart = hasValidRange ? fromDate : startOfDay(subDays(now, 29))
+    const currentEnd = hasValidRange ? toDate : endOfDay(now)
+    const selectedRangeDays = Math.max(differenceInCalendarDays(currentEnd, currentStart) + 1, 1)
+    const previousStart = subDays(currentStart, selectedRangeDays)
+    const staleNinetyStart = subDays(currentEnd, 90)
+
+    return { currentStart, currentEnd, previousStart, staleNinetyStart, selectedRangeDays }
+  }, [rangeFrom, rangeTo])
 
   const billsByStore = useMemo(() => {
     return bills.filter((bill) => selectedStore === 'all' || bill.storeId === selectedStore)
@@ -432,7 +512,7 @@ export default function AnalyticsPage() {
   const filteredBills = useMemo(() => {
     return billsByStore.filter((bill) => {
       const date = parseDate(bill.createdAt || bill.timestamp)
-      return !!date && date >= dateWindows.currentStart && date <= dateWindows.now
+      return !!date && date >= dateWindows.currentStart && date <= dateWindows.currentEnd
     })
   }, [billsByStore, dateWindows])
 
@@ -446,7 +526,7 @@ export default function AnalyticsPage() {
   const billsLast90Days = useMemo(() => {
     return billsByStore.filter((bill) => {
       const date = parseDate(bill.createdAt || bill.timestamp)
-      return !!date && date >= dateWindows.staleNinetyStart && date <= dateWindows.now
+      return !!date && date >= dateWindows.staleNinetyStart && date <= dateWindows.currentEnd
     })
   }, [billsByStore, dateWindows])
 
@@ -461,9 +541,9 @@ export default function AnalyticsPage() {
   const dailyStats = useMemo((): DailyStats[] => {
     const statsByDate = new Map<string, DailyStats>()
 
-    eachDayOfInterval({ start: dateWindows.currentStart, end: dateWindows.now }).forEach((day) => {
+    eachDayOfInterval({ start: dateWindows.currentStart, end: dateWindows.currentEnd }).forEach((day) => {
       const key = format(day, 'yyyy-MM-dd')
-      statsByDate.set(key, { date: key, revenue: 0, bills: 0, items: 0, avgBill: 0 })
+      statsByDate.set(key, { date: key, revenue: 0, discount: 0, bills: 0, items: 0, avgBill: 0 })
     })
 
     filteredBills.forEach((bill) => {
@@ -475,6 +555,7 @@ export default function AnalyticsPage() {
       if (!bucket) return
 
       bucket.revenue += bill.total
+      bucket.discount += bill.discountAmount
       bucket.bills += 1
       bucket.items += bill.items.reduce((sum, item) => sum + item.quantity, 0)
     })
@@ -490,14 +571,15 @@ export default function AnalyticsPage() {
     const storeMap = new Map<string, StoreAnalytics>()
 
     stores.forEach((store) => {
-      storeMap.set(store.id, {
-        storeId: store.id,
-        storeName: store.name,
-        revenue: 0,
-        bills: 0,
-        items: 0,
-        avgBill: 0,
-      })
+        storeMap.set(store.id, {
+          storeId: store.id,
+          storeName: store.name,
+          revenue: 0,
+          discount: 0,
+          bills: 0,
+          items: 0,
+          avgBill: 0,
+        })
     })
 
     filteredBills.forEach((bill) => {
@@ -508,6 +590,7 @@ export default function AnalyticsPage() {
           storeId: bill.storeId,
           storeName: bill.storeName || 'Unknown Store',
           revenue: 0,
+          discount: 0,
           bills: 0,
           items: 0,
           avgBill: 0,
@@ -518,6 +601,7 @@ export default function AnalyticsPage() {
       if (!stats) return
 
       stats.revenue += bill.total
+      stats.discount += bill.discountAmount
       stats.bills += 1
       stats.items += bill.items.reduce((sum, item) => sum + item.quantity, 0)
       stats.avgBill = stats.bills > 0 ? stats.revenue / stats.bills : 0
@@ -543,6 +627,7 @@ export default function AnalyticsPage() {
             category: productCategoryMap.get(item.productId) || 'Uncategorized',
             quantity: 0,
             revenue: 0,
+            discount: 0,
             bills: 0,
             avgSellingPrice: 0,
             lastSoldAt: billDateIso,
@@ -554,6 +639,10 @@ export default function AnalyticsPage() {
 
         stats.quantity += item.quantity
         stats.revenue += item.total
+        const itemTotalsSum = bill.items.reduce((sum, row) => sum + row.total, 0)
+        const itemDiscount =
+          itemTotalsSum > 0 ? (bill.discountAmount * item.total) / itemTotalsSum : 0
+        stats.discount += itemDiscount
         stats.bills += 1
 
         if (billDateIso && (!stats.lastSoldAt || billDateIso > stats.lastSoldAt)) {
@@ -693,7 +782,7 @@ export default function AnalyticsPage() {
 
     bills.forEach((bill) => {
       const billDate = parseDate(bill.createdAt || bill.timestamp)
-      if (!billDate || billDate < dateWindows.staleNinetyStart || billDate > dateWindows.now) return
+      if (!billDate || billDate < dateWindows.staleNinetyStart || billDate > dateWindows.currentEnd) return
       if (selectedStore !== 'all' && bill.storeId !== selectedStore) return
 
       if (!soldByStore.has(bill.storeId)) soldByStore.set(bill.storeId, new Set())
@@ -776,7 +865,7 @@ export default function AnalyticsPage() {
   const returnsInPeriod = useMemo(() => {
     return returns.filter((item) => {
       const date = parseDate(item.createdAt)
-      return !!date && date >= dateWindows.currentStart && date <= dateWindows.now
+      return !!date && date >= dateWindows.currentStart && date <= dateWindows.currentEnd
     })
   }, [returns, dateWindows])
 
@@ -864,6 +953,32 @@ export default function AnalyticsPage() {
     selectedStore === 'all'
       ? 'All Stores'
       : stores.find((store) => store.id === selectedStore)?.name || 'Unknown Store'
+  const selectedRangeDays = dateWindows.selectedRangeDays
+  const isRangeValid = useMemo(() => {
+    const fromDate = new Date(`${rangeFrom}T00:00:00`)
+    const toDate = new Date(`${rangeTo}T00:00:00`)
+    return (
+      !Number.isNaN(fromDate.getTime()) &&
+      !Number.isNaN(toDate.getTime()) &&
+      fromDate.getTime() <= toDate.getTime()
+    )
+  }, [rangeFrom, rangeTo])
+
+  const applyPresetRange = useCallback((days: number) => {
+    const endDate = new Date()
+    setRangeTo(format(endDate, 'yyyy-MM-dd'))
+    setRangeFrom(format(subDays(endDate, Math.max(days - 1, 0)), 'yyyy-MM-dd'))
+  }, [])
+
+  const handleMainPresetChange = useCallback(
+    (value: string) => {
+      setSelectedDaysPreset(value)
+      if (value !== 'custom') {
+        applyPresetRange(Number(value))
+      }
+    },
+    [applyPresetRange],
+  )
 
   const filteredProductAnalytics = useMemo(() => {
     const term = productSearch.trim().toLowerCase()
@@ -894,158 +1009,152 @@ export default function AnalyticsPage() {
     nonSellingCount: row.nonSellingCount,
   }))
 
-  const exportActiveTab = useCallback(() => {
+  const exportAnalyticsWorkbook = useCallback(() => {
     const timestamp = format(new Date(), 'yyyyMMdd_HHmmss')
+    const workbook = XLSX.utils.book_new()
+    const shouldUseMonthlyRevenue = selectedRangeDays > 30
 
-    if (activeTab === 'overview' || activeTab === 'revenue') {
-      downloadCsv(
-        `analytics_${activeTab}_${timestamp}.csv`,
-        ['date', 'revenue', 'bills', 'items', 'avg_bill'],
-        dailyStats.map((row) => [row.date, row.revenue, row.bills, row.items, row.avgBill]),
-      )
-      return
-    }
+    const summaryRows = appendTotalRow(
+      [
+      {
+        report_generated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
+        active_tab: activeTab,
+        selected_store: selectedStoreName,
+        date_range_days: selectedRangeDays,
+        range_start: format(dateWindows.currentStart, 'yyyy-MM-dd'),
+        range_end: format(dateWindows.currentEnd, 'yyyy-MM-dd'),
+        revenue: Number(currentSummary.revenue.toFixed(2)),
+        discount: Number(currentSummary.discount.toFixed(2)),
+        bills: currentSummary.bills,
+        items: currentSummary.items,
+        customers: currentSummary.customers,
+        avg_bill: Number(currentSummary.avgBill.toFixed(2)),
+      },
+      ],
+      ['revenue', 'discount', 'bills', 'items', 'customers', 'avg_bill'],
+      'report_generated_at',
+    )
+    XLSX.utils.book_append_sheet(workbook, buildSheet(summaryRows), 'Summary')
 
-    if (activeTab === 'stores') {
-      downloadCsv(
-        `analytics_stores_${timestamp}.csv`,
-        ['store_id', 'store_name', 'revenue', 'bills', 'items', 'avg_bill'],
-        storeAnalytics.map((row) => [
-          row.storeId,
-          row.storeName,
-          row.revenue,
-          row.bills,
-          row.items,
-          row.avgBill,
-        ]),
-      )
-      return
-    }
-
-    if (activeTab === 'products') {
-      downloadCsv(
-        `analytics_products_${timestamp}.csv`,
-        [
-          'product_id',
-          'product_name',
-          'category',
-          'quantity',
-          'revenue',
-          'bills',
-          'avg_selling_price',
-          'last_sold',
-        ],
-        filteredProductAnalytics.map((row) => [
-          row.productId,
-          row.productName,
-          row.category,
-          row.quantity,
-          row.revenue,
-          row.bills,
-          row.avgSellingPrice,
-          row.lastSoldAt || '',
-        ]),
-      )
-      return
-    }
-
-    if (activeTab === 'categories') {
-      downloadCsv(
-        `analytics_categories_${timestamp}.csv`,
-        ['category', 'revenue', 'quantity', 'bills', 'product_count'],
-        categoryAnalytics.map((row) => [
-          row.category,
-          row.revenue,
-          row.quantity,
-          row.bills,
-          row.productCount,
-        ]),
-      )
-      return
-    }
-
-    if (activeTab === 'inventory') {
-      downloadCsv(
-        `analytics_inventory_${timestamp}.csv`,
-        [
-          'product_id',
-          'product_name',
-          'category',
-          'stock',
-          'cost_price',
-          'selling_price',
-          'margin_per_unit',
-          'margin_pct',
-          'cost_value',
-          'potential_sales_value',
-          'potential_profit',
-        ],
-        inventoryAnalytics.map((row) => [
-          row.productId,
-          row.productName,
-          row.category,
-          row.stock,
-          row.costPrice,
-          row.sellingPrice,
-          row.marginPerUnit,
-          row.marginPct === null ? '' : row.marginPct,
-          row.costValue,
-          row.potentialSalesValue,
-          row.potentialProfit,
-        ]),
-      )
-      return
-    }
-
-    if (activeTab === 'nonselling') {
-      const rows: Array<Array<string | number>> = []
-      storeWiseNonSelling90Days.forEach((storeRow) => {
-        if (storeRow.topNonSelling.length === 0) {
-          rows.push([storeRow.storeId, storeRow.storeName, '', '', '', ''])
-          return
+    const monthlyRevenueRows = Array.from(
+      dailyStats.reduce((acc, row) => {
+        const monthKey = row.date.slice(0, 7)
+        const prev = acc.get(monthKey) || {
+          month: monthKey,
+          revenue: 0,
+          discount: 0,
+          bills: 0,
+          items: 0,
+          avg_bill: 0,
         }
+        prev.revenue += row.revenue
+        prev.discount += row.discount
+        prev.bills += row.bills
+        prev.items += row.items
+        prev.avg_bill = prev.bills > 0 ? prev.revenue / prev.bills : 0
+        acc.set(monthKey, prev)
+        return acc
+      }, new Map<string, { month: string; revenue: number; discount: number; bills: number; items: number; avg_bill: number }>())
+        .values(),
+    )
 
-        storeRow.topNonSelling.forEach((item) => {
-          rows.push([
-            storeRow.storeId,
-            storeRow.storeName,
-            item.productId,
-            item.productName,
-            item.stock,
-            item.blockedValue,
-          ])
-        })
-      })
+    const dailyRevenueRows = appendTotalRow(
+      shouldUseMonthlyRevenue
+        ? monthlyRevenueRows.map((row) => ({
+            month: row.month,
+            revenue: Number(row.revenue.toFixed(2)),
+            discount: Number(row.discount.toFixed(2)),
+            bills: row.bills,
+            items: row.items,
+            avg_bill: Number(row.avg_bill.toFixed(2)),
+          }))
+        : dailyStats.map((row) => ({
+            date: row.date,
+            revenue: Number(row.revenue.toFixed(2)),
+            discount: Number(row.discount.toFixed(2)),
+            bills: row.bills,
+            items: row.items,
+            avg_bill: Number(row.avgBill.toFixed(2)),
+          })),
+      ['revenue', 'discount', 'bills', 'items', 'avg_bill'],
+      shouldUseMonthlyRevenue ? 'month' : 'date',
+    )
 
-      downloadCsv(
-        `analytics_nonselling_${timestamp}.csv`,
-        ['store_id', 'store_name', 'product_id', 'product_name', 'stock', 'blocked_value'],
-        rows,
-      )
-      return
-    }
+    XLSX.utils.book_append_sheet(
+      workbook,
+      buildSheet(dailyRevenueRows),
+      'Daily Revenue',
+    )
 
-    if (activeTab === 'returns') {
-      downloadCsv(
-        `analytics_returns_${timestamp}.csv`,
-        ['return_id', 'product_id', 'status', 'return_amount', 'created_at'],
-        returnsInPeriod.map((item) => [
-          item.returnId,
-          item.productId,
-          item.status,
-          item.returnAmount,
-          item.createdAt,
-        ]),
-      )
-    }
+    const storeRows = appendTotalRow(
+      storeAnalytics.map((row) => ({
+        store_id: row.storeId,
+        store_name: row.storeName,
+        revenue: Number(row.revenue.toFixed(2)),
+        discount: Number(row.discount.toFixed(2)),
+        bills: row.bills,
+        items: row.items,
+        avg_bill: Number(row.avgBill.toFixed(2)),
+      })),
+      ['revenue', 'discount', 'bills', 'items', 'avg_bill'],
+      'store_id',
+    )
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      buildSheet(storeRows),
+      'Stores',
+    )
+
+    const productRows = appendTotalRow(
+      filteredProductAnalytics.map((row) => ({
+        product_id: row.productId,
+        product_name: row.productName,
+        quantity: row.quantity,
+        revenue: Number(row.revenue.toFixed(2)),
+        discount: Number(row.discount.toFixed(2)),
+        bills: row.bills,
+        avg_selling_price: Number(row.avgSellingPrice.toFixed(2)),
+        last_sold: row.lastSoldAt || '',
+      })),
+      ['quantity', 'revenue', 'discount', 'bills', 'avg_selling_price'],
+      'product_id',
+    )
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      buildSheet(productRows),
+      'Products',
+    )
+    const returnsRows = appendTotalRow(
+      returnsInPeriod.map((item) => ({
+        return_id: item.returnId,
+        product_id: item.productId,
+        status: item.status,
+        return_amount: Number(item.returnAmount.toFixed(2)),
+        discount: 0,
+        created_at: item.createdAt,
+      })),
+      ['return_amount', 'discount'],
+      'return_id',
+    )
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      buildSheet(returnsRows),
+      'Returns',
+    )
+
+    XLSX.writeFile(workbook, `analytics_full_report_${timestamp}.xlsx`, { cellStyles: true })
   }, [
     activeTab,
+    selectedStoreName,
+    selectedRangeDays,
+    dateWindows,
+    currentSummary,
     dailyStats,
     storeAnalytics,
     filteredProductAnalytics,
-    categoryAnalytics,
-    inventoryAnalytics,
-    storeWiseNonSelling90Days,
     returnsInPeriod,
   ])
 
@@ -1071,8 +1180,11 @@ export default function AnalyticsPage() {
                   Deep reporting with tab-level exports, category analysis, and non-selling detection.
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {`Showing ${selectedDays} day window (${format(dateWindows.currentStart, 'dd MMM yyyy')} - ${format(
-                    dateWindows.now,
+                  {`Showing ${selectedRangeDays} day window (${format(
+                    dateWindows.currentStart,
+                    'dd MMM yyyy',
+                  )} - ${format(
+                    dateWindows.currentEnd,
                     'dd MMM yyyy',
                   )}) | Store: ${selectedStoreName}`}
                 </p>
@@ -1080,20 +1192,41 @@ export default function AnalyticsPage() {
 
               <div className="flex flex-wrap gap-2">
                 <Select
-                  value={selectedDays.toString()}
-                  onValueChange={(value) => setSelectedDays(Number(value))}
+                  value={selectedDaysPreset}
+                  onValueChange={handleMainPresetChange}
                 >
                   <SelectTrigger className="w-[150px] border-slate-300 bg-white text-slate-800">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="7">Last 7 Days</SelectItem>
                     <SelectItem value="30">Last 30 Days</SelectItem>
+                    <SelectItem value="45">Last 45 Days</SelectItem>
                     <SelectItem value="90">Last 90 Days</SelectItem>
-                    <SelectItem value="180">Last 180 Days</SelectItem>
+                    <SelectItem value="150">Last 150 Days</SelectItem>
                     <SelectItem value="365">Last 365 Days</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
                   </SelectContent>
                 </Select>
+
+                <Input
+                  type="date"
+                  value={rangeFrom}
+                  onChange={(e) => {
+                    setRangeFrom(e.target.value)
+                    setSelectedDaysPreset('custom')
+                  }}
+                  className="w-[170px] border-slate-300 bg-white text-slate-800"
+                />
+
+                <Input
+                  type="date"
+                  value={rangeTo}
+                  onChange={(e) => {
+                    setRangeTo(e.target.value)
+                    setSelectedDaysPreset('custom')
+                  }}
+                  className="w-[170px] border-slate-300 bg-white text-slate-800"
+                />
 
                 <Select value={selectedStore} onValueChange={setSelectedStore}>
                   <SelectTrigger className="w-[190px] border-slate-300 bg-white text-slate-800">
@@ -1118,14 +1251,82 @@ export default function AnalyticsPage() {
                   Refresh
                 </Button>
 
-                <Button onClick={exportActiveTab} className="bg-emerald-500 text-slate-900 hover:bg-emerald-400">
+                <Button
+                  onClick={() => {
+                    setExportDialogOpen(true)
+                  }}
+                  className="bg-emerald-500 text-slate-900 hover:bg-emerald-400"
+                >
                   <Download className="mr-2 h-4 w-4" />
-                  Export {activeTab} CSV
+                  Export Full Excel
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Export Analytics Excel</DialogTitle>
+              <DialogDescription>
+                Choose a preset or custom date range for export.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <Select value={selectedDaysPreset} onValueChange={handleMainPresetChange}>
+                <SelectTrigger className="w-full border-slate-300 bg-white text-slate-800">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RANGE_PRESETS.map((days) => (
+                    <SelectItem key={days} value={days.toString()}>{`Last ${days} Days`}</SelectItem>
+                  ))}
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  type="date"
+                  value={rangeFrom}
+                  onChange={(e) => {
+                    setRangeFrom(e.target.value)
+                    setSelectedDaysPreset('custom')
+                  }}
+                />
+                <Input
+                  type="date"
+                  value={rangeTo}
+                  onChange={(e) => {
+                    setRangeTo(e.target.value)
+                    setSelectedDaysPreset('custom')
+                  }}
+                />
+              </div>
+              {!isRangeValid && (
+                <p className="text-xs text-red-600">Please select a valid range: From date must be before To date.</p>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={!isRangeValid}
+                onClick={() => {
+                  setExportDialogOpen(false)
+                  exportAnalyticsWorkbook()
+                }}
+                className="bg-emerald-500 text-slate-900 hover:bg-emerald-400"
+              >
+                Export Excel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <MetricCard

@@ -98,6 +98,30 @@ class EnhancedSyncManager:
         except Exception as e:
             logger.error(f"Error saving JSON to {path}: {e}")
 
+    @staticmethod
+    def _get_postgrest_error_code(error: Exception) -> Optional[str]:
+        """Extract PostgREST error code from known exception shapes."""
+        try:
+            first_arg = error.args[0] if error.args else None
+            if isinstance(first_arg, dict):
+                return first_arg.get("code")
+        except Exception:
+            pass
+
+        text = str(error)
+        if "PGRST205" in text:
+            return "PGRST205"
+        if "PGRST100" in text:
+            return "PGRST100"
+        return None
+
+    def _is_missing_sync_table_error(self, error: Exception) -> bool:
+        code = self._get_postgrest_error_code(error)
+        if code == "PGRST205":
+            return True
+        text = str(error)
+        return "Could not find the table 'public.sync_table'" in text
+
     def get_local_sync_table(self) -> List[Dict]:
         return self._safe_json_load(self.local_sync_table_file, [])
 
@@ -278,10 +302,10 @@ class EnhancedSyncManager:
             # 2. Local changes that are still 'pending' or 'failed' and should be retried or confirmed.
             # 3. Local changes that are 'synced' and created after the last_sync timestamp.
             filter_string = (
-                f"(source.eq.remote)," # Pull all remote changes
-                f"(source.eq.local,status.eq.pending)," # Local pending changes (not yet pushed)
-                f"(source.eq.local,status.eq.failed)," # Local failed changes (for retry)
-                f"(source.eq.local,status.eq.synced,created_at.gte.{timestamp_filter})" # Local synced changes after last sync
+                "source.eq.remote,"  # Pull all remote changes
+                "and(source.eq.local,status.eq.pending),"  # Local pending changes (not yet pushed)
+                "and(source.eq.local,status.eq.failed),"  # Local failed changes (for retry)
+                f"and(source.eq.local,status.eq.synced,created_at.gte.{timestamp_filter})"  # Local synced changes after last sync
             )
             # Combine filters using 'or' for the query. Each part of the filter_string is already an 'and' implicitly.
             query = query.or_(filter_string)
@@ -365,6 +389,13 @@ class EnhancedSyncManager:
             }
             
         except Exception as e:
+            if self._is_missing_sync_table_error(e):
+                logger.warning("Supabase sync_table not found; skipping remote pull.")
+                return {
+                    "status": "skipped",
+                    "message": "Supabase sync_table not found; pull skipped",
+                    "pulled": 0,
+                }
             logger.error(f"Error pulling from Supabase sync_table: {e}", exc_info=True)
             return {"status": "error", "message": str(e)}
 
@@ -772,7 +803,10 @@ class EnhancedSyncManager:
                 supabase_cleaned = len(response.data)
             logger.info(f"Supabase sync_table cleanup: {supabase_cleaned} entries removed")
         except Exception as e:
-            logger.error(f"Error cleaning Supabase sync_table: {e}", exc_info=True)
+            if self._is_missing_sync_table_error(e):
+                logger.warning("Supabase sync_table not found; skipping remote cleanup.")
+            else:
+                logger.error(f"Error cleaning Supabase sync_table: {e}", exc_info=True)
         
         return {
             "status": "success",

@@ -9,6 +9,7 @@ from typing import List, Dict, Optional, Tuple
 from decimal import Decimal
 
 from utils.supabase_db import db
+from utils.supabase_resilience import execute_with_retry
 from utils.json_helpers import (
     get_bills_data,
     save_bills_data,
@@ -60,7 +61,10 @@ def get_supabase_bills() -> List[Dict]:
     """
     try:
         client = db.client
-        response = client.table("bills").select("*").execute()
+        response = execute_with_retry(
+            lambda: client.table("bills").select("*"),
+            "bills",
+        )
         bills = response.data or []
         transformed_bills = [convert_snake_to_camel(bill) for bill in bills]
         logger.debug(f"Returning {len(transformed_bills)} bills from Supabase.")
@@ -83,17 +87,19 @@ def get_supabase_bills_with_details() -> List[Dict]:
         # Step 1: Fetch products using the merged products (local + supabase)
         print("\n📦 Step 1: Fetching products via products_service.get_merged_products()...")
         products_list, status_code = products_service.get_merged_products()
-        
         if status_code != 200:
-            print(f"❌ Failed to fetch products, status code: {status_code}")
-            return []
+            print(f"⚠️ Failed to fetch products, status code: {status_code}. Continuing with empty product map.")
+            products_list = []
         
         print(f"✅ Fetched {len(products_list)} products from merged products")
         
         # Build HSN lookup map: id -> readable HSN code
         hsn_map = {}
         try:
-            hsn_response = client.table("hsn_codes").select("*").execute()
+            hsn_response = execute_with_retry(
+                lambda: client.table("hsn_codes").select("*"),
+                "hsn_codes",
+            )
             for code in hsn_response.data or []:
                 code_id = code.get("id")
                 if code_id is None:
@@ -136,13 +142,19 @@ def get_supabase_bills_with_details() -> List[Dict]:
         
         # Step 2: Fetch bills
         print("\n📄 Step 2: Fetching bills...")
-        bills_response = client.table("bills").select("*").execute()
+        bills_response = execute_with_retry(
+            lambda: client.table("bills").select("*"),
+            "bills (with details)",
+        )
         bills = bills_response.data or []
         print(f"✅ Fetched {len(bills)} bills")
         
         # Step 3: Fetch bill items (table name: billitems, field: billid, productid)
         print("\n🛒 Step 3: Fetching bill items...")
-        items_response = client.table("billitems").select("*").execute()
+        items_response = execute_with_retry(
+            lambda: client.table("billitems").select("*"),
+            "billitems",
+        )
         all_items = items_response.data or []
         print(f"✅ Fetched {len(all_items)} bill items")
         
@@ -222,15 +234,19 @@ def get_supabase_bills_with_details() -> List[Dict]:
         
         print(f"✅ {bills_with_items}/{len(bills)} bills have items")
         
-        # FIX: Ensure discount fields exist (already in correct format from schema)
+        # Ensure schema discount fields exist; keep backward-compat keys if needed.
         print("\n🔧 Ensuring discount fields exist...")
         for bill in bills:
-            # Schema already has: discountpercentage, discountamount (no underscores)
-            if 'discountpercentage' not in bill or bill['discountpercentage'] is None:
-                bill['discountpercentage'] = 0
-            
-            if 'discountamount' not in bill or bill['discountamount'] is None:
-                bill['discountamount'] = 0
+            # Supabase schema uses: discount_percentage, discount_amount.
+            if 'discount_percentage' not in bill and 'discountpercentage' in bill:
+                bill['discount_percentage'] = bill.get('discountpercentage')
+            if 'discount_amount' not in bill and 'discountamount' in bill:
+                bill['discount_amount'] = bill.get('discountamount')
+
+            if bill.get('discount_percentage') is None:
+                bill['discount_percentage'] = 0
+            if bill.get('discount_amount') is None:
+                bill['discount_amount'] = 0
         
         # Convert to camelCase
         print("\n🔄 Converting to camelCase...")
