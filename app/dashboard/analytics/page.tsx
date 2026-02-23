@@ -85,6 +85,8 @@ interface Bill {
   discountPercentage: number
   createdAt: string
   timestamp: string
+  isReplacement?: boolean
+  replacementFinalAmount?: number
 }
 
 interface StoreRecord {
@@ -106,6 +108,7 @@ interface ProductRecord {
 interface ReturnItem {
   returnId: string
   productId: string
+  storeId?: string
   returnAmount: number
   status: string
   createdAt: string
@@ -114,6 +117,9 @@ interface ReturnItem {
 interface DailyStats {
   date: string
   revenue: number
+  replacementAmount: number
+  returnsAmount: number
+  netRevenue: number
   discount: number
   bills: number
   items: number
@@ -202,6 +208,7 @@ interface MetricSummary {
 
 const CHART_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#f97316', '#dc2626', '#7c3aed']
 const LOW_STOCK_THRESHOLD = 10
+const RETURN_IMPACT_STATUSES = new Set(['approved', 'completed'])
 const PANEL_CARD_CLASS = 'border-slate-200/80 shadow-sm bg-white/90 backdrop-blur'
 const KPI_CARD_CLASS =
   'relative overflow-hidden border-slate-200/80 shadow-sm bg-gradient-to-br from-white to-slate-50'
@@ -252,6 +259,10 @@ const normalizeBills = (rawBills: any[]): Bill[] => {
     ),
     createdAt: bill.createdAt || bill.created_at || bill.timestamp || '',
     timestamp: bill.timestamp || bill.createdAt || bill.created_at || '',
+    isReplacement: Boolean(bill.isReplacement ?? bill.is_replacement),
+    replacementFinalAmount: Number(
+      bill.replacementFinalAmount ?? bill.replacement_final_amount ?? 0,
+    ),
     items: Array.isArray(bill.items)
       ? bill.items.map((item: any) => ({
           productId: String(item.productId || item.product_id || item.productid || ''),
@@ -263,6 +274,13 @@ const normalizeBills = (rawBills: any[]): Bill[] => {
         }))
       : [],
   }))
+}
+
+const getEffectiveBillTotal = (bill: Bill): number => {
+  if (bill.isReplacement && (bill.replacementFinalAmount || 0) > 0) {
+    return bill.replacementFinalAmount || 0
+  }
+  return bill.total || 0
 }
 
 const normalizeStores = (rawStores: any[]): StoreRecord[] => {
@@ -294,6 +312,7 @@ const normalizeReturns = (rawReturns: any[]): ReturnItem[] => {
   return rawReturns.map((item, index) => ({
     returnId: String(item.returnId || item.return_id || item.id || `return-${index}`),
     productId: String(item.productId || item.product_id || item.productid || ''),
+    storeId: String(item.storeId || item.store_id || item.storeid || ''),
     returnAmount: Number(item.returnAmount || item.return_amount || item.amount || 0),
     status: String(item.status || 'pending').toLowerCase(),
     createdAt: item.createdAt || item.created_at || item.timestamp || '',
@@ -301,7 +320,7 @@ const normalizeReturns = (rawReturns: any[]): ReturnItem[] => {
 }
 
 const summarizeBills = (rows: Bill[]): MetricSummary => {
-  const revenue = rows.reduce((sum, bill) => sum + bill.total, 0)
+  const revenue = rows.reduce((sum, bill) => sum + getEffectiveBillTotal(bill), 0)
   const discount = rows.reduce((sum, bill) => sum + bill.discountAmount, 0)
   const bills = rows.length
   const items = rows.reduce(
@@ -530,6 +549,40 @@ export default function AnalyticsPage() {
     })
   }, [billsByStore, dateWindows])
 
+  const returnsInPeriod = useMemo(() => {
+    return returns.filter((item) => {
+      const date = parseDate(item.createdAt)
+      return !!date && date >= dateWindows.currentStart && date <= dateWindows.currentEnd
+    })
+  }, [returns, dateWindows])
+
+  const approvedReturnsInPeriod = useMemo(() => {
+    return returnsInPeriod.filter((item) => RETURN_IMPACT_STATUSES.has(item.status || ''))
+  }, [returnsInPeriod])
+
+  const approvedReturnsPreviousPeriod = useMemo(() => {
+    return returns.filter((item) => {
+      const date = parseDate(item.createdAt)
+      return (
+        !!date &&
+        date >= dateWindows.previousStart &&
+        date < dateWindows.currentStart &&
+        RETURN_IMPACT_STATUSES.has(item.status || '')
+      )
+    })
+  }, [returns, dateWindows])
+
+  const approvedReturnsByDate = useMemo(() => {
+    const map = new Map<string, number>()
+    approvedReturnsInPeriod.forEach((item) => {
+      const date = parseDate(item.createdAt)
+      if (!date) return
+      const key = format(date, 'yyyy-MM-dd')
+      map.set(key, (map.get(key) || 0) + item.returnAmount)
+    })
+    return map
+  }, [approvedReturnsInPeriod])
+
   const productCategoryMap = useMemo(() => {
     const map = new Map<string, string>()
     products.forEach((product) => {
@@ -543,7 +596,17 @@ export default function AnalyticsPage() {
 
     eachDayOfInterval({ start: dateWindows.currentStart, end: dateWindows.currentEnd }).forEach((day) => {
       const key = format(day, 'yyyy-MM-dd')
-      statsByDate.set(key, { date: key, revenue: 0, discount: 0, bills: 0, items: 0, avgBill: 0 })
+      statsByDate.set(key, {
+        date: key,
+        revenue: 0,
+        replacementAmount: 0,
+        returnsAmount: 0,
+        netRevenue: 0,
+        discount: 0,
+        bills: 0,
+        items: 0,
+        avgBill: 0,
+      })
     })
 
     filteredBills.forEach((bill) => {
@@ -554,32 +617,38 @@ export default function AnalyticsPage() {
       const bucket = statsByDate.get(key)
       if (!bucket) return
 
-      bucket.revenue += bill.total
+      const effectiveTotal = getEffectiveBillTotal(bill)
+      bucket.revenue += effectiveTotal
+      if (bill.isReplacement) {
+        bucket.replacementAmount += effectiveTotal
+      }
       bucket.discount += bill.discountAmount
       bucket.bills += 1
       bucket.items += bill.items.reduce((sum, item) => sum + item.quantity, 0)
     })
 
     statsByDate.forEach((bucket) => {
+      bucket.returnsAmount = approvedReturnsByDate.get(bucket.date) || 0
+      bucket.netRevenue = bucket.revenue - bucket.returnsAmount
       bucket.avgBill = bucket.bills > 0 ? bucket.revenue / bucket.bills : 0
     })
 
     return Array.from(statsByDate.values())
-  }, [filteredBills, dateWindows])
+  }, [filteredBills, dateWindows, approvedReturnsByDate])
 
   const storeAnalytics = useMemo((): StoreAnalytics[] => {
     const storeMap = new Map<string, StoreAnalytics>()
 
     stores.forEach((store) => {
-        storeMap.set(store.id, {
-          storeId: store.id,
-          storeName: store.name,
-          revenue: 0,
-          discount: 0,
-          bills: 0,
-          items: 0,
-          avgBill: 0,
-        })
+      storeMap.set(store.id, {
+        storeId: store.id,
+        storeName: store.name,
+        revenue: 0,
+        discount: 0,
+        bills: 0,
+        items: 0,
+        avgBill: 0,
+      })
     })
 
     filteredBills.forEach((bill) => {
@@ -600,7 +669,7 @@ export default function AnalyticsPage() {
       const stats = storeMap.get(bill.storeId)
       if (!stats) return
 
-      stats.revenue += bill.total
+      stats.revenue += getEffectiveBillTotal(bill)
       stats.discount += bill.discountAmount
       stats.bills += 1
       stats.items += bill.items.reduce((sum, item) => sum + item.quantity, 0)
@@ -862,13 +931,6 @@ export default function AnalyticsPage() {
     }
   }, [inventoryAnalytics, products])
 
-  const returnsInPeriod = useMemo(() => {
-    return returns.filter((item) => {
-      const date = parseDate(item.createdAt)
-      return !!date && date >= dateWindows.currentStart && date <= dateWindows.currentEnd
-    })
-  }, [returns, dateWindows])
-
   const returnStatusData = useMemo(() => {
     const statusMap = new Map<string, number>()
 
@@ -931,6 +993,38 @@ export default function AnalyticsPage() {
 
   const currentSummary = useMemo(() => summarizeBills(filteredBills), [filteredBills])
   const previousSummary = useMemo(() => summarizeBills(previousPeriodBills), [previousPeriodBills])
+  const currentReplacementAmount = useMemo(
+    () =>
+      filteredBills.reduce((sum, bill) => {
+        if (!bill.isReplacement) return sum
+        return sum + getEffectiveBillTotal(bill)
+      }, 0),
+    [filteredBills],
+  )
+  const previousReplacementAmount = useMemo(
+    () =>
+      previousPeriodBills.reduce((sum, bill) => {
+        if (!bill.isReplacement) return sum
+        return sum + getEffectiveBillTotal(bill)
+      }, 0),
+    [previousPeriodBills],
+  )
+  const currentReturnsAmount = useMemo(
+    () => approvedReturnsInPeriod.reduce((sum, item) => sum + item.returnAmount, 0),
+    [approvedReturnsInPeriod],
+  )
+  const previousReturnsAmount = useMemo(
+    () => approvedReturnsPreviousPeriod.reduce((sum, item) => sum + item.returnAmount, 0),
+    [approvedReturnsPreviousPeriod],
+  )
+  const currentNetRevenue = useMemo(
+    () => currentSummary.revenue - currentReturnsAmount,
+    [currentSummary.revenue, currentReturnsAmount],
+  )
+  const previousNetRevenue = useMemo(
+    () => previousSummary.revenue - previousReturnsAmount,
+    [previousSummary.revenue, previousReturnsAmount],
+  )
 
   const revenueChange = useMemo(
     () => percentageChange(currentSummary.revenue, previousSummary.revenue),
@@ -947,6 +1041,18 @@ export default function AnalyticsPage() {
   const customerChange = useMemo(
     () => percentageChange(currentSummary.customers, previousSummary.customers),
     [currentSummary.customers, previousSummary.customers],
+  )
+  const replacementChange = useMemo(
+    () => percentageChange(currentReplacementAmount, previousReplacementAmount),
+    [currentReplacementAmount, previousReplacementAmount],
+  )
+  const returnsAmountChange = useMemo(
+    () => percentageChange(currentReturnsAmount, previousReturnsAmount),
+    [currentReturnsAmount, previousReturnsAmount],
+  )
+  const netRevenueChange = useMemo(
+    () => percentageChange(currentNetRevenue, previousNetRevenue),
+    [currentNetRevenue, previousNetRevenue],
   )
 
   const selectedStoreName =
@@ -1024,6 +1130,9 @@ export default function AnalyticsPage() {
         range_start: format(dateWindows.currentStart, 'yyyy-MM-dd'),
         range_end: format(dateWindows.currentEnd, 'yyyy-MM-dd'),
         revenue: Number(currentSummary.revenue.toFixed(2)),
+        replacement_amount: Number(currentReplacementAmount.toFixed(2)),
+        returns_amount: Number(currentReturnsAmount.toFixed(2)),
+        net_revenue: Number(currentNetRevenue.toFixed(2)),
         discount: Number(currentSummary.discount.toFixed(2)),
         bills: currentSummary.bills,
         items: currentSummary.items,
@@ -1031,7 +1140,17 @@ export default function AnalyticsPage() {
         avg_bill: Number(currentSummary.avgBill.toFixed(2)),
       },
       ],
-      ['revenue', 'discount', 'bills', 'items', 'customers', 'avg_bill'],
+      [
+        'revenue',
+        'replacement_amount',
+        'returns_amount',
+        'net_revenue',
+        'discount',
+        'bills',
+        'items',
+        'customers',
+        'avg_bill',
+      ],
       'report_generated_at',
     )
     XLSX.utils.book_append_sheet(workbook, buildSheet(summaryRows), 'Summary')
@@ -1042,19 +1161,35 @@ export default function AnalyticsPage() {
         const prev = acc.get(monthKey) || {
           month: monthKey,
           revenue: 0,
+          replacement_amount: 0,
+          returns_amount: 0,
+          net_revenue: 0,
           discount: 0,
           bills: 0,
           items: 0,
           avg_bill: 0,
         }
         prev.revenue += row.revenue
+        prev.replacement_amount += row.replacementAmount
+        prev.returns_amount += row.returnsAmount
+        prev.net_revenue += row.netRevenue
         prev.discount += row.discount
         prev.bills += row.bills
         prev.items += row.items
         prev.avg_bill = prev.bills > 0 ? prev.revenue / prev.bills : 0
         acc.set(monthKey, prev)
         return acc
-      }, new Map<string, { month: string; revenue: number; discount: number; bills: number; items: number; avg_bill: number }>())
+      }, new Map<string, {
+        month: string
+        revenue: number
+        replacement_amount: number
+        returns_amount: number
+        net_revenue: number
+        discount: number
+        bills: number
+        items: number
+        avg_bill: number
+      }>())
         .values(),
     )
 
@@ -1063,6 +1198,9 @@ export default function AnalyticsPage() {
         ? monthlyRevenueRows.map((row) => ({
             month: row.month,
             revenue: Number(row.revenue.toFixed(2)),
+            replacement_amount: Number(row.replacement_amount.toFixed(2)),
+            returns_amount: Number(row.returns_amount.toFixed(2)),
+            net_revenue: Number(row.net_revenue.toFixed(2)),
             discount: Number(row.discount.toFixed(2)),
             bills: row.bills,
             items: row.items,
@@ -1071,12 +1209,24 @@ export default function AnalyticsPage() {
         : dailyStats.map((row) => ({
             date: row.date,
             revenue: Number(row.revenue.toFixed(2)),
+            replacement_amount: Number(row.replacementAmount.toFixed(2)),
+            returns_amount: Number(row.returnsAmount.toFixed(2)),
+            net_revenue: Number(row.netRevenue.toFixed(2)),
             discount: Number(row.discount.toFixed(2)),
             bills: row.bills,
             items: row.items,
             avg_bill: Number(row.avgBill.toFixed(2)),
           })),
-      ['revenue', 'discount', 'bills', 'items', 'avg_bill'],
+      [
+        'revenue',
+        'replacement_amount',
+        'returns_amount',
+        'net_revenue',
+        'discount',
+        'bills',
+        'items',
+        'avg_bill',
+      ],
       shouldUseMonthlyRevenue ? 'month' : 'date',
     )
 
@@ -1145,6 +1295,47 @@ export default function AnalyticsPage() {
       'Returns',
     )
 
+    const replacementReturnRows = [
+      ...filteredBills
+        .filter((bill) => bill.isReplacement)
+        .map((bill) => {
+          const date = parseDate(bill.createdAt || bill.timestamp)
+          const signedAmount = Math.round(getEffectiveBillTotal(bill))
+          return {
+            date: date ? format(date, 'yyyy-MM-dd HH:mm:ss') : '',
+            movement_type: 'replacement',
+            reference_id: bill.id,
+            store_id: bill.storeId || '',
+            status: 'completed',
+            signed_amount: `+${signedAmount}`,
+            amount_int: signedAmount,
+          }
+        }),
+      ...returnsInPeriod.map((item) => {
+        const date = parseDate(item.createdAt)
+        const signedAmount = -Math.round(item.returnAmount || 0)
+        return {
+          date: date ? format(date, 'yyyy-MM-dd HH:mm:ss') : '',
+          movement_type: 'return',
+          reference_id: item.returnId,
+          store_id: item.storeId || '',
+          status: item.status || 'pending',
+          signed_amount: `${signedAmount}`,
+          amount_int: signedAmount,
+        }
+      }),
+    ].sort((a, b) => {
+      const aTime = parseDate(a.date)?.getTime() || 0
+      const bTime = parseDate(b.date)?.getTime() || 0
+      return bTime - aTime
+    })
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      buildSheet(replacementReturnRows),
+      'replacement-returns',
+    )
+
     XLSX.writeFile(workbook, `analytics_full_report_${timestamp}.xlsx`, { cellStyles: true })
   }, [
     activeTab,
@@ -1152,9 +1343,13 @@ export default function AnalyticsPage() {
     selectedRangeDays,
     dateWindows,
     currentSummary,
+    currentReplacementAmount,
+    currentReturnsAmount,
+    currentNetRevenue,
     dailyStats,
     storeAnalytics,
     filteredProductAnalytics,
+    filteredBills,
     returnsInPeriod,
   ])
 
@@ -1328,7 +1523,7 @@ export default function AnalyticsPage() {
           </DialogContent>
         </Dialog>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
           <MetricCard
             title="Revenue"
             value={formatCurrency(currentSummary.revenue)}
@@ -1358,6 +1553,24 @@ export default function AnalyticsPage() {
             value={formatCurrency(currentSummary.avgBill)}
             icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
           />
+          <MetricCard
+            title="Replacement Amount"
+            value={formatCurrency(currentReplacementAmount)}
+            icon={<RefreshCw className="h-4 w-4 text-muted-foreground" />}
+            change={replacementChange}
+          />
+          <MetricCard
+            title="Returns Amount"
+            value={formatCurrency(currentReturnsAmount)}
+            icon={<TrendingDown className="h-4 w-4 text-muted-foreground" />}
+            change={returnsAmountChange}
+          />
+          <MetricCard
+            title="Net Revenue"
+            value={formatCurrency(currentNetRevenue)}
+            icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+            change={netRevenueChange}
+          />
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -1368,6 +1581,8 @@ export default function AnalyticsPage() {
             <CardContent className="space-y-1 text-sm text-muted-foreground">
               <p>{`Bills in selected period: ${filteredBills.length}`}</p>
               <p>{`Bills in previous period: ${previousPeriodBills.length}`}</p>
+              <p>{`Replacement amount: ${formatCurrency(currentReplacementAmount)}`}</p>
+              <p>{`Net revenue after returns: ${formatCurrency(currentNetRevenue)}`}</p>
               <p>{`Products available: ${products.length}`}</p>
               <p>{`Stores available: ${stores.length}`}</p>
             </CardContent>
@@ -1460,6 +1675,16 @@ export default function AnalyticsPage() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
+            <Card className={PANEL_CARD_CLASS}>
+              <CardHeader>
+                <CardTitle>Revenue Composition</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
+                <p>{`Replacement amount: ${formatCurrency(currentReplacementAmount)}`}</p>
+                <p>{`Approved/completed returns: ${formatCurrency(currentReturnsAmount)}`}</p>
+                <p>{`Net revenue: ${formatCurrency(currentNetRevenue)}`}</p>
+              </CardContent>
+            </Card>
             <div className="grid gap-4 lg:grid-cols-2">
               <Card className={PANEL_CARD_CLASS}>
                 <CardHeader>
@@ -1522,6 +1747,27 @@ export default function AnalyticsPage() {
                     <Tooltip />
                     <Legend />
                     <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#2563eb" name="Revenue" />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="replacementAmount"
+                      stroke="#7c3aed"
+                      name="Replacement Amount"
+                    />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="returnsAmount"
+                      stroke="#dc2626"
+                      name="Returns Amount"
+                    />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="netRevenue"
+                      stroke="#0f766e"
+                      name="Net Revenue"
+                    />
                     <Line yAxisId="right" type="monotone" dataKey="bills" stroke="#16a34a" name="Bills" />
                     <Line yAxisId="right" type="monotone" dataKey="items" stroke="#f59e0b" name="Items" />
                   </LineChart>
@@ -1539,6 +1785,9 @@ export default function AnalyticsPage() {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-right">Replacement</TableHead>
+                      <TableHead className="text-right">Returns</TableHead>
+                      <TableHead className="text-right">Net Revenue</TableHead>
                       <TableHead className="text-right">Bills</TableHead>
                       <TableHead className="text-right">Items</TableHead>
                       <TableHead className="text-right">Avg Bill</TableHead>
@@ -1549,6 +1798,9 @@ export default function AnalyticsPage() {
                       <TableRow key={row.date}>
                         <TableCell>{format(new Date(row.date), 'dd MMM yyyy')}</TableCell>
                         <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.replacementAmount)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.returnsAmount)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.netRevenue)}</TableCell>
                         <TableCell className="text-right">{row.bills}</TableCell>
                         <TableCell className="text-right">{row.items}</TableCell>
                         <TableCell className="text-right">{formatCurrency(row.avgBill)}</TableCell>
@@ -1992,6 +2244,8 @@ export default function AnalyticsPage() {
                       returnsInPeriod.reduce((sum, item) => sum + item.returnAmount, 0),
                     )}`}
                   </p>
+                  <p>{`Replacement amount (selected period): ${formatCurrency(currentReplacementAmount)}`}</p>
+                  <p>{`Net revenue after returns: ${formatCurrency(currentNetRevenue)}`}</p>
                 </CardContent>
               </Card>
             </div>

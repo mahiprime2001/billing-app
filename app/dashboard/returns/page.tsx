@@ -49,9 +49,22 @@ interface ReturnItem {
   customerId?: string;
 }
 
+interface DamagedEvent {
+  id: string
+  productId?: string
+  storeId?: string
+  quantity?: number
+  reason?: string
+  sourceType?: string
+  status?: string
+  createdAt?: string
+  products?: { name?: string; barcode?: string }
+}
+
 export default function ReturnsPage() {
   const [pendingReturns, setPendingReturns] = useState<ReturnItem[]>([])
   const [otherReturns, setOtherReturns] = useState<ReturnItem[]>([])
+  const [damagedEvents, setDamagedEvents] = useState<DamagedEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -72,6 +85,12 @@ export default function ReturnsPage() {
       // Filter based on status (check both naming conventions)
       setPendingReturns(data.filter(item => item.status === "pending"))
       setOtherReturns(data.filter(item => item.status !== "pending"))
+
+      const damagedResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/damaged-products`)
+      if (damagedResponse.ok) {
+        const damagedData = await damagedResponse.json()
+        setDamagedEvents(Array.isArray(damagedData) ? damagedData : [])
+      }
     } catch (err) {
       console.error("Error loading returns data:", err)
       setError("Failed to load returns data. Please try again later.")
@@ -110,6 +129,13 @@ export default function ReturnsPage() {
   const getReturnAmount = (item: ReturnItem) => item.returnAmount || item.return_amount || 0
   const getCreatedAt = (item: ReturnItem) => item.createdAt || item.created_at || new Date().toISOString()
   const getUpdatedAt = (item: ReturnItem) => item.updatedAt || item.updated_at || new Date().toISOString()
+  const approvedCompletedReturnAmount = otherReturns
+    .filter((item) => item.status === "approved" || item.status === "completed")
+    .reduce((sum, item) => sum + getReturnAmount(item), 0)
+  const totalReturnAmount = [...pendingReturns, ...otherReturns].reduce(
+    (sum, item) => sum + getReturnAmount(item),
+    0
+  )
 
   if (loading) {
     return (
@@ -146,6 +172,27 @@ export default function ReturnsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Returns Management</h1>
           <p className="text-muted-foreground">Manage product returns and refund requests</p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Total Return Amount</CardTitle>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">₹{totalReturnAmount.toFixed(2)}</CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Approved/Completed Amount</CardTitle>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">₹{approvedCompletedReturnAmount.toFixed(2)}</CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Pending Requests</CardTitle>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">{pendingReturns.length}</CardContent>
+          </Card>
         </div>
 
         {/* Pending Returns Section */}
@@ -325,6 +372,59 @@ export default function ReturnsPage() {
               <div className="text-center py-12 text-gray-500">
                 <HistoryIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                 <p>No other return requests found.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-rose-600" />
+              Damaged Products
+              <Badge variant="secondary" className="ml-2">
+                {damagedEvents.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {damagedEvents.length > 0 ? (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Event ID</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {damagedEvents.map((event) => (
+                      <TableRow key={event.id}>
+                        <TableCell className="font-medium">{event.id}</TableCell>
+                        <TableCell>{event.products?.name || event.productId || "N/A"}</TableCell>
+                        <TableCell>{event.quantity || 0}</TableCell>
+                        <TableCell>{event.sourceType || "N/A"}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{event.status || "reported"}</Badge>
+                        </TableCell>
+                        <TableCell className="max-w-60 truncate">{event.reason || "-"}</TableCell>
+                        <TableCell>
+                          {event.createdAt ? new Date(event.createdAt).toLocaleDateString() : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No damaged product events found.</p>
               </div>
             )}
           </CardContent>

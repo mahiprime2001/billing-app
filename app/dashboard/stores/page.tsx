@@ -1,6 +1,6 @@
 "use client"
 import type React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 
 // Helper function to normalize store IDs
@@ -45,6 +45,7 @@ import {
   Info,
   ChevronLeft,
   ChevronRight,
+  Printer,
 } from "lucide-react"
 import ProductAssignmentDialog, {
   AssignedProduct,
@@ -76,13 +77,35 @@ type DateCard = {
   totalValue: number
 }
 
-type Row = {
+type TransferOrder = {
   id: string
-  barcode: string
-  name: string
-  price: number
-  stock: number
-  rowValue: number
+  status?: string
+  createdAt?: string
+  created_at?: string
+  assignedQtyTotal?: number
+  itemCount?: number
+}
+
+type TransferOrderItem = {
+  id: string
+  assignedQty?: number
+  assigned_qty?: number
+  verifiedQty?: number
+  verified_qty?: number
+  products?: {
+    name?: string
+    barcode?: string
+    sellingPrice?: number
+    selling_price?: number
+  }
+}
+
+type TransferOrderDetails = {
+  id: string
+  createdAt?: string
+  created_at?: string
+  status?: string
+  items: TransferOrderItem[]
 }
 
 // iOS-style Mini Calendar Component (unchanged)
@@ -90,10 +113,12 @@ function MiniCalendar({
   dates,
   selectedDate,
   onDateSelect,
+  dataLabel = "Has data",
 }: {
   dates: DateCard[]
   selectedDate: string | null
   onDateSelect: (date: string) => void
+  dataLabel?: string
 }) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   
@@ -213,7 +238,7 @@ function MiniCalendar({
       <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-500">
         <div className="flex items-center gap-1">
           <div className="h-2 w-2 bg-blue-500 rounded-full" />
-          <span>Has inventory</span>
+          <span>{dataLabel}</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="h-2 w-2 bg-gray-300 rounded-full" />
@@ -234,83 +259,221 @@ function StoreInsightModal({
   onClose: () => void;
   store: StoreType | null;
 }) {
-  // ... (keeping existing implementation)
-  const [days, setDays] = useState(90);
+  const [days] = useState(120);
   const [dates, setDates] = useState<DateCard[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [totals, setTotals] = useState<{
-    totalStock: number;
-    totalValue: number;
-  }>({ totalStock: 0, totalValue: 0 });
+  const [orders, setOrders] = useState<TransferOrder[]>([]);
+  const [dateOrders, setDateOrders] = useState<TransferOrder[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<TransferOrder | null>(null);
+  const [orderDetails, setOrderDetails] = useState<TransferOrderDetails | null>(null);
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+
+  const getDateKey = (value?: string) => {
+    if (!value) return "";
+    const text = String(value);
+    return text.length >= 10 ? text.slice(0, 10) : "";
+  };
+
+  const formatDateTime = (value?: string) => {
+    if (!value) return "-";
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return value;
+    return dt.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const getAssignedQty = (item: TransferOrderItem) => Number(item.assignedQty ?? item.assigned_qty ?? 0);
+  const getVerifiedQty = (item: TransferOrderItem) => Number(item.verifiedQty ?? item.verified_qty ?? 0);
+  const getItemPrice = (item: TransferOrderItem) =>
+    Number(item.products?.sellingPrice ?? item.products?.selling_price ?? 0);
+  const getItemName = (item: TransferOrderItem) => item.products?.name || "Unknown Product";
+  const getItemBarcode = (item: TransferOrderItem) => item.products?.barcode || "-";
+
+  const getStatusMeta = (item: TransferOrderItem) => {
+    const assigned = getAssignedQty(item);
+    const verified = getVerifiedQty(item);
+    if (verified <= 0) return { label: "Pending", variant: "secondary" as const, verified, unverified: assigned };
+    if (verified >= assigned) return { label: "Verified", variant: "default" as const, verified, unverified: 0 };
+    return {
+      label: "Partial Verified",
+      variant: "outline" as const,
+      verified,
+      unverified: Math.max(0, assigned - verified),
+    };
+  };
+
+  const orderTotals = useMemo(() => {
+    if (!orderDetails?.items?.length) return { totalProducts: 0, totalAmount: 0, totalLines: 0 };
+    const totalProducts = orderDetails.items.reduce((sum, item) => sum + getAssignedQty(item), 0);
+    const totalAmount = orderDetails.items.reduce((sum, item) => sum + getAssignedQty(item) * getItemPrice(item), 0);
+    return { totalProducts, totalAmount, totalLines: orderDetails.items.length };
+  }, [orderDetails]);
 
   useEffect(() => {
     if (!open || !store) return;
+
     setIsLoadingCalendar(true);
-    fetch(`${API}/api/stores/${store.id}/inventory-calendar?days=${days}`)
+    setOrders([]);
+    setDates([]);
+    setSelectedDate(null);
+    setDateOrders([]);
+
+    fetch(`${API}/api/stores/${store.id}/transfer-orders`)
       .then((r) => r.json())
-      .then((j) => {
-        if (j.success && Array.isArray(j.calendar)) {
-          setDates(j.calendar);
-        } else {
-          setDates([]);
-        }
+      .then((payload) => {
+        const list = Array.isArray(payload) ? payload : [];
+        const normalized: TransferOrder[] = list.map((order: any) => ({
+          ...order,
+          createdAt: order.createdAt || order.created_at,
+        }));
+        setOrders(normalized);
+
+        const recentDaysCutoff = new Date();
+        recentDaysCutoff.setDate(recentDaysCutoff.getDate() - days);
+
+        const grouped = new Map<string, number>();
+        normalized.forEach((order) => {
+          const createdAt = order.createdAt || order.created_at;
+          const dateKey = getDateKey(createdAt);
+          if (!dateKey) return;
+          const asDate = new Date(`${dateKey}T00:00:00`);
+          if (asDate < recentDaysCutoff) return;
+          grouped.set(dateKey, (grouped.get(dateKey) || 0) + 1);
+        });
+
+        const dateCards: DateCard[] = Array.from(grouped.entries())
+          .map(([date, count]) => ({ date, count, totalStock: 0, totalValue: 0 }))
+          .sort((a, b) => b.date.localeCompare(a.date));
+        setDates(dateCards);
+        if (dateCards.length > 0) setSelectedDate(dateCards[0].date);
       })
-      .catch(() => setDates([]))
+      .catch(() => {
+        setOrders([]);
+        setDates([]);
+      })
       .finally(() => setIsLoadingCalendar(false));
   }, [open, store, days]);
 
   useEffect(() => {
-    if (!open || !store || !selectedDate) return;
-    setIsLoadingDetails(true);
-    fetch(`${API}/api/stores/${store.id}/inventory-by-date/${selectedDate}`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.rows && Array.isArray(j.rows)) {
-          setRows(j.rows);
-          setTotals({
-            totalStock: j.totalStock || 0,
-            totalValue: j.totalValue || 0,
-          });
-        } else {
-          setRows([]);
-          setTotals({ totalStock: 0, totalValue: 0 });
-        }
-      })
-      .catch(() => {
-        setRows([]);
-        setTotals({ totalStock: 0, totalValue: 0 });
-      })
-      .finally(() => setIsLoadingDetails(false));
-  }, [open, store, selectedDate]);
+    if (!selectedDate) {
+      setDateOrders([]);
+      return;
+    }
+    const filtered = orders.filter((order) => getDateKey(order.createdAt || order.created_at) === selectedDate);
+    setDateOrders(filtered);
+  }, [orders, selectedDate]);
 
-  const handlePrint = async () => {
-    const src = document.getElementById("printable-table")?.outerHTML;
+  useEffect(() => {
+    if (!open) {
+      setIsOrderDialogOpen(false);
+      setSelectedOrder(null);
+      setOrderDetails(null);
+    }
+  }, [open]);
+
+  const openOrderDetails = async (order: TransferOrder) => {
+    try {
+      setIsLoadingOrderDetails(true);
+      setSelectedOrder(order);
+      setOrderDetails(null);
+      setIsOrderDialogOpen(true);
+
+      const response = await fetch(`${API}/api/transfer-orders/${order.id}`);
+      if (!response.ok) throw new Error("Failed to load transfer order");
+      const payload = await response.json();
+      setOrderDetails(payload);
+    } catch (error) {
+      console.error("Error loading transfer order:", error);
+      setOrderDetails(null);
+    } finally {
+      setIsLoadingOrderDetails(false);
+    }
+  };
+
+  const escapeHtml = (value: string | number) =>
+    String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const handleOrderPrint = async () => {
+    if (!orderDetails || !store) return;
+    const orderDate = formatDateTime(orderDetails.createdAt || orderDetails.created_at);
+    const rows = (orderDetails.items || [])
+      .map((item, idx) => {
+        const qty = getAssignedQty(item);
+        const price = getItemPrice(item);
+        const amount = qty * price;
+        return `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${escapeHtml(getItemBarcode(item))}</td>
+            <td>${escapeHtml(getItemName(item))}</td>
+            <td style="text-align:right">${qty}</td>
+            <td style="text-align:right">₹${amount.toFixed(2)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
     const htmlContent = `
       <html>
         <head>
-          <title>Store Inventory - ${store?.name}</title>
+          <title>Transfer Order ${escapeHtml(orderDetails.id)}</title>
           <style>
-            body{font-family:Inter,system-ui,Arial;padding:12px}
-            .print-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid #eee}
-            table{width:100%;border-collapse:collapse}
-            th,td{border:1px solid #000;padding:6px;text-align:left;font-size:12px}
-            tfoot td{font-weight:600}
-            @page{size:auto;margin:10mm}
+            body { font-family: Arial, sans-serif; padding: 16px; color: #111; }
+            .top { margin-bottom: 14px; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+            .top h1 { font-size: 18px; margin: 0 0 8px 0; }
+            .meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+            th, td { border: 1px solid #000; padding: 6px; font-size: 12px; text-align: left; }
+            th { background: #f4f4f4; }
+            tfoot td { font-weight: 700; background: #fafafa; }
+            .right { text-align: right; }
           </style>
         </head>
         <body>
-          <div class="print-header">
-            <h1>${store?.name} - Store Inventory</h1>
-            <p>${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}</p>
+          <div class="top">
+            <h1>Transfer Order</h1>
+            <div class="meta">
+              <div><strong>Order ID:</strong> ${escapeHtml(orderDetails.id)}</div>
+              <div><strong>Date:</strong> ${escapeHtml(orderDate)}</div>
+              <div><strong>Store:</strong> ${escapeHtml(store.name)}</div>
+            </div>
           </div>
-          ${src}
+          <table>
+            <thead>
+              <tr>
+                <th>S.No</th>
+                <th>Product Barcode</th>
+                <th>Product Name</th>
+                <th class="right">Quantity</th>
+                <th class="right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3">Total</td>
+                <td class="right">${orderTotals.totalProducts}</td>
+                <td class="right">₹${orderTotals.totalAmount.toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
         </body>
       </html>
     `;
-    await unifiedPrint({htmlContent, isThermalPrinter: false, useBackendPrint: false});
+
+    await unifiedPrint({ htmlContent, isThermalPrinter: false, useBackendPrint: false });
   };
 
   if (!open || !store) return null;
@@ -318,11 +481,10 @@ function StoreInsightModal({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
-        {/* Header */}
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="text-lg font-semibold flex items-center">
             <Building className="h-5 w-5 mr-2 text-blue-600" />
-            {store.name} - Inventory Overview
+            {store.name} - Transfer Orders
           </DialogTitle>
         </DialogHeader>
         <div className="flex-1 overflow-hidden">
@@ -330,7 +492,7 @@ function StoreInsightModal({
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center">
                 <Calendar className="h-5 w-5 mr-2" />
-                Inventory Calendar
+                Transfer Calendar
               </h3>
               {isLoadingCalendar ? (
                 <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
@@ -341,59 +503,47 @@ function StoreInsightModal({
                   dates={dates}
                   selectedDate={selectedDate}
                   onDateSelect={setSelectedDate}
+                  dataLabel="Has transfer orders"
                 />
               )}
             </div>
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">
-                {selectedDate ? "Product Details" : "Select a date to view products"}
+                {selectedDate ? `Orders on ${selectedDate}` : "Select a date to view transfer orders"}
               </h3>
               {selectedDate ? (
-                isLoadingDetails ? (
-                  <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
-                    <p className="text-gray-500 text-sm">Loading details...</p>
-                  </div>
-                ) : rows.length > 0 ? (
-                  <div className="border rounded-lg overflow-hidden max-h-[500px] overflow-y-auto">
-                    <Table id="printable-table">
-                      <TableHeader className="bg-slate-100 sticky top-0">
-                        <TableRow>
-                          <TableHead className="text-xs">S.No</TableHead>
-                          <TableHead className="text-xs">Barcode</TableHead>
-                          <TableHead className="text-xs">Product</TableHead>
-                          <TableHead className="text-xs">Price</TableHead>
-                          <TableHead className="text-xs">Stock</TableHead>
-                          <TableHead className="text-xs">Value</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {rows.map((r, i) => (
-                          <TableRow key={r.id} className="hover:bg-gray-50">
-                            <TableCell className="text-xs">{i + 1}</TableCell>
-                            <TableCell className="text-xs font-mono">{r.barcode}</TableCell>
-                            <TableCell className="text-xs">{r.name}</TableCell>
-                            <TableCell className="text-xs">₹{r.price.toFixed(2)}</TableCell>
-                            <TableCell className="text-xs">{r.stock}</TableCell>
-                            <TableCell className="text-xs">₹{r.rowValue.toFixed(2)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                      {rows.length > 0 && (
-                        <TableFooter className="bg-slate-50">
-                          <TableRow>
-                            <TableCell colSpan={4} className="text-xs font-semibold">Totals</TableCell>
-                            <TableCell className="text-xs font-semibold">{totals.totalStock}</TableCell>
-                            <TableCell className="text-xs font-semibold">₹{totals.totalValue.toFixed(2)}</TableCell>
-                          </TableRow>
-                        </TableFooter>
-                      )}
-                    </Table>
+                dateOrders.length > 0 ? (
+                  <div className="border rounded-lg overflow-hidden max-h-[500px] overflow-y-auto divide-y">
+                    {dateOrders.map((order) => (
+                      <button
+                        key={order.id}
+                        onClick={() => openOrderDetails(order)}
+                        className="w-full text-left p-4 hover:bg-blue-50 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="font-semibold text-sm">{order.id}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {formatDateTime(order.createdAt || order.created_at)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <Badge variant="outline" className="text-[11px]">
+                              {String(order.status || "pending").replace(/_/g, " ")}
+                            </Badge>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {Number(order.itemCount || 0)} items | Qty {Number(order.assignedQtyTotal || 0)}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
                     <div className="text-center">
                       <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                      <p className="text-gray-500 text-sm">No inventory data available for this date</p>
+                      <p className="text-gray-500 text-sm">No transfer orders available for this date</p>
                     </div>
                   </div>
                 )
@@ -401,7 +551,7 @@ function StoreInsightModal({
                 <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
                   <div className="text-center">
                     <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                    <p className="text-gray-500 text-sm">Click on a highlighted date in the calendar to view inventory details</p>
+                    <p className="text-gray-500 text-sm">Click a highlighted date to view transfer orders</p>
                   </div>
                 </div>
               )}
@@ -411,6 +561,109 @@ function StoreInsightModal({
         <DialogFooter className="border-t pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
         </DialogFooter>
+
+        <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
+          <DialogContent className="max-w-5xl max-h-[90vh]">
+            <DialogHeader className="border-b pb-3">
+              <DialogTitle className="text-lg">
+                Transfer Order Details
+              </DialogTitle>
+              {selectedOrder && (
+                <DialogDescription>
+                  Order ID: <span className="font-medium text-foreground">{selectedOrder.id}</span>
+                </DialogDescription>
+              )}
+            </DialogHeader>
+
+            {isLoadingOrderDetails ? (
+              <div className="h-60 flex items-center justify-center text-sm text-gray-500">
+                Loading order details...
+              </div>
+            ) : orderDetails ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-gray-500">Order ID</p>
+                    <p className="font-semibold mt-1">{orderDetails.id}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-gray-500">Store Name</p>
+                    <p className="font-semibold mt-1">{store.name}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-gray-500">Date</p>
+                    <p className="font-semibold mt-1">{formatDateTime(orderDetails.createdAt || orderDetails.created_at)}</p>
+                  </div>
+                </div>
+
+                <div className={`border rounded-lg ${orderDetails.items.length > 10 ? "max-h-[420px] overflow-y-auto" : ""}`}>
+                  <Table>
+                    <TableHeader className="bg-slate-100 sticky top-0 z-10">
+                      <TableRow>
+                        <TableHead className="text-xs">S.No</TableHead>
+                        <TableHead className="text-xs">Product Barcode</TableHead>
+                        <TableHead className="text-xs">Product Name</TableHead>
+                        <TableHead className="text-xs text-right">Quantity</TableHead>
+                        <TableHead className="text-xs">Status</TableHead>
+                        <TableHead className="text-xs text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orderDetails.items.map((item, idx) => {
+                        const qty = getAssignedQty(item);
+                        const amount = qty * getItemPrice(item);
+                        const statusMeta = getStatusMeta(item);
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell className="text-xs">{idx + 1}</TableCell>
+                            <TableCell className="text-xs font-mono">{getItemBarcode(item)}</TableCell>
+                            <TableCell className="text-xs">{getItemName(item)}</TableCell>
+                            <TableCell className="text-xs text-right">{qty}</TableCell>
+                            <TableCell className="text-xs">
+                              <Badge variant={statusMeta.variant} className="text-[11px]">
+                                {statusMeta.label}
+                              </Badge>
+                              {statusMeta.label === "Partial Verified" && (
+                                <p className="text-[10px] text-gray-500 mt-1">
+                                  Verified {statusMeta.verified}, Not Verified {statusMeta.unverified}
+                                </p>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-right">₹{amount.toFixed(2)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                    <TableFooter className="bg-slate-50 sticky bottom-0">
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-xs font-semibold">
+                          Total ({orderTotals.totalLines} line items)
+                        </TableCell>
+                        <TableCell className="text-xs font-semibold text-right">{orderTotals.totalProducts}</TableCell>
+                        <TableCell className="text-xs font-semibold">-</TableCell>
+                        <TableCell className="text-xs font-semibold text-right">₹{orderTotals.totalAmount.toFixed(2)}</TableCell>
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
+                </div>
+              </div>
+            ) : (
+              <div className="h-60 flex items-center justify-center text-sm text-gray-500">
+                Could not load order details.
+              </div>
+            )}
+
+            <DialogFooter className="border-t pt-4">
+              <Button variant="outline" onClick={() => setIsOrderDialogOpen(false)}>
+                Close
+              </Button>
+              <Button onClick={handleOrderPrint} disabled={!orderDetails}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

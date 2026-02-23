@@ -417,6 +417,11 @@ class EnhancedSyncManager:
             'batch': 'batches.json',
             'StoreInventory': 'storeinventory.json',
             'UserStores': 'userstores.json',  # NEW: Added UserStores mapping
+            'InventoryTransferOrders': 'inventory_transfer_orders.json',
+            'InventoryTransferItems': 'inventory_transfer_items.json',
+            'InventoryTransferScans': 'inventory_transfer_scans.json',
+            'InventoryTransferVerifications': 'inventory_transfer_verifications.json',
+            'DamagedInventoryEvents': 'damaged_inventory_events.json',
         }
         
         # Normalize table_name for case-insensitive matching
@@ -589,6 +594,11 @@ class EnhancedSyncManager:
                 'HSNCodes': self.supabase_db.client.table("hsn_codes"),
                 'UserStores': self.supabase_db.client.table("userstores"),
                 'StoreInventory': self.supabase_db.client.table("storeinventory"),
+                'InventoryTransferOrders': self.supabase_db.client.table("inventory_transfer_orders"),
+                'InventoryTransferItems': self.supabase_db.client.table("inventory_transfer_items"),
+                'InventoryTransferScans': self.supabase_db.client.table("inventory_transfer_scans"),
+                'InventoryTransferVerifications': self.supabase_db.client.table("inventory_transfer_verifications"),
+                'DamagedInventoryEvents': self.supabase_db.client.table("damaged_inventory_events"),
             }
 
             table_client = supabase_table_mapping.get(table_name)
@@ -927,7 +937,12 @@ def log_json_crud_operation(json_type: str, operation: str, record_id: str, data
         'notifications': 'Notifications',
         'settings': 'SystemSettings',
         'batches': 'batch',
-        'storeinventory': 'StoreInventory'
+        'storeinventory': 'StoreInventory',
+        'inventory_transfer_orders': 'InventoryTransferOrders',
+        'inventory_transfer_items': 'InventoryTransferItems',
+        'inventory_transfer_scans': 'InventoryTransferScans',
+        'inventory_transfer_verifications': 'InventoryTransferVerifications',
+        'damaged_inventory_events': 'DamagedInventoryEvents',
     }
     
     table_name = json_to_table_mapping.get(json_type)

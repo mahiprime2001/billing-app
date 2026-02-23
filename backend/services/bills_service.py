@@ -84,6 +84,12 @@ def get_supabase_bills_with_details() -> List[Dict]:
         print("FETCHING BILLS WITH DETAILS (Using Products Service)")
         print("=" * 80)
         
+        def normalize_id(value) -> Optional[str]:
+            if value is None:
+                return None
+            text = str(value).strip()
+            return text or None
+
         # Step 1: Fetch products using the merged products (local + supabase)
         print("\n📦 Step 1: Fetching products via products_service.get_merged_products()...")
         products_list, status_code = products_service.get_merged_products()
@@ -118,7 +124,9 @@ def get_supabase_bills_with_details() -> List[Dict]:
         print("\n🗂️ Building product lookup map...")
         products_map = {}
         for product in products_list:
-            product_id = product.get("id")
+            product_id = normalize_id(product.get("id"))
+            if not product_id:
+                continue
             hsn_code_id = (
                 product.get("hsnCode")
                 or product.get("hsnCodeId")
@@ -149,6 +157,99 @@ def get_supabase_bills_with_details() -> List[Dict]:
         bills = bills_response.data or []
         print(f"✅ Fetched {len(bills)} bills")
         
+        # Step 2.5: Fetch replacements metadata (if table exists) to tag replacement bills
+        print("\n🔁 Step 2.5: Fetching replacements...")
+        replacements_by_bill = {}
+        replacement_original_by_bill = {}
+        replaced_original_bills = set()
+        try:
+            replacements_response = execute_with_retry(
+                lambda: client.table("replacements").select("*"),
+                "replacements",
+            )
+            replacements = replacements_response.data or []
+            print(f"✅ Fetched {len(replacements)} replacement rows")
+
+            for replacement in replacements:
+                bill_id = normalize_id(
+                    replacement.get("bill_id")
+                    or replacement.get("billid")
+                    or replacement.get("billId")
+                )
+                original_bill_id = normalize_id(
+                    replacement.get("original_bill_id")
+                    or replacement.get("originalbillid")
+                    or replacement.get("originalBillId")
+                )
+
+                if original_bill_id:
+                    replaced_original_bills.add(original_bill_id)
+
+                if not bill_id:
+                    continue
+
+                if bill_id not in replacements_by_bill:
+                    replacements_by_bill[bill_id] = {
+                        "rows": 0,
+                        "quantity": 0,
+                        "final_amount": 0.0,
+                        "replacement_items": [],
+                    }
+
+                replacement_stats = replacements_by_bill[bill_id]
+                replaced_product_id = normalize_id(
+                    replacement.get("replaced_product_id")
+                    or replacement.get("replacedproductid")
+                    or replacement.get("replacedProductId")
+                )
+                new_product_id = normalize_id(
+                    replacement.get("new_product_id")
+                    or replacement.get("newproductid")
+                    or replacement.get("newProductId")
+                )
+                try:
+                    quantity = int(replacement.get("quantity") or 0)
+                except (TypeError, ValueError):
+                    quantity = 0
+                try:
+                    price = float(replacement.get("price") or 0)
+                except (TypeError, ValueError):
+                    price = 0.0
+                try:
+                    final_amount = float(replacement.get("final_amount") or 0)
+                except (TypeError, ValueError):
+                    final_amount = 0.0
+                line_total = final_amount if final_amount > 0 else (price * quantity)
+
+                replaced_product_name = products_map.get(replaced_product_id, {}).get(
+                    "name", "Unknown Product"
+                )
+                new_product_name = products_map.get(new_product_id, {}).get(
+                    "name", "Unknown Product"
+                )
+
+                replacement_stats["rows"] += 1
+                replacement_stats["quantity"] += quantity
+                replacement_stats["final_amount"] += line_total
+                replacement_stats["replacement_items"].append(
+                    {
+                        "id": replacement.get("id"),
+                        "replaced_product_id": replaced_product_id,
+                        "replaced_product_name": replaced_product_name,
+                        "new_product_id": new_product_id,
+                        "new_product_name": new_product_name,
+                        "quantity": quantity,
+                        "price": price,
+                        "final_amount": line_total,
+                    }
+                )
+
+                if original_bill_id and bill_id not in replacement_original_by_bill:
+                    replacement_original_by_bill[bill_id] = original_bill_id
+        except Exception as replacements_error:
+            logger.warning(f"Failed to load replacements for bill enrichment: {replacements_error}")
+            print(f"⚠️ Could not fetch replacements: {replacements_error}")
+
         # Step 3: Fetch bill items (table name: billitems, field: billid, productid)
         print("\n🛒 Step 3: Fetching bill items...")
         items_response = execute_with_retry(
@@ -166,8 +267,8 @@ def get_supabase_bills_with_details() -> List[Dict]:
         
         for item in all_items:
             # Support multiple column naming styles across deployments
-            bill_id = item.get("billid") or item.get("bill_id") or item.get("billId")
-            product_id = item.get("productid") or item.get("product_id") or item.get("productId")
+            bill_id = normalize_id(item.get("billid") or item.get("bill_id") or item.get("billId"))
+            product_id = normalize_id(item.get("productid") or item.get("product_id") or item.get("productId"))
             
             if not bill_id:
                 continue
@@ -210,7 +311,7 @@ def get_supabase_bills_with_details() -> List[Dict]:
         print("\n🔗 Attaching items to bills...")
         bills_with_items = 0
         for bill in bills:
-            bill_id = bill.get("id")
+            bill_id = normalize_id(bill.get("id"))
             bill_items = items_by_bill.get(bill_id, [])
             # If bill already carried inline items, merge them to avoid data loss
             existing_items = bill.get("items") or []
@@ -220,7 +321,42 @@ def get_supabase_bills_with_details() -> List[Dict]:
                     existing_items = json.loads(existing_items)
                 except Exception:
                     existing_items = []
-            bill["items"] = bill_items or existing_items
+            replacement_stats = replacements_by_bill.get(bill_id)
+
+            replacement_items_as_bill_items = []
+            if replacement_stats:
+                for replacement_item in replacement_stats.get("replacement_items", []):
+                    line_total = float(
+                        replacement_item.get("final_amount")
+                        or (
+                            float(replacement_item.get("price") or 0)
+                            * int(replacement_item.get("quantity") or 0)
+                        )
+                    )
+                    replacement_items_as_bill_items.append(
+                        {
+                            "productid": replacement_item.get("new_product_id"),
+                            "productId": replacement_item.get("new_product_id"),
+                            "productname": replacement_item.get("new_product_name"),
+                            "productName": replacement_item.get("new_product_name"),
+                            "quantity": int(replacement_item.get("quantity") or 0),
+                            "price": float(replacement_item.get("price") or 0),
+                            "total": line_total,
+                            "is_replacement_item": True,
+                            "isReplacementItem": True,
+                            "replaced_product_id": replacement_item.get("replaced_product_id"),
+                            "replacedProductId": replacement_item.get("replaced_product_id"),
+                            "replaced_product_name": replacement_item.get("replaced_product_name"),
+                            "replacedProductName": replacement_item.get("replaced_product_name"),
+                        }
+                    )
+
+            if replacement_stats and replacement_items_as_bill_items:
+                # Replacement bills should show replacement item lines, not original billitems rows.
+                resolved_items = replacement_items_as_bill_items
+            else:
+                resolved_items = bill_items or existing_items or replacement_items_as_bill_items
+            bill["items"] = resolved_items
             
             if bill_items:
                 bills_with_items += 1
@@ -231,6 +367,53 @@ def get_supabase_bills_with_details() -> List[Dict]:
                     print(f"     Items: {len(bill_items)}")
                     for idx, item in enumerate(bill_items[:3]):
                         print(f"       {idx+1}. {item.get('productname')} x{item.get('quantity')} = ${item.get('total')}")
+
+            bill["is_replacement"] = bool(replacement_stats)
+            bill["isReplacement"] = bool(replacement_stats)
+            bill["replacement_items_count"] = replacement_stats["rows"] if replacement_stats else 0
+            bill["replacementItemsCount"] = replacement_stats["rows"] if replacement_stats else 0
+            bill["replacement_quantity"] = replacement_stats["quantity"] if replacement_stats else 0
+            bill["replacementQuantity"] = replacement_stats["quantity"] if replacement_stats else 0
+            bill["replacement_final_amount"] = (
+                round(replacement_stats["final_amount"], 2) if replacement_stats else 0
+            )
+            bill["replacementFinalAmount"] = (
+                round(replacement_stats["final_amount"], 2) if replacement_stats else 0
+            )
+            bill["replacement_original_bill_id"] = replacement_original_by_bill.get(bill_id)
+            bill["replacementOriginalBillId"] = replacement_original_by_bill.get(bill_id)
+            bill["has_been_replaced"] = bill_id in replaced_original_bills if bill_id else False
+            bill["hasBeenReplaced"] = bill_id in replaced_original_bills if bill_id else False
+            bill["replacement_items"] = (
+                replacement_stats.get("replacement_items", []) if replacement_stats else []
+            )
+            bill["replacementItems"] = (
+                replacement_stats.get("replacement_items", []) if replacement_stats else []
+            )
+
+            if replacement_stats:
+                replacement_total = round(float(replacement_stats.get("final_amount") or 0), 2)
+                if replacement_total > 0:
+                    existing_total = bill.get("total")
+                    try:
+                        existing_total_num = float(existing_total or 0)
+                    except (TypeError, ValueError):
+                        existing_total_num = 0.0
+                    if existing_total_num <= 0:
+                        bill["total"] = replacement_total
+
+                existing_subtotal = bill.get("subtotal")
+                try:
+                    existing_subtotal_num = float(existing_subtotal or 0)
+                except (TypeError, ValueError):
+                    existing_subtotal_num = 0.0
+
+                if existing_subtotal_num <= 0:
+                    computed_subtotal = round(
+                        sum(float(item.get("total") or 0) for item in resolved_items), 2
+                    )
+                    if computed_subtotal > 0:
+                        bill["subtotal"] = computed_subtotal
         
         print(f"✅ {bills_with_items}/{len(bills)} bills have items")
         

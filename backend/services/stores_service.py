@@ -6,7 +6,7 @@ Handles all store and inventory-related business logic and database operations
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple
+from typing import Any, List, Dict, Optional, Tuple
 from collections import defaultdict
 
 from utils.supabase_db import db
@@ -15,6 +15,9 @@ from utils.json_helpers import get_stores_data, save_stores_data, get_store_inve
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
 logger = logging.getLogger(__name__)
+
+TRANSFER_ACTIVE_STATUSES = ["pending", "in_progress"]
+TRANSFER_CLOSED_STATUSES = ["completed", "closed_with_issues", "cancelled"]
 
 # ============================================
 # LOCAL JSON OPERATIONS
@@ -206,8 +209,42 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
 # AVAILABLE PRODUCTS FOR ASSIGNMENT ✅ NEW
 # ============================================
 
+def _get_reserved_pending_transfer_qty(client: Any, product_ids: Optional[List[str]] = None) -> Dict[str, int]:
+    """
+    Calculate quantity reserved in active transfer orders and not yet resolved.
+    reserved = assigned_qty - verified_qty - damaged_qty - wrong_store_qty
+    """
+    reserved_by_product: Dict[str, int] = defaultdict(int)
+    try:
+        query = client.table("inventory_transfer_items").select(
+            "product_id, assigned_qty, verified_qty, damaged_qty, wrong_store_qty, "
+            "inventory_transfer_orders(status)"
+        )
+        if product_ids:
+            query = query.in_("product_id", product_ids)
+        response = query.execute()
+        for row in response.data or []:
+            order_ref = row.get("inventory_transfer_orders") or {}
+            order_status = order_ref.get("status")
+            if order_status not in TRANSFER_ACTIVE_STATUSES:
+                continue
+            product_id = row.get("product_id")
+            if not product_id:
+                continue
+            assigned = int(row.get("assigned_qty") or 0)
+            verified = int(row.get("verified_qty") or 0)
+            damaged = int(row.get("damaged_qty") or 0)
+            wrong_store = int(row.get("wrong_store_qty") or 0)
+            reserved = max(0, assigned - verified - damaged - wrong_store)
+            reserved_by_product[product_id] += reserved
+    except Exception as e:
+        # Backward-compatible fallback before table migration is applied.
+        logger.warning(f"Transfer reservation lookup failed (fallback to zero reserved): {e}")
+    return reserved_by_product
+
+
 def get_available_products_for_assignment(store_id: str) -> List[Dict]:
-    """Get products with available stock (global - total allocated across all stores)"""
+    """Get products with available stock (global - verified allocations - pending reserved transfers)."""
     try:
         client = db.client
         
@@ -236,6 +273,7 @@ def get_available_products_for_assignment(store_id: str) -> List[Dict]:
             if row.get("storeid") == store_id:
                 current_store_qty_by_product[product_id] += qty
 
+        reserved_pending_by_product = _get_reserved_pending_transfer_qty(client)
         result = []
         for product in products_response.data:
             product_id = product.get("id")
@@ -244,14 +282,16 @@ def get_available_products_for_assignment(store_id: str) -> List[Dict]:
 
             global_stock = int(product.get("stock") or 0)
             total_allocated = total_allocated_by_product[product_id]
+            total_reserved = reserved_pending_by_product.get(product_id, 0)
             current_store_qty = current_store_qty_by_product[product_id]
-            available_stock = max(0, global_stock - total_allocated)
+            available_stock = max(0, global_stock - total_allocated - total_reserved)
 
             result.append({
                 **product,
                 "availableStock": available_stock,
                 "currentStoreStock": current_store_qty,
                 "totalAllocated": total_allocated,
+                "pendingReserved": total_reserved,
                 "globalStock": global_stock
             })
         
@@ -455,13 +495,18 @@ def get_store_inventory(store_id: str) -> Tuple[Optional[List[Dict]], int]:
         logger.error(f"Error getting store inventory: {e}", exc_info=True)
         return [], 500
 
-def assign_products_to_store(store_id: str, products: List[Dict]) -> Tuple[bool, str, int]:
-    """Assign products to a store with batched stock validation and writes."""
+def assign_products_to_store(
+    store_id: str,
+    products: List[Dict],
+    assignment_meta: Optional[Dict[str, Any]] = None,
+) -> Tuple[bool, str, int, Dict[str, Any]]:
+    """Create a transfer order for a store assignment after stock validation."""
     try:
         client = db.client
+        assignment_meta = assignment_meta or {}
 
         if not products:
-            return False, "No products provided", 400
+            return False, "No products provided", 400, {}
 
         requested_qty_by_product: Dict[str, int] = defaultdict(int)
         for product in products:
@@ -472,103 +517,83 @@ def assign_products_to_store(store_id: str, products: List[Dict]) -> Tuple[bool,
                 quantity = 0
 
             if not product_id or quantity <= 0:
-                return False, f"Invalid product ID or quantity: {product_id}", 400
+                return False, f"Invalid product ID or quantity: {product_id}", 400, {}
             requested_qty_by_product[product_id] += quantity
 
         product_ids = list(requested_qty_by_product.keys())
-
         products_response = client.table("products").select("id, stock, name").in_("id", product_ids).execute()
         product_rows = products_response.data or []
         product_map = {row.get("id"): row for row in product_rows if row.get("id")}
 
         for product_id in product_ids:
             if product_id not in product_map:
-                return False, f"Product {product_id} not found", 404
+                return False, f"Product {product_id} not found", 404, {}
 
-        allocations_response = client.table("storeinventory").select("id, storeid, productid, quantity").in_("productid", product_ids).execute()
+        allocations_response = client.table("storeinventory").select("productid, quantity").in_("productid", product_ids).execute()
         allocation_rows = allocations_response.data or []
-
         total_allocated_by_product: Dict[str, int] = defaultdict(int)
-        existing_for_store_by_product: Dict[str, Dict] = {}
         for row in allocation_rows:
             product_id = row.get("productid")
-            if not product_id:
-                continue
+            if product_id:
+                total_allocated_by_product[product_id] += int(row.get("quantity") or 0)
 
-            qty = int(row.get("quantity") or 0)
-            total_allocated_by_product[product_id] += qty
-            if row.get("storeid") == store_id:
-                existing_for_store_by_product[product_id] = row
-
+        reserved_pending_by_product = _get_reserved_pending_transfer_qty(client, product_ids)
         for product_id, requested_qty in requested_qty_by_product.items():
             product_row = product_map[product_id]
             global_stock = int(product_row.get("stock") or 0)
             total_allocated = total_allocated_by_product.get(product_id, 0)
-            available = global_stock - total_allocated
+            reserved_pending = reserved_pending_by_product.get(product_id, 0)
+            available = global_stock - total_allocated - reserved_pending
             if requested_qty > available:
                 product_name = product_row.get("name", "Unknown")
                 return False, (
                     f"Insufficient stock '{product_name}'. Global: {global_stock}, "
-                    f"Allocated: {total_allocated}, Available: {available}, Requested: {requested_qty}"
-                ), 400
+                    f"Allocated: {total_allocated}, Pending Reserved: {reserved_pending}, "
+                    f"Available: {available}, Requested: {requested_qty}"
+                ), 400, {}
 
-        local_inventory = get_store_inventory_data()
-        local_inventory_map = {
-            (row.get("storeid"), row.get("productid")): row for row in local_inventory
-        }
         now_iso = datetime.now().isoformat()
+        order_id = f"TO-{uuid.uuid4().hex[:12].upper()}"
+        order_row = {
+            "id": order_id,
+            "store_id": store_id,
+            "source_type": (assignment_meta.get("sourceType") or assignment_meta.get("source_type") or "manual").lower(),
+            "source_store_id": assignment_meta.get("sourceStoreId") or assignment_meta.get("source_store_id"),
+            "source_location_ref": assignment_meta.get("sourceLocationRef") or assignment_meta.get("source_location_ref"),
+            "created_by": assignment_meta.get("createdBy") or assignment_meta.get("created_by"),
+            "status": "pending",
+            "notes": assignment_meta.get("notes"),
+            "version_number": 1,
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        }
+        client.table("inventory_transfer_orders").insert(order_row).execute()
 
+        item_rows = []
         for product_id, requested_qty in requested_qty_by_product.items():
-            product_name = product_map[product_id].get("name", "Unknown")
-            existing_row = existing_for_store_by_product.get(product_id)
-
-            if existing_row:
-                current_qty = int(existing_row.get("quantity") or 0)
-                new_qty = current_qty + requested_qty
-                client.table("storeinventory").update({
-                    "quantity": new_qty,
-                    "updatedat": now_iso
-                }).eq("id", existing_row["id"]).execute()
-                logger.info(f"Updated {store_id}: {product_name} {current_qty}->{new_qty}")
-
-                local_key = (store_id, product_id)
-                local_existing = local_inventory_map.get(local_key)
-                if local_existing:
-                    local_existing["quantity"] = new_qty
-                    local_existing["updatedat"] = now_iso
-                else:
-                    new_local = {
-                        "id": existing_row["id"],
-                        "storeid": store_id,
-                        "productid": product_id,
-                        "quantity": new_qty,
-                        "assignedat": existing_row.get("assignedat") or now_iso,
-                        "updatedat": now_iso
-                    }
-                    local_inventory.append(new_local)
-                    local_inventory_map[local_key] = new_local
-            else:
-                new_row = {
+            item_rows.append(
+                {
                     "id": str(uuid.uuid4()),
-                    "storeid": store_id,
-                    "productid": product_id,
-                    "quantity": requested_qty,
-                    "assignedat": now_iso,
-                    "updatedat": now_iso
+                    "transfer_order_id": order_id,
+                    "product_id": product_id,
+                    "assigned_qty": requested_qty,
+                    "verified_qty": 0,
+                    "damaged_qty": 0,
+                    "wrong_store_qty": 0,
+                    "applied_verified_qty": 0,
+                    "status": "pending",
+                    "created_at": now_iso,
+                    "updated_at": now_iso,
                 }
-                client.table("storeinventory").insert(new_row).execute()
-                logger.info(f"Created {store_id}: {product_name}={requested_qty}")
-                local_inventory.append(dict(new_row))
-                local_inventory_map[(store_id, product_id)] = new_row
+            )
+        client.table("inventory_transfer_items").insert(item_rows).execute()
 
-        save_store_inventory_data(local_inventory)
-
-        logger.info(f"Assigned {len(product_ids)} products to store {store_id}")
-        return True, f"Successfully assigned {len(product_ids)} products", 200
+        logger.info(f"Created transfer order {order_id} with {len(item_rows)} item(s) for store {store_id}")
+        return True, f"Transfer order {order_id} created", 200, {"orderId": order_id, "itemCount": len(item_rows)}
 
     except Exception as e:
         logger.error(f"Error assigning products to store {store_id}: {e}", exc_info=True)
-        return False, f"Assignment failed: {str(e)}", 500
+        return False, f"Assignment failed: {str(e)}", 500, {}
 
 
 def get_store_stats(store_id: str) -> Tuple[Dict, int]:
@@ -722,3 +747,151 @@ def get_store_inventory_by_date(store_id: str, date_str: str) -> Tuple[Dict, int
     except Exception as e:
         logger.error(f"Error getting inventory by date: {e}", exc_info=True)
         return {'rows': [], 'totalStock': 0, 'totalValue': 0}, 500
+
+
+def _derive_item_state(item: Dict[str, Any]) -> str:
+    assigned = int(item.get("assigned_qty") or 0)
+    verified = int(item.get("verified_qty") or 0)
+    damaged = int(item.get("damaged_qty") or 0)
+    wrong_store = int(item.get("wrong_store_qty") or 0)
+    processed = verified + damaged + wrong_store
+    if processed <= 0:
+        return "pending"
+    if processed >= assigned:
+        return "closed_with_issues" if (damaged > 0 or wrong_store > 0) else "completed"
+    return "in_progress"
+
+
+def get_store_transfer_orders(store_id: str, status: Optional[str] = None) -> Tuple[List[Dict], int]:
+    """Fetch transfer orders for a store with computed progress and missing qty."""
+    try:
+        client = db.client
+        query = client.table("inventory_transfer_orders").select("*").eq("store_id", store_id)
+        if status:
+            query = query.eq("status", status)
+        response = query.order("created_at", desc=True).execute()
+        orders = response.data or []
+        if not orders:
+            return [], 200
+
+        order_ids = [order.get("id") for order in orders if order.get("id")]
+        items_response = client.table("inventory_transfer_items").select("*").in_("transfer_order_id", order_ids).execute()
+        items = items_response.data or []
+
+        items_by_order: Dict[str, List[Dict]] = defaultdict(list)
+        for item in items:
+            order_id = item.get("transfer_order_id")
+            if order_id:
+                items_by_order[order_id].append(item)
+
+        result = []
+        for order in orders:
+            order_items = items_by_order.get(order.get("id"), [])
+            assigned = sum(int(i.get("assigned_qty") or 0) for i in order_items)
+            verified = sum(int(i.get("verified_qty") or 0) for i in order_items)
+            damaged = sum(int(i.get("damaged_qty") or 0) for i in order_items)
+            wrong_store = sum(int(i.get("wrong_store_qty") or 0) for i in order_items)
+            missing = max(0, assigned - verified - damaged - wrong_store)
+            computed_status = order.get("status")
+            if computed_status in TRANSFER_ACTIVE_STATUSES and assigned > 0:
+                if missing == 0:
+                    computed_status = "closed_with_issues" if (damaged > 0 or wrong_store > 0) else "completed"
+                elif verified > 0 or damaged > 0 or wrong_store > 0:
+                    computed_status = "in_progress"
+
+            result.append(
+                convert_snake_to_camel(
+                    {
+                        **order,
+                        "status": computed_status,
+                        "assigned_qty_total": assigned,
+                        "verified_qty_total": verified,
+                        "damaged_qty_total": damaged,
+                        "wrong_store_qty_total": wrong_store,
+                        "missing_qty_total": missing,
+                        "item_count": len(order_items),
+                    }
+                )
+            )
+        return result, 200
+    except Exception as e:
+        logger.error(f"Error getting transfer orders for store {store_id}: {e}", exc_info=True)
+        return [], 500
+
+
+def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
+    """Fetch one transfer order with items and computed missing qty per item."""
+    try:
+        client = db.client
+        order_response = client.table("inventory_transfer_orders").select("*").eq("id", order_id).limit(1).execute()
+        if not order_response.data:
+            return None, 404
+
+        items_response = client.table("inventory_transfer_items").select("*, products(name, barcode, selling_price)").eq(
+            "transfer_order_id", order_id
+        ).execute()
+        items = items_response.data or []
+        normalized_items = []
+        for item in items:
+            assigned = int(item.get("assigned_qty") or 0)
+            verified = int(item.get("verified_qty") or 0)
+            damaged = int(item.get("damaged_qty") or 0)
+            wrong_store = int(item.get("wrong_store_qty") or 0)
+            missing = max(0, assigned - verified - damaged - wrong_store)
+            normalized_items.append(
+                convert_snake_to_camel(
+                    {
+                        **item,
+                        "missing_qty": missing,
+                        "status": _derive_item_state(item),
+                    }
+                )
+            )
+
+        order = convert_snake_to_camel(order_response.data[0])
+        order["items"] = normalized_items
+        return order, 200
+    except Exception as e:
+        logger.error(f"Error getting transfer order details {order_id}: {e}", exc_info=True)
+        return None, 500
+
+
+def get_damaged_inventory_events(
+    store_id: Optional[str] = None,
+    status: Optional[str] = None,
+) -> Tuple[List[Dict], int]:
+    """List damaged inventory events for admin."""
+    try:
+        client = db.client
+        query = client.table("damaged_inventory_events").select("*, products(name, barcode), stores(name)")
+        if store_id:
+            query = query.eq("store_id", store_id)
+        if status:
+            query = query.eq("status", status)
+        response = query.order("created_at", desc=True).execute()
+        return [convert_snake_to_camel(row) for row in (response.data or [])], 200
+    except Exception as e:
+        logger.error(f"Error getting damaged inventory events: {e}", exc_info=True)
+        return [], 500
+
+
+def resolve_damaged_inventory_event(event_id: str, resolution_data: Dict[str, Any]) -> Tuple[bool, str, int]:
+    """Resolve one damaged inventory event with lifecycle details."""
+    try:
+        client = db.client
+        now_iso = datetime.now().isoformat()
+        update_data = {
+            "status": "resolved",
+            "resolution_type": resolution_data.get("resolutionType") or resolution_data.get("resolution_type"),
+            "resolution_notes": resolution_data.get("resolutionNotes") or resolution_data.get("resolution_notes"),
+            "resolved_by": resolution_data.get("resolvedBy") or resolution_data.get("resolved_by"),
+            "resolved_at": now_iso,
+            "updated_at": now_iso,
+        }
+        response = client.table("damaged_inventory_events").update(update_data).eq("id", event_id).execute()
+        if not response.data:
+            return False, "Damaged event not found", 404
+        return True, "Damaged event resolved", 200
+    except Exception as e:
+        logger.error(f"Error resolving damaged inventory event {event_id}: {e}", exc_info=True)
+        return False, str(e), 500

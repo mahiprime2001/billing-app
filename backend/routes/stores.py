@@ -193,12 +193,13 @@ def get_store_inventory(store_id):
 def assign_products_to_store(store_id):
     """Assign products to a store with stock validation"""
     try:
-        products = request.json.get('products', [])
-        success, message, status_code = stores_service.assign_products_to_store(store_id, products)
+        payload = request.json or {}
+        products = payload.get('products', [])
+        success, message, status_code, data = stores_service.assign_products_to_store(store_id, products, payload)
         
         if success:
             logger.info(f"Successfully assigned {len(products)} products to store {store_id}")
-            return jsonify({'message': message}), status_code
+            return jsonify({'message': message, **(data or {})}), status_code
         else:
             logger.warning(f"Failed to assign products to store {store_id}: {message}")
             return jsonify({'error': message}), status_code
@@ -217,10 +218,10 @@ def assign_inventory():
         if not store_id:
             return jsonify({'error': 'storeId is required'}), 400
             
-        success, message, status_code = stores_service.assign_products_to_store(store_id, products)
+        success, message, status_code, data = stores_service.assign_products_to_store(store_id, products, data)
         
         if success:
-            return jsonify({'message': message}), status_code
+            return jsonify({'message': message, **(data or {})}), status_code
         else:
             return jsonify({'error': message}), status_code
     except Exception as e:
@@ -319,3 +320,61 @@ def get_inventory_by_date(store_id, date_str):
             'totalValue': 0,
             'error': str(e)
         }), 500
+
+
+@stores_bp.route('/stores/<store_id>/transfer-orders', methods=['GET'])
+def get_store_transfer_orders(store_id):
+    """Get transfer orders for a store."""
+    try:
+        status = request.args.get('status')
+        orders, status_code = stores_service.get_store_transfer_orders(store_id, status)
+        if status_code == 200:
+            return jsonify(orders), 200
+        return jsonify({'error': 'Failed to fetch transfer orders'}), status_code
+    except Exception as e:
+        logger.error(f"Error in get_store_transfer_orders: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@stores_bp.route('/transfer-orders/<order_id>', methods=['GET'])
+def get_transfer_order_details(order_id):
+    """Get transfer order details with computed progress."""
+    try:
+        order, status_code = stores_service.get_transfer_order_details(order_id)
+        if status_code == 200:
+            return jsonify(order), 200
+        if status_code == 404:
+            return jsonify({'error': 'Transfer order not found'}), 404
+        return jsonify({'error': 'Failed to fetch transfer order'}), status_code
+    except Exception as e:
+        logger.error(f"Error in get_transfer_order_details: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@stores_bp.route('/damaged-products', methods=['GET'])
+def get_damaged_products():
+    """Get damaged inventory events."""
+    try:
+        store_id = request.args.get('storeId') or request.args.get('store_id')
+        status = request.args.get('status')
+        events, status_code = stores_service.get_damaged_inventory_events(store_id, status)
+        if status_code == 200:
+            return jsonify(events), 200
+        return jsonify({'error': 'Failed to fetch damaged products'}), status_code
+    except Exception as e:
+        logger.error(f"Error in get_damaged_products: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@stores_bp.route('/damaged-products/<event_id>/resolve', methods=['PATCH'])
+def resolve_damaged_product(event_id):
+    """Resolve a damaged inventory event."""
+    try:
+        payload = request.json or {}
+        success, message, status_code = stores_service.resolve_damaged_inventory_event(event_id, payload)
+        if success:
+            return jsonify({'message': message}), status_code
+        return jsonify({'error': message}), status_code
+    except Exception as e:
+        logger.error(f"Error in resolve_damaged_product: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500

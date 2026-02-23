@@ -10,6 +10,7 @@ from typing import List, Dict, Optional, Tuple
 from collections import defaultdict
 
 from utils.supabase_db import db
+from utils.supabase_resilience import execute_with_retry
 from utils.json_helpers import get_customers_data, save_customers_data, get_bills_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
@@ -54,7 +55,11 @@ def get_supabase_customers() -> List[Dict]:
     """Get customers directly from Supabase"""
     try:
         client = db.client
-        response = client.table("customers").select("*").execute()
+        response = execute_with_retry(
+            lambda: client.table("customers").select("*"),
+            "customers",
+            retries=2,
+        )
         customers = response.data or []
         transformed_customers = [convert_snake_to_camel(customer) for customer in customers]
         logger.debug(f"Returning {len(transformed_customers)} customers from Supabase.")

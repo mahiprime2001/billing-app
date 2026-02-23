@@ -138,6 +138,11 @@ def get_sync_priority(table_name: str) -> int:
         'customers': 20,
         'userstores': 30,  # After users and stores
         'storeinventory': 40,  # After products and stores
+        'inventory_transfer_orders': 42,
+        'inventory_transfer_items': 43,
+        'inventory_transfer_scans': 44,
+        'inventory_transfer_verifications': 45,
+        'damaged_inventory_events': 46,
         'bills': 50,
         'billitems': 55,  # NEW: After bills
         'systemsettings': 60,  # NEW: Added systemsettings
@@ -246,6 +251,33 @@ def process_push_sync(logger_instance: logging.Logger):
                         if not store_exists:
                             logger_instance.warning(f"Parent store (ID: {store_id}) missing for storeinventory CREATE (ID: {record_id}). Skipping.")
                             parent_missing = True
+                elif table_name == 'inventory_transfer_items':
+                    order_id = change_data.get('transfer_order_id')
+                    product_id = change_data.get('product_id')
+                    if not order_id or not product_id:
+                        logger_instance.error(f"Missing transfer_order_id or product_id for inventory_transfer_items CREATE: {change_data}")
+                        parent_missing = True
+                    else:
+                        order_exists = SupabaseDBInstance.client.table('inventory_transfer_orders').select("id").eq("id", order_id).limit(1).execute().data
+                        product_exists = SupabaseDBInstance.client.table('products').select("id").eq("id", product_id).limit(1).execute().data
+                        if not order_exists or not product_exists:
+                            parent_missing = True
+                elif table_name == 'inventory_transfer_scans':
+                    transfer_item_id = change_data.get('transfer_item_id')
+                    if not transfer_item_id:
+                        logger_instance.error(f"Missing transfer_item_id for inventory_transfer_scans CREATE: {change_data}")
+                        parent_missing = True
+                elif table_name == 'inventory_transfer_verifications':
+                    order_id = change_data.get('order_id')
+                    store_id = change_data.get('store_id')
+                    if not order_id or not store_id:
+                        logger_instance.error(f"Missing order_id or store_id for inventory_transfer_verifications CREATE: {change_data}")
+                        parent_missing = True
+                elif table_name == 'damaged_inventory_events':
+                    product_id = change_data.get('product_id')
+                    if not product_id:
+                        logger_instance.error(f"Missing product_id for damaged_inventory_events CREATE: {change_data}")
+                        parent_missing = True
                 
                 if parent_missing:
                     log_sync_event(
@@ -446,7 +478,12 @@ def get_pull_sync_data(last_sync_timestamp: str, logger_instance: logging.Logger
             ("sync_table", "created_at"),
             ("storeinventory", "updatedat"),
             ("userstores", "updated_at"),  # NEW: Added userstores
-            ("systemsettings", "updated_at")  # UPDATED: Now using updated_at instead of fetching all
+            ("systemsettings", "updated_at"),  # UPDATED: Now using updated_at instead of fetching all
+            ("inventory_transfer_orders", "updated_at"),
+            ("inventory_transfer_items", "updated_at"),
+            ("inventory_transfer_scans", "created_at"),
+            ("inventory_transfer_verifications", "submitted_at"),
+            ("damaged_inventory_events", "updated_at"),
         ]
         
         for table_name, timestamp_column in tables_to_sync:

@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from decimal import Decimal
 from utils.supabase_db import db
+from utils.supabase_resilience import execute_with_retry
 from utils.json_helpers import get_products_data, save_products_data, get_hsn_codes_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
@@ -78,7 +79,11 @@ def _get_hsn_tax_map() -> Dict[str, float]:
     # Supabase (preferred)
     try:
         client = db.client
-        response = client.table("hsn_codes").select("id,tax").execute()
+        response = execute_with_retry(
+            lambda: client.table("hsn_codes").select("id,tax"),
+            "hsn_codes (tax map)",
+            retries=2,
+        )
         for code in response.data or []:
             code_id = code.get("id")
             if code_id is None:
@@ -100,7 +105,11 @@ def get_hsn_code_details(hsn_code_id: str) -> Optional[Dict]:
     """
     try:
         client = db.client
-        response = client.table("hsn_codes").select("*").eq("id", hsn_code_id).execute()
+        response = execute_with_retry(
+            lambda: client.table("hsn_codes").select("*").eq("id", hsn_code_id),
+            f"hsn_codes details {hsn_code_id}",
+            retries=2,
+        )
         if response.data and len(response.data) > 0:
             return convert_snake_to_camel(response.data[0])
         return None
@@ -182,7 +191,11 @@ def get_supabase_products() -> List[Dict]:
     """Get products directly from Supabase"""
     try:
         client = db.client
-        response = client.table("products").select("*").execute()
+        response = execute_with_retry(
+            lambda: client.table("products").select("*"),
+            "products",
+            retries=2,
+        )
         products = response.data or []
         
         transformed_products = []

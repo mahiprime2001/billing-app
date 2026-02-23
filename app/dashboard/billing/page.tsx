@@ -83,6 +83,9 @@ interface BillItem {
   price: number;
   quantity: number;
   total: number;
+  isReplacementItem?: boolean;
+  replacedProductId?: string;
+  replacedProductName?: string;
 }
 
 interface Bill {
@@ -110,6 +113,10 @@ interface Bill {
   storeName?: string;
   storeAddress?: string;
   storePhone?: string;
+  isReplacement?: boolean;
+  replacementFinalAmount?: number;
+  replacementOriginalBillId?: string;
+  paymentMethod?: string;
 }
 
 const WALK_IN_CUSTOMER_ID = "CUST-1754821420265";
@@ -330,6 +337,13 @@ export default function BillingPage() {
           // FIX: Handle tax percentage and amount
           const taxPct = bill.taxpercentage || bill.taxPercentage || 0;
           const taxAmt = bill.taxamount || bill.taxAmount || bill.tax || 0;
+          const isReplacement = Boolean(bill.isReplacement ?? bill.is_replacement);
+          const replacementFinalAmount = Number(
+            bill.replacementFinalAmount ?? bill.replacement_final_amount ?? 0
+          );
+          const replacementOriginalBillId =
+            bill.replacementOriginalBillId ?? bill.replacement_original_bill_id ?? "";
+          const paymentMethod = bill.paymentMethod ?? bill.paymentmethod ?? "";
 
           return {
             ...bill,
@@ -340,6 +354,10 @@ export default function BillingPage() {
             items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
             discountPercentage: discountPct,
             discountAmount: discountAmt,
+            isReplacement,
+            replacementFinalAmount,
+            replacementOriginalBillId,
+            paymentMethod,
           };
         });
 
@@ -363,6 +381,13 @@ export default function BillingPage() {
           // FIX: Handle tax percentage and amount
           const taxPct = bill.taxpercentage || bill.taxPercentage || 0;
           const taxAmt = bill.taxamount || bill.taxAmount || bill.tax || 0;
+          const isReplacement = Boolean(bill.isReplacement ?? bill.is_replacement);
+          const replacementFinalAmount = Number(
+            bill.replacementFinalAmount ?? bill.replacement_final_amount ?? 0
+          );
+          const replacementOriginalBillId =
+            bill.replacementOriginalBillId ?? bill.replacement_original_bill_id ?? "";
+          const paymentMethod = bill.paymentMethod ?? bill.paymentmethod ?? "";
 
           return {
             ...bill,
@@ -373,6 +398,10 @@ export default function BillingPage() {
             items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
             discountPercentage: discountPct,
             discountAmount: discountAmt,
+            isReplacement,
+            replacementFinalAmount,
+            replacementOriginalBillId,
+            paymentMethod,
           };
         });
       }
@@ -408,8 +437,159 @@ export default function BillingPage() {
   }, [productsError, billsError, customersError]);
 
   const currentProducts = useMemo<Product[]>(() => productsData ?? [], [productsData]);
-  const currentBills = useMemo<Bill[]>(() => billsData ?? [], [billsData]);
   const currentCustomers = useMemo<Customer[]>(() => customersData ?? [], [customersData]);
+
+  const customerLookup = useMemo(() => {
+    const map = new Map<string, Customer>();
+    currentCustomers.forEach((customer) => {
+      if (customer?.id) map.set(customer.id, customer);
+    });
+    return map;
+  }, [currentCustomers]);
+
+  const parseNumber = (value: unknown): number => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const parseItems = (rawItems: unknown): BillItem[] => {
+    let items: any[] = [];
+
+    if (typeof rawItems === "string") {
+      try {
+        const parsed = JSON.parse(rawItems);
+        if (Array.isArray(parsed)) items = parsed;
+      } catch {
+        items = [];
+      }
+    } else if (Array.isArray(rawItems)) {
+      items = rawItems;
+    }
+
+    return items.map((item: any) => {
+      const quantity = parseNumber(item.quantity);
+      const price = parseNumber(item.price);
+      const total = parseNumber(item.total || quantity * price);
+
+      return {
+        productId: item.productId || item.product_id || item.productid || "",
+        productName: item.productName || item.product_name || item.productname || "Unknown Product",
+        quantity,
+        price,
+        total,
+        isReplacementItem: Boolean(item.isReplacementItem ?? item.is_replacement_item),
+        replacedProductId:
+          item.replacedProductId || item.replaced_product_id || item.replacedproductid || "",
+        replacedProductName:
+          item.replacedProductName || item.replaced_product_name || item.replacedproductname || "",
+      };
+    });
+  };
+
+  const normalizeBillForDisplay = (rawBill: any): Bill => {
+    const isReplacement = Boolean(rawBill.isReplacement ?? rawBill.is_replacement);
+    const itemsFromBill = parseItems(rawBill.items);
+    const replacementRows = Array.isArray(rawBill.replacementItems || rawBill.replacement_items)
+      ? (rawBill.replacementItems || rawBill.replacement_items)
+      : [];
+    const itemsFromReplacement: BillItem[] = replacementRows.map((item: any) => {
+      const quantity = parseNumber(item.quantity);
+      const price = parseNumber(item.price);
+      const total = parseNumber(item.final_amount ?? item.finalAmount ?? quantity * price);
+      return {
+        productId: item.new_product_id || item.newProductId || item.productId || "",
+        productName:
+          item.new_product_name || item.newProductName || item.productName || "Replacement Item",
+        quantity,
+        price,
+        total,
+        isReplacementItem: true,
+        replacedProductId:
+          item.replaced_product_id || item.replacedProductId || item.replacedproductid || "",
+        replacedProductName:
+          item.replaced_product_name || item.replacedProductName || item.productName || "",
+      };
+    });
+    const items =
+      isReplacement && itemsFromReplacement.length > 0
+        ? itemsFromReplacement
+        : itemsFromBill.length > 0
+        ? itemsFromBill
+        : itemsFromReplacement;
+    const subtotalFromBill = parseNumber(rawBill.subtotal ?? rawBill.sub_total);
+    const fallbackSubtotal = items.reduce((sum, item) => sum + parseNumber(item.total), 0);
+    const subtotal = subtotalFromBill > 0 ? subtotalFromBill : fallbackSubtotal;
+
+    const discountPercentage = parseNumber(
+      rawBill.discountPercentage ?? rawBill.discount_percentage ?? rawBill.discountpercentage
+    );
+    const discountAmount = parseNumber(
+      rawBill.discountAmount ?? rawBill.discount_amount ?? rawBill.discountamount
+    );
+    const taxPercentage = parseNumber(
+      rawBill.taxPercentage ?? rawBill.tax_percentage ?? rawBill.taxpercentage
+    );
+    const tax = parseNumber(rawBill.tax ?? rawBill.taxAmount ?? rawBill.tax_amount ?? rawBill.taxamount);
+
+    const replacementFinalAmountFromApi = parseNumber(
+      rawBill.replacementFinalAmount ?? rawBill.replacement_final_amount
+    );
+    const replacementAmountFromItems = itemsFromReplacement.reduce(
+      (sum, item) => sum + parseNumber(item.total),
+      0
+    );
+    const replacementFinalAmount =
+      replacementFinalAmountFromApi > 0 ? replacementFinalAmountFromApi : replacementAmountFromItems;
+
+    const rawTotal = parseNumber(rawBill.total);
+    const computedTotal = Math.max(0, subtotal - discountAmount) + tax;
+    const total = rawTotal > 0
+      ? rawTotal
+      : isReplacement && replacementFinalAmount > 0
+      ? replacementFinalAmount
+      : computedTotal;
+
+    const customerId = rawBill.customerId || rawBill.customer_id || rawBill.customerid || "";
+    const matchedCustomer = customerLookup.get(customerId);
+
+    return {
+      ...rawBill,
+      id: rawBill.id || "",
+      customerId,
+      customerName:
+        rawBill.customerName ||
+        rawBill.customer_name ||
+        matchedCustomer?.name ||
+        WALK_IN_CUSTOMER_NAME,
+      customerEmail: rawBill.customerEmail || rawBill.customer_email || matchedCustomer?.email || "",
+      customerPhone: rawBill.customerPhone || rawBill.customer_phone || matchedCustomer?.phone || "",
+      customerAddress: rawBill.customerAddress || rawBill.customer_address || matchedCustomer?.address || "",
+      items,
+      subtotal,
+      tax,
+      taxPercentage,
+      discountPercentage,
+      discountAmount,
+      total,
+      date:
+        rawBill.date ||
+        rawBill.timestamp ||
+        rawBill.createdAt ||
+        rawBill.created_at ||
+        new Date().toISOString(),
+      status: rawBill.status || "Paid",
+      isReplacement,
+      replacementFinalAmount,
+      replacementOriginalBillId:
+        rawBill.replacementOriginalBillId || rawBill.replacement_original_bill_id || "",
+      paymentMethod: rawBill.paymentMethod || rawBill.paymentmethod || "",
+    };
+  };
+
+  const currentBills = useMemo<Bill[]>(
+    () => (billsData ?? []).map((bill) => normalizeBillForDisplay(bill)),
+    [billsData, customerLookup]
+  );
 
   useEffect(() => {
     console.log("Products: Updated products data", productsData);
@@ -732,15 +912,36 @@ export default function BillingPage() {
       const taxPercentageItem = toNumber(item.taxPercentage || item.tax_percentage || item.tax || item.gst || taxPercentage);
       const hsnCode = item.hsnCode || item.hsn || item.hsn_code || item.hsnCodeId || item.hsn_code_id || "-";
       const productName = item.productName || item.product_name || item.productname || item.name || "Item";
+      const isReplacementItem = Boolean(item.isReplacementItem ?? item.is_replacement_item);
+      const replacedProductName =
+        item.replacedProductName || item.replaced_product_name || item.replacedproductname || "";
 
-      return { ...item, quantity, price, total, taxPercentageItem, hsnCode, productName };
+      return {
+        ...item,
+        quantity,
+        price,
+        total,
+        taxPercentageItem,
+        hsnCode,
+        productName,
+        isReplacementItem,
+        replacedProductName,
+      };
     });
 
     const subtotal = toNumber(bill.subtotal);
+    const computedSubtotal = safeItems.reduce((sum, item) => sum + toNumber(item.total), 0);
+    const resolvedSubtotal = subtotal > 0 ? subtotal : computedSubtotal;
     const discountPercentage = toNumber(bill.discountPercentage);
     const discountAmount = toNumber(bill.discountAmount);
     const tax = toNumber(bill.tax);
-    const total = toNumber(bill.total);
+    const replacementAmount = toNumber(
+      (bill as any).replacementFinalAmount ?? (bill as any).replacement_final_amount
+    );
+    const isReplacement = Boolean((bill as any).isReplacement ?? (bill as any).is_replacement);
+    const paymentMethod = ((bill as any).paymentMethod || (bill as any).paymentmethod || "CASH").toUpperCase();
+    const originalBillId =
+      (bill as any).replacementOriginalBillId || (bill as any).replacement_original_bill_id || "";
 
     const taxClassificationRows = safeItems.map((item) => {
       const taxableAmount = Math.max(0, item.total - (item.total * discountPercentage) / 100);
@@ -761,6 +962,14 @@ export default function BillingPage() {
     const totalSGST = taxClassificationRows.reduce((sum, row) => sum + row.sgst, 0);
     const computedTaxAmount = taxClassificationRows.reduce((sum, row) => sum + row.totalTax, 0);
     const totalTaxAmount = computedTaxAmount > 0 ? computedTaxAmount : tax;
+    const fallbackTotal = Math.max(0, resolvedSubtotal - discountAmount) + totalTaxAmount;
+    const billTotal = toNumber(bill.total);
+    const total =
+      billTotal > 0
+        ? billTotal
+        : isReplacement && replacementAmount > 0
+        ? replacementAmount
+        : fallbackTotal;
 
     const dateValue = bill.date ? new Date(bill.date) : new Date();
     const dateString = Number.isNaN(dateValue.getTime()) ? new Date().toLocaleDateString() : dateValue.toLocaleDateString();
@@ -891,8 +1100,10 @@ export default function BillingPage() {
     </div>
     <div class="row">
       <span>Time: ${timeString}</span>
-      <span>Payment: CASH</span>
+      <span>Payment: ${paymentMethod}</span>
     </div>
+    <div class="row"><span>Type: ${isReplacement ? "REPLACEMENT" : "STANDARD"}</span></div>
+    ${isReplacement && originalBillId ? `<div class="row"><span>Original Bill: ${originalBillId}</span></div>` : ""}
     <div class="row"><span>Customer: ${bill.customerName || "Walk-in Customer"}</span></div>
     ${bill.customerPhone ? `<div class="row"><span>Phone: ${bill.customerPhone}</span></div>` : ""}
   </div>
@@ -912,7 +1123,12 @@ export default function BillingPage() {
         .map((item: any) => {
           return `
         <tr>
-          <td>${item.productName}</td>
+          <td>
+            ${item.productName}
+            ${item.isReplacementItem && item.replacedProductName
+              ? `<br><span style="font-size: 8px; color: #555;">Replaced: ${item.replacedProductName}</span>`
+              : ""}
+          </td>
           <td class="number">${item.quantity} x ₹${formatNumber(item.price)}</td>
           <td class="number">₹${formatNumber(item.total)}</td>
         </tr>`;
@@ -926,7 +1142,7 @@ export default function BillingPage() {
   <div class="totals">
     <div class="totals-row">
       <span>Subtotal</span>
-      <span>₹${formatNumber(subtotal)}</span>
+      <span>₹${formatNumber(resolvedSubtotal)}</span>
     </div>
     ${discountAmount > 0
       ? `
@@ -978,6 +1194,11 @@ export default function BillingPage() {
       <span>TOTAL</span>
       <span>₹${formatNumber(total)}</span>
     </div>
+    ${isReplacement && replacementAmount > 0 ? `
+    <div class="totals-row" style="font-size: ${isThermal ? "8px" : "10px"}; color: #444;">
+      <span>Replacement Final Amount</span>
+      <span>₹${formatNumber(replacementAmount)}</span>
+    </div>` : ""}
   </div>
 
   <div class="line"></div>
@@ -1026,10 +1247,17 @@ export default function BillingPage() {
       return customerName.toLowerCase().includes(searchLower) || billId.includes(searchLower);
     });
 
+    const getEffectiveBillAmount = (bill: Bill): number => {
+      if (bill.isReplacement && (bill.replacementFinalAmount || 0) > 0) {
+        return bill.replacementFinalAmount || 0;
+      }
+      return bill.total || 0;
+    };
+
     const getComparableValue = (bill: Bill) => {
       switch (billSortKey) {
         case "total":
-          return bill.total || 0;
+          return getEffectiveBillAmount(bill);
         case "discount":
           return bill.discountAmount || 0;
         case "customer":
@@ -1074,6 +1302,13 @@ export default function BillingPage() {
       customerPhone.toLowerCase().includes(searchLower)
     );
   });
+
+  const getEffectiveBillAmount = (bill: Bill): number => {
+    if (bill.isReplacement && (bill.replacementFinalAmount || 0) > 0) {
+      return bill.replacementFinalAmount || 0;
+    }
+    return bill.total || 0;
+  };
 
   useEffect(() => {
     const currentBillIdSet = new Set(currentBills.map((bill) => bill.id));
@@ -1577,7 +1812,16 @@ export default function BillingPage() {
                               aria-label={`Select bill ${bill.id}`}
                             />
                           </TableCell>
-                          <TableCell className="font-mono">{bill.id}</TableCell>
+                          <TableCell className="font-mono">
+                            <div className="space-y-1">
+                              <div>{bill.id}</div>
+                              {bill.isReplacement && (
+                                <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
+                                  Replacement
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div>
                               <div className="font-medium">{bill.customerName || "Walk-in Customer"}</div>
@@ -1598,7 +1842,7 @@ export default function BillingPage() {
                               <span className="text-gray-400">No discount</span>
                             )}
                           </TableCell>
-                          <TableCell className="font-bold">₹{bill.total.toFixed(2)}</TableCell>
+                          <TableCell className="font-bold">₹{getEffectiveBillAmount(bill).toFixed(2)}</TableCell>
                           <TableCell>
                             <Badge variant="default">{bill.status}</Badge>
                           </TableCell>
@@ -1670,7 +1914,10 @@ export default function BillingPage() {
                           return billCustomerId === customer.id;
                         });
                         
-                        const totalSpent = customerBills.reduce((sum: number, bill: Bill) => sum + (bill.total || 0), 0);
+                        const totalSpent = customerBills.reduce(
+                          (sum: number, bill: Bill) => sum + getEffectiveBillAmount(bill),
+                          0
+                        );
 
                         return (
                           <TableRow key={customer.id}>
@@ -1717,6 +1964,18 @@ export default function BillingPage() {
 
             {selectedBill && (
               <div className="space-y-6">
+                {(() => {
+                  const toNumber = (value: unknown): number => {
+                    const parsed = Number(value);
+                    return Number.isFinite(parsed) ? parsed : 0;
+                  };
+                  const selectedBillItems = Array.isArray(selectedBill.items) ? selectedBill.items : [];
+                  const subtotalValue =
+                    toNumber(selectedBill.subtotal) > 0
+                      ? toNumber(selectedBill.subtotal)
+                      : selectedBillItems.reduce((sum: number, item: any) => sum + toNumber(item?.total), 0);
+                  return (
+                    <>
                 {/* Customer & Bill Information */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1732,6 +1991,10 @@ export default function BillingPage() {
                     <div className="text-sm text-muted-foreground mt-1">
                       <div>Date: {new Date(selectedBill.date).toLocaleString()}</div>
                       <div>Status: {selectedBill.status}</div>
+                      {selectedBill.isReplacement && <div>Type: Replacement</div>}
+                      {selectedBill.isReplacement && selectedBill.replacementOriginalBillId && (
+                        <div>Original Bill: {selectedBill.replacementOriginalBillId}</div>
+                      )}
                       {selectedBill.taxPercentage !== undefined && selectedBill.taxPercentage > 0 && (
                         <div>Tax Rate: {selectedBill.taxPercentage}%</div>
                       )}
@@ -1761,7 +2024,15 @@ export default function BillingPage() {
 
                         return (
                           <TableRow key={index}>
-                            <TableCell>{productName}</TableCell>
+                            <TableCell>
+                              <div>{productName}</div>
+                              {(item.isReplacementItem || item.is_replacement_item) &&
+                                (item.replacedProductName || item.replaced_product_name) && (
+                                  <div className="text-xs text-muted-foreground">
+                                    Replaced: {item.replacedProductName || item.replaced_product_name}
+                                  </div>
+                                )}
+                            </TableCell>
                             <TableCell>₹{price.toFixed(2)}</TableCell>
                             <TableCell>{quantity}</TableCell>
                             <TableCell>₹{total.toFixed(2)}</TableCell>
@@ -1776,7 +2047,7 @@ export default function BillingPage() {
                 <div className="space-y-2 text-right bg-gray-50 p-4 rounded-lg">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>₹{selectedBill.subtotal.toFixed(2)}</span>
+                    <span>₹{subtotalValue.toFixed(2)}</span>
                   </div>
 
                   {/* Tax with percentage */}
@@ -1798,9 +2069,18 @@ export default function BillingPage() {
                   {/* Total */}
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span>₹{selectedBill.total.toFixed(2)}</span>
+                    <span>₹{getEffectiveBillAmount(selectedBill).toFixed(2)}</span>
                   </div>
+                  {selectedBill.isReplacement && (selectedBill.replacementFinalAmount || 0) > 0 && (
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Replacement Amount</span>
+                      <span>₹{(selectedBill.replacementFinalAmount || 0).toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
 
@@ -1880,7 +2160,10 @@ export default function BillingPage() {
                           return billCustomerId === selectedCustomer.id;
                         });
                         
-                        const totalSpent = customerBills.reduce((sum: number, bill: Bill) => sum + (bill.total || 0), 0);
+                        const totalSpent = customerBills.reduce(
+                          (sum: number, bill: Bill) => sum + getEffectiveBillAmount(bill),
+                          0
+                        );
 
                         return (
                           <>
@@ -1920,7 +2203,14 @@ export default function BillingPage() {
           .map((bill: Bill) => (
             <TableRow key={bill.id}>
               <TableCell className="font-mono">
-                {bill.id}
+                <div className="space-y-1">
+                  <div>{bill.id}</div>
+                  {bill.isReplacement && (
+                    <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
+                      Replacement
+                    </Badge>
+                  )}
+                </div>
               </TableCell>
 
               <TableCell>
@@ -1928,7 +2218,7 @@ export default function BillingPage() {
               </TableCell>
 
               <TableCell>
-                ₹{bill.total.toFixed(2)}
+                ₹{getEffectiveBillAmount(bill).toFixed(2)}
               </TableCell>
 
               <TableCell>

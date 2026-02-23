@@ -173,7 +173,14 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
         // Log individual failures if the backend provided them in a structured way
         // For simplicity, we assume the backend will return a general error or specific if implemented.
       } else {
-        alert(`✅ Successfully assigned ${assignments.length} product(s) to ${storeName || storeId}`);
+        let orderMsg = "";
+        try {
+          const okPayload = await res.json();
+          if (okPayload?.orderId) {
+            orderMsg = `\nOrder ID: ${okPayload.orderId}`;
+          }
+        } catch {}
+        alert(`✅ Successfully assigned ${assignments.length} product(s) to ${storeName || storeId}${orderMsg}`);
         // Assuming all sent assignments were successful if the overall API call was OK.
         // In a real-world scenario, the backend might return which ones succeeded/failed.
         successfulAssignments.push(...selectedProducts);
