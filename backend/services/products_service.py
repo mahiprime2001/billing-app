@@ -20,6 +20,7 @@ from utils.json_helpers import (
     save_store_inventory_data,
 )
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
+from utils.concurrency_guard import extract_base_markers, safe_update_with_conflict_check
 
 logger = logging.getLogger(__name__)
 
@@ -474,30 +475,23 @@ def get_merged_products() -> Tuple[List[Dict], int]:
     Returns (products_list, status_code)
     """
     try:
-        # Fetch from Supabase (preferred source)
+        # Fetch from Supabase first (source of truth)
         supabase_products = get_supabase_products()
-        
-        # Fetch from local JSON (fallback)
+        if supabase_products:
+            try:
+                cache_rows = [convert_camel_to_snake(p) for p in supabase_products]
+                save_products_data(cache_rows)
+            except Exception as cache_err:
+                logger.warning(f"Failed to refresh local products cache: {cache_err}")
+            supabase_products.sort(key=lambda x: x.get('name', ''), reverse=False)
+            logger.debug(f"Returning {len(supabase_products)} products from Supabase (cache refreshed)")
+            return supabase_products, 200
+
+        # Offline fallback
         local_products = get_local_products()
-        
-        # Merge: Supabase takes precedence
-        products_map = {}
-        
-        # Add local products first (lower priority)
-        for product in local_products:
-            if product.get('id'):
-                products_map[product['id']] = product
-        
-        # Add Supabase products (higher priority)
-        for product in supabase_products:
-            if product.get('id'):
-                products_map[product['id']] = product
-        
-        final_products = list(products_map.values())
-        final_products.sort(key=lambda x: x.get('name', ''), reverse=False)
-        
-        logger.debug(f"Returning {len(final_products)} total products (Supabase: {len(supabase_products)}, Local: {len(local_products)})")
-        return final_products, 200
+        local_products.sort(key=lambda x: x.get('name', ''), reverse=False)
+        logger.debug(f"Returning {len(local_products)} products from local fallback")
+        return local_products, 200
     except Exception as e:
         logger.error(f"Error getting merged products: {e}", exc_info=True)
         return [], 500
@@ -613,16 +607,42 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
             update_data['barcode'] = ','.join(sorted(list(set(all_barcodes)))) if all_barcodes else ''
             update_data.pop('barcodes', None)
         
-        # Update timestamp
-        update_data['updatedat'] = datetime.now().isoformat()
-        
-        # STEP 1: Update in local JSON
-        products[product_index].update(update_data)
-        save_products_data(products)
-        
-        # STEP 2: Update in Supabase (remove _deleted field if present)
+        # Extract conflict markers and fallback to local marker when missing.
+        base_version, base_updated_at = extract_base_markers(update_data)
+        if base_updated_at is None and product_index != -1:
+            base_updated_at = products[product_index].get("updatedat")
+
+        # Update in Supabase first (remove _deleted field if present)
         update_data_clean = {k: v for k, v in update_data.items() if k != '_deleted'}
-        update_product_in_supabase(product_id, update_data_clean)
+        client = db.client
+        try:
+            update_result = safe_update_with_conflict_check(
+                client,
+                table_name="products",
+                id_column="id",
+                record_id=product_id,
+                update_payload=update_data_clean,
+                updated_at_column="updatedat",
+                base_version=base_version,
+                base_updated_at=base_updated_at,
+            )
+            if not update_result["ok"]:
+                if update_result.get("conflict"):
+                    return False, update_result.get("message", "Update conflict"), 409
+                return False, "Failed to update product in Supabase", 500
+        except Exception as supabase_error:
+            logger.warning(
+                f"Supabase update failed for product {product_id}; applying local fallback: {supabase_error}"
+            )
+            products[product_index].update(update_data)
+            products[product_index]['updatedat'] = datetime.now().isoformat()
+            save_products_data(products)
+            return True, "Product saved locally (offline fallback)", 202
+
+        # Keep local cache aligned after successful cloud write.
+        products[product_index].update(update_data)
+        products[product_index]['updatedat'] = datetime.now().isoformat()
+        save_products_data(products)
         
         logger.info(f"Product updated {product_id}")
         return True, "Product updated", 200

@@ -13,6 +13,7 @@ from utils.supabase_db import db
 from utils.supabase_resilience import execute_with_retry
 from utils.json_helpers import get_stores_data, save_stores_data, get_store_inventory_data, save_store_inventory_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
+from utils.concurrency_guard import extract_base_markers, safe_update_with_conflict_check
 
 logger = logging.getLogger(__name__)
 
@@ -62,19 +63,17 @@ def get_merged_stores() -> Tuple[List[Dict], int]:
     """Get stores by merging local and Supabase (Supabase takes precedence)"""
     try:
         supabase_stores = get_supabase_stores()
+        if supabase_stores:
+            try:
+                save_stores_data([convert_camel_to_snake(s) for s in supabase_stores])
+            except Exception as cache_err:
+                logger.warning(f"Failed to refresh local stores cache: {cache_err}")
+            logger.debug(f"Returning {len(supabase_stores)} stores from Supabase (cache refreshed)")
+            return supabase_stores, 200
+
         local_stores = get_local_stores()
-        
-        stores_map = {}
-        for store in local_stores:
-            if store.get('id'):
-                stores_map[store['id']] = store
-        for store in supabase_stores:
-            if store.get('id'):
-                stores_map[store['id']] = store
-        
-        final_stores = list(stores_map.values())
-        logger.debug(f"Returning {len(final_stores)} merged stores")
-        return final_stores, 200
+        logger.debug(f"Returning {len(local_stores)} stores from local fallback")
+        return local_stores, 200
     except Exception as e:
         logger.error(f"Error getting merged stores: {e}", exc_info=True)
         return [], 500
@@ -386,12 +385,38 @@ def update_store(store_id: str, update_data: dict) -> Tuple[bool, str, int]:
         if store_index == -1:
             return False, "Store not found", 404
         
-        update_data['updatedat'] = datetime.now().isoformat()
-        stores[store_index].update(update_data)
-        save_stores_data(stores)
-        
+        base_version, base_updated_at = extract_base_markers(update_data)
+        if base_updated_at is None and store_index != -1:
+            base_updated_at = stores[store_index].get("updatedat")
+
         client = db.client
-        client.table('stores').update(update_data).eq('id', store_id).execute()
+        try:
+            update_result = safe_update_with_conflict_check(
+                client,
+                table_name="stores",
+                id_column="id",
+                record_id=store_id,
+                update_payload=update_data,
+                updated_at_column="updatedat",
+                base_version=base_version,
+                base_updated_at=base_updated_at,
+            )
+            if not update_result["ok"]:
+                if update_result.get("conflict"):
+                    return False, update_result.get("message", "Update conflict"), 409
+                return False, "Failed to update store in Supabase", 500
+        except Exception as supabase_error:
+            logger.warning(
+                f"Supabase update failed for store {store_id}; applying local fallback: {supabase_error}"
+            )
+            stores[store_index].update(update_data)
+            stores[store_index]['updatedat'] = datetime.now().isoformat()
+            save_stores_data(stores)
+            return True, "Store saved locally (offline fallback)", 202
+
+        stores[store_index].update(update_data)
+        stores[store_index]['updatedat'] = datetime.now().isoformat()
+        save_stores_data(stores)
         
         logger.info(f"Store updated {store_id}")
         return True, "Store updated", 200

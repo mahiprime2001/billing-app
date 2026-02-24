@@ -14,6 +14,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from utils.supabase_db import db
 from utils.json_helpers import get_users_data, save_users_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
+from utils.concurrency_guard import extract_base_markers, safe_update_with_conflict_check
 
 logger = logging.getLogger(__name__)
 
@@ -155,39 +156,43 @@ def get_merged_users() -> Tuple[List[Dict], int]:
         print("[BACKEND] get_merged_users called")
         print("="*80)
         
-        # Fetch from Supabase (preferred source)
+        # Fetch from Supabase first (source of truth)
         supabase_users = get_supabase_users()
-        
-        # Fetch from local JSON (fallback)
-        local_users = get_local_users()
-        
-        # Merge: Supabase takes precedence
-        users_map = {}
-        
-        # Add local users first (lower priority)
-        for user in local_users:
-            if user.get('id'):
-                users_map[user['id']] = user
-        
-        # Add Supabase users (higher priority) - they will overwrite local
-        for user in supabase_users:
-            if user.get('id'):
-                # Convert snake_case to camelCase for frontend
+
+        # If Supabase is reachable, return it and refresh local cache.
+        if supabase_users:
+            normalized_users: List[Dict] = []
+            for user in supabase_users:
+                if not user.get("id"):
+                    continue
                 camel_user = convert_snake_to_camel(user)
-                
-                # Ensure assignedStores is properly set
                 if 'assignedstores' in user:
                     camel_user['assignedStores'] = user['assignedstores']
                 elif 'assignedStores' not in camel_user:
                     camel_user['assignedStores'] = []
-                
-                # Ensure createdAt and updatedAt are properly converted
                 if 'createdat' in user and 'createdAt' not in camel_user:
                     camel_user['createdAt'] = user['createdat']
                 if 'updatedat' in user and 'updatedAt' not in camel_user:
                     camel_user['updatedAt'] = user['updatedat']
-                
-                users_map[user['id']] = camel_user
+                normalized_users.append(camel_user)
+
+            # Refresh local cache from Supabase snapshot.
+            try:
+                cache_rows = [convert_camel_to_snake(u) for u in normalized_users]
+                save_users_data(cache_rows)
+            except Exception as cache_err:
+                logger.warning(f"Failed to refresh local users cache: {cache_err}")
+
+            print(f"[BACKEND] Returning {len(normalized_users)} users from Supabase (cache refreshed)")
+            print("="*80 + "\n")
+            return normalized_users, 200
+
+        # Fallback to local JSON when Supabase is unavailable.
+        local_users = get_local_users()
+        users_map = {}
+        for user in local_users:
+            if user.get('id'):
+                users_map[user['id']] = user
         
         final_users = list(users_map.values())
         
@@ -356,8 +361,11 @@ def update_user(user_id: str, update_data: dict) -> Tuple[bool, str, int]:
         if user_index == -1:
             print(f"[BACKEND] ⚠️ User {user_id} not found in local JSON")
 
-        # Update timestamp
-        update_data['updatedat'] = datetime.now().isoformat()
+        # Extract conflict markers from client payload.
+        base_version, base_updated_at = extract_base_markers(update_data)
+        if base_updated_at is None and user_index != -1:
+            # Fallback: local snapshot marker helps prevent blind overwrite.
+            base_updated_at = users[user_index].get("updatedat")
 
         # Define allowed columns for users table
         allowed_columns = [
@@ -369,22 +377,50 @@ def update_user(user_id: str, update_data: dict) -> Tuple[bool, str, int]:
         filtered_update_data = {k: v for k, v in update_data.items() if k in allowed_columns}
         print(f"[BACKEND] Filtered update_data for Supabase: {filtered_update_data}")
 
-        # Update in local JSON
+        # Update in Supabase first with conflict check.
+        client = db.client
+        if filtered_update_data:
+            print("[BACKEND] Updating user in Supabase...")
+            try:
+                update_result = safe_update_with_conflict_check(
+                    client,
+                    table_name="users",
+                    id_column="id",
+                    record_id=user_id,
+                    update_payload=filtered_update_data,
+                    updated_at_column="updatedat",
+                    base_version=base_version,
+                    base_updated_at=base_updated_at,
+                )
+                if not update_result["ok"]:
+                    if update_result.get("conflict"):
+                        return False, update_result.get("message", "Update conflict"), 409
+                    return False, "Failed to update user in Supabase", 500
+                print("[BACKEND] ✅ Updated user in Supabase")
+            except Exception as supabase_error:
+                logger.warning(
+                    f"Supabase update failed for user {user_id}; applying local fallback: {supabase_error}"
+                )
+                # Offline fallback: keep local change and let manual sync retry later.
+                if user_index != -1:
+                    local_update_data = update_data.copy()
+                    if assigned_stores is not None:
+                        local_update_data['assignedstores'] = assigned_stores
+                    local_update_data['updatedat'] = datetime.now().isoformat()
+                    users[user_index].update(local_update_data)
+                    save_users_data(users)
+                return True, "User saved locally (offline fallback)", 202
+
+        # Update local cache after successful Supabase write.
         if user_index != -1:
             local_update_data = update_data.copy()
+            local_update_data['updatedat'] = datetime.now().isoformat()
             if assigned_stores is not None:
                 local_update_data['assignedstores'] = assigned_stores
                 print(f"[BACKEND] Updating local JSON with assignedstores: {assigned_stores}")
             users[user_index].update(local_update_data)
             save_users_data(users)
             print("[BACKEND] ✅ Updated local JSON")
-
-        # Update in Supabase
-        client = db.client
-        if filtered_update_data:
-            print("[BACKEND] Updating user in Supabase...")
-            client.table('users').update(filtered_update_data).eq('id', user_id).execute()
-            print("[BACKEND] ✅ Updated user in Supabase")
 
         # Handle assigned stores if provided
         if assigned_stores is not None:

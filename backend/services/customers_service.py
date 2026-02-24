@@ -13,6 +13,7 @@ from utils.supabase_db import db
 from utils.supabase_resilience import execute_with_retry
 from utils.json_helpers import get_customers_data, save_customers_data, get_bills_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
+from utils.concurrency_guard import extract_base_markers, safe_update_with_conflict_check
 
 logger = logging.getLogger(__name__)
 
@@ -79,26 +80,16 @@ def get_merged_customers() -> Tuple[List[Dict], int]:
     Returns (customers_list, status_code)
     """
     try:
-        # Fetch from Supabase (preferred source)
+        # Fetch from Supabase first (source of truth)
         supabase_customers = get_supabase_customers()
-        
-        # Fetch from local JSON (fallback)
-        local_customers = get_local_customers()
-        
-        # Merge: Supabase takes precedence
-        customers_map = {}
-        
-        # Add local customers first (lower priority)
-        for customer in local_customers:
-            if customer.get('id'):
-                customers_map[customer['id']] = customer
-        
-        # Add Supabase customers (higher priority)
-        for customer in supabase_customers:
-            if customer.get('id'):
-                customers_map[customer['id']] = customer
-        
-        final_customers = list(customers_map.values())
+        if supabase_customers:
+            try:
+                save_customers_data([convert_camel_to_snake(c) for c in supabase_customers])
+            except Exception as cache_err:
+                logger.warning(f"Failed to refresh local customers cache: {cache_err}")
+            final_customers = supabase_customers
+        else:
+            final_customers = get_local_customers()
         
         # Calculate bill statistics - FIX: Match by customer_id
         bills = get_bills_data()
@@ -205,16 +196,40 @@ def update_customer(customer_id: str, update_data: dict) -> Tuple[bool, str, int
         if customer_index == -1:
             return False, "Customer not found", 404
         
-        # Update timestamp
-        update_data['updatedat'] = datetime.now().isoformat()
-        
-        # Update in local JSON
-        customers[customer_index].update(update_data)
-        save_customers_data(customers)
-        
-        # Update in Supabase
+        base_version, base_updated_at = extract_base_markers(update_data)
+        if base_updated_at is None and customer_index != -1:
+            base_updated_at = customers[customer_index].get("updatedat")
+
+        # Update in Supabase first with conflict protection.
         client = db.client
-        client.table('customers').update(update_data).eq('id', customer_id).execute()
+        try:
+            update_result = safe_update_with_conflict_check(
+                client,
+                table_name="customers",
+                id_column="id",
+                record_id=customer_id,
+                update_payload=update_data,
+                updated_at_column="updatedat",
+                base_version=base_version,
+                base_updated_at=base_updated_at,
+            )
+            if not update_result["ok"]:
+                if update_result.get("conflict"):
+                    return False, update_result.get("message", "Update conflict"), 409
+                return False, "Failed to update customer in Supabase", 500
+        except Exception as supabase_error:
+            logger.warning(
+                f"Supabase update failed for customer {customer_id}; applying local fallback: {supabase_error}"
+            )
+            customers[customer_index].update(update_data)
+            customers[customer_index]['updatedat'] = datetime.now().isoformat()
+            save_customers_data(customers)
+            return True, "Customer saved locally (offline fallback)", 202
+
+        # Cloud update success: refresh local cache.
+        customers[customer_index].update(update_data)
+        customers[customer_index]['updatedat'] = datetime.now().isoformat()
+        save_customers_data(customers)
         
         logger.info(f"Customer updated {customer_id}")
         return True, "Customer updated", 200

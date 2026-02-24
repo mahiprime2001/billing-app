@@ -10,6 +10,7 @@ from typing import Dict, Optional, Tuple
 from utils.supabase_db import db
 from utils.json_helpers import get_settings_data, save_settings_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
+from utils.concurrency_guard import extract_base_markers, safe_update_with_conflict_check
 
 logger = logging.getLogger(__name__)
 
@@ -114,11 +115,21 @@ def get_merged_settings() -> Tuple[Dict, int]:
     Returns (settings_dict, status_code)
     """
     try:
-        # Fetch from local JSON (fallback)
-        local_settings = get_local_settings()
-        
-        # Fetch from Supabase (preferred source)
+        # Fetch from Supabase first (source of truth)
         supabase_settings = get_supabase_settings()
+        local_settings = get_local_settings()
+
+        if supabase_settings:
+            try:
+                save_settings_data(
+                    {
+                        "systemSettings": convert_to_db_format(supabase_settings),
+                        "billFormats": local_settings.get("billFormats", {}),
+                        "storeFormats": local_settings.get("storeFormats", {}),
+                    }
+                )
+            except Exception as cache_err:
+                logger.warning(f"Failed to refresh local settings cache: {cache_err}")
         
         # Extract systemSettings from local (which has nested structure)
         local_system = local_settings.get('systemSettings', {})
@@ -198,8 +209,8 @@ def update_settings(settings_data: dict) -> Tuple[bool, str, int]:
         # Convert system settings to database format
         converted_system_settings = convert_to_db_format(system_settings_from_frontend)
         
-        # Set updated_at timestamp (with underscore for DB)
-        converted_system_settings['updated_at'] = datetime.now().isoformat()
+        # Extract optimistic concurrency markers.
+        base_version, base_updated_at = extract_base_markers(converted_system_settings)
         
         # Prepare data for local JSON storage (keep in converted format)
         local_json_data = {
@@ -225,34 +236,48 @@ def update_settings(settings_data: dict) -> Tuple[bool, str, int]:
         
         if record_id:
             try:
-                # Attempt to update the existing row
-                result = client.table('systemsettings').update(update_fields).eq('id', record_id).execute()
-                
-                if not result.data:
-                    logger.warning(f"No existing settings row with id {record_id} found in Supabase to update. Attempting insert.")
-                    # Fallback to insert if update finds no row
+                result = safe_update_with_conflict_check(
+                    client,
+                    table_name="systemsettings",
+                    id_column="id",
+                    record_id=str(record_id),
+                    update_payload=update_fields,
+                    updated_at_column="updated_at",
+                    base_version=base_version,
+                    base_updated_at=base_updated_at,
+                )
+                if not result["ok"]:
+                    if result.get("conflict"):
+                        return False, result.get("message", "Update conflict"), 409
                     insert_data = {**update_fields, 'id': record_id}
                     client.table('systemsettings').insert(insert_data).execute()
-                    
             except Exception as e:
                 logger.error(f"Error updating systemsettings in Supabase for id {record_id}: {e}", exc_info=True)
-                return False, f"Error updating system settings: {e}", 500
+                return True, "Settings saved locally (offline fallback)", 202
         else:
             logger.warning("No ID found in system settings data for Supabase update. Defaulting to ID 1.")
             # Default to ID 1 for system settings if not provided
             record_id = 1
             
             try:
-                result = client.table('systemsettings').update(update_fields).eq('id', record_id).execute()
-                
-                if not result.data:
+                result = safe_update_with_conflict_check(
+                    client,
+                    table_name="systemsettings",
+                    id_column="id",
+                    record_id=str(record_id),
+                    update_payload=update_fields,
+                    updated_at_column="updated_at",
+                    base_version=base_version,
+                    base_updated_at=base_updated_at,
+                )
+                if not result["ok"]:
                     # If update finds no row, insert
                     insert_data = {**update_fields, 'id': record_id}
                     client.table('systemsettings').insert(insert_data).execute()
                     
             except Exception as e:
                 logger.error(f"Error updating/inserting systemsettings in Supabase for default id {record_id}: {e}", exc_info=True)
-                return False, f"Error updating system settings: {e}", 500
+                return True, "Settings saved locally (offline fallback)", 202
         
         logger.info(f"Settings updated successfully")
         return True, "Settings updated", 200

@@ -15,6 +15,73 @@ from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 logger = logging.getLogger(__name__)
 
 
+def _enrich_returns_with_related_data(returns: List[Dict]) -> List[Dict]:
+    """Attach product/customer display fields when only IDs are present."""
+    if not returns:
+        return returns
+
+    product_ids = sorted(
+        {
+            str(ret.get("product_id") or ret.get("productId") or "").strip()
+            for ret in returns
+            if (ret.get("product_id") or ret.get("productId"))
+        }
+    )
+    customer_ids = sorted(
+        {
+            str(ret.get("customer_id") or ret.get("customerId") or "").strip()
+            for ret in returns
+            if (ret.get("customer_id") or ret.get("customerId"))
+        }
+    )
+
+    products_by_id: Dict[str, Dict] = {}
+    customers_by_id: Dict[str, Dict] = {}
+
+    try:
+        client = db.client
+        if product_ids:
+            products_response = execute_with_retry(
+                lambda: client.table("products").select("id, name").in_("id", product_ids),
+                "returns products lookup",
+                retries=2,
+            )
+            products_by_id = {str(row.get("id")): row for row in (products_response.data or []) if row.get("id")}
+
+        if customer_ids:
+            customers_response = execute_with_retry(
+                lambda: client.table("customers").select("id, name, phone").in_("id", customer_ids),
+                "returns customers lookup",
+                retries=2,
+            )
+            customers_by_id = {str(row.get("id")): row for row in (customers_response.data or []) if row.get("id")}
+    except Exception as lookup_error:
+        logger.warning(f"Could not enrich returns with product/customer details: {lookup_error}")
+
+    enriched_returns: List[Dict] = []
+    for ret in returns:
+        enriched = dict(ret)
+
+        product_id = str(ret.get("product_id") or ret.get("productId") or "").strip()
+        customer_id = str(ret.get("customer_id") or ret.get("customerId") or "").strip()
+
+        if not (ret.get("product_name") or ret.get("productName")):
+            if product_id and product_id in products_by_id:
+                enriched["product_name"] = products_by_id[product_id].get("name") or "Unknown Product"
+            elif product_id:
+                enriched["product_name"] = "Unknown Product"
+
+        if not (ret.get("customer_name") or ret.get("customerName")) and customer_id and customer_id in customers_by_id:
+            enriched["customer_name"] = customers_by_id[customer_id].get("name") or "Unknown Customer"
+
+        if not (ret.get("customer_phone_number") or ret.get("customerPhoneNumber")) and customer_id and customer_id in customers_by_id:
+            enriched["customer_phone_number"] = customers_by_id[customer_id].get("phone") or ""
+
+        enriched_returns.append(enriched)
+
+    return enriched_returns
+
+
 def _create_return_notification(return_data: Dict) -> None:
     """Best-effort notification for new return requests."""
     try:
@@ -113,7 +180,7 @@ def get_merged_returns() -> Tuple[List[Dict], int]:
             if ret_id:
                 returns_map[ret_id] = ret
         
-        final_returns = list(returns_map.values())
+        final_returns = _enrich_returns_with_related_data(list(returns_map.values()))
         final_returns.sort(key=lambda x: x.get('createdAt') or x.get('created_at', ''), reverse=True)
         
         logger.debug(f"Returning {len(final_returns)} merged returns")
