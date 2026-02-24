@@ -25,7 +25,16 @@ def execute_with_retry(build_query: Callable[[], T], label: str, retries: int = 
     while attempt <= retries:
         try:
             return build_query().execute()
-        except (httpx.RemoteProtocolError, httpcore.RemoteProtocolError) as err:
+        except (
+            httpx.RemoteProtocolError,
+            httpcore.RemoteProtocolError,
+            httpx.ReadError,
+            httpcore.ReadError,
+            httpx.WriteError,
+            httpcore.WriteError,
+            httpx.ConnectError,
+            httpcore.ConnectError,
+        ) as err:
             last_err = err
             if attempt >= retries:
                 break

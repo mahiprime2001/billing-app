@@ -29,6 +29,18 @@ def get_local_products():
         return jsonify({"error": str(e)}), 500
 
 
+@products_bp.route('/local/products-for-billing', methods=['GET'])
+def get_local_products_for_billing():
+    """Get local products for billing with available stock (stock - assigned inventory)."""
+    try:
+        products = products_service.get_local_products_for_billing()
+        logger.debug(f"Returning {len(products)} products for billing from local JSON.")
+        return jsonify(products), 200
+    except Exception as e:
+        logger.error(f"Error in get_local_products_for_billing: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @products_bp.route('/local/products/update', methods=['POST'])
 def update_local_products():
     """Update local JSON products with new data"""
@@ -53,6 +65,18 @@ def get_supabase_products():
         return jsonify(products), 200
     except Exception as e:
         logger.error(f"Error in get_supabase_products: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@products_bp.route('/supabase/products-for-billing', methods=['GET'])
+def get_supabase_products_for_billing():
+    """Get products for billing with available stock (stock - assigned inventory)."""
+    try:
+        products = products_service.get_supabase_products_for_billing()
+        logger.debug(f"Returning {len(products)} products for billing from Supabase.")
+        return jsonify(products), 200
+    except Exception as e:
+        logger.error(f"Error in get_supabase_products_for_billing: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 

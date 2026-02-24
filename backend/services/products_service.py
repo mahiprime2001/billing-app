@@ -10,7 +10,15 @@ from typing import List, Dict, Optional, Tuple
 from decimal import Decimal
 from utils.supabase_db import db
 from utils.supabase_resilience import execute_with_retry
-from utils.json_helpers import get_products_data, save_products_data, get_hsn_codes_data
+from utils.json_helpers import (
+    get_products_data,
+    save_products_data,
+    get_hsn_codes_data,
+    get_returns_data,
+    save_returns_data,
+    get_store_inventory_data,
+    save_store_inventory_data,
+)
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
 logger = logging.getLogger(__name__)
@@ -167,6 +175,37 @@ def get_local_products() -> List[Dict]:
         logger.error(f"Error getting local products: {e}", exc_info=True)
         return []
 
+
+def get_local_products_for_billing() -> List[Dict]:
+    """
+    Get local products for billing with available stock only.
+    available stock = max(0, product.stock - sum(storeinventory.quantity for product))
+    """
+    try:
+        local_products = get_local_products()
+        inventory_rows = get_store_inventory_data()
+        allocated_by_product: Dict[str, int] = {}
+        for row in inventory_rows:
+            pid = row.get("productid")
+            if not pid:
+                continue
+            allocated_by_product[pid] = allocated_by_product.get(pid, 0) + int(row.get("quantity") or 0)
+
+        for product in local_products:
+            pid = product.get("id")
+            global_stock = int(product.get("stock") or 0)
+            allocated = int(allocated_by_product.get(pid, 0))
+            available_stock = max(0, global_stock - allocated)
+            product["globalStock"] = global_stock
+            product["allocatedStock"] = allocated
+            product["availableStock"] = available_stock
+            product["stock"] = available_stock
+
+        return local_products
+    except Exception as e:
+        logger.error(f"Error getting local products for billing: {e}", exc_info=True)
+        return []
+
 def update_local_products(products_data: List[Dict]) -> bool:
     """Update local JSON products with new data"""
     try:
@@ -240,6 +279,81 @@ def get_supabase_products() -> List[Dict]:
         logger.error(f"Error getting Supabase products: {e}", exc_info=True)
         return []
 
+
+def get_supabase_products_for_billing() -> List[Dict]:
+    """
+    Get products for billing with AVAILABLE stock only.
+    available stock = max(0, product.stock - sum(storeinventory.quantity for product))
+    """
+    try:
+        client = db.client
+        products_response = execute_with_retry(
+            lambda: client.table("products").select("*"),
+            "products for billing",
+            retries=2,
+        )
+        products = products_response.data or []
+
+        inventory_response = execute_with_retry(
+            lambda: client.table("storeinventory").select("productid, quantity"),
+            "storeinventory for billing products",
+            retries=2,
+        )
+        inventory_rows = inventory_response.data or []
+
+        allocated_by_product: Dict[str, int] = {}
+        for row in inventory_rows:
+            pid = row.get("productid")
+            if not pid:
+                continue
+            allocated_by_product[pid] = allocated_by_product.get(pid, 0) + int(row.get("quantity") or 0)
+
+        transformed_products = []
+        hsn_tax_map = _get_hsn_tax_map()
+        for product in products:
+            converted_product = convert_snake_to_camel(product)
+            product_id = converted_product.get("id")
+            global_stock = int(converted_product.get("stock") or 0)
+            allocated = int(allocated_by_product.get(product_id, 0))
+            available_stock = max(0, global_stock - allocated)
+
+            if 'hsnCodeId' in converted_product:
+                converted_product['hsnCode'] = converted_product.pop('hsnCodeId')
+
+            hsn_code_id = converted_product.get("hsnCode")
+            if hsn_code_id is not None and str(hsn_code_id).strip() != "":
+                converted_product["tax"] = hsn_tax_map.get(str(hsn_code_id), 0.0)
+            else:
+                converted_product["tax"] = 0.0
+
+            if 'sellingPrice' in converted_product and converted_product['sellingPrice']:
+                converted_product['displayPrice'] = converted_product['sellingPrice']
+            elif 'price' in converted_product:
+                converted_product['displayPrice'] = converted_product['price']
+
+            barcode_str = converted_product.get('barcode')
+            if isinstance(barcode_str, str) and barcode_str.strip():
+                converted_product['barcodes'] = [b.strip() for b in barcode_str.split(',') if b.strip()]
+            else:
+                converted_product['barcodes'] = []
+
+            if 'batchid' in converted_product and converted_product['batchid']:
+                converted_product['batchId'] = converted_product['batchid']
+            elif 'batchId' not in converted_product:
+                converted_product['batchId'] = None
+
+            converted_product["globalStock"] = global_stock
+            converted_product["allocatedStock"] = allocated
+            converted_product["availableStock"] = available_stock
+            converted_product["stock"] = available_stock
+            transformed_products.append(converted_product)
+
+        logger.debug(f"Returning {len(transformed_products)} products for billing (available stock).")
+        return transformed_products
+    except Exception as e:
+        logger.error(f"Error getting Supabase products for billing: {e}", exc_info=True)
+        return []
+
 def insert_product_to_supabase(product_data: dict) -> Optional[dict]:
     """Insert a product into Supabase"""
     try:
@@ -278,26 +392,72 @@ def update_product_in_supabase(product_id: str, update_data: dict) -> Optional[d
 
 def delete_product_from_supabase(product_id: str) -> bool:
     """
-    Delete a product from Supabase (billitems + storeinventory + products tables).
-    Does NOT touch the returns table - return records are preserved.
+    Delete a product from Supabase and all dependent table rows per schema FKs.
     """
     try:
         client = db.client
-        
-        # Delete references in billitems first
-        logger.info(f"Deleting references to product {product_id} in billitems...")
-        client.table('billitems').delete().eq('productid', product_id).execute()
-        logger.info(f"Product {product_id} references deleted from billitems")
-        
-        # Delete references in storeinventory
-        logger.info(f"Deleting references to product {product_id} in storeinventory...")
-        client.table('storeinventory').delete().eq('productid', product_id).execute()
-        logger.info(f"Product {product_id} references deleted from storeinventory")
-        
-        # Delete the product itself
-        logger.info(f"Deleting product {product_id} from products table...")
-        client.table('products').delete().eq('id', product_id).execute()
-        logger.info(f"Product {product_id} deleted from products table")
+
+        logger.info(f"Deleting dependent rows for product {product_id}...")
+
+        # replacements has two foreign keys to products
+        execute_with_retry(
+            lambda: client.table('replacements').delete().eq('replaced_product_id', product_id),
+            f"replacements (replaced_product_id) delete for product {product_id}",
+            retries=2,
+        )
+        execute_with_retry(
+            lambda: client.table('replacements').delete().eq('new_product_id', product_id),
+            f"replacements (new_product_id) delete for product {product_id}",
+            retries=2,
+        )
+
+        # Find transfer items to remove related scans first
+        transfer_items_resp = execute_with_retry(
+            lambda: client.table('inventory_transfer_items').select('id').eq('product_id', product_id),
+            f"inventory_transfer_items lookup for product {product_id}",
+            retries=2,
+        )
+        transfer_item_ids = [row.get("id") for row in (transfer_items_resp.data or []) if row.get("id")]
+        if transfer_item_ids:
+            execute_with_retry(
+                lambda: client.table('inventory_transfer_scans').delete().in_('transfer_item_id', transfer_item_ids),
+                f"inventory_transfer_scans delete for product {product_id}",
+                retries=2,
+            )
+
+        execute_with_retry(
+            lambda: client.table('inventory_transfer_items').delete().eq('product_id', product_id),
+            f"inventory_transfer_items delete for product {product_id}",
+            retries=2,
+        )
+
+        execute_with_retry(
+            lambda: client.table('damaged_inventory_events').delete().eq('product_id', product_id),
+            f"damaged_inventory_events delete for product {product_id}",
+            retries=2,
+        )
+        execute_with_retry(
+            lambda: client.table('returns').delete().eq('product_id', product_id),
+            f"returns delete for product {product_id}",
+            retries=2,
+        )
+        execute_with_retry(
+            lambda: client.table('billitems').delete().eq('productid', product_id),
+            f"billitems delete for product {product_id}",
+            retries=2,
+        )
+        execute_with_retry(
+            lambda: client.table('storeinventory').delete().eq('productid', product_id),
+            f"storeinventory delete for product {product_id}",
+            retries=2,
+        )
+        execute_with_retry(
+            lambda: client.table('products').delete().eq('id', product_id),
+            f"product delete {product_id}",
+            retries=2,
+        )
+
+        logger.info(f"Product {product_id} and dependent rows deleted from Supabase")
         
         return True
     except Exception as e:
@@ -473,7 +633,6 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
 def delete_product(product_id: str) -> Tuple[bool, str, int]:
     """
     Delete a product from local JSON and Supabase.
-    Does NOT delete from returns table - return records are preserved.
     Returns (success, message, status_code)
     """
     try:
@@ -487,6 +646,24 @@ def delete_product(product_id: str) -> Tuple[bool, str, int]:
         # Remove from local storage
         products.pop(product_index)
         save_products_data(products)
+
+        # Best-effort local dependent cleanup to match Supabase deletion behavior
+        try:
+            returns_data = get_returns_data()
+            filtered_returns = [r for r in returns_data if r.get("product_id") != product_id]
+            if len(filtered_returns) != len(returns_data):
+                save_returns_data(filtered_returns)
+        except Exception as local_returns_error:
+            logger.warning(f"Failed local returns cleanup for product {product_id}: {local_returns_error}")
+
+        try:
+            inventory_data = get_store_inventory_data()
+            filtered_inventory = [i for i in inventory_data if i.get("productid") != product_id]
+            if len(filtered_inventory) != len(inventory_data):
+                save_store_inventory_data(filtered_inventory)
+        except Exception as local_inventory_error:
+            logger.warning(f"Failed local storeinventory cleanup for product {product_id}: {local_inventory_error}")
+
         logger.info(f"Product {product_id} deleted from local JSON")
         
         # STEP 2: Delete from Supabase

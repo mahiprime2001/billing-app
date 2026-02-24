@@ -15,6 +15,9 @@ from utils.json_helpers import (
     save_bills_data,
     get_discounts_data,
     save_discounts_data,
+    get_products_data,
+    save_products_data,
+    get_store_inventory_data,
 )
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 from services import products_service
@@ -565,6 +568,54 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
         # Extract items from original bill_data (not snake-cased)
         items = bill_data.get("items", [])
         print(f"📦 Items: {len(items)}")
+
+        # Aggregate requested quantity by product for stock validation/reduction
+        requested_qty_by_product: Dict[str, int] = {}
+        for item in items:
+            product_id = item.get("product_id") or item.get("productid") or item.get("productId")
+            try:
+                qty = int(item.get("quantity") or 0)
+            except (TypeError, ValueError):
+                qty = 0
+            if not product_id or qty <= 0:
+                continue
+            requested_qty_by_product[product_id] = requested_qty_by_product.get(product_id, 0) + qty
+
+        # Local availability check: available = max(0, product.stock - assigned_in_storeinventory)
+        if requested_qty_by_product:
+            local_products = get_products_data()
+            local_inventory = get_store_inventory_data()
+            local_product_map = {p.get("id"): p for p in local_products if p.get("id")}
+            allocated_by_product: Dict[str, int] = {}
+            for row in local_inventory:
+                pid = row.get("productid")
+                if not pid:
+                    continue
+                allocated_by_product[pid] = allocated_by_product.get(pid, 0) + int(row.get("quantity") or 0)
+
+            for pid, req_qty in requested_qty_by_product.items():
+                product_row = local_product_map.get(pid)
+                if not product_row:
+                    return None, f"Product {pid} not found", 404
+                global_stock = int(product_row.get("stock") or 0)
+                allocated = int(allocated_by_product.get(pid, 0))
+                available = max(0, global_stock - allocated)
+                if req_qty > available:
+                    product_name = product_row.get("name", pid)
+                    return None, (
+                        f"Insufficient available stock for '{product_name}'. "
+                        f"Available: {available}, Requested: {req_qty}"
+                    ), 400
+
+            # Reduce local product stock and clamp to zero
+            for product in local_products:
+                pid = product.get("id")
+                if pid in requested_qty_by_product:
+                    current_stock = int(product.get("stock") or 0)
+                    product["stock"] = max(0, current_stock - requested_qty_by_product[pid])
+                    product["updatedat"] = datetime.now().isoformat()
+            save_products_data(local_products)
+
         # Save to local JSON first (offline-first)
         bills = get_bills_data()
         db_bill_data["items"] = items
@@ -587,7 +638,11 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
             supabase_synced = bool(supabase_response.data)
 
             if items:
-                client.table("billitems").delete().eq("billid", bill_id).execute()
+                execute_with_retry(
+                    lambda: client.table("billitems").delete().eq("billid", bill_id),
+                    f"billitems reset for bill {bill_id}",
+                    retries=2,
+                )
                 bill_items_for_db = []
                 for item in items:
                     bill_items_for_db.append(
@@ -602,7 +657,34 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
                         }
                     )
                 if bill_items_for_db:
-                    client.table("billitems").insert(bill_items_for_db).execute()
+                    execute_with_retry(
+                        lambda: client.table("billitems").insert(bill_items_for_db),
+                        f"billitems insert for bill {bill_id}",
+                        retries=2,
+                    )
+
+            # Reduce Supabase product stock and clamp to zero
+            if requested_qty_by_product:
+                product_ids = list(requested_qty_by_product.keys())
+                products_response = execute_with_retry(
+                    lambda: client.table("products").select("id, stock").in_("id", product_ids),
+                    f"products stock lookup for bill {bill_id}",
+                    retries=2,
+                )
+                for row in products_response.data or []:
+                    pid = row.get("id")
+                    if not pid:
+                        continue
+                    current_stock = int(row.get("stock") or 0)
+                    new_stock = max(0, current_stock - int(requested_qty_by_product.get(pid, 0)))
+                    execute_with_retry(
+                        lambda pid=pid, new_stock=new_stock: client.table("products").update({
+                            "stock": new_stock,
+                            "updatedat": datetime.now().isoformat(),
+                        }).eq("id", pid),
+                        f"products stock update {pid} for bill {bill_id}",
+                        retries=2,
+                    )
             if supabase_synced:
                 print("✅ Immediate Supabase sync completed for bill")
         except Exception as supabase_error:
@@ -647,13 +729,19 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
         try:
             client = db.client
             print(f"🗑️ Deleting from Supabase...")
-            # Delete related discounts first (foreign key constraint discounts_bill_fk)
+            # Delete related replacements first (foreign key constraint replacements_bill_fk)
+            execute_with_retry(
+                lambda: client.table("replacements").delete().eq("bill_id", bill_id),
+                f"replacements delete for bill {bill_id}",
+                retries=2,
+            )
+
+            # Delete related discounts (foreign key constraint discounts_bill_fk)
             related_discount_ids: List[str] = []
-            discounts_resp = (
-                client.table("discounts")
-                .select("discount_id")
-                .eq("bill_id", bill_id)
-                .execute()
+            discounts_resp = execute_with_retry(
+                lambda: client.table("discounts").select("discount_id").eq("bill_id", bill_id),
+                f"discounts lookup for bill {bill_id}",
+                retries=2,
             )
             related_discount_ids = [
                 d.get("discount_id")
@@ -662,7 +750,11 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
             ]
 
             if related_discount_ids:
-                client.table("discounts").delete().in_("discount_id", related_discount_ids).execute()
+                execute_with_retry(
+                    lambda: client.table("discounts").delete().in_("discount_id", related_discount_ids),
+                    f"discounts delete for bill {bill_id}",
+                    retries=2,
+                )
 
                 # Best-effort local JSON cleanup
                 try:
@@ -673,11 +765,19 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
                     save_discounts_data(remaining_discounts)
                 except Exception as local_discount_error:
                     logger.warning(
-                        f"Failed to update local discounts JSON for {bill_id}: {local_discount_error}"
+                            f"Failed to update local discounts JSON for {bill_id}: {local_discount_error}"
                     )
 
-            client.table("billitems").delete().eq("billid", bill_id).execute()
-            client.table("bills").delete().eq("id", bill_id).execute()
+            execute_with_retry(
+                lambda: client.table("billitems").delete().eq("billid", bill_id),
+                f"billitems delete for bill {bill_id}",
+                retries=2,
+            )
+            execute_with_retry(
+                lambda: client.table("bills").delete().eq("id", bill_id),
+                f"bill delete {bill_id}",
+                retries=2,
+            )
             print(f"✅ Deleted from Supabase")
         except Exception as supabase_error:
             logger.warning(

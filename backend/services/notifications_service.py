@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 
 from utils.supabase_db import db
+from utils.supabase_resilience import execute_with_retry
 from utils.json_helpers import get_notifications_data, save_notifications_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
@@ -42,14 +43,18 @@ def get_supabase_notifications() -> List[Dict]:
     """Get notifications directly from Supabase"""
     try:
         client = db.client
-        response = client.table("notifications").select("*").execute()
+        response = execute_with_retry(
+            lambda: client.table("notifications").select("*"),
+            "notifications",
+            retries=2,
+        )
         notifications = response.data or []
         
         transformed_notifications = [convert_snake_to_camel(notif) for notif in notifications]
         logger.debug(f"Returning {len(transformed_notifications)} notifications from Supabase.")
         return transformed_notifications
     except Exception as e:
-        logger.error(f"Error getting Supabase notifications: {e}", exc_info=True)
+        logger.warning(f"Error getting Supabase notifications (falling back to local): {e}")
         return []
 
 
@@ -144,7 +149,11 @@ def create_notification(notification_data: dict) -> Tuple[Optional[str], str, in
         # Best-effort Supabase sync now; queue handles retry on failure
         try:
             client = db.client
-            client.table('notifications').upsert(notification_data).execute()
+            execute_with_retry(
+                lambda: client.table('notifications').upsert(notification_data),
+                "notifications upsert",
+                retries=2,
+            )
         except Exception as supabase_error:
             logger.warning(
                 f"Notification {notification_data['id']} saved locally; Supabase sync deferred: {supabase_error}"
@@ -185,9 +194,18 @@ def mark_notification_as_read(notification_id: str) -> Tuple[bool, str, int]:
         notifications[notif_index].update(update_data)
         save_notifications_data(notifications)
         
-        # Update in Supabase
-        client = db.client
-        client.table('notifications').update(update_data).eq('id', notification_id).execute()
+        # Update in Supabase (best effort; local update already succeeded)
+        try:
+            client = db.client
+            execute_with_retry(
+                lambda: client.table('notifications').update(update_data).eq('id', notification_id),
+                "notifications update",
+                retries=2,
+            )
+        except Exception as supabase_error:
+            logger.warning(
+                f"Notification {notification_id} marked as read locally; Supabase sync deferred: {supabase_error}"
+            )
         
         logger.info(f"Notification {notification_id} marked as read")
         return True, "Notification marked as read", 200
@@ -216,9 +234,18 @@ def delete_notification(notification_id: str) -> Tuple[bool, str, int]:
         notifications.pop(notif_index)
         save_notifications_data(notifications)
         
-        # Delete from Supabase
-        client = db.client
-        client.table('notifications').delete().eq('id', notification_id).execute()
+        # Delete from Supabase (best effort; local delete already succeeded)
+        try:
+            client = db.client
+            execute_with_retry(
+                lambda: client.table('notifications').delete().eq('id', notification_id),
+                "notifications delete",
+                retries=2,
+            )
+        except Exception as supabase_error:
+            logger.warning(
+                f"Notification {notification_id} deleted locally; Supabase delete deferred: {supabase_error}"
+            )
         
         logger.info(f"Notification deleted {notification_id}")
         return True, "Notification deleted", 200

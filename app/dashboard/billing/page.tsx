@@ -73,6 +73,10 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  sellingPrice?: number;
+  selling_price?: number;
+  displayPrice?: number;
+  tax?: number;
   barcode?: string;
   stock?: number;
 }
@@ -81,8 +85,12 @@ interface BillItem {
   productId: string;
   productName: string;
   price: number;
+  sellingPrice?: number;
   quantity: number;
   total: number;
+  taxPercentage?: number;
+  hsnCode?: string;
+  damageReason?: string;
   isReplacementItem?: boolean;
   replacedProductId?: string;
   replacedProductName?: string;
@@ -256,6 +264,12 @@ export default function BillingPage() {
             processedData = data.map((product: any) => ({
               ...product,
               stock: product.stock || 0,
+              sellingPrice:
+                product.sellingPrice ??
+                product.selling_price ??
+                product.displayPrice ??
+                product.price ??
+                0,
             }));
           } else if (dataType === "customers") {
             // FIX: Normalize customer field names
@@ -286,6 +300,12 @@ export default function BillingPage() {
             return localResponse.data.map((product: any) => ({
               ...product,
               stock: product.stock || 0,
+              sellingPrice:
+                product.sellingPrice ??
+                product.selling_price ??
+                product.displayPrice ??
+                product.price ??
+                0,
             }));
           } else if (dataType === "customers") {
             // FIX: Normalize customer field names from local storage too
@@ -307,7 +327,7 @@ export default function BillingPage() {
   );
 
   const fetchProducts = useCallback(
-    () => fetchData("/api/supabase/products", "/api/local/products", "/api/local/products/update", "products"),
+    () => fetchData("/api/supabase/products-for-billing", "/api/local/products-for-billing", "/api/local/products/update", "products"),
     [fetchData]
   );
 
@@ -452,6 +472,15 @@ export default function BillingPage() {
     return Number.isFinite(parsed) ? parsed : 0;
   };
 
+  const getProductSellingPrice = (product: Product): number =>
+    parseNumber(
+      product.sellingPrice ??
+      product.selling_price ??
+      product.displayPrice ??
+      product.price ??
+      0
+    );
+
   const parseItems = (rawItems: unknown): BillItem[] => {
     let items: any[] = [];
 
@@ -468,7 +497,10 @@ export default function BillingPage() {
 
     return items.map((item: any) => {
       const quantity = parseNumber(item.quantity);
-      const price = parseNumber(item.price);
+      const sellingPrice = parseNumber(
+        item.sellingPrice ?? item.selling_price ?? item.displayPrice ?? item.price
+      );
+      const price = sellingPrice;
       const total = parseNumber(item.total || quantity * price);
 
       return {
@@ -476,7 +508,10 @@ export default function BillingPage() {
         productName: item.productName || item.product_name || item.productname || "Unknown Product",
         quantity,
         price,
+        sellingPrice,
         total,
+        taxPercentage: parseNumber(item.taxPercentage ?? item.tax_percentage ?? item.tax ?? item.gst),
+        hsnCode: item.hsnCode || item.hsn || item.hsn_code || item.hsnCodeId || item.hsn_code_id || "-",
         isReplacementItem: Boolean(item.isReplacementItem ?? item.is_replacement_item),
         replacedProductId:
           item.replacedProductId || item.replaced_product_id || item.replacedproductid || "",
@@ -494,7 +529,10 @@ export default function BillingPage() {
       : [];
     const itemsFromReplacement: BillItem[] = replacementRows.map((item: any) => {
       const quantity = parseNumber(item.quantity);
-      const price = parseNumber(item.price);
+      const sellingPrice = parseNumber(
+        item.sellingPrice ?? item.selling_price ?? item.displayPrice ?? item.price
+      );
+      const price = sellingPrice;
       const total = parseNumber(item.final_amount ?? item.finalAmount ?? quantity * price);
       return {
         productId: item.new_product_id || item.newProductId || item.productId || "",
@@ -502,7 +540,10 @@ export default function BillingPage() {
           item.new_product_name || item.newProductName || item.productName || "Replacement Item",
         quantity,
         price,
+        sellingPrice,
         total,
+        taxPercentage: parseNumber(item.taxPercentage ?? item.tax_percentage ?? item.tax ?? item.gst),
+        hsnCode: item.hsnCode || item.hsn || item.hsn_code || item.hsnCodeId || item.hsn_code_id || "-",
         isReplacementItem: true,
         replacedProductId:
           item.replaced_product_id || item.replacedProductId || item.replacedproductid || "",
@@ -640,8 +681,11 @@ export default function BillingPage() {
 
     console.log("addItemToBill: Adding product to bill", product, "Quantity:", desiredQty);
 
-    const price = product.price !== undefined && product.price !== null ? product.price : 0;
-    const availableStock = product.stock !== undefined && product.stock !== null ? product.stock : Infinity;
+    const price = getProductSellingPrice(product);
+    const availableStock =
+      product.stock !== undefined && product.stock !== null
+        ? Math.max(0, Number(product.stock) || 0)
+        : 0;
 
     const existingItemIndex = billItems.findIndex((item) => item.productId === product.id);
 
@@ -651,15 +695,16 @@ export default function BillingPage() {
     }
 
     if (newQuantity > availableStock) {
-      alert(
-        `Cannot add ${desiredQty} more units of ${product.name}. Only ${availableStock - (existingItemIndex >= 0 ? billItems[existingItemIndex].quantity : 0)} units available.`
-      );
+      const alreadyAdded = existingItemIndex >= 0 ? billItems[existingItemIndex].quantity : 0;
+      const remaining = Math.max(0, availableStock - alreadyAdded);
+      alert(`Cannot add ${desiredQty} more units of ${product.name}. Only ${remaining} units available.`);
       return;
     }
 
     if (existingItemIndex >= 0) {
       const updatedItems = [...billItems];
       updatedItems[existingItemIndex].quantity = newQuantity;
+      updatedItems[existingItemIndex].sellingPrice = price;
       updatedItems[existingItemIndex].total = updatedItems[existingItemIndex].quantity * price;
       setBillItems(updatedItems);
     } else {
@@ -667,8 +712,16 @@ export default function BillingPage() {
         productId: product.id,
         productName: product.name,
         price: price,
+        sellingPrice: price,
         quantity: desiredQty,
         total: price * desiredQty,
+        taxPercentage: parseNumber((product as any).tax),
+        hsnCode:
+          (product as any).hsnCode ||
+          (product as any).hsn_code ||
+          (product as any).hsnCodeId ||
+          (product as any).hsn_code_id ||
+          "-",
       };
       setBillItems([...billItems, newItem]);
     }
@@ -869,33 +922,6 @@ export default function BillingPage() {
   };
 
   const generateReceiptHtml = (bill: Bill, format: BillFormat): string => {
-    console.log("generateReceiptHtml: Bill data", bill);
-    console.log("generateReceiptHtml: System settings", systemSettings);
-
-    const isLetter = format.width === 216 && format.height === 279;
-    const isA4 = format.width === 210 && format.height === 297;
-    const isThermal = format.width === 80;
-
-    const maxWidth = isThermal ? "80mm" : isLetter ? "216mm" : isA4 ? "210mm" : `${format.width}mm`;
-
-    // FIX: Handle both camelCase and snake_case from settings
-    const settingsAny = systemSettings as any;
-    const companyName = bill.companyName || bill.storeName || systemSettings.companyName || settingsAny.company_name || settingsAny.companyname || "UNDEFINED";
-    const companyAddress = bill.companyAddress || bill.storeAddress || systemSettings.companyAddress || settingsAny.company_address || settingsAny.companyaddress || undefined;
-    const companyPhone = bill.companyPhone || bill.storePhone || systemSettings.companyPhone || settingsAny.company_phone || settingsAny.companyphone || undefined;
-    const companyEmail = bill.companyEmail || systemSettings.companyEmail || settingsAny.company_email || settingsAny.companyemail || undefined;
-    const gstin = bill.gstin || systemSettings.gstin || settingsAny.gstin || "";
-    const taxPercentage = bill.taxPercentage || systemSettings.taxPercentage || settingsAny.tax_percentage || 0;
-
-    console.log("generateReceiptHtml: Using company info", {
-      companyName,
-      companyAddress,
-      companyPhone,
-      companyEmail,
-      gstin,
-      taxPercentage,
-    });
-
     const toNumber = (value: unknown): number => {
       const num = Number(value);
       return Number.isFinite(num) ? num : 0;
@@ -904,82 +930,67 @@ export default function BillingPage() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
+    const settingsAny = systemSettings as any;
+    const companyName =
+      bill.companyName || bill.storeName || systemSettings.companyName || settingsAny.company_name || settingsAny.companyname || "UNDEFINED";
+    const companyAddress =
+      bill.companyAddress || bill.storeAddress || systemSettings.companyAddress || settingsAny.company_address || settingsAny.companyaddress || "";
+    const companyPhone =
+      bill.companyPhone || bill.storePhone || systemSettings.companyPhone || settingsAny.company_phone || settingsAny.companyphone || "";
+    const companyEmail =
+      bill.companyEmail || systemSettings.companyEmail || settingsAny.company_email || settingsAny.companyemail || "";
+    const gstin = bill.gstin || systemSettings.gstin || settingsAny.gstin || "";
+    const taxPercentage = toNumber(bill.taxPercentage || systemSettings.taxPercentage || settingsAny.tax_percentage || 0);
+    const isThermal = format.width === 80;
+    const pageSize = isThermal
+      ? "80mm auto"
+      : format.width === 216 && format.height === 279
+      ? "letter"
+      : format.width === 210 && format.height === 297
+      ? "A4"
+      : `${format.width}mm ${format.height === "auto" ? "auto" : `${format.height}mm`}`;
 
     const safeItems = (Array.isArray(bill.items) ? bill.items : []).map((item: any) => {
       const quantity = toNumber(item.quantity);
-      const price = toNumber(item.price);
-      const total = toNumber(item.total || quantity * price);
+      const sellingPrice = toNumber(item.sellingPrice ?? item.selling_price ?? item.displayPrice ?? item.price);
+      const total = toNumber(item.total || quantity * sellingPrice);
       const taxPercentageItem = toNumber(item.taxPercentage || item.tax_percentage || item.tax || item.gst || taxPercentage);
       const hsnCode = item.hsnCode || item.hsn || item.hsn_code || item.hsnCodeId || item.hsn_code_id || "-";
-      const productName = item.productName || item.product_name || item.productname || item.name || "Item";
-      const isReplacementItem = Boolean(item.isReplacementItem ?? item.is_replacement_item);
-      const replacedProductName =
-        item.replacedProductName || item.replaced_product_name || item.replacedproductname || "";
-      const finalAmount = toNumber(item.finalAmount || item.final_amount || total);
-      const damageReason = item.damageReason || item.damage_reason || item.reason || "";
-
       return {
-        ...item,
+        productName: item.productName || item.product_name || item.productname || item.name || "Item",
         quantity,
-        price,
+        sellingPrice,
         total,
         taxPercentageItem,
         hsnCode,
-        productName,
-        isReplacementItem,
-        replacedProductName,
-        finalAmount,
-        damageReason,
+        isReplacementItem: Boolean(item.isReplacementItem ?? item.is_replacement_item),
+        replacedProductName: item.replacedProductName || item.replaced_product_name || item.replacedproductname || "",
+        finalAmount: toNumber(item.finalAmount || item.final_amount || total),
       };
     });
 
     const subtotal = toNumber(bill.subtotal);
-    const computedSubtotal = safeItems.reduce((sum, item) => sum + toNumber(item.total), 0);
-    const resolvedSubtotal = subtotal > 0 ? subtotal : computedSubtotal;
+    const resolvedSubtotal = subtotal > 0 ? subtotal : safeItems.reduce((sum, item) => sum + item.total, 0);
     const discountPercentage = toNumber(bill.discountPercentage);
     const discountAmount = toNumber(bill.discountAmount);
-    const tax = toNumber(bill.tax);
-    const replacementAmount = toNumber(
-      (bill as any).replacementFinalAmount ?? (bill as any).replacement_final_amount
-    );
-    const isReplacement = Boolean((bill as any).isReplacement ?? (bill as any).is_replacement);
-    const paymentMethod = ((bill as any).paymentMethod || (bill as any).paymentmethod || "CASH").toUpperCase();
-    const originalBillId =
-      (bill as any).replacementOriginalBillId || (bill as any).replacement_original_bill_id || "";
-    const replacementReason =
-      (bill as any).replacementReason ||
-      (bill as any).replacement_reason ||
-      safeItems.find((i) => i.isReplacementItem && i.damageReason)?.damageReason ||
-      "";
-
+    const taxFallback = toNumber(bill.tax);
     const taxClassificationRows = safeItems.map((item) => {
       const taxableAmount = Math.max(0, item.total - (item.total * discountPercentage) / 100);
       const totalTax = (taxableAmount * item.taxPercentageItem) / 100;
       const cgst = totalTax / 2;
       const sgst = totalTax / 2;
-      return {
-        gst: item.taxPercentageItem,
-        hsnCode: item.hsnCode,
-        cgst,
-        sgst,
-        igst: 0,
-        totalTax,
-      };
+      return { gst: item.taxPercentageItem, hsnCode: item.hsnCode, cgst, sgst, igst: 0, totalTax };
     });
-
     const totalCGST = taxClassificationRows.reduce((sum, row) => sum + row.cgst, 0);
     const totalSGST = taxClassificationRows.reduce((sum, row) => sum + row.sgst, 0);
     const computedTaxAmount = taxClassificationRows.reduce((sum, row) => sum + row.totalTax, 0);
-    const totalTaxAmount = computedTaxAmount > 0 ? computedTaxAmount : tax;
-    const fallbackTotal = Math.max(0, resolvedSubtotal - discountAmount) + totalTaxAmount;
-    const billTotal = toNumber(bill.total);
-    const total =
-      billTotal > 0
-        ? billTotal
-        : isReplacement && replacementAmount > 0
-        ? replacementAmount
-        : fallbackTotal;
-
+    const totalTaxAmount = computedTaxAmount > 0 ? computedTaxAmount : taxFallback;
+    const replacementAmount = toNumber(
+      (bill as any).replacementFinalAmount ?? (bill as any).replacement_final_amount
+    );
+    const isReplacement = Boolean((bill as any).isReplacement ?? (bill as any).is_replacement);
+    const total = toNumber(bill.total) || Math.max(0, resolvedSubtotal - discountAmount) + totalTaxAmount;
+    const paymentMethod = ((bill as any).paymentMethod || (bill as any).paymentmethod || "CASH").toUpperCase();
     const dateValue = bill.date ? new Date(bill.date) : new Date();
     const dateString = Number.isNaN(dateValue.getTime()) ? new Date().toLocaleDateString() : dateValue.toLocaleDateString();
     const timeString = Number.isNaN(dateValue.getTime()) ? new Date().toLocaleTimeString() : dateValue.toLocaleTimeString();
@@ -988,67 +999,50 @@ export default function BillingPage() {
     return `<!DOCTYPE html>
 <html>
 <head>
-  <title>Invoice - ${bill.id}</title>
+  <meta charset="utf-8" />
+  <title>Invoice-${bill.id}</title>
   <style>
     @page {
-      size: ${isLetter ? "letter" : isA4 ? "A4" : `${format.width}mm ${format.height === "auto" ? "auto" : format.height + "mm"}`};
-      margin: ${format.margins.top}mm ${format.margins.right}mm ${format.margins.bottom}mm ${format.margins.left}mm;
+      size: ${pageSize};
+      margin: ${isThermal ? "0" : `${format.margins.top}mm ${format.margins.right}mm ${format.margins.bottom}mm ${format.margins.left}mm`};
     }
-    body {
-      font-family: 'Courier New', monospace;
-      max-width: ${maxWidth};
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      font-family: "Courier New", monospace;
+      color: #0b0b0b;
+      font-weight: 650;
+    }
+    .invoice-wrapper {
+      width: 100%;
+      max-width: ${isThermal ? "80mm" : `${format.width}mm`};
       margin: 0 auto;
-      font-size: ${isThermal ? "11px" : "12px"};
-      color: #000;
+      box-sizing: border-box;
+      background: #fff;
+      padding: 0;
+    }
+    .invoice-content {
+      width: 100%;
+      box-sizing: border-box;
       padding: ${isThermal ? "0 3mm" : "8mm"};
-      font-weight: bold;
-      line-height: 1.35;
-    }
-    .header, .footer {
-      text-align: center;
-      padding: ${isThermal ? "5px 0" : "8px 0"};
-    }
-    .company-name {
-      font-size: ${isThermal ? "15px" : "20px"};
-      font-weight: bold;
-      margin-bottom: 2px;
-    }
-    .company-details {
-      font-size: ${isThermal ? "9px" : "11px"};
-      line-height: 1.4;
+      font-size: ${isThermal ? "12px" : "13px"};
+      line-height: 1.6;
     }
     .line {
       border-top: 1px dashed #000;
       margin: 5px 0;
     }
-    .section {
-      margin: ${isThermal ? "6px 0" : "10px 0"};
-    }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 3px;
-      font-size: ${isThermal ? "9px" : "11px"};
-    }
-    .items-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 4px;
-      font-size: ${isThermal ? "9px" : "10px"};
-    }
-    .items-table th, .items-table td {
-      border: none;
-      border-bottom: 1px dashed #000;
-      padding: ${isThermal ? "2px 0" : "4px 2px"};
-      text-align: left;
-    }
-    .items-table td.number {
-      text-align: right;
+    .header {
+      text-align: center;
+      margin-bottom: 5px;
     }
     .tax-header, .tax-row {
       display: flex;
       justify-content: space-between;
-      font-size: 7px;
+      font-size: 9px;
     }
     .tax-header {
       border-bottom: 1px dashed #000;
@@ -1061,168 +1055,122 @@ export default function BillingPage() {
       margin-top: 2px;
       font-weight: bold;
     }
-    .tax-col { text-align: right; }
-    .tax-col-gst { width: 12%; text-align: left; }
-    .tax-col-hsn { width: 20%; text-align: left; }
-    .tax-col-mid { width: 17%; }
-    .tax-col-igst { width: 15%; }
-    .tax-col-tax { width: 19%; }
-    .totals {
-      margin-top: 8px;
-    }
-    .totals-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 3px;
-      font-size: ${isThermal ? "9px" : "11px"};
-    }
-    .totals-row.total {
-      font-weight: bold;
-      font-size: ${isThermal ? "13px" : "15px"};
-      border-top: 1px dashed #000;
-      padding-top: 4px;
-      margin-top: 5px;
-    }
-    .footer {
-      margin-top: ${isThermal ? "6px" : "12px"};
-      font-size: ${isThermal ? "9px" : "11px"};
+    .tax-col-gst { width: 12%; }
+    .tax-col-hsn { width: 20%; }
+    .tax-col-mid { width: 17%; text-align: right; }
+    .tax-col-igst { width: 15%; text-align: right; }
+    .tax-col-tax { width: 19%; text-align: right; }
+    @media print {
+      .invoice-wrapper {
+        width: ${isThermal ? "80mm" : "100%"};
+        max-width: ${isThermal ? "80mm" : `${format.width}mm`};
+      }
+      .invoice-content {
+        padding: ${isThermal ? "0 3mm" : "8mm"};
+      }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="company-name">${companyName}</div>
-    <div class="company-details">
-      ${companyAddress || ""}
-      ${companyPhone ? `<br>Ph: ${companyPhone}` : ""}
-      ${companyEmail ? `<br>Email: ${companyEmail}` : ""}
-      ${gstin ? `<br>GSTIN: ${gstin}` : ""}
-    </div>
-  </div>
-
-  <div class="line"></div>
-
-  <div class="section">
-    <div class="row">
-      <span>Invoice #${billNumber || "N/A"}</span>
-      <span>${dateString}</span>
-    </div>
-    <div class="row">
-      <span>Time: ${timeString}</span>
-      <span>Payment: ${paymentMethod}</span>
-    </div>
-    <div class="row"><span>Type: ${isReplacement ? "REPLACEMENT" : "STANDARD"}</span></div>
-    ${isReplacement && originalBillId ? `<div class="row"><span>Original Bill: ${originalBillId}</span></div>` : ""}
-    ${isReplacement && replacementReason ? `<div class="row"><span>Reason: ${replacementReason}</span></div>` : ""}
-    <div class="row"><span>Customer: ${bill.customerName || "Walk-in Customer"}</span></div>
-    ${bill.customerPhone ? `<div class="row"><span>Phone: ${bill.customerPhone}</span></div>` : ""}
-  </div>
-
-  <div class="line"></div>
-
-  <table class="items-table">
-    <thead>
-      <tr>
-        <th style="width: 48%;">Item</th>
-        <th style="width: 26%;" class="number">Qty x Rate</th>
-        <th style="width: 26%;" class="number">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${safeItems
-        .map((item: any) => {
-          return `
-        <tr>
-          <td>
-            ${item.productName}
-            ${item.isReplacementItem && item.replacedProductName
-              ? `<br><span style="font-size: 8px; color: #555;">Replaced: ${item.replacedProductName}</span>`
-              : ""}
-            ${item.isReplacementItem
-              ? `<br><span style="font-size: 8px; color: #333;">Replacement amount: ₹${formatNumber(
-                  item.finalAmount || item.total,
-                )}</span>`
-              : ""}
-          </td>
-          <td class="number">${item.quantity} x ₹${formatNumber(item.price)}</td>
-          <td class="number">₹${formatNumber(item.total)}</td>
-        </tr>`;
-        })
-        .join("")}
-    </tbody>
-  </table>
-
-  <div class="line"></div>
-
-  <div class="totals">
-    <div class="totals-row">
-      <span>Subtotal</span>
-      <span>₹${formatNumber(resolvedSubtotal)}</span>
-    </div>
-    ${discountAmount > 0
-      ? `
-    <div class="totals-row" style="color: #c00">
-      <span>Discount (${discountPercentage.toFixed(2)}%)</span>
-      <span>-₹${formatNumber(discountAmount)}</span>
-    </div>`
-      : ""
-    }
-    <div class="totals-row">
-      <span>Total Tax (CGST+SGST)</span>
-      <span>₹${formatNumber(totalTaxAmount)}</span>
-    </div>
-
-    <div style="margin-top: 6px; margin-bottom: 6px;">
-      <div style="font-size: 9px; margin-bottom: 3px;">Tax Classification</div>
-      <div class="tax-header">
-        <span class="tax-col-gst">GST%</span>
-        <span class="tax-col-hsn">HSN</span>
-        <span class="tax-col tax-col-mid">SGST</span>
-        <span class="tax-col tax-col-mid">CGST</span>
-        <span class="tax-col tax-col-igst">IGST</span>
-        <span class="tax-col tax-col-tax">Tax</span>
+  <div class="invoice-wrapper">
+    <div class="invoice-content">
+      <div class="header">
+        <div style="font-weight:bold;font-size:${isThermal ? "18px" : "20px"};">${companyName}</div>
+        ${companyAddress ? `<div style="font-size:12px;">${companyAddress}</div>` : ""}
+        ${companyPhone ? `<div style="font-size:12px;">Ph: ${companyPhone}</div>` : ""}
+        ${companyEmail ? `<div style="font-size:12px;">Email: ${companyEmail}</div>` : ""}
+        ${gstin ? `<div style="font-size:12px;">GSTIN: ${gstin}</div>` : ""}
       </div>
-      ${taxClassificationRows
-        .map(
-          (row) => `
-      <div class="tax-row">
-        <span class="tax-col-gst">${formatNumber(row.gst).replace(".00", "")}%</span>
-        <span class="tax-col-hsn">${row.hsnCode}</span>
-        <span class="tax-col tax-col-mid">₹${formatNumber(row.sgst)}</span>
-        <span class="tax-col tax-col-mid">₹${formatNumber(row.cgst)}</span>
-        <span class="tax-col tax-col-igst">₹${formatNumber(row.igst)}</span>
-        <span class="tax-col tax-col-tax">₹${formatNumber(row.totalTax)}</span>
-      </div>`,
-        )
-        .join("")}
-      <div class="tax-row tax-total">
-        <span class="tax-col-gst">Total</span>
-        <span class="tax-col-hsn">-</span>
-        <span class="tax-col tax-col-mid">₹${formatNumber(totalSGST)}</span>
-        <span class="tax-col tax-col-mid">₹${formatNumber(totalCGST)}</span>
-        <span class="tax-col tax-col-igst">₹0.00</span>
-        <span class="tax-col tax-col-tax">₹${formatNumber(totalTaxAmount)}</span>
+
+      <div class="line"></div>
+
+      <div style="font-size:12px;margin-bottom:7px;">
+        <div style="display:flex;justify-content:space-between;"><span>Invoice #${billNumber || "N/A"}</span><span>${dateString}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Time: ${timeString}</span><span>Payment: ${paymentMethod}</span></div>
+        <div>Customer: ${bill.customerName || "Walk-in Customer"}</div>
+        ${bill.customerPhone ? `<div>Phone: ${bill.customerPhone}</div>` : ""}
+        <div>Type: ${isReplacement ? "REPLACEMENT" : "STANDARD"}</div>
+      </div>
+
+      <div class="line"></div>
+
+      <div style="font-size:12px;margin-bottom:7px;">
+        ${safeItems
+          .map((item) => `
+          <div style="margin-bottom:3px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:1px;">
+              <span style="flex:1;">${item.productName}</span>
+              <span style="margin-left:5px;">${item.quantity}×₹${formatNumber(item.sellingPrice)}</span>
+              <span style="margin-left:5px;min-width:64px;text-align:right;">₹${formatNumber(item.total)}</span>
+            </div>
+            ${item.isReplacementItem && item.replacedProductName ? `<div style="font-size:10px;font-weight:bold;">Replaced: ${item.replacedProductName}</div>` : ""}
+            ${item.isReplacementItem ? `<div style="font-size:10px;">Replacement amount: ₹${formatNumber(item.finalAmount)}</div>` : ""}
+          </div>
+        `)
+          .join("")}
+      </div>
+
+      <div class="line"></div>
+
+      <div style="font-size:12px;">
+        <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>₹${formatNumber(resolvedSubtotal)}</span></div>
+      </div>
+
+      <div style="font-size:10px;margin-top:7px;margin-bottom:7px;">
+        <div style="font-weight:bold;margin-bottom:3px;font-size:11px;">Tax Classification</div>
+        <div class="tax-header">
+          <span class="tax-col-gst">GST%</span>
+          <span class="tax-col-hsn">HSN</span>
+          <span class="tax-col-mid">SGST</span>
+          <span class="tax-col-mid">CGST</span>
+          <span class="tax-col-igst">IGST</span>
+          <span class="tax-col-tax">Tax</span>
+        </div>
+        ${taxClassificationRows
+          .map(
+            (row) => `
+            <div class="tax-row">
+              <span class="tax-col-gst">${toNumber(row.gst)}%</span>
+              <span class="tax-col-hsn">${row.hsnCode}</span>
+              <span class="tax-col-mid">₹${formatNumber(row.sgst)}</span>
+              <span class="tax-col-mid">₹${formatNumber(row.cgst)}</span>
+              <span class="tax-col-igst">₹${formatNumber(row.igst)}</span>
+              <span class="tax-col-tax">₹${formatNumber(row.totalTax)}</span>
+            </div>
+          `,
+          )
+          .join("")}
+        <div class="tax-row tax-total">
+          <span class="tax-col-gst">Total</span>
+          <span class="tax-col-hsn">-</span>
+          <span class="tax-col-mid">₹${formatNumber(totalSGST)}</span>
+          <span class="tax-col-mid">₹${formatNumber(totalCGST)}</span>
+          <span class="tax-col-igst">₹0.00</span>
+          <span class="tax-col-tax">₹${formatNumber(totalTaxAmount)}</span>
+        </div>
+      </div>
+
+      <div style="font-size:12px;margin-top:7px;">
+        ${discountAmount > 0 ? `<div style="display:flex;justify-content:space-between;"><span>Discount (${discountPercentage.toFixed(2)}%)</span><span>-₹${formatNumber(discountAmount)}</span></div>` : ""}
+        <div style="display:flex;justify-content:space-between;"><span>Total Tax (CGST+SGST)</span><span>₹${formatNumber(totalTaxAmount)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:bold;margin-top:5px;font-size:${isThermal ? "17px" : "18px"};">
+          <span>TOTAL</span>
+          <span>₹${formatNumber(total)}</span>
+        </div>
+        ${isReplacement && replacementAmount > 0 ? `<div style="display:flex;justify-content:space-between;font-size:10px;"><span>Replacement Amount</span><span>₹${formatNumber(replacementAmount)}</span></div>` : ""}
+      </div>
+
+      <div class="line"></div>
+
+      <div style="text-align:center;font-size:12px;margin-top:7px;">
+        <div>This is a computer-generated invoice</div>
+        ${discountAmount > 0 ? `<div style="font-weight:bold;margin-top:3px;margin-bottom:3px;">You have saved ₹${formatNumber(discountAmount)} by shopping here!</div>` : ""}
+        <div style="margin-top:5px;">
+          <div style="font-weight:bold;">Thank You!</div>
+          <div>Please visit us again</div>
+        </div>
       </div>
     </div>
-
-    <div class="totals-row total">
-      <span>TOTAL</span>
-      <span>₹${formatNumber(total)}</span>
-    </div>
-    ${isReplacement && replacementAmount > 0 ? `
-    <div class="totals-row" style="font-size: ${isThermal ? "8px" : "10px"}; color: #444;">
-      <span>Replacement Final Amount</span>
-      <span>₹${formatNumber(replacementAmount)}</span>
-    </div>` : ""}
-  </div>
-
-  <div class="line"></div>
-
-  <div class="footer">
-    <p style="margin: 3px 0;">This is a computer-generated invoice</p>
-    ${discountAmount > 0 ? `<p style="margin: 3px 0;">You have saved ₹${formatNumber(discountAmount)} by shopping here!</p>` : ""}
-    <p style="margin: 5px 0;"><strong>Thank You!</strong></p>
-    <p style="margin: 3px 0;">Please visit us again</p>
   </div>
 </body>
 </html>`;
@@ -1247,10 +1195,34 @@ export default function BillingPage() {
     const receiptHtml = generateReceiptHtml(billToPrint, format);
 
     try {
-      await unifiedPrint({ htmlContent: receiptHtml });
+      const existingFrames = document.querySelectorAll("iframe.billing-print-frame");
+      existingFrames.forEach((frame) => frame.remove());
+      const frame = document.createElement("iframe");
+      frame.className = "billing-print-frame";
+      frame.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none;";
+      document.body.appendChild(frame);
+      const doc = frame.contentDocument || frame.contentWindow?.document;
+      if (doc) {
+        doc.open();
+        doc.write(receiptHtml);
+        doc.close();
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        frame.contentWindow?.focus();
+        frame.contentWindow?.print();
+        setTimeout(() => {
+          if (frame.parentNode) frame.parentNode.removeChild(frame);
+        }, 2000);
+      } else {
+        await unifiedPrint({ htmlContent: receiptHtml });
+      }
     } catch (printError) {
       console.error("Failed to send print job", printError);
-      alert("Failed to print bill. Please check console for details.");
+      try {
+        await unifiedPrint({ htmlContent: receiptHtml });
+      } catch (fallbackError) {
+        console.error("Fallback print failed", fallbackError);
+        alert("Failed to print bill. Please check console for details.");
+      }
     }
   };
 
@@ -1434,7 +1406,7 @@ export default function BillingPage() {
                   Create Bill
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-6xl max-h-[92vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create New Bill</DialogTitle>
                   <DialogDescription>Enter customer details and add products to create a bill</DialogDescription>
@@ -1523,216 +1495,207 @@ export default function BillingPage() {
 
                   <Separator />
 
-                  {/* Add Products */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Add Products</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                      <div className="md:col-span-3 space-y-2">
-                        <Label htmlFor="productSearch">Search by name or scan barcode</Label>
-                        <Input
-                          id="productSearch"
-                          placeholder="Scan a barcode and press Enter, or type product name"
-                          value={productSearchTerm}
-                          onChange={(e) => setProductSearchTerm(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleProductSearchAdd();
-                            }
-                          }}
-                        />
-                        {lastScanValue && (
-                          <p className="text-xs text-green-600">
-                            Last scanned: {lastScanValue}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="quantity">Quantity</Label>
-                        <Input
-                          id="quantity"
-                          type="number"
-                          min="1"
-                          value={quantity}
-                          onChange={(e) => setQuantity(Number.parseInt(e.target.value) || 1)}
-                        />
-                        <Button className="w-full" onClick={handleProductSearchAdd} disabled={productSearchTerm.trim() === ""}>
-                          Add Item
-                        </Button>
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-6">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg">Products</CardTitle>
+                        <CardDescription>Search or scan and add items quickly</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                          <div className="md:col-span-3 space-y-2">
+                            <Label htmlFor="productSearch">Search by name or barcode</Label>
+                            <Input
+                              id="productSearch"
+                              placeholder="Scan barcode and press Enter, or type product name"
+                              value={productSearchTerm}
+                              onChange={(e) => setProductSearchTerm(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleProductSearchAdd();
+                                }
+                              }}
+                            />
+                            {lastScanValue && <p className="text-xs text-green-600">Last scanned: {lastScanValue}</p>}
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="quantity">Quantity</Label>
+                            <Input
+                              id="quantity"
+                              type="number"
+                              min="1"
+                              value={quantity}
+                              onChange={(e) => setQuantity(Number.parseInt(e.target.value) || 1)}
+                            />
+                            <Button className="w-full" onClick={handleProductSearchAdd} disabled={productSearchTerm.trim() === ""}>
+                              Add Item
+                            </Button>
+                          </div>
+                        </div>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {productSearchResults.map((product: Product) => {
-                        const productBarcodes = getProductBarcodes(product);
-                        return (
-                          <Card
-                            key={product.id}
-                            className="cursor-pointer hover:shadow-md transition-shadow"
-                            onClick={() => addItemToBill(product)}
-                          >
-                            <CardContent className="p-3">
-                              <div className="flex justify-between">
-                                <div>
-                                  <div className="font-medium">{product.name}</div>
-                                  {productBarcodes.length > 0 && (
-                                    <div className="text-xs text-muted-foreground">
-                                      {productBarcodes.join(", ")}
+                        <div className="grid md:grid-cols-2 gap-3 max-h-[42vh] overflow-y-auto pr-1">
+                          {productSearchResults.map((product: Product) => {
+                            const productBarcodes = getProductBarcodes(product);
+                            const sellingPrice = getProductSellingPrice(product);
+                            return (
+                              <Card
+                                key={product.id}
+                                className="cursor-pointer hover:shadow-md transition-shadow border-dashed"
+                                onClick={() => addItemToBill(product)}
+                              >
+                                <CardContent className="p-3">
+                                  <div className="flex justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="font-medium truncate">{product.name}</div>
+                                      {productBarcodes.length > 0 && (
+                                        <div className="text-xs text-muted-foreground truncate">{productBarcodes.join(", ")}</div>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
-                                <div className="text-right">
-                                  <div className="font-semibold">₹{(product.price ?? 0).toFixed(2)}</div>
-                                  <div className="text-xs text-muted-foreground">Stock: {product.stock ?? "∞"}</div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                      {productSearchResults.length === 0 && (
-                        <div className="text-sm text-muted-foreground">
-                          No matching products. Try a different name or barcode.
+                                    <div className="text-right shrink-0">
+                                      <div className="font-semibold">₹{sellingPrice.toFixed(2)}</div>
+                                      <div className="text-[11px] text-muted-foreground">
+                                        Cost: ₹{(Number(product.price) || 0).toFixed(2)}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">Stock: {Math.max(0, Number(product.stock) || 0)}</div>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                          {productSearchResults.length === 0 && (
+                            <div className="text-sm text-muted-foreground">No matching products. Try another name or barcode.</div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
+                      </CardContent>
+                    </Card>
 
-                  {/* Bill Items */}
-                  {billItems.length > 0 && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Bill Items</h3>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Product</TableHead>
-                            <TableHead>Price</TableHead>
-                            <TableHead>Quantity</TableHead>
-                            <TableHead>Total</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {billItems.map((item) => (
-                            <TableRow key={item.productId}>
-                              <TableCell>{item.productName}</TableCell>
-                              <TableCell>₹{item.price.toFixed(2)}</TableCell>
-                              <TableCell>{item.quantity}</TableCell>
-                              <TableCell>₹{item.total.toFixed(2)}</TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => removeItemFromBill(item.productId)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-
-                      {/* Discount and Total Section */}
-                      <div className="bg-gray-50 p-6 rounded-lg space-y-4">
-                        <div className="flex justify-between text-base">
-                          <span>Subtotal</span>
-                          <span className="font-medium">₹{subtotal.toFixed(2)}</span>
-                        </div>
-
-                        <div className="flex justify-between text-base">
-                          <span>Tax ({taxRate.toFixed(1)}%)</span>
-                          <span className="font-medium">₹{tax.toFixed(2)}</span>
-                        </div>
-
-                        {/* Discount Section */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label className="flex items-center text-base">
-                          <Percent className="h-4 w-4 mr-2" />
-                          Discount
-                        </Label>
-                        <div className="flex items-center space-x-2">
-                          <Select value={discountMode} onValueChange={(val) => setDiscountMode(val as "percent" | "amount")}>
-                            <SelectTrigger className="w-28">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="percent">Percent</SelectItem>
-                              <SelectItem value="amount">Amount</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            value={discountValue}
-                            onChange={(e) => handleDiscountChange(Number.parseFloat(e.target.value) || 0)}
-                            className="w-24 text-right"
-                          />
-                          <span className="text-sm">{discountMode === "percent" ? "%" : "₹"}</span>
-                        </div>
-                      </div>
-
-                      {/* Quick Discount Presets */}
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <span className="text-sm text-gray-600 mr-2">Quick:</span>
-                        {discountMode === "percent"
-                          ? discountPresets.map((preset) => (
-                              <Button
-                                key={preset}
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDiscountChange(preset)}
-                                className="text-xs h-7"
-                              >
-                                {preset}%
-                              </Button>
-                            ))
-                          : [50, 100, 200, 500].map((amt) => (
-                              <Button
-                                key={amt}
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDiscountChange(amt)}
-                                className="text-xs h-7"
-                              >
-                                ₹{amt}
-                              </Button>
-                            ))}
-                        <Button variant="outline" size="sm" onClick={() => handleDiscountChange(0)} className="text-xs h-7">
-                          Clear
-                        </Button>
-                      </div>
-
-                      {discountAmount > 0 && (
-                        <div className="flex justify-between text-base text-red-600">
-                          <span>
-                            Discount ({(discountMode === "percent" ? discountValue : (discountAmount / Math.max(subtotal, 0.0001)) * 100).toFixed(1)}%)
-                          </span>
-                          <span className="font-medium">-₹{discountAmount.toFixed(2)}</span>
-                        </div>
-                      )}
-                        </div>
-
-                        <Separator />
-
-                        {/* Total */}
-                        <div className="flex justify-between items-center text-xl font-bold">
-                          <span>Total</span>
-                          <span>₹{total.toFixed(2)}</span>
-                        </div>
-
-                        {discountAmount > 0 && (
-                          <div className="text-center">
-                            <p className="text-sm text-green-600 font-medium">
-                              Customer saves ₹{discountAmount.toFixed(2)} ({effectiveDiscountPct.toFixed(1)}% discount)
-                            </p>
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg">Added Items</CardTitle>
+                        <CardDescription>{billItems.length} item(s) in this bill</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {billItems.length > 0 ? (
+                          <div className="max-h-[36vh] overflow-y-auto border rounded-md">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Product</TableHead>
+                                  <TableHead className="text-right">Price</TableHead>
+                                  <TableHead className="text-right">Qty</TableHead>
+                                  <TableHead className="text-right">Total</TableHead>
+                                  <TableHead />
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {billItems.map((item) => (
+                                  <TableRow key={item.productId}>
+                                    <TableCell className="max-w-[140px] truncate">{item.productName}</TableCell>
+                                    <TableCell className="text-right">₹{item.price.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">{item.quantity}</TableCell>
+                                    <TableCell className="text-right">₹{item.total.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">
+                                      <Button variant="outline" size="sm" onClick={() => removeItemFromBill(item.productId)}>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground border rounded-md p-4 text-center">
+                            Added items will appear here.
                           </div>
                         )}
-                      </div>
-                    </div>
-                  )}
+
+                        <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+                          <div className="flex justify-between text-base">
+                            <span>Subtotal</span>
+                            <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-base">
+                            <span>Tax ({taxRate.toFixed(1)}%)</span>
+                            <span className="font-medium">₹{tax.toFixed(2)}</span>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Label className="flex items-center text-base">
+                                <Percent className="h-4 w-4 mr-2" />
+                                Discount
+                              </Label>
+                              <div className="flex items-center space-x-2">
+                                <Select value={discountMode} onValueChange={(val) => setDiscountMode(val as "percent" | "amount")}>
+                                  <SelectTrigger className="w-28">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="percent">Percent</SelectItem>
+                                    <SelectItem value="amount">Amount</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={discountValue}
+                                  onChange={(e) => handleDiscountChange(Number.parseFloat(e.target.value) || 0)}
+                                  className="w-24 text-right"
+                                />
+                                <span className="text-sm">{discountMode === "percent" ? "%" : "₹"}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 items-center">
+                              <span className="text-sm text-gray-600 mr-2">Quick:</span>
+                              {discountMode === "percent"
+                                ? discountPresets.map((preset) => (
+                                    <Button key={preset} variant="outline" size="sm" onClick={() => handleDiscountChange(preset)} className="text-xs h-7">
+                                      {preset}%
+                                    </Button>
+                                  ))
+                                : [50, 100, 200, 500].map((amt) => (
+                                    <Button key={amt} variant="outline" size="sm" onClick={() => handleDiscountChange(amt)} className="text-xs h-7">
+                                      ₹{amt}
+                                    </Button>
+                                  ))}
+                              <Button variant="outline" size="sm" onClick={() => handleDiscountChange(0)} className="text-xs h-7">
+                                Clear
+                              </Button>
+                            </div>
+
+                            {discountAmount > 0 && (
+                              <div className="flex justify-between text-base text-red-600">
+                                <span>
+                                  Discount ({(discountMode === "percent" ? discountValue : (discountAmount / Math.max(subtotal, 0.0001)) * 100).toFixed(1)}%)
+                                </span>
+                                <span className="font-medium">-₹{discountAmount.toFixed(2)}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <Separator />
+
+                          <div className="flex justify-between items-center text-xl font-bold">
+                            <span>Total</span>
+                            <span>₹{total.toFixed(2)}</span>
+                          </div>
+
+                          {discountAmount > 0 && (
+                            <div className="text-center">
+                              <p className="text-sm text-green-600 font-medium">
+                                Customer saves ₹{discountAmount.toFixed(2)} ({effectiveDiscountPct.toFixed(1)}% discount)
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
 
                 <DialogFooter>
@@ -1984,11 +1947,37 @@ export default function BillingPage() {
                     const parsed = Number(value);
                     return Number.isFinite(parsed) ? parsed : 0;
                   };
-                  const selectedBillItems = Array.isArray(selectedBill.items) ? selectedBill.items : [];
+                  const selectedBillItems = (Array.isArray(selectedBill.items) ? selectedBill.items : []).map((item: any) => {
+                    const isReplacementItem = Boolean(item.isReplacementItem || item.is_replacement_item);
+                    const quantity = toNumber(item.quantity);
+                    const price = toNumber(
+                      item.sellingPrice ??
+                      item.selling_price ??
+                      item.displayPrice ??
+                      item.price
+                    );
+                    const baseTotal = toNumber(item.total || quantity * price);
+                    const finalAmount = toNumber(item.finalAmount || item.final_amount || baseTotal);
+                    const displayTotal =
+                      selectedBill.isReplacement || isReplacementItem
+                        ? (finalAmount > 0 ? finalAmount : baseTotal)
+                        : baseTotal;
+
+                    return {
+                      ...item,
+                      productName: item.productName || item.product_name || item.productname || "Unknown Product",
+                      quantity,
+                      price,
+                      finalAmount,
+                      displayTotal,
+                      isReplacementItem,
+                      replacedProductName: item.replacedProductName || item.replaced_product_name || "",
+                    };
+                  });
                   const subtotalValue =
                     toNumber(selectedBill.subtotal) > 0
                       ? toNumber(selectedBill.subtotal)
-                      : selectedBillItems.reduce((sum: number, item: any) => sum + toNumber(item?.total), 0);
+                      : selectedBillItems.reduce((sum: number, item: any) => sum + toNumber(item?.displayTotal), 0);
                   return (
                     <>
                 {/* Customer & Bill Information */}
@@ -2040,33 +2029,25 @@ export default function BillingPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedBill.items?.map((item: any, index: number) => {
-                        // Handle both camelCase and snake_case field names
-                        const productName = item.productName || item.product_name || item.productname || "Unknown Product";
-                        const price = item.price || 0;
-                        const quantity = item.quantity || 0;
-                        const total = item.total || 0;
-                        const finalAmount = item.finalAmount || item.final_amount || total;
-
+                      {selectedBillItems.map((item: any, index: number) => {
                         return (
                           <TableRow key={index}>
                             <TableCell>
-                              <div>{productName}</div>
-                              {(item.isReplacementItem || item.is_replacement_item) &&
-                                (item.replacedProductName || item.replaced_product_name) && (
+                              <div>{item.productName}</div>
+                              {item.isReplacementItem && item.replacedProductName && (
                                   <div className="text-xs text-muted-foreground">
-                                    Replaced: {item.replacedProductName || item.replaced_product_name}
+                                    Replaced: {item.replacedProductName}
                                   </div>
                                 )}
-                              {(item.isReplacementItem || item.is_replacement_item) && (
+                              {item.isReplacementItem && (
                                 <div className="text-xs text-muted-foreground">
-                                  Replacement amount: ₹{finalAmount.toLocaleString("en-IN")}
+                                  Replacement amount: ₹{item.finalAmount.toLocaleString("en-IN")}
                                 </div>
                               )}
                             </TableCell>
-                            <TableCell>₹{price.toFixed(2)}</TableCell>
-                            <TableCell>{quantity}</TableCell>
-                            <TableCell>₹{total.toFixed(2)}</TableCell>
+                            <TableCell>₹{item.price.toFixed(2)}</TableCell>
+                            <TableCell>{item.quantity}</TableCell>
+                            <TableCell>₹{item.displayTotal.toFixed(2)}</TableCell>
                           </TableRow>
                         );
                       })}

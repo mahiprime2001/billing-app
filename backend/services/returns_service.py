@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from utils.supabase_db import db
+from utils.supabase_resilience import execute_with_retry
 from utils.json_helpers import get_returns_data, save_returns_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
@@ -66,13 +67,17 @@ def get_supabase_returns() -> List[Dict]:
     """Get returns directly from Supabase"""
     try:
         client = db.client
-        response = client.table("returns").select("*").execute()
+        response = execute_with_retry(
+            lambda: client.table("returns").select("*"),
+            "returns",
+            retries=2,
+        )
         returns = response.data or []
         transformed_returns = [convert_snake_to_camel(ret) for ret in returns]
         logger.debug(f"Returning {len(transformed_returns)} returns from Supabase.")
         return transformed_returns
     except Exception as e:
-        logger.error(f"Error getting Supabase returns: {e}", exc_info=True)
+        logger.warning(f"Error getting Supabase returns (falling back to local): {e}")
         return []
 
 # ============================================
@@ -160,7 +165,11 @@ def create_return(return_data: dict) -> Tuple[Optional[str], str, int]:
         # Best-effort Supabase sync now; queue handles retry on failure
         try:
             client = db.client
-            client.table('returns').upsert(return_data).execute()
+            execute_with_retry(
+                lambda: client.table('returns').upsert(return_data),
+                "returns upsert",
+                retries=2,
+            )
         except Exception as supabase_error:
             logger.warning(
                 f"Return {return_data['return_id']} saved locally; Supabase sync deferred: {supabase_error}"
@@ -206,7 +215,11 @@ def update_return_status(return_id: str, status: str) -> Tuple[bool, str, int]:
         # Update in Supabase
         try:
             client = db.client
-            supabase_response = client.table('returns').update(update_data).eq('return_id', return_id).execute()
+            supabase_response = execute_with_retry(
+                lambda: client.table('returns').update(update_data).eq('return_id', return_id),
+                "returns update",
+                retries=2,
+            )
             
             if not supabase_response.data:
                 logger.warning(f"No rows updated in Supabase for return_id {return_id}")
