@@ -915,6 +915,8 @@ export default function BillingPage() {
       const isReplacementItem = Boolean(item.isReplacementItem ?? item.is_replacement_item);
       const replacedProductName =
         item.replacedProductName || item.replaced_product_name || item.replacedproductname || "";
+      const finalAmount = toNumber(item.finalAmount || item.final_amount || total);
+      const damageReason = item.damageReason || item.damage_reason || item.reason || "";
 
       return {
         ...item,
@@ -926,6 +928,8 @@ export default function BillingPage() {
         productName,
         isReplacementItem,
         replacedProductName,
+        finalAmount,
+        damageReason,
       };
     });
 
@@ -942,6 +946,11 @@ export default function BillingPage() {
     const paymentMethod = ((bill as any).paymentMethod || (bill as any).paymentmethod || "CASH").toUpperCase();
     const originalBillId =
       (bill as any).replacementOriginalBillId || (bill as any).replacement_original_bill_id || "";
+    const replacementReason =
+      (bill as any).replacementReason ||
+      (bill as any).replacement_reason ||
+      safeItems.find((i) => i.isReplacementItem && i.damageReason)?.damageReason ||
+      "";
 
     const taxClassificationRows = safeItems.map((item) => {
       const taxableAmount = Math.max(0, item.total - (item.total * discountPercentage) / 100);
@@ -1104,6 +1113,7 @@ export default function BillingPage() {
     </div>
     <div class="row"><span>Type: ${isReplacement ? "REPLACEMENT" : "STANDARD"}</span></div>
     ${isReplacement && originalBillId ? `<div class="row"><span>Original Bill: ${originalBillId}</span></div>` : ""}
+    ${isReplacement && replacementReason ? `<div class="row"><span>Reason: ${replacementReason}</span></div>` : ""}
     <div class="row"><span>Customer: ${bill.customerName || "Walk-in Customer"}</span></div>
     ${bill.customerPhone ? `<div class="row"><span>Phone: ${bill.customerPhone}</span></div>` : ""}
   </div>
@@ -1127,6 +1137,11 @@ export default function BillingPage() {
             ${item.productName}
             ${item.isReplacementItem && item.replacedProductName
               ? `<br><span style="font-size: 8px; color: #555;">Replaced: ${item.replacedProductName}</span>`
+              : ""}
+            ${item.isReplacementItem
+              ? `<br><span style="font-size: 8px; color: #333;">Replacement amount: ₹${formatNumber(
+                  item.finalAmount || item.total,
+                )}</span>`
               : ""}
           </td>
           <td class="number">${item.quantity} x ₹${formatNumber(item.price)}</td>
@@ -1995,6 +2010,16 @@ export default function BillingPage() {
                       {selectedBill.isReplacement && selectedBill.replacementOriginalBillId && (
                         <div>Original Bill: {selectedBill.replacementOriginalBillId}</div>
                       )}
+                      {selectedBill.isReplacement && (() => {
+                        const reason =
+                          (selectedBill as any).replacementReason ||
+                          (selectedBill as any).replacement_reason ||
+                          (Array.isArray(selectedBill.items)
+                            ? selectedBill.items.find((i: any) => i.isReplacementItem && (i.damageReason || i.damage_reason))
+                            : undefined)?.damageReason ||
+                          "";
+                        return reason ? <div>Reason: {reason}</div> : null;
+                      })()}
                       {selectedBill.taxPercentage !== undefined && selectedBill.taxPercentage > 0 && (
                         <div>Tax Rate: {selectedBill.taxPercentage}%</div>
                       )}
@@ -2021,6 +2046,7 @@ export default function BillingPage() {
                         const price = item.price || 0;
                         const quantity = item.quantity || 0;
                         const total = item.total || 0;
+                        const finalAmount = item.finalAmount || item.final_amount || total;
 
                         return (
                           <TableRow key={index}>
@@ -2032,6 +2058,11 @@ export default function BillingPage() {
                                     Replaced: {item.replacedProductName || item.replaced_product_name}
                                   </div>
                                 )}
+                              {(item.isReplacementItem || item.is_replacement_item) && (
+                                <div className="text-xs text-muted-foreground">
+                                  Replacement amount: ₹{finalAmount.toLocaleString("en-IN")}
+                                </div>
+                              )}
                             </TableCell>
                             <TableCell>₹{price.toFixed(2)}</TableCell>
                             <TableCell>{quantity}</TableCell>

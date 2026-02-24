@@ -241,6 +241,7 @@ def get_supabase_bills_with_details() -> List[Dict]:
                         "quantity": quantity,
                         "price": price,
                         "final_amount": line_total,
+                        "damage_reason": replacement.get("damage_reason") or replacement.get("reason"),
                     }
                 )
 
@@ -348,6 +349,8 @@ def get_supabase_bills_with_details() -> List[Dict]:
                             "replacedProductId": replacement_item.get("replaced_product_id"),
                             "replaced_product_name": replacement_item.get("replaced_product_name"),
                             "replacedProductName": replacement_item.get("replaced_product_name"),
+                            "final_amount": replacement_item.get("final_amount"),
+                            "finalAmount": replacement_item.get("final_amount"),
                         }
                     )
 
