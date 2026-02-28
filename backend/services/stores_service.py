@@ -11,7 +11,16 @@ from collections import defaultdict
 
 from utils.supabase_db import db
 from utils.supabase_resilience import execute_with_retry
-from utils.json_helpers import get_stores_data, save_stores_data, get_store_inventory_data, save_store_inventory_data
+from utils.json_helpers import (
+    get_stores_data,
+    save_stores_data,
+    get_store_inventory_data,
+    save_store_inventory_data,
+    get_products_data,
+    save_products_data,
+    get_store_damage_returns_data,
+    save_store_damage_returns_data,
+)
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 from utils.concurrency_guard import extract_base_markers, safe_update_with_conflict_check
 
@@ -920,3 +929,134 @@ def resolve_damaged_inventory_event(event_id: str, resolution_data: Dict[str, An
     except Exception as e:
         logger.error(f"Error resolving damaged inventory event {event_id}: {e}", exc_info=True)
         return False, str(e), 500
+
+
+def get_store_damage_returns(
+    store_id: Optional[str] = None,
+    status: Optional[str] = None,
+) -> Tuple[List[Dict], int]:
+    """List rows from store_damage_returns with optional filters."""
+    try:
+        client = db.client
+        query = client.table("store_damage_returns").select("*, products(name, barcode), stores(name)")
+        if store_id:
+            query = query.eq("store_id", store_id)
+        if status:
+            query = query.eq("status", status)
+        response = query.order("created_at", desc=True).execute()
+        rows = response.data or []
+
+        # Refresh local cache for offline viewing.
+        try:
+            save_store_damage_returns_data(rows)
+        except Exception as cache_err:
+            logger.warning(f"Failed to refresh store_damage_returns local cache: {cache_err}")
+
+        return [convert_snake_to_camel(row) for row in rows], 200
+    except Exception as e:
+        logger.error(f"Error getting store damage returns: {e}", exc_info=True)
+        local_rows = get_store_damage_returns_data()
+        if store_id:
+            local_rows = [r for r in local_rows if str(r.get("store_id")) == str(store_id)]
+        if status:
+            local_rows = [r for r in local_rows if str(r.get("status")) == str(status)]
+        return [convert_snake_to_camel(r) for r in local_rows], 200
+
+
+def mark_store_damage_return_repaired(row_id: str, payload: Dict[str, Any]) -> Tuple[bool, str, int]:
+    """
+    Mark a store damaged-return row as repaired and add quantity back to products.stock.
+    """
+    try:
+        client = db.client
+        now_iso = datetime.now().isoformat()
+        lookup = client.table("store_damage_returns").select("*").eq("id", row_id).limit(1).execute()
+        if not lookup.data:
+            return False, "Store damaged return not found", 404
+
+        row = lookup.data[0]
+        if row.get("status") == "repaired":
+            return True, "Already repaired", 200
+
+        restock_qty = int(payload.get("restockQty") or payload.get("restock_qty") or row.get("quantity") or 0)
+        if restock_qty <= 0:
+            return False, "restockQty must be greater than 0", 400
+
+        product_id = row.get("product_id")
+        if not product_id:
+            return False, "product_id missing in damaged return row", 400
+
+        # Update global products stock
+        product_resp = client.table("products").select("id, stock").eq("id", product_id).limit(1).execute()
+        if not product_resp.data:
+            return False, "Product not found", 404
+        current_stock = int(product_resp.data[0].get("stock") or 0)
+        new_stock = current_stock + restock_qty
+        client.table("products").update({"stock": new_stock, "updatedat": now_iso}).eq("id", product_id).execute()
+
+        update_data = {
+            "status": "repaired",
+            "repaired_qty": restock_qty,
+            "repaired_by": payload.get("repairedBy") or payload.get("repaired_by"),
+            "repaired_at": now_iso,
+            "repair_notes": payload.get("repairNotes") or payload.get("repair_notes"),
+            "updated_at": now_iso,
+        }
+        client.table("store_damage_returns").update(update_data).eq("id", row_id).execute()
+
+        # Best-effort local cache sync
+        try:
+            products = get_products_data()
+            for p in products:
+                if str(p.get("id")) == str(product_id):
+                    p["stock"] = int(p.get("stock") or 0) + restock_qty
+                    p["updatedat"] = now_iso
+                    break
+            save_products_data(products)
+
+            rows = get_store_damage_returns_data()
+            for r in rows:
+                if str(r.get("id")) == str(row_id):
+                    r.update(update_data)
+                    break
+            save_store_damage_returns_data(rows)
+        except Exception as local_err:
+            logger.warning(f"Local cache update warning after repairing store damage return {row_id}: {local_err}")
+
+        return True, "Store damaged return marked as repaired", 200
+    except Exception as e:
+        logger.error(f"Error marking store damaged return repaired {row_id}: {e}", exc_info=True)
+        # Offline fallback: update only local JSON cache and mark as pending cloud sync.
+        try:
+            now_iso = datetime.now().isoformat()
+            rows = get_store_damage_returns_data()
+            target = next((r for r in rows if str(r.get("id")) == str(row_id)), None)
+            if not target:
+                return False, str(e), 500
+
+            restock_qty = int(payload.get("restockQty") or payload.get("restock_qty") or target.get("quantity") or 0)
+            if restock_qty <= 0:
+                return False, "restockQty must be greater than 0", 400
+
+            update_data = {
+                "status": "repaired",
+                "repaired_qty": restock_qty,
+                "repaired_by": payload.get("repairedBy") or payload.get("repaired_by"),
+                "repaired_at": now_iso,
+                "repair_notes": payload.get("repairNotes") or payload.get("repair_notes"),
+                "updated_at": now_iso,
+                "cloud_sync_pending": True,
+            }
+            target.update(update_data)
+            save_store_damage_returns_data(rows)
+
+            products = get_products_data()
+            for p in products:
+                if str(p.get("id")) == str(target.get("product_id")):
+                    p["stock"] = int(p.get("stock") or 0) + restock_qty
+                    p["updatedat"] = now_iso
+                    break
+            save_products_data(products)
+            return True, "Saved locally (offline fallback). Cloud sync pending.", 202
+        except Exception:
+            return False, str(e), 500

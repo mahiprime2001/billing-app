@@ -183,6 +183,20 @@ def save_returns_data(returns: List[Dict]) -> bool:
 
 
 # ============================================
+# STORE DAMAGED RETURNS
+# ============================================
+
+def get_store_damage_returns_data() -> List[Dict]:
+    """Get store damaged-return rows from local JSON (PRIMARY source)"""
+    return _safe_json_load(Config.STORE_DAMAGE_RETURNS_FILE, [])
+
+
+def save_store_damage_returns_data(rows: List[Dict]) -> bool:
+    """Save store damaged-return rows to local JSON (PRIMARY storage)"""
+    return _safe_json_dump(Config.STORE_DAMAGE_RETURNS_FILE, rows)
+
+
+# ============================================
 # DISCOUNTS
 # ============================================
 

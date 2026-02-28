@@ -8,6 +8,8 @@ import os
 import sys
 from typing import Optional, List, Dict, Any
 import logging
+import httpx
+import utils.supabase_circuit as supabase_circuit
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +67,24 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 try:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    class _ResilientHTTPClient(httpx.Client):
+        def request(self, method, url, *args, **kwargs):  # type: ignore[override]
+            if supabase_circuit.is_offline():
+                raise httpx.ConnectTimeout("Supabase offline circuit is open")
+            try:
+                response = super().request(method, url, *args, **kwargs)
+                supabase_circuit.mark_success()
+                return response
+            except Exception:
+                supabase_circuit.mark_failure()
+                raise
+
+    supabase.postgrest.session = _ResilientHTTPClient(
+        http2=False,
+        timeout=httpx.Timeout(25.0, connect=6.0),
+        limits=httpx.Limits(max_connections=40, max_keepalive_connections=10, keepalive_expiry=45.0),
+        verify=True,
+    )
     logger.info("✅ Supabase client initialized successfully")
 except Exception as e:
     logger.error(f"❌ Failed to initialize Supabase client: {e}")
@@ -78,6 +98,18 @@ class SupabaseDB:
     
     def __init__(self):
         self.client = supabase
+
+    def is_available(self) -> bool:
+        if supabase_circuit.is_offline():
+            if not supabase_circuit.should_probe():
+                return False
+            try:
+                self.client.table("app_config").select("id").limit(1).execute()
+                supabase_circuit.mark_success()
+            except Exception:
+                supabase_circuit.mark_failure()
+                return False
+        return True
     
     # ==========================================
     # STORES

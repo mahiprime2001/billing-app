@@ -8,6 +8,7 @@ from typing import Callable, TypeVar
 
 import httpcore
 import httpx
+import utils.supabase_circuit as supabase_circuit
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +23,14 @@ def execute_with_retry(build_query: Callable[[], T], label: str, retries: int = 
     """
     attempt = 0
     last_err = None
+    if supabase_circuit.is_offline():
+        raise httpx.ConnectTimeout("Supabase offline circuit is open")
+
     while attempt <= retries:
         try:
-            return build_query().execute()
+            response = build_query().execute()
+            supabase_circuit.mark_success()
+            return response
         except (
             httpx.RemoteProtocolError,
             httpcore.RemoteProtocolError,
@@ -34,7 +40,14 @@ def execute_with_retry(build_query: Callable[[], T], label: str, retries: int = 
             httpcore.WriteError,
             httpx.ConnectError,
             httpcore.ConnectError,
+            httpx.ConnectTimeout,
+            httpcore.ConnectTimeout,
+            httpx.ReadTimeout,
+            httpcore.ReadTimeout,
+            httpx.WriteTimeout,
+            httpcore.WriteTimeout,
         ) as err:
+            supabase_circuit.mark_failure()
             last_err = err
             if attempt >= retries:
                 break

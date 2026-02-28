@@ -378,3 +378,32 @@ def resolve_damaged_product(event_id):
     except Exception as e:
         logger.error(f"Error in resolve_damaged_product: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+@stores_bp.route('/store-damage-returns', methods=['GET'])
+def get_store_damage_returns():
+    """Get store damaged-return rows for admin management."""
+    try:
+        store_id = request.args.get('storeId') or request.args.get('store_id')
+        status = request.args.get('status')
+        rows, status_code = stores_service.get_store_damage_returns(store_id, status)
+        if status_code == 200:
+            return jsonify(rows), 200
+        return jsonify({'error': 'Failed to fetch store damage returns'}), status_code
+    except Exception as e:
+        logger.error(f"Error in get_store_damage_returns: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@stores_bp.route('/store-damage-returns/<row_id>/repair', methods=['PATCH'])
+def repair_store_damage_return(row_id):
+    """Mark a store damaged-return row as repaired and restock product inventory."""
+    try:
+        payload = request.json or {}
+        success, message, status_code = stores_service.mark_store_damage_return_repaired(row_id, payload)
+        if success:
+            return jsonify({'message': message}), status_code
+        return jsonify({'error': message}), status_code
+    except Exception as e:
+        logger.error(f"Error in repair_store_damage_return: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500

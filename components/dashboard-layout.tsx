@@ -76,7 +76,7 @@ const menuItems: MenuItem[] = [
   { title: "Stores", url: "/dashboard/stores", icon: Store },
   { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3 },
   { title: "Billing", url: "/dashboard/billing", icon: Receipt },
-  { title: "Returns", url: "/dashboard/returns", icon: Undo2 }, // Added Returns tab
+  { title: "Damaged Stock", url: "/dashboard/damaged-products", icon: Undo2 },
   { title: "Discounts", url: "/dashboard/discounts", icon: Percent },
   { title: "Settings", url: "/dashboard/settings", icon: Settings },
 ]

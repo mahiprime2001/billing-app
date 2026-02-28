@@ -214,7 +214,7 @@ export const NotificationBell: React.FC = () => {
   }
 
   const getNotificationLink = (type: string): string | undefined => {
-    if (type === "RETURN_REQUEST") return "/dashboard/returns"
+    if (type === "RETURN_REQUEST") return "/dashboard/damaged-products"
     if (type === "DISCOUNT_REQUEST") return "/dashboard/discounts"
     return undefined
   }
@@ -272,7 +272,7 @@ export const NotificationBell: React.FC = () => {
       userName,
       isRead: false,
       createdAt,
-      link: "/dashboard/returns",
+      link: "/dashboard/damaged-products",
       relatedId: returnId,
       isVirtual: true,
     }
