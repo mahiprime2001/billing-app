@@ -553,7 +553,7 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
     const format = billFormats[formatName] || billFormats.A4
 
     const bill = {
-      id: `INV-${Date.now()}`,
+      id: `inv-${Math.random().toString(36).slice(2, 10)}`,
       storeId: selectedStore.id,
       storeName: selectedStore.name,
       storeAddress: selectedStore.address,
@@ -965,7 +965,7 @@ const { data: products = [] } = useSWR<Product[]>(process.env.NEXT_PUBLIC_BACKEN
                       <PrintButton
                         htmlContent={generateReceiptHtml(
                           {
-                            id: `INV-${Date.now()}`, // Placeholder ID for preview printing
+                            id: `inv-${Math.random().toString(36).slice(2, 10)}`, // Placeholder ID for preview printing
                             storeId: selectedStore.id,
                             storeName: selectedStore.name,
                             storeAddress: selectedStore.address,

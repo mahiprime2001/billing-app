@@ -13,10 +13,13 @@ interface StoreDamageReturnRow {
   productId?: string
   quantity?: number
   reason?: string
+  reasonType?: string
   status?: "sent_to_admin" | "received_admin" | "repaired" | "discarded"
+  resolutionStatus?: string
   damageOrigin?: string
   createdAt?: string
   repairedAt?: string
+  resolvedAt?: string
   products?: { name?: string; barcode?: string }
   stores?: { name?: string }
 }
@@ -26,6 +29,7 @@ export default function DamagedProductsPage() {
   const [loading, setLoading] = useState(true)
   const [workingId, setWorkingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [reasonFilter, setReasonFilter] = useState<string>("all")
 
   const loadRows = async () => {
     setLoading(true)
@@ -49,8 +53,8 @@ export default function DamagedProductsPage() {
     loadRows()
   }, [])
 
-  const handleRepair = async (row: StoreDamageReturnRow) => {
-    if (!confirm("Mark this damaged product as repaired and add quantity back to inventory?")) {
+  const handleRepair = async (row: StoreDamageReturnRow, resolutionStatus: string) => {
+    if (!confirm("Mark this item as resolved and add quantity back to inventory?")) {
       return
     }
     try {
@@ -60,7 +64,8 @@ export default function DamagedProductsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           restockQty: row.quantity || 0,
-          repairNotes: "Repaired by admin from damaged stock page",
+          resolutionStatus,
+          resolutionNotes: "Resolved by admin from damaged stock page",
         }),
       })
       if (!response.ok) {
@@ -77,6 +82,7 @@ export default function DamagedProductsPage() {
   }
 
   const pendingRows = rows.filter((r) => r.status !== "repaired" && r.status !== "discarded")
+  const filteredRows = reasonFilter === "all" ? rows : rows.filter((row) => row.reasonType === reasonFilter)
 
   return (
     <DashboardLayout>
@@ -88,10 +94,23 @@ export default function DamagedProductsPage() {
               Products returned from stores due to transport/store damage. Repair and re-add to inventory.
             </p>
           </div>
-          <Button variant="outline" onClick={loadRows}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <select
+              className="border rounded-md px-2 py-1 text-sm"
+              value={reasonFilter}
+              onChange={(e) => setReasonFilter(e.target.value)}
+            >
+              <option value="all">All Reasons</option>
+              <option value="damaged">Damaged</option>
+              <option value="modification">Needs Modification</option>
+              <option value="low_sales">Low Sales</option>
+              <option value="other">Other</option>
+            </select>
+            <Button variant="outline" onClick={loadRows}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -127,7 +146,7 @@ export default function DamagedProductsPage() {
               <div className="text-center py-12 text-gray-500">Loading damaged stock...</div>
             ) : error ? (
               <div className="text-center py-12 text-red-600">{error}</div>
-            ) : rows.length > 0 ? (
+            ) : filteredRows.length > 0 ? (
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -136,38 +155,57 @@ export default function DamagedProductsPage() {
                       <TableHead>Store</TableHead>
                       <TableHead>Product</TableHead>
                       <TableHead>Qty</TableHead>
+                      <TableHead>Reason Type</TableHead>
                       <TableHead>Origin</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Resolution</TableHead>
                       <TableHead>Reason</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead>Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((row) => (
+                    {filteredRows.map((row) => (
                       <TableRow key={row.id}>
                         <TableCell className="font-medium">{row.id}</TableCell>
                         <TableCell>{row.stores?.name || "-"}</TableCell>
                         <TableCell>{row.products?.name || row.productId || "N/A"}</TableCell>
                         <TableCell>{row.quantity || 0}</TableCell>
+                        <TableCell className="capitalize">{row.reasonType || "-"}</TableCell>
                         <TableCell>{row.damageOrigin || "-"}</TableCell>
                         <TableCell>
                           <Badge variant={row.status === "repaired" ? "default" : "secondary"}>
                             {row.status || "sent_to_admin"}
                           </Badge>
                         </TableCell>
+                        <TableCell className="capitalize">{row.resolutionStatus || "-"}</TableCell>
                         <TableCell className="max-w-60 truncate">{row.reason || "-"}</TableCell>
                         <TableCell>{row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-"}</TableCell>
                         <TableCell>
-                          {row.status !== "repaired" ? (
+                          {row.status !== "repaired" && row.resolutionStatus !== "fixed" && row.resolutionStatus !== "modified" && row.resolutionStatus !== "returned_to_store" ? (
                             <Button
                               size="sm"
-                              onClick={() => handleRepair(row)}
+                              onClick={() =>
+                                handleRepair(
+                                  row,
+                                  row.reasonType === "modification"
+                                    ? "modified"
+                                    : row.reasonType === "low_sales"
+                                    ? "returned_to_store"
+                                    : "fixed",
+                                )
+                              }
                               disabled={workingId === row.id}
                               className="bg-green-600 hover:bg-green-700"
                             >
                               <Wrench className="h-4 w-4 mr-1" />
-                              {workingId === row.id ? "Saving..." : "Mark Repaired"}
+                              {workingId === row.id
+                                ? "Saving..."
+                                : row.reasonType === "modification"
+                                ? "Mark Modified"
+                                : row.reasonType === "low_sales"
+                                ? "Return to Store"
+                                : "Mark Fixed"}
                             </Button>
                           ) : (
                             <span className="text-sm text-green-700">Done</span>

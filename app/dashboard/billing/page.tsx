@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard-layout";
 import OfflineBanner from "@/components/OfflineBanner";
@@ -46,6 +46,7 @@ import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw, ArrowU
 import { Separator } from "@/components/ui/separator";
 import { Upload } from "lucide-react";
 import { unifiedPrint } from "@/app/utils/printUtils";
+import PrintableInvoice, { type PrintableInvoiceData } from "@/components/printable-invoice";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface BillFormat {
@@ -151,6 +152,17 @@ type BillSortKey = "date" | "total" | "discount" | "customer" | "items";
 
 export default function BillingPage() {
   const router = useRouter();
+  const getStoredAdminName = () => {
+    if (typeof window === "undefined") return undefined;
+    const raw = localStorage.getItem("adminUser");
+    if (!raw) return undefined;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed?.name;
+    } catch {
+      return undefined;
+    }
+  };
   const [isOnline, setIsOnline] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -167,6 +179,10 @@ export default function BillingPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [billSortKey, setBillSortKey] = useState<BillSortKey>("date");
   const [billSortDirection, setBillSortDirection] = useState<"asc" | "desc">("desc");
+  const [printBill, setPrintBill] = useState<Bill | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+  const printPaperSize = "Thermal 80mm";
+  const [adminUser, setAdminUser] = useState<{ name?: string; role?: string; email?: string } | null>(null);
 
   // Form state
   const [customerName, setCustomerName] = useState(WALK_IN_CUSTOMER_NAME);
@@ -198,6 +214,15 @@ export default function BillingPage() {
 
     if (typeof window !== "undefined") {
       localStorage.setItem("adminLoggedIn", "true");
+      const storedAdmin = localStorage.getItem("adminUser");
+      if (storedAdmin) {
+        try {
+          const parsed = JSON.parse(storedAdmin);
+          setAdminUser(parsed);
+        } catch (parseError) {
+          console.error("Failed to parse admin user from localStorage", parseError);
+        }
+      }
     }
 
     // Load system settings
@@ -364,6 +389,12 @@ export default function BillingPage() {
           const replacementOriginalBillId =
             bill.replacementOriginalBillId ?? bill.replacement_original_bill_id ?? "";
           const paymentMethod = bill.paymentMethod ?? bill.paymentmethod ?? "";
+          const createdBy =
+            bill.createdBy ||
+            bill.createdby ||
+            bill.created_by ||
+            adminUser?.name ||
+            getStoredAdminName();
 
           return {
             ...bill,
@@ -378,6 +409,7 @@ export default function BillingPage() {
             replacementFinalAmount,
             replacementOriginalBillId,
             paymentMethod,
+            createdBy,
           };
         });
 
@@ -408,6 +440,12 @@ export default function BillingPage() {
           const replacementOriginalBillId =
             bill.replacementOriginalBillId ?? bill.replacement_original_bill_id ?? "";
           const paymentMethod = bill.paymentMethod ?? bill.paymentmethod ?? "";
+          const createdBy =
+            bill.createdBy ||
+            bill.createdby ||
+            bill.created_by ||
+            adminUser?.name ||
+            getStoredAdminName();
 
           return {
             ...bill,
@@ -422,11 +460,12 @@ export default function BillingPage() {
             replacementFinalAmount,
             replacementOriginalBillId,
             paymentMethod,
+            createdBy,
           };
         });
       }
     }
-  }, [isOnline]);
+  }, [isOnline, adminUser]);
 
   const fetchCustomers = useCallback(
     () => fetchData("/api/supabase/customers", "/api/local/customers", "/api/local/customers/update", "customers"),
@@ -799,6 +838,17 @@ export default function BillingPage() {
     const { subtotal, tax, discountAmount, total, effectiveDiscountPct, taxRate } = calculateTotals();
     const selectedCustomer =
       customersData?.find((c) => c.id === selectedCustomerId) || WALK_IN_CUSTOMER_FALLBACK;
+    const createdBy =
+      adminUser?.name ||
+      (() => {
+        if (typeof window === "undefined") return undefined;
+        try {
+          const stored = localStorage.getItem("adminUser");
+          return stored ? JSON.parse(stored)?.name : undefined;
+        } catch {
+          return undefined;
+        }
+      })();
 
     const newBill: Bill = {
       id: Date.now().toString(),
@@ -822,6 +872,7 @@ export default function BillingPage() {
       companyEmail: systemSettings.companyEmail,
       gstin: systemSettings.gstin,
       billFormat: selectedBillFormat,
+      createdBy: createdBy || undefined,
     };
 
     console.log("createBill: Bill payload", newBill);
@@ -921,6 +972,68 @@ export default function BillingPage() {
     setIsCustomerViewDialogOpen(true);
   };
 
+  const buildPrintableInvoice = (bill: Bill): PrintableInvoiceData => {
+    const toNumber = (value: unknown): number => {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : 0;
+    };
+    const settingsAny = systemSettings as any;
+    const companyName =
+      bill.companyName || bill.storeName || systemSettings.companyName || settingsAny.company_name || settingsAny.companyname || "UNDEFINED";
+    const companyAddress =
+      bill.companyAddress || bill.storeAddress || systemSettings.companyAddress || settingsAny.company_address || settingsAny.companyaddress || "";
+    const companyPhone =
+      bill.companyPhone || bill.storePhone || systemSettings.companyPhone || settingsAny.company_phone || settingsAny.companyphone || "";
+    const companyEmail =
+      bill.companyEmail || systemSettings.companyEmail || settingsAny.company_email || settingsAny.companyemail || "";
+    const gstin = bill.gstin || systemSettings.gstin || settingsAny.gstin || "";
+
+    const items = (Array.isArray(bill.items) ? bill.items : []).map((item: any) => {
+      const quantity = toNumber(item.quantity);
+      const price = toNumber(item.sellingPrice ?? item.selling_price ?? item.displayPrice ?? item.price ?? item.unit_price);
+      const total = toNumber(item.total ?? item.item_total ?? quantity * price);
+      const taxPercentage = toNumber(item.taxPercentage || item.tax_percentage || item.tax || item.gst || bill.taxPercentage || 0);
+      const hsnCode = item.hsnCode || item.hsn || item.hsn_code || item.hsnCodeId || item.hsn_code_id || "-";
+      const replacementTag = item.replacementTag || (item.isReplacementItem && item.replacedProductName
+        ? `Replaced: ${item.replacedProductName}`
+        : "");
+      return {
+        name: item.productName || item.product_name || item.productname || item.name || "Item",
+        quantity,
+        price,
+        total,
+        taxPercentage,
+        hsnCode,
+        replacementTag,
+      };
+    });
+
+    const billedBy =
+      adminUser?.name || getStoredAdminName() || (bill as any).billedBy || bill.createdBy || "N/A";
+
+    return {
+      id: bill.id,
+      companyName,
+      companyAddress,
+      companyPhone,
+      companyEmail,
+      gstin,
+      storeAddress: bill.storeAddress || bill.storeAddress,
+      customerName: bill.customerName || "Walk-in Customer",
+      customerPhone: bill.customerPhone || "",
+      billedBy,
+      paymentMethod: bill.paymentMethod || (bill as any).paymentmethod || "CASH",
+      timestamp: bill.date || bill.timestamp || new Date().toISOString(),
+      subtotal: toNumber(bill.subtotal),
+      total: toNumber(bill.total),
+      discountPercentage: toNumber(bill.discountPercentage),
+      discountAmount: toNumber(bill.discountAmount),
+      taxAmount: toNumber(bill.taxAmount || bill.tax),
+      items,
+      isReplacementBill: Boolean((bill as any).isReplacement ?? (bill as any).is_replacement),
+    };
+  };
+
   const generateReceiptHtml = (bill: Bill, format: BillFormat): string => {
     const toNumber = (value: unknown): number => {
       const num = Number(value);
@@ -994,7 +1107,7 @@ export default function BillingPage() {
     const dateValue = bill.date ? new Date(bill.date) : new Date();
     const dateString = Number.isNaN(dateValue.getTime()) ? new Date().toLocaleDateString() : dateValue.toLocaleDateString();
     const timeString = Number.isNaN(dateValue.getTime()) ? new Date().toLocaleTimeString() : dateValue.toLocaleTimeString();
-    const billNumber = bill.id?.startsWith("BILL-") ? bill.id.substring(5, 17) : bill.id;
+    const billNumber = bill.id?.startsWith("inv-") ? bill.id.substring(4, 16) : bill.id;
 
     return `<!DOCTYPE html>
 <html>
@@ -1181,18 +1294,12 @@ export default function BillingPage() {
     console.log("handlePrintBill: System settings", systemSettings);
     console.log("handlePrintBill: Bill items", billToPrint.items);
 
-    const formatName = billToPrint.billFormat || selectedBillFormat;
-    const defaultFormat: BillFormat = {
-      width: 210,
-      height: 297,
-      margins: { top: 10, bottom: 10, left: 10, right: 10 },
-      unit: "mm",
-    };
-    const format = billFormats[formatName] || billFormats["A4"] || defaultFormat;
+    const printable = buildPrintableInvoice(billToPrint);
+    setPrintBill(billToPrint);
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
-    console.log("handlePrintBill: Using bill format", format);
-
-    const receiptHtml = generateReceiptHtml(billToPrint, format);
+    const printOuter = printRef.current?.outerHTML || "";
+    const receiptHtml = generatePrintHTML(printOuter, printPaperSize, printable.id || "invoice");
 
     try {
       const existingFrames = document.querySelectorAll("iframe.billing-print-frame");
@@ -1224,6 +1331,73 @@ export default function BillingPage() {
         alert("Failed to print bill. Please check console for details.");
       }
     }
+  };
+
+  const generatePrintHTML = (printContent: string, paperSize: string, invoiceId: string): string => {
+    const getPageStyles = (): string => {
+      if (paperSize === "Thermal 58mm") {
+        return `
+          @page { size: 58mm auto; margin: 0; }
+          body { width: 58mm; margin: 0; padding: 2mm; }
+        `;
+      }
+      return `
+        @page { size: 80mm auto; margin: 0; }
+        body { width: 80mm; margin: 0; padding: 2mm; }
+      `;
+    };
+
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Invoice-${invoiceId}</title>
+          <style>
+            ${getPageStyles()}
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
+            html, body {
+              font-family: "Courier New", monospace;
+              font-size: ${paperSize.includes("Thermal") ? "12px" : "14px"};
+              line-height: 1.5;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+              background: white;
+              color: black;
+              height: auto;
+            }
+            @media print {
+              html, body {
+                margin: 0 !important;
+                overflow: visible !important;
+                height: auto !important;
+              }
+              @page { margin: 0; }
+            }
+            .print-container {
+              width: 100%;
+              max-width: 100%;
+              padding: 0;
+              margin: 0 auto;
+            }
+            .invoice-wrapper {
+              break-after: avoid-page;
+              page-break-after: avoid;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-container">
+            ${printContent}
+          </div>
+        </body>
+      </html>
+    `;
   };
 
   const filteredBills = useMemo(() => {
@@ -2267,6 +2441,15 @@ export default function BillingPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      </div>
+      <div style={{ display: "none" }}>
+        {printBill && (
+          <PrintableInvoice
+            ref={printRef}
+            invoice={buildPrintableInvoice(printBill)}
+            paperSize={printPaperSize}
+          />
+        )}
       </div>
     </DashboardLayout>
   );

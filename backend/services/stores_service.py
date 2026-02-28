@@ -994,8 +994,18 @@ def mark_store_damage_return_repaired(row_id: str, payload: Dict[str, Any]) -> T
         new_stock = current_stock + restock_qty
         client.table("products").update({"stock": new_stock, "updatedat": now_iso}).eq("id", product_id).execute()
 
+        resolution_status = payload.get("resolutionStatus") or payload.get("resolution_status") or "fixed"
+        restock_action = payload.get("restockAction") or payload.get("restock_action") or "increase_stock"
+        resolution_notes = payload.get("resolutionNotes") or payload.get("resolution_notes") or payload.get("repairNotes") or payload.get("repair_notes")
+
         update_data = {
-            "status": "repaired",
+            "status": resolution_status,
+            "resolution_status": resolution_status,
+            "resolution_notes": resolution_notes,
+            "resolved_by": payload.get("resolvedBy") or payload.get("resolved_by") or payload.get("repairedBy") or payload.get("repaired_by"),
+            "resolved_at": now_iso,
+            "restock_qty": restock_qty,
+            "restock_action": restock_action,
             "repaired_qty": restock_qty,
             "repaired_by": payload.get("repairedBy") or payload.get("repaired_by"),
             "repaired_at": now_iso,
