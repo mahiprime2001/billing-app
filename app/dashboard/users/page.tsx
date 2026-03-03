@@ -52,6 +52,8 @@ interface SystemStore {
   status: string
 }
 
+const normalizeEmail = (value: string) => value.trim().toLowerCase()
+
 export default function UsersPage() {
   const router = useRouter()
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -164,6 +166,13 @@ export default function UsersPage() {
     return;
   }
 
+  const normalizedEmail = normalizeEmail(formData.email);
+  const emailExists = users.some((user) => normalizeEmail(user.email) === normalizedEmail);
+  if (emailExists) {
+    alert("This email already exists in the app. Please use another email ID.");
+    return;
+  }
+
   // Validate store assignment for billing users
   if (formData.role === "billing_user" && formData.assignedStores.length === 0) {
     alert("Please assign at least one store for billing users");
@@ -174,7 +183,7 @@ export default function UsersPage() {
     // ✅ Build payload with proper structure
     const payload: any = {
       name: formData.name,
-      email: formData.email,
+      email: normalizedEmail,
       password: formData.password,
       role: formData.role,
       status: formData.status,
@@ -226,6 +235,15 @@ export default function UsersPage() {
     return;
   }
 
+  const normalizedEmail = normalizeEmail(formData.email);
+  const emailExists = users.some(
+    (user) => user.id !== editingUser.id && normalizeEmail(user.email) === normalizedEmail,
+  );
+  if (emailExists) {
+    alert("This email already exists in the app. Please use another email ID.");
+    return;
+  }
+
   // Validate store assignment for billing users
   if (formData.role === "billing_user" && formData.assignedStores.length === 0) {
     alert("Please assign at least one store for billing users");
@@ -235,7 +253,7 @@ export default function UsersPage() {
   // ✅ Build payload with proper structure
   const payload: any = {
     name: formData.name,
-    email: formData.email,
+    email: normalizedEmail,
     role: formData.role,
     status: formData.status,
   };
