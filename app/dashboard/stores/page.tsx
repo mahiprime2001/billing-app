@@ -917,7 +917,7 @@ export default function StoresPage() {
     if (user.role === "admin") {
       assignedStoreId = normalizeStoreId(user.assignedStoreId);
     } else if (user.role !== "super_admin") {
-      router.push("/billing")
+      router.push("/")
       return
     }
 

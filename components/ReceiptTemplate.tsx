@@ -1,5 +1,15 @@
 import React from "react";
-import { BillFormat } from "@/app/billing/page";
+
+interface BillFormat {
+  width: number
+  height: number | "auto"
+  margins: {
+    top: number
+    right: number
+    bottom: number
+    left: number
+  }
+}
 
 interface ReceiptProps {
   bill: any;

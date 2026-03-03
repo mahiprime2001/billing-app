@@ -44,6 +44,8 @@ interface ForgotPasswordState {
   message: string
 }
 
+const ADMIN_ROLE = "super_admin" as const
+
 const normalizeEmail = (value: string): string => value.trim().toLowerCase()
 
 export default function LoginPage() {
@@ -85,11 +87,7 @@ export default function LoginPage() {
     setSuccess("")
     const normalizedEmail = normalizeEmail(email)
 
-    const saveLoginSession = (
-      userData: AdminUser,
-      userRole: AdminUser["role"],
-      isOffline = false,
-    ) => {
+    const saveLoginSession = (userData: AdminUser, isOffline = false) => {
       if (rememberEmail) {
         localStorage.setItem("rememberedAdminEmail", normalizedEmail)
       } else {
@@ -97,7 +95,7 @@ export default function LoginPage() {
       }
 
       localStorage.setItem("adminLoggedIn", "true")
-      localStorage.setItem("adminUser", JSON.stringify({ ...userData, role: userRole }))
+      localStorage.setItem("adminUser", JSON.stringify({ ...userData, role: ADMIN_ROLE }))
 
       setSuccess(isOffline ? "Offline login successful! Redirecting..." : "Login successful! Redirecting...")
       toast({
@@ -108,11 +106,7 @@ export default function LoginPage() {
       })
 
       setTimeout(() => {
-        if (userRole === "super_admin") {
-          router.push("/dashboard")
-        } else {
-          router.push("/billing")
-        }
+        router.push("/dashboard")
       }, 1000)
     }
 
@@ -157,7 +151,13 @@ export default function LoginPage() {
         return
       }
 
-      saveLoginSession(userData, user_role)
+      if (user_role !== ADMIN_ROLE) {
+        setError("Only admin credentials are allowed to sign in.")
+        setIsLoading(false)
+        return
+      }
+
+      saveLoginSession(userData)
     } catch (error) {
       console.error("Login error:", error)
       const cachedUserRaw = localStorage.getItem("adminUser")
@@ -168,8 +168,8 @@ export default function LoginPage() {
           const cachedEmail = normalizeEmail(cachedUser.email || "")
           const cachedPassword = cachedUser.password || ""
 
-          if (cachedEmail === normalizedEmail && cachedPassword === password) {
-            saveLoginSession(cachedUser, cachedUser.role, true)
+          if (cachedEmail === normalizedEmail && cachedPassword === password && cachedUser.role === ADMIN_ROLE) {
+            saveLoginSession(cachedUser, true)
             return
           }
         } catch (parseError) {
