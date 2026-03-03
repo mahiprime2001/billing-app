@@ -241,7 +241,9 @@ export const BatchManagementTab: React.FC = () => {
         <div>
           <h3 className="text-lg font-medium mb-4">Existing Batches</h3>
           {batches && batches.length > 0 ? (
-            <div className="rounded-md border">
+            <div
+              className={`rounded-md border ${batches.length > 4 ? "max-h-[320px] overflow-y-auto" : ""}`}
+            >
               <Table>
                 <TableHeader>
                   <TableRow>

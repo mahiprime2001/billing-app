@@ -379,6 +379,13 @@ def update_user(user_id: str, update_data: dict) -> Tuple[bool, str, int]:
 
         # Update in Supabase first with conflict check.
         client = db.client
+        if base_updated_at is None:
+            try:
+                latest_resp = client.table("users").select("updatedat").eq("id", user_id).limit(1).execute()
+                if latest_resp.data:
+                    base_updated_at = latest_resp.data[0].get("updatedat")
+            except Exception as marker_error:
+                logger.debug(f"Unable to read current user updated marker for {user_id}: {marker_error}")
         if filtered_update_data:
             print("[BACKEND] Updating user in Supabase...")
             try:
@@ -394,7 +401,11 @@ def update_user(user_id: str, update_data: dict) -> Tuple[bool, str, int]:
                 )
                 if not update_result["ok"]:
                     if update_result.get("conflict"):
-                        return False, update_result.get("message", "Update conflict"), 409
+                        # If no client markers were sent, allow normal update semantics.
+                        if base_version is None and base_updated_at is None:
+                            client.table("users").update(filtered_update_data).eq("id", user_id).execute()
+                        else:
+                            return False, update_result.get("message", "Update conflict"), 409
                     return False, "Failed to update user in Supabase", 500
                 print("[BACKEND] ✅ Updated user in Supabase")
             except Exception as supabase_error:
@@ -430,7 +441,10 @@ def update_user(user_id: str, update_data: dict) -> Tuple[bool, str, int]:
             # STEP 1: Delete ALL existing assignments
             try:
                 print(f"[BACKEND] Deleting all existing userstores for user {user_id}")
-                delete_response = client.table('userstores').delete().eq('userId', user_id).execute()
+                try:
+                    client.table('userstores').delete().eq('userId', user_id).execute()
+                except Exception:
+                    client.table('userstores').delete().eq('userid', user_id).execute()
                 print(f"[BACKEND] ✅ Deleted existing store assignments")
             except Exception as del_err:
                 print(f"[BACKEND] ⚠️ Error deleting existing assignments: {del_err}")
@@ -442,10 +456,16 @@ def update_user(user_id: str, update_data: dict) -> Tuple[bool, str, int]:
                     for store_id in assigned_stores:
                         try:
                             print(f"[BACKEND] Assigning store {store_id} to user {user_id}")
-                            insert_response = client.table('userstores').insert({
-                                'userId': user_id,
-                                'storeId': store_id
-                            }).execute()
+                            try:
+                                client.table('userstores').insert({
+                                    'userId': user_id,
+                                    'storeId': store_id
+                                }).execute()
+                            except Exception:
+                                client.table('userstores').insert({
+                                    'userid': user_id,
+                                    'storeid': store_id
+                                }).execute()
                             print(f"[BACKEND] ✅ Successfully assigned store {store_id}")
                         except Exception as store_err:
                             print(f"[BACKEND] ⚠️ Failed to assign store {store_id}: {store_err}")
@@ -476,21 +496,57 @@ def delete_user(user_id: str) -> Tuple[bool, str, int]:
         # Delete from local JSON
         users = get_users_data()
         user_index = next((i for i, u in enumerate(users) if u.get('id') == user_id), -1)
-        
-        if user_index == -1:
-            return False, "User not found", 404
-        
-        users.pop(user_index)
-        save_users_data(users)
-        
-        # Delete from Supabase
         client = db.client
-        
-        # Delete user-store assignments first (foreign key constraint)
-        client.table('userstores').delete().eq('userId', user_id).execute()
-        
+
+        remote_exists = False
+        try:
+            remote_resp = client.table("users").select("id").eq("id", user_id).limit(1).execute()
+            remote_exists = bool(remote_resp.data)
+        except Exception:
+            remote_exists = False
+
+        if user_index == -1 and not remote_exists:
+            return False, "User not found", 404
+
+        # Detach nullable foreign key references.
+        try:
+            client.table("bills").update({"createdby": None}).eq("createdby", user_id).execute()
+            client.table("bills").update({"userid": None}).eq("userid", user_id).execute()
+            client.table("discounts").update({"user_id": None}).eq("user_id", user_id).execute()
+            client.table("discounts").update({"approved_by": None}).eq("approved_by", user_id).execute()
+            client.table("damaged_inventory_events").update({"reported_by": None}).eq("reported_by", user_id).execute()
+            client.table("damaged_inventory_events").update({"resolved_by": None}).eq("resolved_by", user_id).execute()
+            client.table("inventory_transfer_orders").update({"created_by": None}).eq("created_by", user_id).execute()
+            client.table("inventory_transfer_orders").update({"cancelled_by": None}).eq("cancelled_by", user_id).execute()
+            client.table("inventory_transfer_scans").update({"entered_by": None}).eq("entered_by", user_id).execute()
+            client.table("inventory_transfer_verifications").update({"submitted_by": None}).eq("submitted_by", user_id).execute()
+            client.table("returns").update({"created_by": None}).eq("created_by", user_id).execute()
+            client.table("returns").update({"approved_by": None}).eq("approved_by", user_id).execute()
+            client.table("returns").update({"denied_by": None}).eq("denied_by", user_id).execute()
+            client.table("store_damage_returns").update({"created_by": None}).eq("created_by", user_id).execute()
+            client.table("store_damage_returns").update({"repaired_by": None}).eq("repaired_by", user_id).execute()
+            client.table("two_factor").update({"created_by": None}).eq("created_by", user_id).execute()
+        except Exception as detach_error:
+            return False, f"Failed to detach user references: {detach_error}", 500
+
+        # Delete direct child rows that keep required references.
+        try:
+            try:
+                client.table("userstores").delete().eq("userId", user_id).execute()
+            except Exception:
+                client.table("userstores").delete().eq("userid", user_id).execute()
+            client.table("password_change_log").delete().eq("user_id", user_id).execute()
+            client.table("password_reset_tokens").delete().eq("user_id", user_id).execute()
+            client.table("two_factor").delete().eq("user_id", user_id).execute()
+        except Exception as child_delete_error:
+            return False, f"Failed to remove user child records: {child_delete_error}", 500
+
         # Delete user
         client.table('users').delete().eq('id', user_id).execute()
+
+        if user_index != -1:
+            users.pop(user_index)
+            save_users_data(users)
         
         logger.info(f"User deleted {user_id}")
         return True, "User deleted", 200

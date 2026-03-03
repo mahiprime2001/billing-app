@@ -212,7 +212,7 @@ export default function UsersPage() {
     } else {
       const error = await response.json();
       console.error("[FRONTEND] Error response:", error);
-      alert(error.message || "Failed to add user");
+      alert(error.error || error.message || "Failed to add user");
     }
   } catch (error) {
     console.error("[FRONTEND] Error adding user:", error);
@@ -279,7 +279,7 @@ export default function UsersPage() {
     } else {
       const error = await response.json();
       console.error("[FRONTEND] Error response:", error);
-      alert(error.message || "Failed to update user");
+      alert(error.error || error.message || "Failed to update user");
     }
   } catch (error) {
     console.error("[FRONTEND] Error updating user:", error);
@@ -303,7 +303,7 @@ export default function UsersPage() {
         loadUsers()
       } else {
         const error = await response.json()
-        alert(error.message || "Failed to delete user")
+        alert(error.error || error.message || "Failed to delete user")
       }
     } catch (error) {
       console.error("Error deleting user:", error)

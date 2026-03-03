@@ -1756,9 +1756,9 @@ const handleDeleteProduct = async (productId: string) => {
                     <th className="text-left p-4 font-medium">Batch</th>
                     <th className="text-left p-4 font-medium">Price</th>
                     <th className="text-left p-4 font-medium">Selling Price</th>
-                    <th className="text-left p-4 font-medium">Tax (%)</th>
                     <th className="text-left p-4 font-medium">HSN Code</th>
-                    <th className="text-left p-4 font-medium">Stock</th>
+                    <th className="text-left p-4 font-medium">Total Stock</th>
+                    <th className="text-left p-4 font-medium">Available Units</th>
                     <th className="text-left p-4 font-medium">Barcodes</th>
                     <th className="text-left p-4 font-medium">Status</th>
                     <th className="text-left p-4 font-medium">Actions</th>
@@ -1811,16 +1811,6 @@ const handleDeleteProduct = async (productId: string) => {
 
                         <td className="p-4">
                           <span className="font-medium">
-                            {(() => {
-                              const hsnCodeId = getProductHsnCodeId(product);
-                              const hsnTax = hsnCodes.find((h) => String(h.id) === String(hsnCodeId))?.tax;
-                              return Number(hsnTax ?? (product as any).tax ?? 0).toFixed(2);
-                            })()}%
-                          </span>
-                        </td>
-
-                        <td className="p-4">
-                          <span className="font-medium">
                           {(() => {
                                   const hsnCodeId = getProductHsnCodeId(product);
                                   if (!hsnCodeId || hsnCodeId === "null" || hsnCodeId === null) {
@@ -1838,6 +1828,9 @@ const handleDeleteProduct = async (productId: string) => {
                                   );
                                 })()}
                           </span>
+                        </td>
+                        <td className="p-4">
+                          <span className="font-medium">{product.stock}</span>
                         </td>
                         <td className="p-4">
                           <span className="font-medium">{product.stock}</span>

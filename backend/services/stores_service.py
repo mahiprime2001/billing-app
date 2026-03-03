@@ -388,44 +388,65 @@ def update_store(store_id: str, update_data: dict) -> Tuple[bool, str, int]:
             return False, "No update data provided", 400
         
         update_data = convert_camel_to_snake(update_data)
+        base_version, base_updated_at = extract_base_markers(update_data)
+
+        allowed_columns = {"name", "address", "phone", "status"}
+        filtered_update_data = {k: v for k, v in update_data.items() if k in allowed_columns}
+        if not filtered_update_data:
+            return False, "No valid store fields provided for update", 400
+
         stores = get_stores_data()
         store_index = next((i for i, s in enumerate(stores) if s.get('id') == store_id), -1)
         
         if store_index == -1:
-            return False, "Store not found", 404
-        
-        base_version, base_updated_at = extract_base_markers(update_data)
-        if base_updated_at is None and store_index != -1:
-            base_updated_at = stores[store_index].get("updatedat")
+            try:
+                exists_resp = db.client.table("stores").select("id").eq("id", store_id).limit(1).execute()
+                if not exists_resp.data:
+                    return False, "Store not found", 404
+            except Exception:
+                return False, "Store not found", 404
 
         client = db.client
+        if base_updated_at is None:
+            try:
+                latest_resp = client.table("stores").select("updatedat").eq("id", store_id).limit(1).execute()
+                if latest_resp.data:
+                    base_updated_at = latest_resp.data[0].get("updatedat")
+            except Exception as marker_error:
+                logger.debug(f"Unable to read current store updated marker for {store_id}: {marker_error}")
         try:
             update_result = safe_update_with_conflict_check(
                 client,
                 table_name="stores",
                 id_column="id",
                 record_id=store_id,
-                update_payload=update_data,
+                update_payload=filtered_update_data,
                 updated_at_column="updatedat",
                 base_version=base_version,
                 base_updated_at=base_updated_at,
             )
             if not update_result["ok"]:
                 if update_result.get("conflict"):
-                    return False, update_result.get("message", "Update conflict"), 409
+                    # If frontend did not send base markers, fallback to direct update.
+                    if base_version is None and base_updated_at is None:
+                        client.table("stores").update(filtered_update_data).eq("id", store_id).execute()
+                    else:
+                        return False, update_result.get("message", "Update conflict"), 409
                 return False, "Failed to update store in Supabase", 500
         except Exception as supabase_error:
             logger.warning(
                 f"Supabase update failed for store {store_id}; applying local fallback: {supabase_error}"
             )
-            stores[store_index].update(update_data)
-            stores[store_index]['updatedat'] = datetime.now().isoformat()
-            save_stores_data(stores)
+            if store_index != -1:
+                stores[store_index].update(filtered_update_data)
+                stores[store_index]['updatedat'] = datetime.now().isoformat()
+                save_stores_data(stores)
             return True, "Store saved locally (offline fallback)", 202
 
-        stores[store_index].update(update_data)
-        stores[store_index]['updatedat'] = datetime.now().isoformat()
-        save_stores_data(stores)
+        if store_index != -1:
+            stores[store_index].update(filtered_update_data)
+            stores[store_index]['updatedat'] = datetime.now().isoformat()
+            save_stores_data(stores)
         
         logger.info(f"Store updated {store_id}")
         return True, "Store updated", 200
@@ -435,73 +456,98 @@ def update_store(store_id: str, update_data: dict) -> Tuple[bool, str, int]:
 
 def delete_store(store_id: str) -> Tuple[bool, str, int]:
     """Delete a store from both local storage and Supabase"""
-    local_deleted = False
-    supabase_deleted = False
-    
     try:
         client = db.client
-        
-        # Step 0: Update bills to remove store reference
-        logger.info(f"Checking for bills associated with storeid {store_id}")
-        try:
-            bills_response = client.table('bills').select('id').eq('storeid', store_id).execute()
-            if bills_response and bills_response.data and len(bills_response.data) > 0:
-                bill_count = len(bills_response.data)
-                logger.info(f"Found {bill_count} bills for store {store_id}")
-                
-                update_response = client.table('bills').update({'storeid': None}).eq('storeid', store_id).execute()
-                logger.info(f"✅ Updated {bill_count} bills - set storeId to NULL")
-        except Exception as bills_error:
-            logger.error(f"Failed to update bills: {bills_error}", exc_info=True)
-            return False, f"Failed to update bills: {str(bills_error)}", 500
-        
-        # Step 1: Delete store inventory
-        logger.info(f"Checking for inventory associated with storeid {store_id}")
-        try:
-            inventory_response = client.table('storeinventory').select('id').eq('storeid', store_id).execute()
-            if inventory_response and inventory_response.data and len(inventory_response.data) > 0:
-                inventory_count = len(inventory_response.data)
-                logger.info(f"Found {inventory_count} inventory items")
-                
-                delete_inventory_response = client.table('storeinventory').delete().eq('storeid', store_id).execute()
-                logger.info(f"✅ Deleted {inventory_count} inventory items")
-                
-                try:
-                    inventory = get_store_inventory_data()
-                    updated_inventory = [inv for inv in inventory if inv.get('storeid') != store_id]
-                    save_store_inventory_data(updated_inventory)
-                except Exception as local_inv_error:
-                    logger.warning(f"Local inventory cleanup failed: {local_inv_error}")
-        except Exception as inventory_error:
-            logger.error(f"Failed to delete inventory: {inventory_error}", exc_info=True)
-            return False, f"Failed to delete store inventory: {str(inventory_error)}", 500
-        
-        # Step 2: Delete userstores entries
-        try:
-            check_response = client.table('userstores').select('*').eq('storeId', store_id).execute()
-            if check_response and check_response.data and len(check_response.data) > 0:
-                delete_response = client.table('userstores').delete().eq('storeId', store_id).execute()
-                logger.info(f"✅ Deleted userstores entries")
-        except Exception as userstore_error:
-            logger.error(f"Failed to delete userstores: {userstore_error}", exc_info=True)
-        
-        # Step 3: Delete from local JSON
+
         stores = get_stores_data()
         store_index = next((i for i, s in enumerate(stores) if s.get('id') == store_id), -1)
-        
+        remote_exists = False
+        try:
+            remote_resp = client.table("stores").select("id").eq("id", store_id).limit(1).execute()
+            remote_exists = bool(remote_resp.data)
+        except Exception:
+            remote_exists = False
+
+        if store_index == -1 and not remote_exists:
+            return False, "Store not found", 404
+
+        # Hard blockers: rows in these tables must be removed first.
+        # Transfer-order rows are cleaned up below, but store_damage_returns
+        # remains a hard blocker to avoid deleting audit/repair history silently.
+        hard_blockers = [
+            ("store_damage_returns", "store_id", "store damage returns"),
+        ]
+        for table_name, column_name, label in hard_blockers:
+            try:
+                blocker_resp = client.table(table_name).select("id").eq(column_name, store_id).limit(1).execute()
+                if blocker_resp.data:
+                    return False, f"Cannot delete store: linked {label} exist. Remove those records first.", 409
+            except Exception as blocker_error:
+                logger.warning(f"Skipping blocker check for {table_name}.{column_name}: {blocker_error}")
+
+        # Clean inventory transfer dependencies for this store.
+        try:
+            order_ids: List[str] = []
+            orders_resp = client.table("inventory_transfer_orders").select("id").or_(
+                f"store_id.eq.{store_id},source_store_id.eq.{store_id}"
+            ).execute()
+            if orders_resp.data:
+                order_ids = [row.get("id") for row in orders_resp.data if row.get("id")]
+
+            # Remove verifications tied directly to this store.
+            client.table("inventory_transfer_verifications").delete().eq("store_id", store_id).execute()
+
+            if order_ids:
+                # Remove verifications tied by order.
+                client.table("inventory_transfer_verifications").delete().in_("order_id", order_ids).execute()
+
+                # Remove scans via transfer item ids.
+                items_resp = client.table("inventory_transfer_items").select("id").in_(
+                    "transfer_order_id", order_ids
+                ).execute()
+                item_ids = [row.get("id") for row in (items_resp.data or []) if row.get("id")]
+                if item_ids:
+                    client.table("inventory_transfer_scans").delete().in_("transfer_item_id", item_ids).execute()
+
+                # Remove items and then orders.
+                client.table("inventory_transfer_items").delete().in_("transfer_order_id", order_ids).execute()
+                client.table("inventory_transfer_orders").delete().in_("id", order_ids).execute()
+        except Exception as transfer_cleanup_error:
+            return False, f"Failed to remove inventory transfer records: {transfer_cleanup_error}", 500
+
+        # Nullable references can be detached safely.
+        try:
+            client.table("bills").update({"storeid": None}).eq("storeid", store_id).execute()
+            client.table("returns").update({"store_id": None}).eq("store_id", store_id).execute()
+            client.table("damaged_inventory_events").update({"store_id": None}).eq("store_id", store_id).execute()
+        except Exception as detach_error:
+            return False, f"Failed to detach store references: {detach_error}", 500
+
+        try:
+            client.table("storeinventory").delete().eq("storeid", store_id).execute()
+            try:
+                client.table("userstores").delete().eq("storeId", store_id).execute()
+            except Exception:
+                client.table("userstores").delete().eq("storeid", store_id).execute()
+        except Exception as child_delete_error:
+            return False, f"Failed to remove store child records: {child_delete_error}", 500
+
+        try:
+            client.table("stores").delete().eq("id", store_id).execute()
+        except Exception as delete_error:
+            return False, f"Failed to delete store: {delete_error}", 500
+
         if store_index != -1:
             stores.pop(store_index)
             save_stores_data(stores)
-            local_deleted = True
-        
-        # Step 4: Delete from Supabase
-        supabase_response = client.table('stores').delete().eq('id', store_id).execute()
-        if supabase_response and (supabase_response.data or supabase_response.count):
-            supabase_deleted = True
-        
-        if local_deleted or supabase_deleted:
-            return True, "Store deleted successfully (bills preserved)", 200
-        return False, "Store not found", 404
+        try:
+            inventory = get_store_inventory_data()
+            updated_inventory = [inv for inv in inventory if inv.get("storeid") != store_id]
+            save_store_inventory_data(updated_inventory)
+        except Exception as local_inventory_error:
+            logger.warning(f"Failed to clean local store inventory cache for {store_id}: {local_inventory_error}")
+
+        return True, "Store deleted successfully", 200
         
     except Exception as e:
         logger.error(f"Error deleting store {store_id}: {e}", exc_info=True)

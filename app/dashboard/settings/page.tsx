@@ -200,10 +200,10 @@ export default function SettingsPage() {
         const fetchedSystemSettings = fullData.systemSettings || {};
         setSettings({
           gstin: fetchedSystemSettings.gstin || defaultSystemSettings.gstin,
-          companyName: fetchedSystemSettings.companyname || defaultSystemSettings.companyName,
-          companyAddress: fetchedSystemSettings.companyaddress || defaultSystemSettings.companyAddress,
-          companyPhone: fetchedSystemSettings.companyphone || defaultSystemSettings.companyPhone,
-          companyEmail: fetchedSystemSettings.companyemail || defaultSystemSettings.companyEmail,
+          companyName: fetchedSystemSettings.companyName || fetchedSystemSettings.companyname || defaultSystemSettings.companyName,
+          companyAddress: fetchedSystemSettings.companyAddress || fetchedSystemSettings.companyaddress || defaultSystemSettings.companyAddress,
+          companyPhone: fetchedSystemSettings.companyPhone || fetchedSystemSettings.companyphone || defaultSystemSettings.companyPhone,
+          companyEmail: fetchedSystemSettings.companyEmail || fetchedSystemSettings.companyemail || defaultSystemSettings.companyEmail,
           id: fetchedSystemSettings.id,
           last_sync_id: fetchedSystemSettings.last_sync_id,
           last_sync_time: fetchedSystemSettings.last_sync_time,
@@ -550,10 +550,6 @@ export default function SettingsPage() {
             <h1 className="text-4xl font-bold text-gray-900">System Settings</h1>
             <p className="text-gray-600 mt-2">Configure system-wide settings and business information</p>
           </div>
-          <Button onClick={saveSettings} disabled={isLoading} className="bg-green-600 hover:bg-green-700 shadow-lg">
-            <Save className="h-4 w-4 mr-2" />
-            {isLoading ? "Saving..." : "Save Settings"}
-          </Button>
         </div>
 
         <div className="space-y-6">
@@ -757,6 +753,13 @@ export default function SettingsPage() {
                   />
                   <p className="text-sm text-gray-500">Goods and Services Tax Identification Number</p>
                 </div>
+
+                <div className="pt-2">
+                  <Button onClick={saveSettings} disabled={isLoading} className="bg-green-600 hover:bg-green-700 shadow-lg">
+                    <Save className="h-4 w-4 mr-2" />
+                    {isLoading ? "Saving Data..." : "Save Data"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -808,6 +811,7 @@ export default function SettingsPage() {
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
+                        <div className={superAdmins.length > 4 ? "max-h-[320px] overflow-y-auto rounded-md border" : ""}>
                         <Table>
                           <TableHeader>
                             <TableRow>
@@ -868,6 +872,7 @@ export default function SettingsPage() {
                             })}
                           </TableBody>
                         </Table>
+                        </div>
 
                         <Dialog open={isTwofaDialogOpen} onOpenChange={(open) => {
                           setIsTwofaDialogOpen(open)
@@ -1012,7 +1017,11 @@ export default function SettingsPage() {
                         {selectedFlushCategory === "users" && (
                           <div className="space-y-2">
                             <Label>Select Admin Users to Keep</Label>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div
+                              className={`grid grid-cols-1 sm:grid-cols-2 gap-2 ${
+                                adminUsers.length > 4 ? "max-h-[220px] overflow-y-auto pr-2" : ""
+                              }`}
+                            >
                               {adminUsers.map((admin) => (
                                 <div key={admin.email} className="flex items-center space-x-2">
                                   <input
@@ -1102,19 +1111,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
-        </div>
-
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <Button
-            onClick={saveSettings}
-            disabled={isLoading}
-            size="lg"
-            className="bg-green-600 hover:bg-green-700 shadow-lg"
-          >
-            <Save className="h-5 w-5 mr-2" />
-            {isLoading ? "Saving Settings..." : "Save All Settings"}
-          </Button>
         </div>
       </div>
 

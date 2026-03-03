@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Package, Plus, Minus, X, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -45,6 +46,25 @@ type Props = {
   onAssign: (storeId: string, products: AssignedProduct[]) => Promise<void> | void
 }
 
+type PendingDraftOrder = {
+  id: string
+  storeId: string
+  storeName?: string
+  status: "pending"
+  createdAt: string
+  updatedAt: string
+  items: {
+    productId: string
+    quantity: number
+  }[]
+}
+
+type AssignmentAutosave = {
+  selected: Record<string, boolean>
+  quantityMap: Record<string, number>
+  updatedAt: string
+}
+
 export default function ProductAssignmentDialog({ storeId, storeName, trigger, onAssign }: Props) {
   const [open, setOpen] = useState(false)
   const [products, setProducts] = useState<AssignedProduct[]>([])
@@ -53,30 +73,186 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
   const [loading, setLoading] = useState(false)
   const [assigning, setAssigning] = useState(false)
   const [search, setSearch] = useState('')
+  const [pendingOrders, setPendingOrders] = useState<PendingDraftOrder[]>([])
+  const [activeDraftId, setActiveDraftId] = useState<string>("")
+  const storageKey = `store-assignment-pending-orders:${storeId}`
+  const autosaveKey = `store-assignment-autosave:${storeId}`
+
+  const clearAutosave = () => {
+    localStorage.removeItem(autosaveKey)
+  }
 
   useEffect(() => {
     if (open) {
       fetchProducts()
+      setPendingOrders(readPendingOrders())
     } else {
       setSelected({})
       setQuantityMap({})
       setSearch('')
+      setActiveDraftId("")
     }
   }, [open])
 
-  const fetchProducts = async () => {
+  const readPendingOrders = (): PendingDraftOrder[] => {
+    try {
+      const raw = localStorage.getItem(storageKey)
+      if (!raw) return []
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return []
+      return parsed.filter((row: PendingDraftOrder) => row?.status === "pending")
+    } catch {
+      return []
+    }
+  }
+
+  const persistPendingOrders = (orders: PendingDraftOrder[]) => {
+    setPendingOrders(orders)
+    localStorage.setItem(storageKey, JSON.stringify(orders))
+  }
+
+  const applyAutosave = (productList: AssignedProduct[]) => {
+    try {
+      const raw = localStorage.getItem(autosaveKey)
+      if (!raw) return
+      const parsed: AssignmentAutosave = JSON.parse(raw)
+      if (!parsed || typeof parsed !== "object") return
+
+      const ids = new Set(productList.map((p) => p.id || p.barcode))
+      const nextSelected: Record<string, boolean> = {}
+      const nextQuantityMap: Record<string, number> = {}
+
+      Object.entries(parsed.selected || {}).forEach(([id, isSelected]) => {
+        if (isSelected && ids.has(id)) {
+          nextSelected[id] = true
+        }
+      })
+
+      Object.entries(parsed.quantityMap || {}).forEach(([id, qty]) => {
+        if (ids.has(id)) {
+          nextQuantityMap[id] = Number(qty) || 0
+        }
+      })
+
+      setSelected(nextSelected)
+      setQuantityMap(nextQuantityMap)
+    } catch {
+      // Ignore malformed cache payload
+    }
+  }
+
+  const handleClearAll = () => {
+    setSelected({})
+    setQuantityMap({})
+    setSearch('')
+    setActiveDraftId("")
+    persistPendingOrders([])
+    clearAutosave()
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const payload: AssignmentAutosave = {
+      selected,
+      quantityMap,
+      updatedAt: new Date().toISOString(),
+    }
+    localStorage.setItem(autosaveKey, JSON.stringify(payload))
+  }, [open, selected, quantityMap, autosaveKey])
+
+  const buildAssignmentsFromSelection = () => {
+    const selectedProducts = products.filter(p => selected[p.id || p.barcode])
+    const assignments: { productId: string; quantity: number }[] = []
+    selectedProducts.forEach((p) => {
+      const key = p.id || p.barcode
+      assignments.push({
+        productId: p.id,
+        quantity: Number(quantityMap[key] || 0),
+      })
+    })
+    return assignments
+  }
+
+  const applyDraft = (draftId: string) => {
+    if (!draftId) return
+    const draft = pendingOrders.find((d) => d.id === draftId)
+    if (!draft) return
+
+    const nextSelected: Record<string, boolean> = {}
+    const nextQuantityMap: Record<string, number> = {}
+    let missingCount = 0
+
+    draft.items.forEach((item) => {
+      const product = products.find((p) => p.id === item.productId)
+      if (!product) {
+        missingCount += 1
+        return
+      }
+      const key = product.id || product.barcode
+      const available = Number(product.availableStock || 0)
+      if (available <= 0) {
+        missingCount += 1
+        return
+      }
+      nextSelected[key] = true
+      nextQuantityMap[key] = Math.max(0, Math.min(available, Number(item.quantity || 0)))
+    })
+
+    setSelected(nextSelected)
+    setQuantityMap(nextQuantityMap)
+    setActiveDraftId(draftId)
+
+    if (missingCount > 0) {
+      alert(`Loaded draft with ${missingCount} item(s) skipped because they are unavailable now.`)
+    }
+  }
+
+  const handleSaveDraft = () => {
+    const assignments = buildAssignmentsFromSelection().filter((a) => a.quantity > 0)
+    if (assignments.length === 0) {
+      alert("Select at least one product with quantity > 0 to save")
+      return
+    }
+
+    const now = new Date().toISOString()
+    const draftId = activeDraftId || `draft-${Date.now()}`
+    const nextDraft: PendingDraftOrder = {
+      id: draftId,
+      storeId,
+      storeName,
+      status: "pending",
+      createdAt: activeDraftId ? (pendingOrders.find((d) => d.id === activeDraftId)?.createdAt || now) : now,
+      updatedAt: now,
+      items: assignments,
+    }
+
+    const nextOrders = pendingOrders.some((d) => d.id === draftId)
+      ? pendingOrders.map((d) => (d.id === draftId ? nextDraft : d))
+      : [nextDraft, ...pendingOrders]
+    persistPendingOrders(nextOrders)
+    setActiveDraftId(draftId)
+    alert(`Saved order to tray (${assignments.length} item(s))`)
+  }
+
+  const fetchProducts = async (): Promise<AssignedProduct[]> => {
     setLoading(true)
     try {
       const res = await fetch(`${API}/api/stores/${storeId}/available-products`)
       if (res.ok) {
         const data = await res.json()
-        setProducts(data)
+        const availableOnly = (Array.isArray(data) ? data : []).filter(
+          (p: AssignedProduct) => Number(p?.availableStock || 0) > 0
+        )
+        setProducts(availableOnly)
+        applyAutosave(availableOnly)
+        return availableOnly
       }
     } catch (e) {
       console.error('Failed to fetch products:', e)
     } finally {
       setLoading(false)
     }
+    return []
   }
 
   const toggleProduct = (id: string) => {
@@ -131,15 +307,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
       return;
     }
 
-    const assignments: { productId: string; quantity: number }[] = [];
-    selectedProducts.forEach(p => {
-      const key = p.id || p.barcode;
-      const qty = quantityMap[key] || 0;
-      assignments.push({
-        productId: p.id,
-        quantity: Number(qty)
-      });
-    });
+    const assignments = buildAssignmentsFromSelection();
 
     const hasZeroQuantity = assignments.some(a => a.quantity === 0);
 
@@ -180,10 +348,17 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
             orderMsg = `\nOrder ID: ${okPayload.orderId}`;
           }
         } catch {}
-        alert(`✅ Successfully assigned ${assignments.length} product(s) to ${storeName || storeId}${orderMsg}`);
+        alert(`✅ Created and sent order with ${assignments.length} product(s) to ${storeName || storeId}${orderMsg}`);
         // Assuming all sent assignments were successful if the overall API call was OK.
         // In a real-world scenario, the backend might return which ones succeeded/failed.
         successfulAssignments.push(...selectedProducts);
+
+        if (activeDraftId) {
+          const remainingDrafts = pendingOrders.filter((d) => d.id !== activeDraftId)
+          persistPendingOrders(remainingDrafts)
+          setActiveDraftId("")
+        }
+        clearAutosave()
       }
       
       if (onAssign) {
@@ -205,13 +380,50 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
     }
   }
 
-  const filteredProducts = products.filter(p =>
-    p.name?.toLowerCase().includes(search.toLowerCase()) ||
-    p.barcode?.toLowerCase().includes(search.toLowerCase())
+  const filteredProducts = products.filter(
+    (p) =>
+      Number(p.availableStock || 0) > 0 &&
+      (
+        p.name?.toLowerCase().includes(search.toLowerCase()) ||
+        p.barcode?.toLowerCase().includes(search.toLowerCase())
+      )
   )
 
   const selectedCount = Object.values(selected).filter(Boolean).length
   const selectedProductsList = products.filter(p => selected[p.id || p.barcode])
+
+  const handleBarcodeEnter = () => {
+    const term = search.trim().toLowerCase()
+    if (!term) return
+
+    const exact = products.find((p) => {
+      const barcode = String(p.barcode || "").toLowerCase()
+      const id = String(p.id || "").toLowerCase()
+      return barcode === term || id === term
+    })
+
+    const candidate =
+      exact ||
+      (filteredProducts.length === 1 ? filteredProducts[0] : undefined) ||
+      undefined
+
+    if (!candidate) return
+
+    const key = candidate.id || candidate.barcode
+    const availableStock = candidate.availableStock || 0
+    if (availableStock <= 0) {
+      alert("Selected product is out of stock for assignment")
+      return
+    }
+
+    setSelected((prev) => ({ ...prev, [key]: true }))
+    setQuantityMap((prev) => {
+      const current = prev[key] || 0
+      const next = Math.min(availableStock, Math.max(1, current + 1))
+      return { ...prev, [key]: next }
+    })
+    setSearch("")
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -220,10 +432,10 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Package className="h-5 w-5" />
-            Assign Products to {storeName || storeId}
+            Create Store Order for {storeName || storeId}
           </DialogTitle>
           <DialogDescription>
-            Select products and set quantities to assign to this store
+            Select products, save to tray if needed, then create/send the order when ready
           </DialogDescription>
         </DialogHeader>
 
@@ -236,6 +448,12 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                 placeholder="Search by name or barcode..."
                 value={search}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleBarcodeEnter()
+                  }
+                }}
                 className="pl-9"
               />
             </div>
@@ -321,8 +539,44 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
           <div className="w-96 border rounded-xl p-5 flex flex-col gap-4 bg-muted/20">
             <div className="flex items-center justify-between">
               <div className="font-semibold">Selected Products</div>
-              <Badge variant="secondary" className="text-sm">{selectedCount}</Badge>
+              <div className="flex items-center gap-2">
+                {selectedCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={handleClearAll}
+                  >
+                    Clear All
+                  </Button>
+                )}
+                <Badge variant="secondary" className="text-sm">{selectedCount}</Badge>
+              </div>
             </div>
+
+            {pendingOrders.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-muted-foreground">Pending Orders (Tray)</div>
+                <Select
+                  value={activeDraftId}
+                  onValueChange={(value) => {
+                    setActiveDraftId(value)
+                    applyDraft(value)
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Load pending order" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pendingOrders.map((draft) => (
+                      <SelectItem key={draft.id} value={draft.id}>
+                        {new Date(draft.updatedAt).toLocaleString()} • {draft.items.length} item(s)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {selectedProductsList.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
@@ -441,6 +695,14 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
           <Button variant="outline" onClick={() => setOpen(false)} disabled={assigning} className="min-w-24">
             Cancel
           </Button>
+          <Button
+            variant="outline"
+            onClick={handleSaveDraft}
+            disabled={assigning || selectedCount === 0}
+            className="min-w-24"
+          >
+            Save
+          </Button>
           <Button 
             onClick={handleAssign} 
             disabled={selectedCount === 0 || assigning}
@@ -449,10 +711,10 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
             {assigning ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Assigning...
+                Creating...
               </>
             ) : (
-              <>Assign {selectedCount > 0 && `(${selectedCount})`}</>
+              <>Create Order {selectedCount > 0 && `(${selectedCount})`}</>
             )}
           </Button>
         </DialogFooter>

@@ -228,12 +228,57 @@ def update_settings(settings_data: dict) -> Tuple[bool, str, int]:
         # Remove 'id' from update fields (it's used in .eq() clause)
         update_fields = converted_system_settings.copy()
         record_id = update_fields.pop('id', None)
-        # Ensure legacy tax percentage value is cleared in DB.
-        update_fields['taxpercentage'] = None
-        
+
+        # Keep DB updates strict to known columns only.
+        allowed_systemsettings_columns = {
+            "gstin",
+            "companyname",
+            "companyaddress",
+            "companyphone",
+            "companyemail",
+        }
+        update_fields = {
+            key: value for key, value in update_fields.items() if key in allowed_systemsettings_columns
+        }
         # Don't update created_at
         update_fields.pop('created_at', None)
-        
+
+        # Resolve canonical row id for updates.
+        existing_row = None
+        try:
+            existing_resp = (
+                client.table("systemsettings")
+                .select("id, updated_at")
+                .order("id")
+                .limit(1)
+                .execute()
+            )
+            if existing_resp.data:
+                existing_row = existing_resp.data[0]
+        except Exception as read_error:
+            logger.warning(f"Failed to read existing systemsettings row: {read_error}")
+
+        if not record_id and existing_row:
+            record_id = existing_row.get("id")
+        if not record_id:
+            record_id = 1
+
+        if base_updated_at is None and existing_row and str(existing_row.get("id")) == str(record_id):
+            base_updated_at = existing_row.get("updated_at")
+        elif base_updated_at is None:
+            try:
+                marker_resp = (
+                    client.table("systemsettings")
+                    .select("updated_at")
+                    .eq("id", record_id)
+                    .limit(1)
+                    .execute()
+                )
+                if marker_resp.data:
+                    base_updated_at = marker_resp.data[0].get("updated_at")
+            except Exception as marker_error:
+                logger.debug(f"Failed to read systemsettings marker for id {record_id}: {marker_error}")
+
         if record_id:
             try:
                 result = safe_update_with_conflict_check(
@@ -248,35 +293,16 @@ def update_settings(settings_data: dict) -> Tuple[bool, str, int]:
                 )
                 if not result["ok"]:
                     if result.get("conflict"):
-                        return False, result.get("message", "Update conflict"), 409
-                    insert_data = {**update_fields, 'id': record_id}
-                    client.table('systemsettings').insert(insert_data).execute()
+                        # Fallback for clients that do not send base markers.
+                        if base_version is None and base_updated_at is None:
+                            client.table("systemsettings").update(update_fields).eq("id", record_id).execute()
+                        else:
+                            return False, result.get("message", "Update conflict"), 409
+                    else:
+                        insert_data = {**update_fields, 'id': record_id}
+                        client.table('systemsettings').insert(insert_data).execute()
             except Exception as e:
                 logger.error(f"Error updating systemsettings in Supabase for id {record_id}: {e}", exc_info=True)
-                return True, "Settings saved locally (offline fallback)", 202
-        else:
-            logger.warning("No ID found in system settings data for Supabase update. Defaulting to ID 1.")
-            # Default to ID 1 for system settings if not provided
-            record_id = 1
-            
-            try:
-                result = safe_update_with_conflict_check(
-                    client,
-                    table_name="systemsettings",
-                    id_column="id",
-                    record_id=str(record_id),
-                    update_payload=update_fields,
-                    updated_at_column="updated_at",
-                    base_version=base_version,
-                    base_updated_at=base_updated_at,
-                )
-                if not result["ok"]:
-                    # If update finds no row, insert
-                    insert_data = {**update_fields, 'id': record_id}
-                    client.table('systemsettings').insert(insert_data).execute()
-                    
-            except Exception as e:
-                logger.error(f"Error updating/inserting systemsettings in Supabase for default id {record_id}: {e}", exc_info=True)
                 return True, "Settings saved locally (offline fallback)", 202
         
         logger.info(f"Settings updated successfully")

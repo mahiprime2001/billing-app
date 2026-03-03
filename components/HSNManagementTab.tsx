@@ -242,7 +242,9 @@ export const HSNManagementTab: React.FC = () => {
         <div>
           <h3 className="text-lg font-medium mb-4">Existing HSN Codes</h3>
           {codes && codes.length > 0 ? (
-            <div className="rounded-md border">
+            <div
+              className={`rounded-md border ${codes.length > 4 ? "max-h-[320px] overflow-y-auto" : ""}`}
+            >
               <Table>
                 <TableHeader>
                     <TableRow>

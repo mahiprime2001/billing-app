@@ -43,6 +43,8 @@ import {
   Calendar,
   Building,
   Info,
+  Activity,
+  RefreshCw,
   ChevronLeft,
   ChevronRight,
   Printer,
@@ -67,6 +69,19 @@ interface StoreType {
   lastBillDate: string
   productCount?: number;
   totalStock?: number;
+}
+
+type StoreLiveInventoryRow = {
+  id?: string
+  quantity?: number
+  products?: {
+    name?: string
+    barcode?: string
+    price?: number
+  }
+  name?: string
+  barcode?: string
+  price?: number
 }
 
 
@@ -407,7 +422,7 @@ function StoreInsightModal({
 
   const handleOrderPrint = async () => {
     if (!orderDetails || !store) return;
-    const orderDate = formatDateTime(orderDetails.createdAt || orderDetails.created_at);
+    const orderDateLabel = formatDateTime(orderDetails.createdAt || orderDetails.created_at);
     const rows = (orderDetails.items || [])
       .map((item, idx) => {
         const qty = getAssignedQty(item);
@@ -426,29 +441,38 @@ function StoreInsightModal({
       .join("");
 
     const htmlContent = `
+      <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="utf-8" />
           <title>Transfer Order ${escapeHtml(orderDetails.id)}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 16px; color: #111; }
-            .top { margin-bottom: 14px; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
-            .top h1 { font-size: 18px; margin: 0 0 8px 0; }
-            .meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; font-size: 12px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-            th, td { border: 1px solid #000; padding: 6px; font-size: 12px; text-align: left; }
-            th { background: #f4f4f4; }
-            tfoot td { font-weight: 700; background: #fafafa; }
+            @media print {
+              @page { margin: 12mm; }
+              body { font-family: ui-sans-serif, system-ui, Arial, sans-serif; font-size: 10px; line-height: 1.3; color: #111; }
+              h1 { font-size: 14px; margin: 0 0 8px 0; }
+              .meta { font-size: 10px; margin-bottom: 8px; border: 1px solid #ddd; padding: 6px; }
+              .meta-row { margin: 2px 0; }
+              table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+              th, td { border: 1px solid #ddd; padding: 6px; font-size: 10px; text-align: left; }
+              th { background: #f3f4f6; }
+              tfoot { display: table-footer-group; font-weight: bold; }
+            }
+            body { font-family: ui-sans-serif, system-ui, Arial, sans-serif; padding: 16px; color: #111; }
+            .meta { font-size: 11px; margin-bottom: 10px; border: 1px solid #ddd; padding: 8px; }
+            .meta-row { margin: 3px 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #ddd; padding: 6px; font-size: 11px; text-align: left; }
+            th { background: #f3f4f6; }
             .right { text-align: right; }
           </style>
         </head>
         <body>
-          <div class="top">
-            <h1>Transfer Order</h1>
-            <div class="meta">
-              <div><strong>Order ID:</strong> ${escapeHtml(orderDetails.id)}</div>
-              <div><strong>Date:</strong> ${escapeHtml(orderDate)}</div>
-              <div><strong>Store:</strong> ${escapeHtml(store.name)}</div>
-            </div>
+          <h1>Transfer Order - ${escapeHtml(store.name)}</h1>
+          <div class="meta">
+            <div class="meta-row"><strong>Order ID:</strong> ${escapeHtml(orderDetails.id)}</div>
+            <div class="meta-row"><strong>Date:</strong> ${escapeHtml(orderDateLabel)}</div>
+            <div class="meta-row"><strong>Printed At:</strong> ${escapeHtml(new Date().toLocaleString())}</div>
           </div>
           <table>
             <thead>
@@ -473,7 +497,12 @@ function StoreInsightModal({
       </html>
     `;
 
-    await unifiedPrint({ htmlContent, isThermalPrinter: false, useBackendPrint: false });
+    await unifiedPrint({
+      htmlContent,
+      isThermalPrinter: false,
+      useBackendPrint: true,
+      storeName: store.name,
+    });
   };
 
   if (!open || !store) return null;
@@ -669,6 +698,188 @@ function StoreInsightModal({
   );
 }
 
+function StoreLiveFeedDialog({
+  open,
+  onClose,
+  store,
+}: {
+  open: boolean
+  onClose: () => void
+  store: StoreType | null
+}) {
+  const [inventoryRows, setInventoryRows] = useState<StoreLiveInventoryRow[]>([])
+  const [liveBills, setLiveBills] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<string>("")
+
+  const getBillStoreId = (bill: any) =>
+    normalizeStoreId(bill?.storeId || bill?.storeid || bill?.store_id)
+
+  const getBillDate = (bill: any) => bill?.timestamp || bill?.date || bill?.createdAt || bill?.created_at || ""
+
+  const fetchLiveData = async (showLoader = false) => {
+    if (!store) return
+    if (showLoader) setLoading(true)
+    try {
+      const [inventoryRes, billsRes] = await Promise.all([
+        fetch(`${API}/api/stores/${store.id}/assigned-products`),
+        fetch(`${API}/api/bills`),
+      ])
+
+      if (inventoryRes.ok) {
+        const invData = await inventoryRes.json()
+        const rows = Array.isArray(invData) ? invData : []
+        const inStockOnly = rows.filter((row: StoreLiveInventoryRow) => Number(row?.quantity || 0) > 0)
+        setInventoryRows(inStockOnly)
+      }
+
+      if (billsRes.ok) {
+        const billsData = await billsRes.json()
+        const filtered = (Array.isArray(billsData) ? billsData : [])
+          .filter((bill) => getBillStoreId(bill) === normalizeStoreId(store.id))
+          .sort((a, b) => new Date(getBillDate(b)).getTime() - new Date(getBillDate(a)).getTime())
+        setLiveBills(filtered.slice(0, 30))
+      }
+
+      setLastUpdated(new Date().toLocaleTimeString())
+    } catch (error) {
+      console.error("Error loading store live feed:", error)
+    } finally {
+      if (showLoader) setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!open || !store) return
+    fetchLiveData(true)
+    const timer = setInterval(() => fetchLiveData(false), 10000)
+    return () => clearInterval(timer)
+  }, [open, store?.id])
+
+  if (!open || !store) return null
+
+  const totalStock = inventoryRows.reduce((sum, row) => sum + Number(row.quantity || 0), 0)
+  const totalBillAmount = liveBills.reduce((sum, bill) => sum + Number(bill?.total || 0), 0)
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="border-b pb-3">
+          <DialogTitle>{store.name} - Live Feed</DialogTitle>
+          <DialogDescription>
+            Live store view: assigned products and recent bills
+            {lastUpdated ? ` • Updated at ${lastUpdated}` : ""}
+          </DialogDescription>
+          <div className="flex justify-end pr-10 pt-2">
+            <Button variant="outline" size="sm" onClick={() => fetchLiveData(true)} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
+          <Card className="flex flex-col min-h-0">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Products in Store</CardTitle>
+              <CardDescription>{inventoryRows.length} items • Total stock {totalStock}</CardDescription>
+            </CardHeader>
+            <CardContent className="min-h-0 flex-1">
+              <div className="border rounded-lg overflow-hidden h-full">
+                <div className="overflow-auto h-full">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-gray-50 z-10">
+                      <TableRow>
+                        <TableHead>Barcode</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="text-right">Price</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {inventoryRows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                            No assigned products found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        inventoryRows.map((row, idx) => {
+                          const productObj = row.products || {}
+                          const barcode = productObj.barcode || row.barcode || "-"
+                          const name = productObj.name || row.name || "Unknown"
+                          const qty = Number(row.quantity || 0)
+                          const price = Number(productObj.price || row.price || 0)
+                          return (
+                            <TableRow key={row.id || `${barcode}-${idx}`}>
+                              <TableCell className="font-mono text-xs">{barcode}</TableCell>
+                              <TableCell>{name}</TableCell>
+                              <TableCell className="text-right">{qty}</TableCell>
+                              <TableCell className="text-right">₹{price.toFixed(2)}</TableCell>
+                            </TableRow>
+                          )
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="flex flex-col min-h-0">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Recent Bills</CardTitle>
+              <CardDescription>{liveBills.length} recent bills • ₹{totalBillAmount.toFixed(2)}</CardDescription>
+            </CardHeader>
+            <CardContent className="min-h-0 flex-1">
+              <div className="border rounded-lg overflow-hidden h-full">
+                <div className="overflow-auto h-full">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-gray-50 z-10">
+                      <TableRow>
+                        <TableHead>Bill ID</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {liveBills.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                            No bills found for this store
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        liveBills.map((bill: any) => {
+                          const billDate = getBillDate(bill)
+                          return (
+                            <TableRow key={bill.id}>
+                              <TableCell className="font-mono text-xs">{bill.id}</TableCell>
+                              <TableCell className="text-xs">
+                                {billDate ? new Date(billDate).toLocaleString() : "-"}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">₹{Number(bill.total || 0).toFixed(2)}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{bill.status || "completed"}</Badge>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export default function StoresPage() {
   const router = useRouter()
   const [stores, setStores] = useState<StoreType[]>([])
@@ -687,6 +898,8 @@ export default function StoresPage() {
   // Store insight modal state
   const [insightOpen, setInsightOpen] = useState(false)
   const [selectedStore, setSelectedStore] = useState<StoreType | null>(null)
+  const [liveFeedOpen, setLiveFeedOpen] = useState(false)
+  const [liveFeedStore, setLiveFeedStore] = useState<StoreType | null>(null)
 
   
   useEffect(() => {
@@ -820,7 +1033,7 @@ export default function StoresPage() {
         setIsDialogOpen(false)
       } else {
         const errorData = await response.json()
-        alert(`Failed to save store: ${errorData.message}`)
+        alert(`Failed to save store: ${errorData.error || errorData.message || "Unknown error"}`)
       }
     } catch (error) {
       console.error("Error saving store:", error)
@@ -855,7 +1068,7 @@ export default function StoresPage() {
           await loadData()
         } else {
           const errorData = await response.json()
-          alert(`Failed to delete store: ${errorData.message}`)
+          alert(`Failed to delete store: ${errorData.error || errorData.message || "Unknown error"}`)
         }
       } catch (error) {
         console.error("Error deleting store:", error)
@@ -889,7 +1102,7 @@ export default function StoresPage() {
         await loadData()
       } else {
         const errorData = await response.json()
-        alert(`Failed to update status: ${errorData.message}`)
+        alert(`Failed to update status: ${errorData.error || errorData.message || "Unknown error"}`)
       }
     } catch (error) {
       console.error("Error updating status:", error)
@@ -919,6 +1132,11 @@ export default function StoresPage() {
   const openStoreModal = (store: StoreType) => {
     setSelectedStore(store)
     setInsightOpen(true)
+  }
+
+  const openStoreLiveFeed = (store: StoreType) => {
+    setLiveFeedStore(store)
+    setLiveFeedOpen(true)
   }
 
   const filteredStores = stores.filter((store) => {
@@ -1167,19 +1385,42 @@ export default function StoresPage() {
                             <Switch
                               checked={store.status === "active"}
                               onCheckedChange={() => toggleStoreStatus(store.id)}
+                              onClick={(e) => e.stopPropagation()}
                             />
                             {getStatusBadge(store.status)}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => handleEdit(store)}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleEdit(store)
+                              }}
+                            >
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => openStoreModal(store)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openStoreLiveFeed(store)
+                              }}
+                              className="bg-violet-50 hover:bg-violet-100 border-violet-200"
+                              title="Live feed"
+                            >
+                              <Activity className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openStoreModal(store)
+                              }}
                               className="bg-blue-50 hover:bg-blue-100 border-blue-200"
                               title="Store insights"
                             >
@@ -1193,6 +1434,7 @@ export default function StoresPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  onClick={(e) => e.stopPropagation()}
                                   className="bg-green-50 hover:bg-green-100 border-green-200"
                                   title="Assign products (shows available stock)"
                                 >
@@ -1204,7 +1446,10 @@ export default function StoresPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDelete(store.id)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDelete(store.id)
+                              }}
                               className="text-red-600 hover:text-red-700"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1239,6 +1484,11 @@ export default function StoresPage() {
           open={insightOpen}
           onClose={() => setInsightOpen(false)}
           store={selectedStore}
+        />
+        <StoreLiveFeedDialog
+          open={liveFeedOpen}
+          onClose={() => setLiveFeedOpen(false)}
+          store={liveFeedStore}
         />
       </div>
     </DashboardLayout>
