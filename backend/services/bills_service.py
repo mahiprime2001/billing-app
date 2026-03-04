@@ -3,9 +3,10 @@ Bills Service
 Handles all bill-related business logic and database operations
 """
 import logging
-import uuid
+import re
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 from utils.supabase_db import db
 from utils.supabase_resilience import execute_with_retry
@@ -21,6 +22,50 @@ from utils.json_helpers import (
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
 logger = logging.getLogger(__name__)
+INVOICE_ID_REGEX = re.compile(r"^INV-(\d{8})(\d{4})$")
+IST_ZONE = ZoneInfo("Asia/Kolkata")
+
+
+def _get_today_invoice_prefix() -> str:
+    return f"INV-{datetime.now(IST_ZONE).strftime('%d%m%Y')}"
+
+
+def _extract_serial_for_prefix(invoice_id: Optional[str], prefix: str) -> int:
+    if not invoice_id or not invoice_id.startswith(prefix):
+        return 0
+    match = INVOICE_ID_REGEX.match(invoice_id)
+    if not match:
+        return 0
+    try:
+        return int(match.group(2))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _generate_daily_invoice_id() -> str:
+    prefix = _get_today_invoice_prefix()
+    max_serial = 0
+
+    # Local JSON first (offline-first storage)
+    try:
+        for bill in get_bills_data():
+            max_serial = max(max_serial, _extract_serial_for_prefix(str(bill.get("id") or ""), prefix))
+    except Exception as local_error:
+        logger.warning(f"Failed reading local bills for invoice serial: {local_error}")
+
+    # Supabase best-effort (helps avoid collisions across instances)
+    try:
+        client = db.client
+        response = execute_with_retry(
+            lambda: client.table("bills").select("id").like("id", f"{prefix}%"),
+            "invoice id lookup",
+        )
+        for row in (response.data or []):
+            max_serial = max(max_serial, _extract_serial_for_prefix(str(row.get("id") or ""), prefix))
+    except Exception as cloud_error:
+        logger.warning(f"Failed reading cloud bills for invoice serial: {cloud_error}")
+
+    return f"{prefix}{max_serial + 1:04d}"
 
 
 def get_local_bills() -> List[Dict]:
@@ -506,7 +551,7 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
         print(f"📝 Creating new bill...")
 
         # Required schema fields
-        bill_id = bill_data.get("id") or f"inv-{uuid.uuid4().hex[:12]}"
+        bill_id = _generate_daily_invoice_id()
         customer_id = (
             bill_data.get("customerId")
             or bill_data.get("customerid")

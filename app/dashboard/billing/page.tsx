@@ -850,8 +850,12 @@ export default function BillingPage() {
         }
       })();
 
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, "0");
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const yyyy = String(now.getFullYear());
     const newBill: Bill = {
-      id: Date.now().toString(),
+      id: `INV-${dd}${mm}${yyyy}0000`,
       customerId: selectedCustomerId || WALK_IN_CUSTOMER_ID,
       customerName,
       customerEmail,
@@ -1107,7 +1111,7 @@ export default function BillingPage() {
     const dateValue = bill.date ? new Date(bill.date) : new Date();
     const dateString = Number.isNaN(dateValue.getTime()) ? new Date().toLocaleDateString() : dateValue.toLocaleDateString();
     const timeString = Number.isNaN(dateValue.getTime()) ? new Date().toLocaleTimeString() : dateValue.toLocaleTimeString();
-    const billNumber = bill.id?.startsWith("inv-") ? bill.id.substring(4, 16) : bill.id;
+    const billNumber = bill.id;
 
     return `<!DOCTYPE html>
 <html>
