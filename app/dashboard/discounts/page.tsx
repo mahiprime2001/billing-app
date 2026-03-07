@@ -278,7 +278,7 @@ export default function DiscountsPage() {
               </Badge>
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={loadDiscounts}>
+              <Button variant="outline" size="sm" onClick={() => void loadDiscounts()}>
                 Refresh
               </Button>
               <Button
@@ -302,7 +302,7 @@ export default function DiscountsPage() {
               <div className="text-center py-12 text-gray-500">
                 <XCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
                 <p className="text-red-600">{error}</p>
-                <Button onClick={loadDiscounts} className="mt-4">
+                <Button onClick={() => void loadDiscounts()} className="mt-4">
                   Retry
                 </Button>
               </div>
@@ -426,7 +426,7 @@ export default function DiscountsPage() {
               </Badge>
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={loadDiscounts}>
+              <Button variant="outline" size="sm" onClick={() => void loadDiscounts()}>
                 Refresh
               </Button>
               <Button
@@ -450,7 +450,7 @@ export default function DiscountsPage() {
               <div className="text-center py-12 text-gray-500">
                 <XCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
                 <p className="text-red-600">{error}</p>
-                <Button onClick={loadDiscounts} className="mt-4">
+                <Button onClick={() => void loadDiscounts()} className="mt-4">
                   Retry
                 </Button>
               </div>
