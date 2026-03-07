@@ -68,6 +68,7 @@ type AssignmentAutosave = {
 export default function ProductAssignmentDialog({ storeId, storeName, trigger, onAssign }: Props) {
   const [open, setOpen] = useState(false)
   const [products, setProducts] = useState<AssignedProduct[]>([])
+  const [allProducts, setAllProducts] = useState<AssignedProduct[]>([])
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [quantityMap, setQuantityMap] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
@@ -240,11 +241,22 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
       const res = await fetch(`${API}/api/stores/${storeId}/available-products`)
       if (res.ok) {
         const data = await res.json()
-        const availableOnly = (Array.isArray(data) ? data : []).filter(
-          (p: AssignedProduct) => Number(p?.availableStock || 0) > 0
-        )
+        const availableOnly = Array.isArray(data) ? data : []
         setProducts(availableOnly)
         applyAutosave(availableOnly)
+
+        try {
+          const allProductsRes = await fetch(`${API}/api/products`)
+          if (allProductsRes.ok) {
+            const allProductsData = await allProductsRes.json()
+            setAllProducts(Array.isArray(allProductsData) ? allProductsData : [])
+          } else {
+            setAllProducts([])
+          }
+        } catch {
+          setAllProducts([])
+        }
+
         return availableOnly
       }
     } catch (e) {
@@ -391,28 +403,57 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
 
   const selectedCount = Object.values(selected).filter(Boolean).length
   const selectedProductsList = products.filter(p => selected[p.id || p.barcode])
+  const totalSelectedStock = selectedProductsList.reduce((sum, p) => {
+    const key = p.id || p.barcode
+    return sum + Number(quantityMap[key] || 0)
+  }, 0)
+
+  const normalizeStockValue = (value: unknown): number => {
+    const num = Number(value)
+    if (!Number.isFinite(num)) return 0
+    return num
+  }
+
+  const formatStock = (value: unknown): string => {
+    const num = normalizeStockValue(value)
+    if (Number.isInteger(num)) return String(num)
+    return num.toFixed(2).replace(/\.?0+$/, '')
+  }
 
   const handleBarcodeEnter = () => {
     const term = search.trim().toLowerCase()
     if (!term) return
 
-    const exact = products.find((p) => {
+    const exactAvailable = products.find((p) => {
+      const barcode = String(p.barcode || "").toLowerCase()
+      const id = String(p.id || "").toLowerCase()
+      return barcode === term || id === term
+    })
+
+    const exactInDatabase = allProducts.find((p) => {
       const barcode = String(p.barcode || "").toLowerCase()
       const id = String(p.id || "").toLowerCase()
       return barcode === term || id === term
     })
 
     const candidate =
-      exact ||
+      exactAvailable ||
       (filteredProducts.length === 1 ? filteredProducts[0] : undefined) ||
       undefined
 
-    if (!candidate) return
+    if (!candidate) {
+      if (exactInDatabase) {
+        alert("All the stock is already assigned for this product")
+      } else {
+        alert("Product is not in the database")
+      }
+      return
+    }
 
     const key = candidate.id || candidate.barcode
-    const availableStock = candidate.availableStock || 0
+    const availableStock = normalizeStockValue(candidate.availableStock)
     if (availableStock <= 0) {
-      alert("Selected product is out of stock for assignment")
+      alert("All the stock is already assigned for this product")
       return
     }
 
@@ -517,7 +558,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                             <TableCell className="text-right font-semibold">₹{p.price?.toFixed(2)}</TableCell>
                             <TableCell className="text-center">
                               <Badge variant={p.availableStock === 0 ? "destructive" : "outline"}>
-                                {p.availableStock || 0}
+                                {formatStock(p.availableStock)}
                               </Badge>
                             </TableCell>
                           </TableRow>
@@ -539,7 +580,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
           <div className="w-96 border rounded-xl p-5 flex flex-col gap-4 bg-muted/20">
             <div className="flex items-center justify-between">
               <div className="font-semibold">Selected Products</div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col items-end gap-1">
                 {selectedCount > 0 && (
                   <Button
                     variant="ghost"
@@ -551,6 +592,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                   </Button>
                 )}
                 <Badge variant="secondary" className="text-sm">{selectedCount}</Badge>
+                <Badge variant="outline" className="text-sm">Total Stock: {formatStock(totalSelectedStock)}</Badge>
               </div>
             </div>
 
@@ -593,7 +635,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                 {selectedProductsList.map(p => {
                   const key = p.id || p.barcode
                   const qty = quantityMap[key] || 0
-                  const availableStock = p.availableStock || 0
+                  const availableStock = normalizeStockValue(p.availableStock)
                   const isOverStock = qty > availableStock
                   
                   return (
@@ -603,9 +645,9 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                           <div className="font-medium truncate">{p.name}</div>
                           <div className="text-xs text-muted-foreground font-mono mt-0.5">{p.barcode}</div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            Available: <span className="font-semibold">{availableStock}</span>
+                            Available: <span className="font-semibold">{formatStock(availableStock)}</span>
                             {p.currentStoreStock && p.currentStoreStock > 0 && (
-                              <> • Already assigned: <span className="font-semibold">{p.currentStoreStock}</span></>
+                              <> • Already assigned: <span className="font-semibold">{formatStock(p.currentStoreStock)}</span></>
                             )}
                           </div>
                         </div>
