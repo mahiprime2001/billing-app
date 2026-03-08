@@ -1,11 +1,6 @@
-import { invoke } from '@tauri-apps/api/core';
-
-// Type declaration for Tauri globals (optional)
 declare global {
   interface Window {
-    __TAURI__?: {
-      invoke: typeof invoke;
-    };
+    __TAURI__?: object;
   }
 }
 
@@ -18,6 +13,20 @@ function extractText(htmlContent: string): string {
   const container = document.createElement('div');
   container.innerHTML = htmlContent;
   return container.innerText || '';
+}
+
+export async function previewPdfFromHtml(htmlContent: string): Promise<string> {
+  const htmlDocument = `<!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="utf-8" />
+      <title>Preview</title>
+      <style>body { margin: 0; padding: 0; }</style>
+    </head>
+    <body>${htmlContent}</body>
+  </html>`;
+  const blob = new Blob([htmlDocument], { type: 'text/html' });
+  return URL.createObjectURL(blob);
 }
 
 /**

@@ -1,7 +1,13 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { db } from '../lib/db';
-import { logger } from '../lib/logger';
+import { fileURLToPath } from 'url';
+import pool from '../lib/mysql';
+
+const logger = {
+  info: (...args: unknown[]) => console.info(...args),
+  warn: (...args: unknown[]) => console.warn(...args),
+  error: (...args: unknown[]) => console.error(...args),
+};
 
 class Migrator {
   private migrationsPath: string;
@@ -27,7 +33,7 @@ class Migrator {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `;
 
-    await db.execute(query);
+    await pool.execute(query);
   }
 
   /**
@@ -36,7 +42,7 @@ class Migrator {
   private async getExecutedMigrations(): Promise<Set<string>> {
     try {
       await this.ensureMigrationsTable();
-      const [rows] = await db.query(`SELECT name FROM ${this.migrationsTable}`) as [any[], any];
+      const [rows] = await pool.query(`SELECT name FROM ${this.migrationsTable}`) as [any[], any];
       return new Set(rows.map((row: any) => row.name));
     } catch (error) {
       logger.error('Error getting executed migrations:', error);
@@ -78,7 +84,7 @@ class Migrator {
    * Get the next batch number
    */
   private async getNextBatchNumber(): Promise<number> {
-    const [rows] = await db.query(`SELECT MAX(batch) as max_batch FROM ${this.migrationsTable}`) as [any[], any];
+    const [rows] = await pool.query(`SELECT MAX(batch) as max_batch FROM ${this.migrationsTable}`) as [any[], any];
     return (rows[0]?.max_batch || 0) + 1;
   }
 
@@ -107,7 +113,7 @@ class Migrator {
         const { up } = this.parseMigrationFile(content);
         
         // Start a transaction
-        const connection = await db.getConnection();
+        const connection = await pool.getConnection();
         await connection.beginTransaction();
 
         try {
@@ -146,7 +152,7 @@ class Migrator {
       logger.info('Rolling back last batch of migrations...');
       
       // Get the latest batch number
-      const [batchRows] = await db.query(
+      const [batchRows] = await pool.query(
         `SELECT batch FROM ${this.migrationsTable} GROUP BY batch ORDER BY batch DESC LIMIT 1`
       ) as [any[], any];
       
@@ -156,7 +162,7 @@ class Migrator {
       }
       
       const batchNumber = batchRows[0].batch;
-      const [migrations] = await db.query(
+      const [migrations] = await pool.query(
         `SELECT * FROM ${this.migrationsTable} WHERE batch = ? ORDER BY id DESC`,
         [batchNumber]
       ) as [any[], any];
@@ -188,7 +194,7 @@ class Migrator {
           }
           
           // Start a transaction
-          const connection = await db.getConnection();
+          const connection = await pool.getConnection();
           await connection.beginTransaction();
           
           try {
@@ -238,7 +244,7 @@ class Migrator {
         return;
       }
       
-      const [batchRows] = await db.query(
+      const [batchRows] = await pool.query(
         `SELECT name, batch, executed_at FROM ${this.migrationsTable} ORDER BY id DESC`
       ) as [any[], any];
       
@@ -296,7 +302,7 @@ async function main() {
     logger.error('Migration command failed:', error);
     process.exit(1);
   } finally {
-    await db.close();
+    await pool.end();
   }
   
   process.exit(0);

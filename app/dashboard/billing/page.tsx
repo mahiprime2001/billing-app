@@ -126,6 +126,9 @@ interface Bill {
   replacementFinalAmount?: number;
   replacementOriginalBillId?: string;
   paymentMethod?: string;
+  createdBy?: string;
+  timestamp?: string;
+  taxAmount?: number;
 }
 
 const WALK_IN_CUSTOMER_ID = "CUST-1754821420265";
@@ -183,6 +186,7 @@ export default function BillingPage() {
   const printRef = useRef<HTMLDivElement>(null);
   const printPaperSize = "Thermal 80mm";
   const [adminUser, setAdminUser] = useState<{ name?: string; role?: string; email?: string } | null>(null);
+  const [creatorNameById, setCreatorNameById] = useState<Record<string, string>>({});
 
   // Form state
   const [customerName, setCustomerName] = useState(WALK_IN_CUSTOMER_NAME);
@@ -265,6 +269,27 @@ export default function BillingPage() {
       window.removeEventListener("offline", () => setIsOnline(false));
     };
   }, [router]);
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const response = await api.get("/api/users");
+        const rows = Array.isArray(response?.data) ? response.data : [];
+        const map = rows.reduce((acc: Record<string, string>, row: any) => {
+          const id = String(row?.id || row?.userId || row?.user_id || "").trim();
+          const name = String(row?.name || row?.fullName || row?.full_name || "").trim();
+          if (id && name) acc[id] = name;
+          return acc;
+        }, {});
+        setCreatorNameById(map);
+      } catch (error) {
+        console.warn("Failed to load users for bill creator mapping", error);
+        setCreatorNameById({});
+      }
+    };
+
+    void loadUsers();
+  }, []);
 
   // Optimized fetch function with silent updates
   const fetchData = useCallback(
@@ -511,6 +536,36 @@ export default function BillingPage() {
     return Number.isFinite(parsed) ? parsed : 0;
   };
 
+  const isLikelyUserId = (value: string): boolean => {
+    if (!value) return false;
+    const v = value.trim();
+    if (!v) return false;
+    return /^USR[-_]/i.test(v) || /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(v);
+  };
+
+  const resolveCreatorName = (rawBill: any): string => {
+    const explicitName =
+      rawBill.createdByName ||
+      rawBill.created_by_name ||
+      rawBill.billedByName ||
+      rawBill.billed_by_name;
+    if (explicitName) return String(explicitName);
+
+    const creatorRaw =
+      rawBill.createdBy ||
+      rawBill.created_by ||
+      rawBill.createdby ||
+      rawBill.billedBy ||
+      rawBill.billed_by ||
+      "";
+    const creator = String(creatorRaw).trim();
+    if (!creator) return "";
+
+    if (creatorNameById[creator]) return creatorNameById[creator];
+    if (isLikelyUserId(creator)) return "";
+    return creator;
+  };
+
   const getProductSellingPrice = (product: Product): number =>
     parseNumber(
       product.sellingPrice ??
@@ -631,6 +686,7 @@ export default function BillingPage() {
 
     const customerId = rawBill.customerId || rawBill.customer_id || rawBill.customerid || "";
     const matchedCustomer = customerLookup.get(customerId);
+    const createdBy = resolveCreatorName(rawBill);
 
     return {
       ...rawBill,
@@ -663,12 +719,13 @@ export default function BillingPage() {
       replacementOriginalBillId:
         rawBill.replacementOriginalBillId || rawBill.replacement_original_bill_id || "",
       paymentMethod: rawBill.paymentMethod || rawBill.paymentmethod || "",
+      createdBy,
     };
   };
 
   const currentBills = useMemo<Bill[]>(
     () => (billsData ?? []).map((bill) => normalizeBillForDisplay(bill)),
-    [billsData, customerLookup]
+    [billsData, customerLookup, creatorNameById]
   );
 
   useEffect(() => {
@@ -966,7 +1023,7 @@ export default function BillingPage() {
 
   const viewBill = (bill: Bill) => {
     console.log("viewBill: Viewing bill", bill);
-    setSelectedBill(bill);
+    setSelectedBill(normalizeBillForDisplay(bill));
     setIsViewDialogOpen(true);
   };
 
@@ -1013,7 +1070,16 @@ export default function BillingPage() {
     });
 
     const billedBy =
-      adminUser?.name || getStoredAdminName() || (bill as any).billedBy || bill.createdBy || "N/A";
+      bill.createdBy ||
+      (bill as any).created_by ||
+      (bill as any).billedBy ||
+      (bill as any).billed_by ||
+      adminUser?.name ||
+      getStoredAdminName() ||
+      "N/A";
+    const computedTaxAmount =
+      toNumber(bill.taxAmount || bill.tax) ||
+      ((Math.max(0, toNumber(bill.subtotal) - toNumber(bill.discountAmount)) * toNumber(bill.taxPercentage)) / 100);
 
     return {
       id: bill.id,
@@ -1032,7 +1098,7 @@ export default function BillingPage() {
       total: toNumber(bill.total),
       discountPercentage: toNumber(bill.discountPercentage),
       discountAmount: toNumber(bill.discountAmount),
-      taxAmount: toNumber(bill.taxAmount || bill.tax),
+      taxAmount: computedTaxAmount,
       items,
       isReplacementBill: Boolean((bill as any).isReplacement ?? (bill as any).is_replacement),
     };
@@ -2156,6 +2222,18 @@ export default function BillingPage() {
                     toNumber(selectedBill.subtotal) > 0
                       ? toNumber(selectedBill.subtotal)
                       : selectedBillItems.reduce((sum: number, item: any) => sum + toNumber(item?.displayTotal), 0);
+                  const createdByName =
+                    selectedBill.createdBy ||
+                    (selectedBill as any).created_by ||
+                    (selectedBill as any).billedBy ||
+                    (selectedBill as any).billed_by ||
+                    "N/A";
+                  const billDate = selectedBill.date || (selectedBill as any).timestamp;
+                  const taxValue =
+                    toNumber((selectedBill as any).taxAmount ?? selectedBill.tax) ||
+                    ((Math.max(0, subtotalValue - toNumber(selectedBill.discountAmount)) *
+                      toNumber(selectedBill.taxPercentage)) /
+                      100);
                   return (
                     <>
                 {/* Customer & Bill Information */}
@@ -2171,7 +2249,8 @@ export default function BillingPage() {
                   <div>
                     <h4 className="font-medium">Bill Information</h4>
                     <div className="text-sm text-muted-foreground mt-1">
-                      <div>Date: {new Date(selectedBill.date).toLocaleString()}</div>
+                      <div>Date: {billDate ? new Date(billDate).toLocaleString() : "N/A"}</div>
+                      <div>Created By: {createdByName}</div>
                       <div>Status: {selectedBill.status}</div>
                       {selectedBill.isReplacement && <div>Type: Replacement</div>}
                       {selectedBill.isReplacement && selectedBill.replacementOriginalBillId && (
@@ -2245,7 +2324,7 @@ export default function BillingPage() {
                     <span>
                       Tax {selectedBill.taxPercentage !== undefined && selectedBill.taxPercentage > 0 && `(${selectedBill.taxPercentage}%)`}
                     </span>
-                    <span>₹{(selectedBill.tax || 0).toFixed(2)}</span>
+                    <span>₹{taxValue.toFixed(2)}</span>
                   </div>
 
                   {/* Discount */}

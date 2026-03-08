@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 
 const BarcodeLabel = ({ product, storeName }: { product: Product; storeName: string }) => {
-  const barcode = (product.barcodes && product.barcodes[0]) || product.id;
+  const barcode = (product.barcode?.split(",")[0]?.trim() || product.id);
   
   return (
     <div className="barcode p-2 border border-gray-200 rounded-md flex flex-col justify-between" style={{ height: '80px' }}>
