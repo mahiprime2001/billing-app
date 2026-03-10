@@ -644,11 +644,16 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{p.name}</div>
                           <div className="text-xs text-muted-foreground font-mono mt-0.5">{p.barcode}</div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Available: <span className="font-semibold">{formatStock(availableStock)}</span>
-                            {p.currentStoreStock && p.currentStoreStock > 0 && (
-                              <> • Already assigned: <span className="font-semibold">{formatStock(p.currentStoreStock)}</span></>
-                            )}
+                          <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                            <div>
+                              Available: <span className="font-semibold">{formatStock(availableStock)}</span>
+                              {p.currentStoreStock && p.currentStoreStock > 0 && (
+                                <> • Already assigned: <span className="font-semibold">{formatStock(p.currentStoreStock)}</span></>
+                              )}
+                            </div>
+                            <div>
+                              Price: <span className="font-semibold">₹{Number(p.price || 0).toFixed(2)}</span>
+                            </div>
                           </div>
                         </div>
                         <Button
