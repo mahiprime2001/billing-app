@@ -78,7 +78,8 @@ export const HSNManagementTab: React.FC = () => {
       })
 
       if (!response.ok) {
-        throw new Error("Failed to add HSN code")
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "Failed to add HSN code")
       }
 
       toast({
@@ -92,7 +93,7 @@ export const HSNManagementTab: React.FC = () => {
       console.error("Error adding HSN code:", error)
       toast({
         title: "Error",
-        description: "Failed to add HSN code. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to add HSN code. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -134,7 +135,8 @@ export const HSNManagementTab: React.FC = () => {
       })
 
       if (!response.ok) {
-        throw new Error("Failed to update HSN code")
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "Failed to update HSN code")
       }
 
       toast({
@@ -147,7 +149,7 @@ export const HSNManagementTab: React.FC = () => {
       console.error("Error updating HSN code:", error)
       toast({
         title: "Error",
-        description: "Failed to update HSN code. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to update HSN code. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -166,7 +168,8 @@ export const HSNManagementTab: React.FC = () => {
       })
 
       if (!response.ok) {
-        throw new Error("Failed to delete HSN code")
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || "Failed to delete HSN code")
       }
 
       toast({
@@ -178,7 +181,7 @@ export const HSNManagementTab: React.FC = () => {
       console.error("Error deleting HSN code:", error)
       toast({
         title: "Error",
-        description: "Failed to delete HSN code. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to delete HSN code. Please try again.",
         variant: "destructive",
       })
     }

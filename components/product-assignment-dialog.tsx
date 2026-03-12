@@ -32,6 +32,7 @@ export type AssignedProduct = {
   barcode: string
   name: string
   price: number
+  sellingprice: number
   stock?: number
   availableStock?: number // Available stock for assignment (global - total allocated)
   currentStoreStock?: number // Current stock assigned to this store
@@ -555,7 +556,9 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                             </TableCell>
                             <TableCell className="font-mono text-xs text-muted-foreground">{p.barcode}</TableCell>
                             <TableCell className="font-medium">{p.name}</TableCell>
-                            <TableCell className="text-right font-semibold">₹{p.price?.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-semibold">
+                              ₹{Number((p as any).sellingprice ?? (p as any).sellingPrice ?? (p as any).selling_price ?? p.price ?? 0).toFixed(2)}
+                            </TableCell>
                             <TableCell className="text-center">
                               <Badge variant={p.availableStock === 0 ? "destructive" : "outline"}>
                                 {formatStock(p.availableStock)}
@@ -652,7 +655,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                               )}
                             </div>
                             <div>
-                              Price: <span className="font-semibold">₹{Number(p.price || 0).toFixed(2)}</span>
+                              Price: <span className="font-semibold">₹{Number((p as any).sellingprice ?? (p as any).sellingPrice ?? (p as any).selling_price ?? p.price ?? 0).toFixed(2)}</span>
                             </div>
                           </div>
                         </div>

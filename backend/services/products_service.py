@@ -103,6 +103,55 @@ def _get_hsn_tax_map() -> Dict[str, float]:
 
     return tax_map
 
+
+def _normalize_hsn_code_id(raw_value) -> Optional[int]:
+    """
+    Normalize product HSN reference to a numeric Supabase hsn_codes.id.
+    Accepts numeric IDs directly.
+    For legacy/local UUID IDs, resolves through local hsn_codes -> supabase hsn_code match.
+    """
+    if raw_value is None:
+        return None
+
+    value = str(raw_value).strip()
+    if value == "":
+        return None
+
+    if value.isdigit():
+        return int(value)
+
+    # Legacy/offline local ID path: map local id -> hsn_code string
+    local_hsn_code = None
+    try:
+        for code in get_hsn_codes_data():
+            code_id = code.get("id")
+            if code_id is not None and str(code_id) == value:
+                local_hsn_code = str(code.get("hsn_code") or code.get("hsnCode") or "").strip()
+                break
+    except Exception as e:
+        logger.warning(f"Failed reading local HSN codes while normalizing id {value}: {e}")
+
+    # If caller sent HSN code text directly (e.g. '3304'), allow lookup as code as well.
+    lookup_hsn_code = local_hsn_code or value
+    if lookup_hsn_code:
+        try:
+            client = db.client
+            resp = execute_with_retry(
+                lambda: client.table("hsn_codes").select("id").eq("hsn_code", lookup_hsn_code).limit(1),
+                f"resolve hsn_code_id for {lookup_hsn_code}",
+                retries=2,
+            )
+            if resp.data:
+                supabase_id = resp.data[0].get("id")
+                if supabase_id is not None and str(supabase_id).strip() != "":
+                    return int(supabase_id)
+        except Exception as e:
+            logger.warning(f"Failed resolving HSN code '{lookup_hsn_code}' in Supabase: {e}")
+
+    raise ValueError(
+        f"Invalid HSN reference '{value}'. Select an HSN code that exists in Supabase."
+    )
+
 # ============================================
 # HSN CODE UTILITIES
 # ============================================
@@ -518,8 +567,11 @@ def create_product(product_data: dict) -> Tuple[Optional[str], str, int]:
         # Convert hsn_code to hsn_code_id for database
         if 'hsn_code' in product_data:
             product_data['hsn_code_id'] = product_data.pop('hsn_code')
-        if "hsn_code_id" in product_data and not product_data.get("hsn_code_id"):
-            product_data["hsn_code_id"] = None
+        if "hsn_code_id" in product_data:
+            try:
+                product_data["hsn_code_id"] = _normalize_hsn_code_id(product_data.get("hsn_code_id"))
+            except ValueError as e:
+                return None, str(e), 400
         
         # Generate ID if not present
         if 'id' not in product_data:
@@ -581,8 +633,11 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
         # Convert hsn_code to hsn_code_id for database
         if 'hsn_code' in update_data:
             update_data['hsn_code_id'] = update_data.pop('hsn_code')
-        if "hsn_code_id" in update_data and not update_data.get("hsn_code_id"):
-            update_data["hsn_code_id"] = None
+        if "hsn_code_id" in update_data:
+            try:
+                update_data["hsn_code_id"] = _normalize_hsn_code_id(update_data.get("hsn_code_id"))
+            except ValueError as e:
+                return False, str(e), 400
         
         # Find the product in local storage
         products = get_products_data()

@@ -635,7 +635,18 @@ const handleDeleteProduct = async (productId: string) => {
         })
       );
 
-      await Promise.all(updatePromises);
+      const responses = await Promise.all(updatePromises);
+      const failed = responses.filter((r) => !r.ok);
+      if (failed.length > 0) {
+        let message = `Failed to update HSN code for ${failed.length} product(s)`;
+        try {
+          const body = await failed[0].json();
+          if (body?.error) message = String(body.error);
+        } catch {
+          // keep default message
+        }
+        throw new Error(message);
+      }
       
       mutate();
       setSelectedProducts([]);
@@ -644,7 +655,7 @@ const handleDeleteProduct = async (productId: string) => {
       alert(`Successfully updated HSN code for ${selectedProducts.length} products`);
     } catch (error) {
       console.error("Error updating HSN code:", error);
-      alert("Failed to update HSN code for some products");
+      alert(error instanceof Error ? error.message : "Failed to update HSN code for some products");
     }
   };
   const openEditDialog = (product: Product) => {
