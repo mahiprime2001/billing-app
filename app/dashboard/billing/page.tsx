@@ -304,79 +304,77 @@ export default function BillingPage() {
     ) => {
       console.log(`fetchData: Fetching ${dataType}...`);
 
-      if (isOnline) {
-        try {
-          console.log(`fetchData: Fetching ${dataType} from Supabase...`);
-          const supabaseResponse = await api.get(supabaseEndpoint);
-          const data = supabaseResponse.data;
-          console.log(`fetchData: Raw ${dataType} from API`, data);
+      try {
+        console.log(`fetchData: Fetching ${dataType} from Supabase...`);
+        const supabaseResponse = await api.get(supabaseEndpoint);
+        const data = supabaseResponse.data;
+        console.log(`fetchData: Raw ${dataType} from API`, data);
 
-          let processedData = data;
+        let processedData = data;
 
-          if (dataType === "products") {
-            processedData = data.map((product: any) => ({
-              ...product,
-              stock: product.stock || 0,
-              sellingPrice:
-                product.sellingPrice ??
-                product.selling_price ??
-                product.displayPrice ??
-                product.price ??
-                0,
-            }));
-          } else if (dataType === "customers") {
-            // FIX: Normalize customer field names
-            processedData = data.map((customer: any) => ({
-              id: customer.id,
-              name: customer.name,
-              email: customer.email,
-              phone: customer.phone,
-              address: customer.address,
-              createdAt: customer.createdat || customer.createdAt,
-              updatedAt: customer.updatedat || customer.updatedAt,
-            }));
-          }
-
-          console.log(`fetchData: Processed ${dataType}`, processedData);
-
-          // Silent background update
-          api.post(updateLocalStorageEndpoint, processedData).catch(() => {});
-
-          return processedData;
-        } catch (error) {
-          console.warn(`Failed to fetch ${dataType} from Supabase, falling back to local`, error);
-          console.log(`fetchData: Falling back to local for ${dataType}`);
-          const localResponse = await api.get(localStorageEndpoint);
-          console.log(`fetchData: Local ${dataType} data`, localResponse.data);
-
-          if (dataType === "products") {
-            return localResponse.data.map((product: any) => ({
-              ...product,
-              stock: product.stock || 0,
-              sellingPrice:
-                product.sellingPrice ??
-                product.selling_price ??
-                product.displayPrice ??
-                product.price ??
-                0,
-            }));
-          } else if (dataType === "customers") {
-            // FIX: Normalize customer field names from local storage too
-            return localResponse.data.map((customer: any) => ({
-              id: customer.id,
-              name: customer.name,
-              email: customer.email,
-              phone: customer.phone,
-              address: customer.address,
-              createdAt: customer.createdat || customer.createdAt,
-              updatedAt: customer.updatedat || customer.updatedAt,
-            }));
-          }
-          return localResponse.data;
+        if (dataType === "products") {
+          processedData = data.map((product: any) => ({
+            ...product,
+            stock: product.stock || 0,
+            sellingPrice:
+              product.sellingPrice ??
+              product.selling_price ??
+              product.displayPrice ??
+              product.price ??
+              0,
+          }));
+        } else if (dataType === "customers") {
+          // FIX: Normalize customer field names
+          processedData = data.map((customer: any) => ({
+            id: customer.id,
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            address: customer.address,
+            createdAt: customer.createdat || customer.createdAt,
+            updatedAt: customer.updatedat || customer.updatedAt,
+          }));
         }
+
+        console.log(`fetchData: Processed ${dataType}`, processedData);
+
+        // Silent background update
+        api.post(updateLocalStorageEndpoint, processedData).catch(() => {});
+
+        return processedData;
+      } catch (error) {
+        console.warn(`Failed to fetch ${dataType} from Supabase, falling back to local`, error);
+        console.log(`fetchData: Falling back to local for ${dataType}`);
+        const localResponse = await api.get(localStorageEndpoint);
+        console.log(`fetchData: Local ${dataType} data`, localResponse.data);
+
+        if (dataType === "products") {
+          return localResponse.data.map((product: any) => ({
+            ...product,
+            stock: product.stock || 0,
+            sellingPrice:
+              product.sellingPrice ??
+              product.selling_price ??
+              product.displayPrice ??
+              product.price ??
+              0,
+          }));
+        } else if (dataType === "customers") {
+          // FIX: Normalize customer field names from local storage too
+          return localResponse.data.map((customer: any) => ({
+            id: customer.id,
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            address: customer.address,
+            createdAt: customer.createdat || customer.createdAt,
+            updatedAt: customer.updatedat || customer.updatedAt,
+          }));
+        }
+        return localResponse.data;
       }
     },
-    [isOnline]
+    []
   );
 
   const fetchProducts = useCallback(
@@ -386,114 +384,111 @@ export default function BillingPage() {
 
   const fetchBills = useCallback(async () => {
     console.log("fetchBills: Starting fetch...");
+    try {
+      console.log("fetchBills: Fetching from Supabase...");
+      const response = await api.get("/api/supabase/bills-with-details");
+      const data = response.data;
+      console.log("fetchBills: Raw data from API", data);
+      console.log("fetchBills: Number of bills", data.length);
 
-    if (isOnline) {
-      try {
-        console.log("fetchBills: Fetching from Supabase...");
-        const response = await api.get("/api/supabase/bills-with-details");
-        const data = response.data;
-        console.log("fetchBills: Raw data from API", data);
-        console.log("fetchBills: Number of bills", data.length);
-
-        // Check first bill's items
-        if (data.length > 0 && data[0].items) {
-          console.log("fetchBills: First bill items", data[0].items);
-          console.log("fetchBills: First item details", data[0].items[0]);
-        }
-
-        const processedData = data.map((bill: any) => {
-          console.log(`fetchBills: Processing bill ${bill.id}`);
-          // FIX: Handle discount percentage - prioritize the correct field
-          const discountPct = bill.discountpercentage || bill.discountPercentage || 0;
-          const discountAmt = bill.discountamount || bill.discountAmount || 0;
-
-          // FIX: Handle tax percentage and amount
-          const taxPct = bill.taxpercentage || bill.taxPercentage || 0;
-          const taxAmt = bill.taxamount || bill.taxAmount || bill.tax || 0;
-          const isReplacement = Boolean(bill.isReplacement ?? bill.is_replacement);
-          const replacementFinalAmount = Number(
-            bill.replacementFinalAmount ?? bill.replacement_final_amount ?? 0
-          );
-          const replacementOriginalBillId =
-            bill.replacementOriginalBillId ?? bill.replacement_original_bill_id ?? "";
-          const paymentMethod = bill.paymentMethod ?? bill.paymentmethod ?? "";
-          const createdBy =
-            bill.createdBy ||
-            bill.createdby ||
-            bill.created_by ||
-            adminUser?.name ||
-            getStoredAdminName();
-
-          return {
-            ...bill,
-            date: bill.timestamp || bill.date,
-            tax: taxAmt,
-            taxPercentage: taxPct,
-            status: bill.status || "Paid",
-            items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
-            discountPercentage: discountPct,
-            discountAmount: discountAmt,
-            isReplacement,
-            replacementFinalAmount,
-            replacementOriginalBillId,
-            paymentMethod,
-            createdBy,
-          };
-        });
-
-        console.log("fetchBills: Final processed data", processedData);
-
-        // Silent background update
-        api.post("/api/local/bills/update", processedData).catch(() => {});
-
-        return processedData;
-      } catch (error) {
-        console.error("fetchBills: Error fetching from Supabase", error);
-        console.log("fetchBills: Falling back to local storage");
-        const localResponse = await api.get("/api/local/bills");
-        console.log("fetchBills: Local data", localResponse.data);
-
-        return localResponse.data.map((bill: any) => {
-          // FIX: Handle discount percentage in local data too
-          const discountPct = bill.discountpercentage || bill.discountPercentage || 0;
-          const discountAmt = bill.discountamount || bill.discountAmount || 0;
-
-          // FIX: Handle tax percentage and amount
-          const taxPct = bill.taxpercentage || bill.taxPercentage || 0;
-          const taxAmt = bill.taxamount || bill.taxAmount || bill.tax || 0;
-          const isReplacement = Boolean(bill.isReplacement ?? bill.is_replacement);
-          const replacementFinalAmount = Number(
-            bill.replacementFinalAmount ?? bill.replacement_final_amount ?? 0
-          );
-          const replacementOriginalBillId =
-            bill.replacementOriginalBillId ?? bill.replacement_original_bill_id ?? "";
-          const paymentMethod = bill.paymentMethod ?? bill.paymentmethod ?? "";
-          const createdBy =
-            bill.createdBy ||
-            bill.createdby ||
-            bill.created_by ||
-            adminUser?.name ||
-            getStoredAdminName();
-
-          return {
-            ...bill,
-            date: bill.timestamp || bill.date,
-            tax: taxAmt,
-            taxPercentage: taxPct,
-            status: bill.status || "Paid",
-            items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
-            discountPercentage: discountPct,
-            discountAmount: discountAmt,
-            isReplacement,
-            replacementFinalAmount,
-            replacementOriginalBillId,
-            paymentMethod,
-            createdBy,
-          };
-        });
+      // Check first bill's items
+      if (data.length > 0 && data[0].items) {
+        console.log("fetchBills: First bill items", data[0].items);
+        console.log("fetchBills: First item details", data[0].items[0]);
       }
+
+      const processedData = data.map((bill: any) => {
+        console.log(`fetchBills: Processing bill ${bill.id}`);
+        // FIX: Handle discount percentage - prioritize the correct field
+        const discountPct = bill.discountpercentage || bill.discountPercentage || 0;
+        const discountAmt = bill.discountamount || bill.discountAmount || 0;
+
+        // FIX: Handle tax percentage and amount
+        const taxPct = bill.taxpercentage || bill.taxPercentage || 0;
+        const taxAmt = bill.taxamount || bill.taxAmount || bill.tax || 0;
+        const isReplacement = Boolean(bill.isReplacement ?? bill.is_replacement);
+        const replacementFinalAmount = Number(
+          bill.replacementFinalAmount ?? bill.replacement_final_amount ?? 0
+        );
+        const replacementOriginalBillId =
+          bill.replacementOriginalBillId ?? bill.replacement_original_bill_id ?? "";
+        const paymentMethod = bill.paymentMethod ?? bill.paymentmethod ?? "";
+        const createdBy =
+          bill.createdBy ||
+          bill.createdby ||
+          bill.created_by ||
+          adminUser?.name ||
+          getStoredAdminName();
+
+        return {
+          ...bill,
+          date: bill.timestamp || bill.date,
+          tax: taxAmt,
+          taxPercentage: taxPct,
+          status: bill.status || "Paid",
+          items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
+          discountPercentage: discountPct,
+          discountAmount: discountAmt,
+          isReplacement,
+          replacementFinalAmount,
+          replacementOriginalBillId,
+          paymentMethod,
+          createdBy,
+        };
+      });
+
+      console.log("fetchBills: Final processed data", processedData);
+
+      // Silent background update
+      api.post("/api/local/bills/update", processedData).catch(() => {});
+
+      return processedData;
+    } catch (error) {
+      console.error("fetchBills: Error fetching from Supabase", error);
+      console.log("fetchBills: Falling back to local storage");
+      const localResponse = await api.get("/api/local/bills");
+      console.log("fetchBills: Local data", localResponse.data);
+
+      return localResponse.data.map((bill: any) => {
+        // FIX: Handle discount percentage in local data too
+        const discountPct = bill.discountpercentage || bill.discountPercentage || 0;
+        const discountAmt = bill.discountamount || bill.discountAmount || 0;
+
+        // FIX: Handle tax percentage and amount
+        const taxPct = bill.taxpercentage || bill.taxPercentage || 0;
+        const taxAmt = bill.taxamount || bill.taxAmount || bill.tax || 0;
+        const isReplacement = Boolean(bill.isReplacement ?? bill.is_replacement);
+        const replacementFinalAmount = Number(
+          bill.replacementFinalAmount ?? bill.replacement_final_amount ?? 0
+        );
+        const replacementOriginalBillId =
+          bill.replacementOriginalBillId ?? bill.replacement_original_bill_id ?? "";
+        const paymentMethod = bill.paymentMethod ?? bill.paymentmethod ?? "";
+        const createdBy =
+          bill.createdBy ||
+          bill.createdby ||
+          bill.created_by ||
+          adminUser?.name ||
+          getStoredAdminName();
+
+        return {
+          ...bill,
+          date: bill.timestamp || bill.date,
+          tax: taxAmt,
+          taxPercentage: taxPct,
+          status: bill.status || "Paid",
+          items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
+          discountPercentage: discountPct,
+          discountAmount: discountAmt,
+          isReplacement,
+          replacementFinalAmount,
+          replacementOriginalBillId,
+          paymentMethod,
+          createdBy,
+        };
+      });
     }
-  }, [isOnline, adminUser]);
+  }, [adminUser]);
 
   const fetchCustomers = useCallback(
     () => fetchData("/api/supabase/customers", "/api/local/customers", "/api/local/customers/update", "customers"),

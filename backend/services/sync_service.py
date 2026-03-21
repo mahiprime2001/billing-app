@@ -131,3 +131,42 @@ def cleanup_old_syncs() -> Tuple[bool, str, int]:
     except Exception as e:
         logger.error(f"Error cleaning up syncs: {e}", exc_info=True)
         return False, str(e), 500
+
+
+def trigger_reconnect_sync() -> Tuple[bool, str, int]:
+    """
+    Trigger an immediate sync cycle when connectivity is restored.
+    Pushes pending logs, retries failed logs, then pulls remote changes.
+    Returns (success, message, status_code)
+    """
+    try:
+        from scripts.sync_manager import get_sync_manager
+        import utils.supabase_circuit as supabase_circuit
+
+        # Allow immediate probe right after reconnect.
+        supabase_circuit.force_probe()
+
+        sync_manager = get_sync_manager()
+
+        push_result = (
+            sync_manager.process_pending_logs()
+            if hasattr(sync_manager, "process_pending_logs")
+            else {"status": "unsupported"}
+        )
+        retry_result = (
+            sync_manager.retry_failed_logs()
+            if hasattr(sync_manager, "retry_failed_logs")
+            else {"status": "unsupported"}
+        )
+        pull_result = (
+            sync_manager.pull_from_supabase_sync_table()
+            if hasattr(sync_manager, "pull_from_supabase_sync_table")
+            else {"status": "unsupported"}
+        )
+
+        return True, f"Reconnect sync completed: push={push_result}, retry={retry_result}, pull={pull_result}", 200
+    except ImportError:
+        return False, "Sync manager not available", 503
+    except Exception as e:
+        logger.error(f"Error triggering reconnect sync: {e}", exc_info=True)
+        return False, str(e), 500

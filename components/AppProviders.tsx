@@ -19,6 +19,8 @@ export default function AppProviders({
   // ✅ FIX: Use refs to track backend initialization state
   const backendInitialized = useRef(false);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const previousBackendStatusRef = useRef<'online' | 'offline' | 'checking'>('checking');
+  const reconnectSyncInFlightRef = useRef(false);
 
   // ✅ HARDCODED: Backend URL
   const BACKEND_URL = "http://127.0.0.1:8080";
@@ -26,6 +28,29 @@ export default function AppProviders({
   useEffect(() => {
     const pollInterval = 5000; // Poll every 5 seconds
     const requestTimeout = 5000; // 5 second timeout for requests
+
+    const triggerReconnectSync = async () => {
+      if (reconnectSyncInFlightRef.current) return;
+      reconnectSyncInFlightRef.current = true;
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/sync/reconnect`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        if (!response.ok) {
+          console.warn(`Reconnect sync failed: ${response.status} ${response.statusText}`);
+          return;
+        }
+        const payload = await response.json();
+        console.log("✅ Reconnect sync result:", payload);
+      } catch (error) {
+        console.warn("Reconnect sync request failed:", error);
+      } finally {
+        reconnectSyncInFlightRef.current = false;
+      }
+    };
 
     const sendHeartbeat = async () => {
       const controller = new AbortController();
@@ -45,6 +70,7 @@ export default function AppProviders({
         if (!response.ok) {
           console.error(`Heartbeat failed: ${response.status} ${response.statusText}`);
           setBackendStatus('offline');
+          previousBackendStatusRef.current = 'offline';
           setRetryCount(prev => prev + 1);
           
           // ✅ FIX: Try to restart backend only once per failure cycle
@@ -56,6 +82,10 @@ export default function AppProviders({
           const data = await response.json();
           console.log("✅ Backend heartbeat:", data);
           setBackendStatus('online');
+          if (previousBackendStatusRef.current !== 'online') {
+            previousBackendStatusRef.current = 'online';
+            void triggerReconnectSync();
+          }
           setRetryCount(0);
         }
       } catch (error) {
@@ -71,6 +101,7 @@ export default function AppProviders({
         }
 
         setBackendStatus('offline');
+        previousBackendStatusRef.current = 'offline';
         setRetryCount(prev => prev + 1);
         
         // ✅ FIX: Try to restart backend only once per failure cycle

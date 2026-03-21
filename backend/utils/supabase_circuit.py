@@ -38,3 +38,13 @@ def should_probe() -> bool:
             return True
     return False
 
+
+def force_probe() -> None:
+    """
+    Clear offline cooldown so the next Supabase request can probe immediately.
+    Useful after connectivity resumes.
+    """
+    global _offline_until, _last_probe_at
+    with _lock:
+        _offline_until = 0.0
+        _last_probe_at = 0.0

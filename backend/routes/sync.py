@@ -112,6 +112,26 @@ def retry_sync():
         return jsonify({"error": str(e)}), 500
 
 
+@sync_bp.route('/sync/reconnect', methods=['POST'])
+def reconnect_sync():
+    """Trigger immediate sync cycle when connectivity is restored"""
+    try:
+        from services import sync_service
+        success, message, status_code = sync_service.trigger_reconnect_sync()
+
+        if success:
+            return jsonify({"message": message}), status_code
+        else:
+            return jsonify({"error": message}), status_code
+
+    except ImportError:
+        logger.warning("Sync service not available")
+        return jsonify({"error": "Sync service not available"}), 503
+    except Exception as e:
+        logger.error(f"Error in reconnect_sync: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @sync_bp.route('/sync/cleanup', methods=['POST'])
 def cleanup_sync():
     """Cleanup old sync records"""

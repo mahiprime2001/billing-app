@@ -34,6 +34,7 @@ from routes.twofa import twofa_bp
 
 # Import export script
 from scripts.export_data import export_all_data_from_supabase
+from utils.supabase_db import db as supabase_db
 
 # Import sync manager
 try:
@@ -263,8 +264,18 @@ app = create_app(os.getenv('FLASK_ENV', 'development'))
 # Run once on startup to ensure local JSON files are up to date
 with app.app_context():
     try:
-        export_all_data_from_supabase()
-        app.logger.info("Initial data export from Supabase completed successfully.")
+        cloud_reachable = False
+        try:
+            supabase_db.client.table("products").select("id").limit(1).execute()
+            cloud_reachable = True
+        except Exception:
+            cloud_reachable = False
+
+        if cloud_reachable:
+            export_all_data_from_supabase()
+            app.logger.info("Initial data export from Supabase completed successfully.")
+        else:
+            app.logger.warning("Supabase unavailable at startup; using local JSON fallback until connection recovers.")
     except Exception as e:
         app.logger.error(f"Failed initial data export from Supabase: {e}", exc_info=True)
 
