@@ -1010,16 +1010,11 @@ export default function BillingPage() {
       .slice(0, 20);
   }, [currentProducts, productSearchTerm]);
 
-  const cartStockSummary = useMemo(() => {
-    const stockByProductId = new Map<string, number>();
-    currentProducts.forEach((product) => {
-      stockByProductId.set(product.id, Math.max(0, Number(product.stock) || 0));
-    });
-
-    const totalStock = billItems.reduce((sum, item) => sum + (stockByProductId.get(item.productId) ?? 0), 0);
-    const totalQuantity = billItems.reduce((sum, item) => sum + item.quantity, 0);
-    return { totalStock, totalQuantity };
-  }, [billItems, currentProducts]);
+  const cartSummary = useMemo(() => {
+    const totalItems = billItems.length;
+    const totalStock = billItems.reduce((sum, item) => sum + item.quantity, 0);
+    return { totalItems, totalStock };
+  }, [billItems]);
 
   const handleProductSearchAdd = () => {
     if (!productSearchTerm) return;
@@ -2141,7 +2136,7 @@ export default function BillingPage() {
                           </Button>
                         </div>
                         <CardDescription>
-                          {billItems.length} item(s) • Qty {cartStockSummary.totalQuantity} • Stock {cartStockSummary.totalStock}
+                          Items {cartSummary.totalItems} • Stock {cartSummary.totalStock}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
