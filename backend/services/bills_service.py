@@ -18,6 +18,7 @@ from utils.json_helpers import (
     get_products_data,
     save_products_data,
     get_store_inventory_data,
+    get_users_data,
 )
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
@@ -97,6 +98,83 @@ def _aggregate_item_quantity_by_product(items: Optional[List[Dict]]) -> Dict[str
             continue
         quantities[product_id] = quantities.get(product_id, 0) + qty
     return quantities
+
+
+def _resolve_creator_user_id(raw_value: Optional[str]) -> Optional[str]:
+    """
+    Resolve createdBy to a valid users.id.
+    Accepts id/name/username/email and returns canonical id when possible.
+    """
+    if raw_value is None:
+        return None
+    candidate = str(raw_value).strip()
+    if not candidate:
+        return None
+
+    try:
+        users = get_users_data()
+        for user in users:
+            uid = str(user.get("id") or "").strip()
+            if not uid:
+                continue
+            if candidate == uid:
+                return uid
+
+        lower_candidate = candidate.lower()
+        for user in users:
+            uid = str(user.get("id") or "").strip()
+            if not uid:
+                continue
+            name = str(user.get("name") or "").strip().lower()
+            username = str(user.get("username") or "").strip().lower()
+            email = str(user.get("email") or "").strip().lower()
+            if lower_candidate in (name, username, email):
+                return uid
+    except Exception as local_error:
+        logger.warning(f"Failed local createdBy resolution for '{candidate}': {local_error}")
+
+    # Best-effort cloud lookup
+    try:
+        client = db.client
+        by_id = execute_with_retry(
+            lambda: client.table("users").select("id").eq("id", candidate).limit(1),
+            "resolve createdby by id",
+            retries=1,
+        )
+        if by_id.data:
+            uid = by_id.data[0].get("id")
+            if uid:
+                return str(uid)
+
+        for col in ("name", "username", "email"):
+            by_col = execute_with_retry(
+                lambda col=col: client.table("users").select("id").eq(col, candidate).limit(1),
+                f"resolve createdby by {col}",
+                retries=1,
+            )
+            if by_col.data:
+                uid = by_col.data[0].get("id")
+                if uid:
+                    return str(uid)
+    except Exception as cloud_error:
+        logger.warning(f"Failed cloud createdBy resolution for '{candidate}': {cloud_error}")
+
+    return None
+
+
+def _next_billitem_id(client) -> int:
+    """Fetch next safe billitems.id (works even if sequence is stale)."""
+    try:
+        resp = execute_with_retry(
+            lambda: client.table("billitems").select("id").order("id", desc=True).limit(1),
+            "billitems max id lookup",
+            retries=1,
+        )
+        if resp.data:
+            return int(resp.data[0].get("id") or 0) + 1
+    except Exception as e:
+        logger.warning(f"Failed to fetch max billitems.id: {e}")
+    return 1
 
 
 def get_local_bills() -> List[Dict]:
@@ -593,7 +671,8 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
         payment_method = bill_data.get("paymentMethod") or "cash"
         timestamp = bill_data.get("timestamp") or datetime.now().isoformat()
         status = bill_data.get("status") or "completed"
-        created_by = bill_data.get("createdBy") or bill_data.get("createdby")
+        created_by_raw = bill_data.get("createdBy") or bill_data.get("createdby")
+        created_by = _resolve_creator_user_id(created_by_raw)
 
         # Convert numerics to plain floats to avoid JSON serialization errors
         subtotal = float(bill_data.get("subtotal", 0) or 0)
@@ -698,9 +777,11 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
                     retries=2,
                 )
                 bill_items_for_db = []
+                next_item_id = _next_billitem_id(client)
                 for item in items:
                     bill_items_for_db.append(
                         {
+                            "id": next_item_id,
                             "billid": bill_id,
                             "productid": item.get("product_id")
                             or item.get("productid")
@@ -710,6 +791,7 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
                             "total": item.get("total"),
                         }
                     )
+                    next_item_id += 1
                 if bill_items_for_db:
                     execute_with_retry(
                         lambda: client.table("billitems").insert(bill_items_for_db),
@@ -908,9 +990,11 @@ def update_bill(bill_id: str, bill_data: dict) -> Tuple[bool, str, int]:
                 retries=2,
             )
             bill_items_for_db = []
+            next_item_id = _next_billitem_id(client)
             for item in updated_items:
                 bill_items_for_db.append(
                     {
+                        "id": next_item_id,
                         "billid": bill_id,
                         "productid": item.get("product_id")
                         or item.get("productid")
@@ -920,6 +1004,7 @@ def update_bill(bill_id: str, bill_data: dict) -> Tuple[bool, str, int]:
                         "total": item.get("total"),
                     }
                 )
+                next_item_id += 1
             if bill_items_for_db:
                 execute_with_retry(
                     lambda: client.table("billitems").insert(bill_items_for_db),

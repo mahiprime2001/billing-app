@@ -140,6 +140,14 @@ def create_customer(customer_data: dict) -> Tuple[Optional[str], str, int]:
         
         # Convert field names
         customer_data = convert_camel_to_snake(customer_data)
+        # Remove optimistic-concurrency markers (not real DB columns)
+        for marker in (
+            "base_version",
+            "baseversion",
+            "base_updated_at",
+            "baseupdatedat",
+        ):
+            customer_data.pop(marker, None)
         
         # Generate ID if not present
         if 'id' not in customer_data:
@@ -192,9 +200,29 @@ def update_customer(customer_id: str, update_data: dict) -> Tuple[bool, str, int
         # Find customer in local storage
         customers = get_customers_data()
         customer_index = next((i for i, c in enumerate(customers) if c.get('id') == customer_id), -1)
-        
+
+        # If local cache misses customer, hydrate from Supabase and continue.
+        # This prevents false 404s when local JSON is stale.
         if customer_index == -1:
-            return False, "Customer not found", 404
+            try:
+                client = db.client
+                lookup = execute_with_retry(
+                    lambda: client.table("customers").select("*").eq("id", customer_id).limit(1),
+                    f"customers lookup {customer_id}",
+                    retries=2,
+                )
+                if lookup.data:
+                    remote_customer = lookup.data[0]
+                    customers.append(remote_customer)
+                    save_customers_data(customers)
+                    customer_index = len(customers) - 1
+                else:
+                    return False, "Customer not found", 404
+            except Exception as hydrate_error:
+                logger.warning(
+                    f"Customer {customer_id} missing locally and hydrate failed: {hydrate_error}"
+                )
+                return False, "Customer not found", 404
         
         base_version, base_updated_at = extract_base_markers(update_data)
         if base_updated_at is None and customer_index != -1:

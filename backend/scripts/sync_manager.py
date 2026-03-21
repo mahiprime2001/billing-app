@@ -664,10 +664,42 @@ class EnhancedSyncManager:
                         bill_payload["customerid"] = bill_payload.pop("customerId")
                     if "paymentMethod" in bill_payload and "paymentmethod" not in bill_payload:
                         bill_payload["paymentmethod"] = bill_payload.pop("paymentMethod")
+                    if "createdBy" in bill_payload and "createdby" not in bill_payload:
+                        bill_payload["createdby"] = bill_payload.pop("createdBy")
                     if "createdAt" in bill_payload and "created_at" not in bill_payload:
                         bill_payload["created_at"] = bill_payload.pop("createdAt")
                     if "updatedAt" in bill_payload and "updated_at" not in bill_payload:
                         bill_payload["updated_at"] = bill_payload.pop("updatedAt")
+
+                    # Ensure createdby references users.id (FK-safe). If unresolved, drop it.
+                    created_by_candidate = bill_payload.get("createdby")
+                    if created_by_candidate is not None and str(created_by_candidate).strip():
+                        created_by_candidate = str(created_by_candidate).strip()
+                        resolved_creator_id = None
+                        try:
+                            by_id = self.supabase_db.client.table("users").select("id").eq("id", created_by_candidate).limit(1).execute()
+                            if by_id.data:
+                                resolved_creator_id = by_id.data[0].get("id")
+                        except Exception:
+                            resolved_creator_id = None
+
+                        if not resolved_creator_id:
+                            for col in ("name", "username", "email"):
+                                try:
+                                    by_col = self.supabase_db.client.table("users").select("id").eq(col, created_by_candidate).limit(1).execute()
+                                    if by_col.data:
+                                        resolved_creator_id = by_col.data[0].get("id")
+                                        break
+                                except Exception:
+                                    continue
+
+                        if resolved_creator_id:
+                            bill_payload["createdby"] = resolved_creator_id
+                        else:
+                            logger.warning(
+                                f"Could not resolve createdby '{created_by_candidate}' to users.id; removing createdby to avoid FK violation."
+                            )
+                            bill_payload.pop("createdby", None)
 
                     if change_type == "CREATE":
                         self.supabase_db.client.table("bills").upsert(bill_payload).execute()
@@ -676,12 +708,15 @@ class EnhancedSyncManager:
 
                     if isinstance(items, list):
                         self.supabase_db.client.table("billitems").delete().eq("billid", record_id).execute()
+                        max_id_resp = self.supabase_db.client.table("billitems").select("id").order("id", desc=True).limit(1).execute()
+                        next_item_id = int(max_id_resp.data[0]["id"]) + 1 if max_id_resp.data else 1
                         db_items = []
                         for item in items:
                             if not isinstance(item, dict):
                                 continue
                             db_items.append(
                                 {
+                                    "id": next_item_id,
                                     "billid": record_id,
                                     "productid": item.get("productid")
                                     or item.get("product_id")
@@ -691,6 +726,7 @@ class EnhancedSyncManager:
                                     "total": item.get("total"),
                                 }
                             )
+                            next_item_id += 1
                         if db_items:
                             self.supabase_db.client.table("billitems").insert(db_items).execute()
 
@@ -716,12 +752,46 @@ class EnhancedSyncManager:
                         table_client.update(payload).eq("discount_id", record_id).execute()
                     logger.info(f"{change_type} operation on Discounts for {record_id} successful")
                     return True
-                
-                # For products, ensure barcodes are handled as a string for Supabase
-                if table_name.lower() == 'products' and 'barcodes' in change_data:
-                    # change_data['barcodes'] is already a comma-separated string from log_crud_operation
-                    # We need to map 'barcodes' key to 'barcode' key for Supabase
-                    change_data['barcode'] = change_data.pop('barcodes')
+
+                if table_name.lower() == "customers":
+                    payload = dict(change_data)
+
+                    # Drop optimistic concurrency markers that are not columns in Supabase.
+                    for marker_key in (
+                        "baseUpdatedAt",
+                        "base_updated_at",
+                        "baseUpdatedat",
+                        "baseupdatedat",
+                        "baseVersion",
+                        "base_version",
+                        "baseversion",
+                    ):
+                        payload.pop(marker_key, None)
+
+                    # Normalize common timestamp keys to DB columns.
+                    if "createdAt" in payload and "createdat" not in payload:
+                        payload["createdat"] = payload.pop("createdAt")
+                    if "updatedAt" in payload and "updatedat" not in payload:
+                        payload["updatedat"] = payload.pop("updatedAt")
+
+                    payload["id"] = payload.get("id") or record_id
+
+                    if change_type == "CREATE":
+                        table_client.upsert(payload).execute()
+                    else:
+                        table_client.update(payload).eq("id", record_id).execute()
+                    logger.info(f"{change_type} operation on Customers for {record_id} successful")
+                    return True
+
+                # Products need strict column normalization/filtering (e.g. hsnCode -> hsn_code_id),
+                # so always route through scripts.sync.apply_change_to_db.
+                if table_name.lower() == "products":
+                    success = apply_change_to_db(table_name, change_type, record_id, change_data, logger)
+                    if success:
+                        logger.info(f"{change_type} operation on Products for {record_id} successful via apply_change_to_db")
+                    else:
+                        logger.error(f"{change_type} operation on Products for {record_id} failed via apply_change_to_db")
+                    return success
                 
                 if change_type == 'CREATE':
                     response = table_client.insert(change_data).execute()

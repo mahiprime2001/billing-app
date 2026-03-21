@@ -188,7 +188,7 @@ export default function BillingPage() {
   const [printBill, setPrintBill] = useState<Bill | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const printPaperSize = "Thermal 80mm";
-  const [adminUser, setAdminUser] = useState<{ name?: string; role?: string; email?: string } | null>(null);
+  const [adminUser, setAdminUser] = useState<{ id?: string; name?: string; role?: string; email?: string } | null>(null);
   const [creatorNameById, setCreatorNameById] = useState<Record<string, string>>({});
 
   // Form state
@@ -618,6 +618,61 @@ export default function BillingPage() {
     });
   };
 
+  const buildEditableItemsFromBill = (rawItems: unknown): BillItem[] => {
+    let items: any[] = [];
+    if (typeof rawItems === "string") {
+      try {
+        const parsed = JSON.parse(rawItems);
+        if (Array.isArray(parsed)) items = parsed;
+      } catch {
+        items = [];
+      }
+    } else if (Array.isArray(rawItems)) {
+      items = rawItems;
+    }
+
+    return items
+      .map((item: any, idx: number) => {
+        const quantity = Math.max(1, parseNumber(item.quantity || item.qty || 1));
+        const price = parseNumber(
+          item.sellingPrice ??
+          item.selling_price ??
+          item.displayPrice ??
+          item.price ??
+          item.unit_price ??
+          0
+        );
+        const total = parseNumber(item.total ?? item.finalAmount ?? item.final_amount ?? (price * quantity));
+        const productId =
+          item.productId ||
+          item.product_id ||
+          item.productid ||
+          item.id ||
+          `EDIT-${idx + 1}`;
+        const productName =
+          item.productName ||
+          item.product_name ||
+          item.productname ||
+          item.name ||
+          "Unknown Product";
+
+        return {
+          productId: String(productId),
+          productName: String(productName),
+          quantity,
+          price,
+          sellingPrice: price,
+          total,
+          taxPercentage: parseNumber(item.taxPercentage ?? item.tax_percentage ?? item.tax ?? item.gst),
+          hsnCode: item.hsnCode || item.hsn || item.hsn_code || item.hsnCodeId || item.hsn_code_id || "-",
+          isReplacementItem: Boolean(item.isReplacementItem ?? item.is_replacement_item),
+          replacedProductId: item.replacedProductId || item.replaced_product_id || "",
+          replacedProductName: item.replacedProductName || item.replaced_product_name || "",
+        } as BillItem;
+      })
+      .filter((item) => item.quantity > 0);
+  };
+
   const normalizeBillForDisplay = (rawBill: any): Bill => {
     const isReplacement = Boolean(rawBill.isReplacement ?? rawBill.is_replacement);
     const itemsFromBill = parseItems(rawBill.items);
@@ -798,7 +853,8 @@ export default function BillingPage() {
     setCustomerName(normalized.customerName || (isWalkInBill ? WALK_IN_CUSTOMER_NAME : ""));
     setCustomerEmail(normalized.customerEmail || "");
     setCustomerPhone(normalized.customerPhone || "");
-    setBillItems(parseItems(normalized.items));
+    const editableItems = buildEditableItemsFromBill(normalized.items);
+    setBillItems(editableItems);
     setQuantity(1);
     setProductSearchTerm("");
     setLastScanValue("");
@@ -1008,17 +1064,20 @@ export default function BillingPage() {
     const resolvedCustomerPhone = isWalkInSelected
       ? ""
       : (customerPhone.trim() || selectedCustomer?.phone || "");
+    let effectiveCustomerId = resolvedCustomerId;
     if (!isWalkInSelected && !resolvedCustomerName) {
       alert("Please enter customer name.");
       return;
     }
     const createdBy =
+      adminUser?.id ||
       adminUser?.name ||
       (() => {
         if (typeof window === "undefined") return undefined;
         try {
           const stored = localStorage.getItem("adminUser");
-          return stored ? JSON.parse(stored)?.name : undefined;
+          const parsed = stored ? JSON.parse(stored) : null;
+          return parsed?.id || parsed?.name;
         } catch {
           return undefined;
         }
@@ -1028,34 +1087,62 @@ export default function BillingPage() {
     const dd = String(now.getDate()).padStart(2, "0");
     const mm = String(now.getMonth() + 1).padStart(2, "0");
     const yyyy = String(now.getFullYear());
-    const newBill: Bill = {
-      id: `INV-${dd}${mm}${yyyy}0000`,
-      customerId: resolvedCustomerId || WALK_IN_CUSTOMER_ID,
-      customerName: resolvedCustomerName,
-      customerEmail: resolvedCustomerEmail,
-      customerPhone: resolvedCustomerPhone,
-      customerAddress: selectedCustomer?.address,
-      items: billItems,
-      subtotal,
-      tax,
-      taxPercentage: taxRate,
-      discountPercentage: effectiveDiscountPct,
-      discountAmount,
-      total,
-      date: new Date().toISOString(),
-      status: "Paid",
-      companyName: systemSettings.companyName,
-      companyAddress: systemSettings.companyAddress,
-      companyPhone: systemSettings.companyPhone,
-      companyEmail: systemSettings.companyEmail,
-      gstin: systemSettings.gstin,
-      billFormat: selectedBillFormat,
-      createdBy: createdBy || undefined,
-    };
-
-    console.log("createBill: Bill payload", newBill);
 
     try {
+      // Ensure non-walk-in customers are always synced before bill creation
+      if (!isWalkInSelected) {
+        const existingCustomer = (customersData || []).find((c) => c.id === effectiveCustomerId) as any;
+        const customerPayload: any = {
+          name: resolvedCustomerName,
+          email: resolvedCustomerEmail,
+          phone: resolvedCustomerPhone,
+        };
+        if (existingCustomer?.updatedAt) {
+          customerPayload.baseUpdatedAt = existingCustomer.updatedAt;
+        } else if (existingCustomer?.updatedat) {
+          customerPayload.baseUpdatedAt = existingCustomer.updatedat;
+        }
+        if (effectiveCustomerId && effectiveCustomerId !== WALK_IN_CUSTOMER_ID) {
+          const customerUpdateResp = await api.put(`/api/customers/${effectiveCustomerId}`, customerPayload);
+          if (!customerUpdateResp?.status?.toString().startsWith("2")) {
+            throw new Error("Failed to update customer");
+          }
+        } else {
+          const customerCreateResp = await api.post("/api/customers", customerPayload);
+          const createdCustomerId = customerCreateResp?.data?.id;
+          if (!customerCreateResp?.status?.toString().startsWith("2") || !createdCustomerId) {
+            throw new Error("Failed to create customer");
+          }
+          effectiveCustomerId = String(createdCustomerId);
+        }
+      }
+
+      const newBill: Bill = {
+        id: `INV-${dd}${mm}${yyyy}0000`,
+        customerId: effectiveCustomerId || WALK_IN_CUSTOMER_ID,
+        customerName: resolvedCustomerName,
+        customerEmail: resolvedCustomerEmail,
+        customerPhone: resolvedCustomerPhone,
+        customerAddress: selectedCustomer?.address,
+        items: billItems,
+        subtotal,
+        tax,
+        taxPercentage: taxRate,
+        discountPercentage: effectiveDiscountPct,
+        discountAmount,
+        total,
+        date: new Date().toISOString(),
+        status: "Paid",
+        companyName: systemSettings.companyName,
+        companyAddress: systemSettings.companyAddress,
+        companyPhone: systemSettings.companyPhone,
+        companyEmail: systemSettings.companyEmail,
+        gstin: systemSettings.gstin,
+        billFormat: selectedBillFormat,
+        createdBy: createdBy || undefined,
+      };
+
+      console.log("createBill: Bill payload", newBill);
       const response = await api.post("/api/bills", newBill);
       console.log("createBill: API response", response);
 
@@ -1067,7 +1154,7 @@ export default function BillingPage() {
       setIsCreateDialogOpen(false);
 
       // Immediate refresh after creating bill
-      refetchBills();
+      await Promise.all([refetchBills(), refetchCustomers()]);
     } catch (error: any) {
       console.error("Error creating bill", error);
       const message =
@@ -1095,7 +1182,11 @@ export default function BillingPage() {
 
     const { subtotal, tax, discountAmount, total, effectiveDiscountPct, taxRate } = calculateTotals();
     const selectedCustomer = customersData?.find((c) => c.id === selectedCustomerId);
-    const customerId = isWalkInSelected ? WALK_IN_CUSTOMER_ID : (selectedCustomerId || targetBill.customerId || "");
+    // Keep update behavior consistent with create:
+    // - walk-in => walk-in id
+    // - selected existing id => update existing customer
+    // - custom/new (null id) => create new customer
+    let customerId = isWalkInSelected ? WALK_IN_CUSTOMER_ID : (selectedCustomerId || "");
     const resolvedCustomerName = isWalkInSelected
       ? WALK_IN_CUSTOMER_NAME
       : (customerName.trim() || selectedCustomer?.name || targetBill.customerName || "");
@@ -1106,40 +1197,50 @@ export default function BillingPage() {
       ? ""
       : (customerPhone.trim() || selectedCustomer?.phone || targetBill.customerPhone || "");
 
-    const payload = {
-      customerId,
-      customerName: resolvedCustomerName,
-      customerEmail: resolvedCustomerEmail,
-      customerPhone: resolvedCustomerPhone,
-      items: billItems,
-      subtotal,
-      tax,
-      taxPercentage: taxRate,
-      discountPercentage: effectiveDiscountPct,
-      discountAmount,
-      total,
-      status: targetBill.status || "Paid",
-      paymentMethod: targetBill.paymentMethod || "cash",
-    };
-
     try {
-      if (!isWalkInSelected && selectedCustomerId) {
-        const originalCustomer = customersData?.find((c) => c.id === selectedCustomerId);
-        const shouldUpdateCustomer =
-          !!originalCustomer &&
-          (
-            (resolvedCustomerName || "") !== (originalCustomer.name || "") ||
-            (resolvedCustomerEmail || "") !== (originalCustomer.email || "") ||
-            (resolvedCustomerPhone || "") !== (originalCustomer.phone || "")
-          );
-        if (shouldUpdateCustomer) {
-          await api.put(`/api/customers/${selectedCustomerId}`, {
-            name: resolvedCustomerName,
-            email: resolvedCustomerEmail,
-            phone: resolvedCustomerPhone,
-          });
+      // Ensure non-walk-in customers are always synced before bill update
+      if (!isWalkInSelected) {
+        const existingCustomer = (customersData || []).find((c) => c.id === customerId) as any;
+        const customerPayload: any = {
+          name: resolvedCustomerName,
+          email: resolvedCustomerEmail,
+          phone: resolvedCustomerPhone,
+        };
+        if (existingCustomer?.updatedAt) {
+          customerPayload.baseUpdatedAt = existingCustomer.updatedAt;
+        } else if (existingCustomer?.updatedat) {
+          customerPayload.baseUpdatedAt = existingCustomer.updatedat;
+        }
+        if (customerId && customerId !== WALK_IN_CUSTOMER_ID) {
+          const customerUpdateResp = await api.put(`/api/customers/${customerId}`, customerPayload);
+          if (!customerUpdateResp?.status?.toString().startsWith("2")) {
+            throw new Error("Failed to update customer");
+          }
+        } else {
+          const customerCreateResp = await api.post("/api/customers", customerPayload);
+          const createdCustomerId = customerCreateResp?.data?.id;
+          if (!customerCreateResp?.status?.toString().startsWith("2") || !createdCustomerId) {
+            throw new Error("Failed to create customer");
+          }
+          customerId = String(createdCustomerId);
         }
       }
+
+      const payload = {
+        customerId,
+        customerName: resolvedCustomerName,
+        customerEmail: resolvedCustomerEmail,
+        customerPhone: resolvedCustomerPhone,
+        items: billItems,
+        subtotal,
+        tax,
+        taxPercentage: taxRate,
+        discountPercentage: effectiveDiscountPct,
+        discountAmount,
+        total,
+        status: targetBill.status || "Paid",
+        paymentMethod: targetBill.paymentMethod || "cash",
+      };
 
       const response = await api.put(`/api/bills/${editingBillId}`, payload);
       if (!response.status.toString().startsWith("2")) {

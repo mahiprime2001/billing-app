@@ -428,7 +428,7 @@ def apply_change_to_db(
                         columns = [
                             'id', 'name', 'price', 'stock', 'assignedstoreid', 'batchid',
                             'selling_price', 'createdat', 'updatedat', 'barcode',
-                            'description', 'category', 'supplier', 'imageurl'
+                            'description', 'category', 'supplier', 'imageurl', 'hsn_code_id'
                         ]
                         logger_instance.warning(f"Fallback columns used for empty products table: {columns}")
                     # For other tables, if columns still empty, proceed with all data from snake_cased_data
