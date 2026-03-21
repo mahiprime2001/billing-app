@@ -98,13 +98,13 @@ def generate_tspl(
             tspl.append(f'BARCODE 20,0,"128",55,1,0,1,1,"{barcode}"')
             
             # Text elements - Use font size "2" for batch, name, and price (next biggest from current "1")
-            tspl.append(f'TEXT 225,30,"1",0,1,1,"{product["name"]}"')
+            tspl.append(f'TEXT 240,30,"1",0,1,1,"{product["name"]}"')
             
             # Batch Information (if available)
             batch_number = product.get('batchNumber', '')
             if batch_number and batch_number.strip():
                 logger.info(f"    📦 Batch: {batch_number}")
-                tspl.append(f'TEXT 225,6,"1",0,1,1,"{batch_number}"')
+                tspl.append(f'TEXT 240,6,"1",0,1,1,"{batch_number}"')
                 # Adjust price position down if batch is present
                 price_y = 54
             else:
@@ -123,7 +123,7 @@ def generate_tspl(
             except Exception:
                 selling_val = 0.0
             logger.info(f"    💰 Selling Price: Rs.{selling_val:.2f}")
-            tspl.append(f'TEXT 225,60,"2",0,1,1,"MRP.{selling_val:.2f}"')
+            tspl.append(f'TEXT 240,60,"2",0,1,1,"MRP.{selling_val:.2f}"')
             
             # Print ONE label
             tspl.append("PRINT 1")
