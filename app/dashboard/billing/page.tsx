@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw, ArrowUpDown } from "lucide-react";
+import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw, ArrowUpDown, Pencil } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Upload } from "lucide-react";
 import { unifiedPrint } from "@/app/utils/printUtils";
@@ -133,6 +133,8 @@ interface Bill {
 
 const WALK_IN_CUSTOMER_ID = "CUST-1754821420265";
 const WALK_IN_CUSTOMER_NAME = "Walk-in Customer";
+const BILL_EDIT_WINDOW_HOURS = 24;
+const BILL_EDIT_WINDOW_MS = BILL_EDIT_WINDOW_HOURS * 60 * 60 * 1000;
 const WALK_IN_CUSTOMER_FALLBACK: Customer = {
   id: WALK_IN_CUSTOMER_ID,
   name: WALK_IN_CUSTOMER_NAME,
@@ -180,6 +182,7 @@ export default function BillingPage() {
   const [selectedBillIds, setSelectedBillIds] = useState<string[]>([]);
   const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [editingBillId, setEditingBillId] = useState<string | null>(null);
   const [billSortKey, setBillSortKey] = useState<BillSortKey>("date");
   const [billSortDirection, setBillSortDirection] = useState<"asc" | "desc">("desc");
   const [printBill, setPrintBill] = useState<Bill | null>(null);
@@ -728,6 +731,93 @@ export default function BillingPage() {
     [billsData, customerLookup, creatorNameById]
   );
 
+  const getBillTimestampMs = (bill: Bill): number | null => {
+    const rawDate =
+      bill.date ||
+      bill.timestamp ||
+      (bill as any).created_at ||
+      (bill as any).createdAt ||
+      null;
+    if (!rawDate) return null;
+    const dt = new Date(rawDate);
+    const ts = dt.getTime();
+    return Number.isFinite(ts) ? ts : null;
+  };
+
+  const canEditBill = (bill: Bill): boolean => {
+    const billTs = getBillTimestampMs(bill);
+    if (billTs === null) return false;
+    return Date.now() - billTs <= BILL_EDIT_WINDOW_MS;
+  };
+
+  const getEditWindowRemainingText = (bill: Bill): string => {
+    const billTs = getBillTimestampMs(bill);
+    if (billTs === null) return "Edit unavailable (missing bill date)";
+    const remainingMs = BILL_EDIT_WINDOW_MS - (Date.now() - billTs);
+    if (remainingMs <= 0) return "Edit window expired (24h)";
+    const hours = Math.floor(remainingMs / (60 * 60 * 1000));
+    const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+    return `Editable for ${hours}h ${minutes}m`;
+  };
+
+  const resetBillFormForCreate = () => {
+    const walkIn =
+      customersData?.find(
+        (c) =>
+          c.id === WALK_IN_CUSTOMER_ID ||
+          (c.name || "").toLowerCase() === WALK_IN_CUSTOMER_NAME.toLowerCase(),
+      ) || WALK_IN_CUSTOMER_FALLBACK;
+
+    setEditingBillId(null);
+    setSelectedCustomerId(walkIn.id || WALK_IN_CUSTOMER_ID);
+    setCustomerName(walkIn.name || WALK_IN_CUSTOMER_NAME);
+    setCustomerEmail(walkIn.email || "");
+    setCustomerPhone(walkIn.phone || "");
+    setBillItems([]);
+    setQuantity(1);
+    setProductSearchTerm("");
+    setDiscountMode("percent");
+    setDiscountValue(0);
+    setLastScanValue("");
+  };
+
+  const openEditBillDialog = (bill: Bill) => {
+    const normalized = normalizeBillForDisplay(bill);
+    if (!canEditBill(normalized)) {
+      alert("This bill can only be edited within 24 hours of creation.");
+      return;
+    }
+
+    const isWalkInBill =
+      !normalized.customerId ||
+      normalized.customerId === WALK_IN_CUSTOMER_ID ||
+      (normalized.customerName || "").trim().toLowerCase() === WALK_IN_CUSTOMER_NAME.toLowerCase();
+
+    setEditingBillId(normalized.id);
+    setSelectedCustomerId(isWalkInBill ? WALK_IN_CUSTOMER_ID : (normalized.customerId || null));
+    setCustomerName(normalized.customerName || (isWalkInBill ? WALK_IN_CUSTOMER_NAME : ""));
+    setCustomerEmail(normalized.customerEmail || "");
+    setCustomerPhone(normalized.customerPhone || "");
+    setBillItems(parseItems(normalized.items));
+    setQuantity(1);
+    setProductSearchTerm("");
+    setLastScanValue("");
+
+    if (normalized.discountPercentage > 0) {
+      setDiscountMode("percent");
+      setDiscountValue(Number(normalized.discountPercentage) || 0);
+    } else if (normalized.discountAmount > 0) {
+      setDiscountMode("amount");
+      setDiscountValue(Number(normalized.discountAmount) || 0);
+    } else {
+      setDiscountMode("percent");
+      setDiscountValue(0);
+    }
+
+    setIsViewDialogOpen(false);
+    setIsCreateDialogOpen(true);
+  };
+
   useEffect(() => {
     console.log("Products: Updated products data", productsData);
   }, [productsData]);
@@ -743,6 +833,7 @@ export default function BillingPage() {
   // Auto-select Walk-in customer from Supabase (or fallback constant)
   useEffect(() => {
     if (!customersData) return;
+    if (isCreateDialogOpen) return;
     const match =
       customersData.find(
         (c) =>
@@ -754,7 +845,7 @@ export default function BillingPage() {
     setCustomerName(match.name || WALK_IN_CUSTOMER_NAME);
     setCustomerEmail(match.email || "");
     setCustomerPhone(match.phone || "");
-  }, [customersData]);
+  }, [customersData, isCreateDialogOpen]);
 
   const getProductBarcodes = (product: Product): string[] => {
     const raw = (product as any).barcodes ?? product.barcode ?? "";
@@ -899,13 +990,28 @@ export default function BillingPage() {
   };
 
   const createBill = async () => {
-    if (!customerName || billItems.length === 0) return;
+    const isWalkInSelected = selectedCustomerId === WALK_IN_CUSTOMER_ID;
+    if (billItems.length === 0) return;
 
     console.log("createBill: Attempting to create bill...");
 
     const { subtotal, tax, discountAmount, total, effectiveDiscountPct, taxRate } = calculateTotals();
     const selectedCustomer =
       customersData?.find((c) => c.id === selectedCustomerId) || WALK_IN_CUSTOMER_FALLBACK;
+    const resolvedCustomerId = isWalkInSelected ? WALK_IN_CUSTOMER_ID : (selectedCustomerId || "");
+    const resolvedCustomerName = isWalkInSelected
+      ? WALK_IN_CUSTOMER_NAME
+      : (customerName.trim() || selectedCustomer?.name || "");
+    const resolvedCustomerEmail = isWalkInSelected
+      ? ""
+      : (customerEmail.trim() || selectedCustomer?.email || "");
+    const resolvedCustomerPhone = isWalkInSelected
+      ? ""
+      : (customerPhone.trim() || selectedCustomer?.phone || "");
+    if (!isWalkInSelected && !resolvedCustomerName) {
+      alert("Please enter customer name.");
+      return;
+    }
     const createdBy =
       adminUser?.name ||
       (() => {
@@ -924,10 +1030,10 @@ export default function BillingPage() {
     const yyyy = String(now.getFullYear());
     const newBill: Bill = {
       id: `INV-${dd}${mm}${yyyy}0000`,
-      customerId: selectedCustomerId || WALK_IN_CUSTOMER_ID,
-      customerName,
-      customerEmail,
-      customerPhone,
+      customerId: resolvedCustomerId || WALK_IN_CUSTOMER_ID,
+      customerName: resolvedCustomerName,
+      customerEmail: resolvedCustomerEmail,
+      customerPhone: resolvedCustomerPhone,
       customerAddress: selectedCustomer?.address,
       items: billItems,
       subtotal,
@@ -957,21 +1063,100 @@ export default function BillingPage() {
         throw new Error("Failed to create bill");
       }
 
-      setCustomerName(selectedCustomer?.name || WALK_IN_CUSTOMER_NAME);
-      setCustomerEmail(selectedCustomer?.email || "");
-      setCustomerPhone(selectedCustomer?.phone || "");
-      setSelectedCustomerId(selectedCustomer?.id || WALK_IN_CUSTOMER_ID);
-      setBillItems([]);
-      setDiscountValue(0);
-      setDiscountMode("percent");
-      setProductSearchTerm("");
+      resetBillFormForCreate();
       setIsCreateDialogOpen(false);
 
       // Immediate refresh after creating bill
       refetchBills();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating bill", error);
-      alert("Failed to create bill.");
+      const message =
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        "Failed to create bill.";
+      alert(message);
+    }
+  };
+
+  const updateBill = async () => {
+    if (!editingBillId) return;
+    const isWalkInSelected = selectedCustomerId === WALK_IN_CUSTOMER_ID;
+    if ((!isWalkInSelected && !customerName.trim()) || billItems.length === 0) return;
+
+    const targetBill = currentBills.find((bill) => bill.id === editingBillId);
+    if (!targetBill) {
+      alert("Bill not found for editing.");
+      return;
+    }
+    if (!canEditBill(targetBill)) {
+      alert("This bill can only be edited within 24 hours of creation.");
+      return;
+    }
+
+    const { subtotal, tax, discountAmount, total, effectiveDiscountPct, taxRate } = calculateTotals();
+    const selectedCustomer = customersData?.find((c) => c.id === selectedCustomerId);
+    const customerId = isWalkInSelected ? WALK_IN_CUSTOMER_ID : (selectedCustomerId || targetBill.customerId || "");
+    const resolvedCustomerName = isWalkInSelected
+      ? WALK_IN_CUSTOMER_NAME
+      : (customerName.trim() || selectedCustomer?.name || targetBill.customerName || "");
+    const resolvedCustomerEmail = isWalkInSelected
+      ? ""
+      : (customerEmail.trim() || selectedCustomer?.email || targetBill.customerEmail || "");
+    const resolvedCustomerPhone = isWalkInSelected
+      ? ""
+      : (customerPhone.trim() || selectedCustomer?.phone || targetBill.customerPhone || "");
+
+    const payload = {
+      customerId,
+      customerName: resolvedCustomerName,
+      customerEmail: resolvedCustomerEmail,
+      customerPhone: resolvedCustomerPhone,
+      items: billItems,
+      subtotal,
+      tax,
+      taxPercentage: taxRate,
+      discountPercentage: effectiveDiscountPct,
+      discountAmount,
+      total,
+      status: targetBill.status || "Paid",
+      paymentMethod: targetBill.paymentMethod || "cash",
+    };
+
+    try {
+      if (!isWalkInSelected && selectedCustomerId) {
+        const originalCustomer = customersData?.find((c) => c.id === selectedCustomerId);
+        const shouldUpdateCustomer =
+          !!originalCustomer &&
+          (
+            (resolvedCustomerName || "") !== (originalCustomer.name || "") ||
+            (resolvedCustomerEmail || "") !== (originalCustomer.email || "") ||
+            (resolvedCustomerPhone || "") !== (originalCustomer.phone || "")
+          );
+        if (shouldUpdateCustomer) {
+          await api.put(`/api/customers/${selectedCustomerId}`, {
+            name: resolvedCustomerName,
+            email: resolvedCustomerEmail,
+            phone: resolvedCustomerPhone,
+          });
+        }
+      }
+
+      const response = await api.put(`/api/bills/${editingBillId}`, payload);
+      if (!response.status.toString().startsWith("2")) {
+        throw new Error("Failed to update bill");
+      }
+
+      resetBillFormForCreate();
+      setIsCreateDialogOpen(false);
+      await Promise.all([refetchBills(), refetchCustomers()]);
+      alert("Bill updated successfully.");
+    } catch (error: any) {
+      console.error("Error updating bill", error);
+      const message =
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        "Failed to update bill.";
+      alert(message);
     }
   };
 
@@ -1654,17 +1839,34 @@ export default function BillingPage() {
             </Dialog>
 
             {/* Create Bill Dialog */}
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <Dialog
+              open={isCreateDialogOpen}
+              onOpenChange={(open) => {
+                setIsCreateDialogOpen(open);
+                if (!open) {
+                  setEditingBillId(null);
+                }
+              }}
+            >
               <DialogTrigger asChild>
-                <Button>
+                <Button
+                  onClick={() => {
+                    resetBillFormForCreate();
+                    setEditingBillId(null);
+                  }}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Bill
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-6xl max-h-[92vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Create New Bill</DialogTitle>
-                  <DialogDescription>Enter customer details and add products to create a bill</DialogDescription>
+                  <DialogTitle>{editingBillId ? "Edit Bill" : "Create New Bill"}</DialogTitle>
+                  <DialogDescription>
+                    {editingBillId
+                      ? "Update customer details and items for this bill"
+                      : "Enter customer details and add products to create a bill"}
+                  </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-6">
@@ -1709,43 +1911,45 @@ export default function BillingPage() {
                         </Select>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="customerName">Customer Name</Label>
-                        <Input
-                          id="customerName"
-                          value={customerName}
-                          onChange={(e) => {
-                            setCustomerName(e.target.value);
-                            setSelectedCustomerId(null);
-                          }}
-                          required
-                        />
+                    {selectedCustomerId !== WALK_IN_CUSTOMER_ID && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="customerName">Customer Name</Label>
+                          <Input
+                            id="customerName"
+                            value={customerName}
+                            onChange={(e) => {
+                              setCustomerName(e.target.value);
+                              setSelectedCustomerId(null);
+                            }}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="customerEmail">Email (optional)</Label>
+                          <Input
+                            id="customerEmail"
+                            type="email"
+                            value={customerEmail}
+                            onChange={(e) => {
+                              setCustomerEmail(e.target.value);
+                              setSelectedCustomerId(null);
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="customerPhone">Phone (optional)</Label>
+                          <Input
+                            id="customerPhone"
+                            value={customerPhone}
+                            onChange={(e) => {
+                              setCustomerPhone(e.target.value);
+                              setSelectedCustomerId(null);
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="customerEmail">Email (optional)</Label>
-                        <Input
-                          id="customerEmail"
-                          type="email"
-                          value={customerEmail}
-                          onChange={(e) => {
-                            setCustomerEmail(e.target.value);
-                            setSelectedCustomerId(null);
-                          }}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="customerPhone">Phone (optional)</Label>
-                        <Input
-                          id="customerPhone"
-                          value={customerPhone}
-                          onChange={(e) => {
-                            setCustomerPhone(e.target.value);
-                            setSelectedCustomerId(null);
-                          }}
-                        />
-                      </div>
-                    </div>
+                    )}
                   </div>
 
                   <Separator />
@@ -1970,8 +2174,14 @@ export default function BillingPage() {
                   <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={createBill} disabled={!customerName || billItems.length === 0}>
-                    Create Bill
+                  <Button
+                    onClick={editingBillId ? updateBill : createBill}
+                    disabled={
+                      billItems.length === 0 ||
+                      (selectedCustomerId !== WALK_IN_CUSTOMER_ID && !customerName.trim())
+                    }
+                  >
+                    {editingBillId ? "Update Bill" : "Create Bill"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -2096,6 +2306,15 @@ export default function BillingPage() {
                             <div className="flex space-x-2">
                               <Button variant="outline" size="sm" onClick={() => viewBill(bill)}>
                                 <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openEditBillDialog(bill)}
+                                disabled={!canEditBill(bill)}
+                                title={getEditWindowRemainingText(bill)}
+                              >
+                                <Pencil className="h-4 w-4" />
                               </Button>
                               <Button variant="outline" size="sm" onClick={() => handlePrintBill(bill)}>
                                 <Printer className="h-4 w-4" />
@@ -2381,6 +2600,17 @@ export default function BillingPage() {
               <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
                 Close
               </Button>
+              {selectedBill && (
+                <Button
+                  variant="outline"
+                  onClick={() => openEditBillDialog(selectedBill)}
+                  disabled={!canEditBill(selectedBill)}
+                  title={getEditWindowRemainingText(selectedBill)}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit Bill
+                </Button>
+              )}
               {selectedBill && (
                 <Button onClick={() => handlePrintBill(selectedBill)} className="bg-blue-600 hover:bg-blue-700">
                   <Printer className="h-4 w-4 mr-2" />

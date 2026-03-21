@@ -4,7 +4,7 @@ Handles all bill-related business logic and database operations
 """
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
 
@@ -66,6 +66,37 @@ def _generate_daily_invoice_id() -> str:
         logger.warning(f"Failed reading cloud bills for invoice serial: {cloud_error}")
 
     return f"{prefix}{max_serial + 1:04d}"
+
+
+def _parse_datetime_for_edit_window(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = f"{text[:-1]}+00:00"
+    try:
+        dt = datetime.fromisoformat(text)
+    except Exception:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=IST_ZONE)
+    return dt.astimezone(IST_ZONE)
+
+
+def _aggregate_item_quantity_by_product(items: Optional[List[Dict]]) -> Dict[str, int]:
+    quantities: Dict[str, int] = {}
+    for item in (items or []):
+        product_id = item.get("product_id") or item.get("productid") or item.get("productId")
+        try:
+            qty = int(item.get("quantity") or 0)
+        except (TypeError, ValueError):
+            qty = 0
+        if not product_id or qty <= 0:
+            continue
+        quantities[product_id] = quantities.get(product_id, 0) + qty
+    return quantities
 
 
 def get_local_bills() -> List[Dict]:
@@ -727,6 +758,210 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
         import traceback
         traceback.print_exc()
         return None, str(e), 500
+
+
+def update_bill(bill_id: str, bill_data: dict) -> Tuple[bool, str, int]:
+    """
+    Update an existing bill within a 24-hour window.
+    Returns: (success, message, status_code)
+    """
+    try:
+        if not bill_data:
+            return False, "No bill data provided", 400
+
+        bills = get_bills_data()
+        bill_index = next((i for i, b in enumerate(bills) if b.get("id") == bill_id), -1)
+        if bill_index == -1:
+            return False, "Bill not found", 404
+
+        existing_bill = bills[bill_index]
+        created_ts_raw = (
+            existing_bill.get("timestamp")
+            or existing_bill.get("created_at")
+            or existing_bill.get("date")
+        )
+        created_ts = _parse_datetime_for_edit_window(created_ts_raw)
+        if created_ts is None:
+            return False, "Bill date is invalid; cannot verify edit window", 400
+
+        if datetime.now(IST_ZONE) - created_ts > timedelta(hours=24):
+            return False, "Bill can only be edited within 24 hours of creation", 403
+
+        updated_items = bill_data.get("items", [])
+        if not isinstance(updated_items, list) or not updated_items:
+            return False, "items must be a non-empty list", 400
+
+        old_qty_by_product = _aggregate_item_quantity_by_product(existing_bill.get("items", []))
+        new_qty_by_product = _aggregate_item_quantity_by_product(updated_items)
+        product_ids = set(old_qty_by_product.keys()) | set(new_qty_by_product.keys())
+        qty_delta_by_product: Dict[str, int] = {
+            pid: int(new_qty_by_product.get(pid, 0)) - int(old_qty_by_product.get(pid, 0))
+            for pid in product_ids
+        }
+
+        # Local stock validation/apply by delta:
+        # +delta => consume more stock, -delta => restore stock
+        local_products = get_products_data()
+        local_inventory = get_store_inventory_data()
+        local_product_map = {p.get("id"): p for p in local_products if p.get("id")}
+        allocated_by_product: Dict[str, int] = {}
+        for row in local_inventory:
+            pid = row.get("productid")
+            if not pid:
+                continue
+            allocated_by_product[pid] = allocated_by_product.get(pid, 0) + int(row.get("quantity") or 0)
+
+        for pid, delta in qty_delta_by_product.items():
+            if delta <= 0:
+                continue
+            product_row = local_product_map.get(pid)
+            if not product_row:
+                return False, f"Product {pid} not found", 404
+            global_stock = int(product_row.get("stock") or 0)
+            allocated = int(allocated_by_product.get(pid, 0))
+            available = max(0, global_stock - allocated)
+            if delta > available:
+                product_name = product_row.get("name", pid)
+                return False, (
+                    f"Insufficient available stock for '{product_name}'. "
+                    f"Available: {available}, Additional required: {delta}"
+                ), 400
+
+        for product in local_products:
+            pid = product.get("id")
+            if not pid:
+                continue
+            delta = int(qty_delta_by_product.get(pid, 0))
+            if delta == 0:
+                continue
+            current_stock = int(product.get("stock") or 0)
+            product["stock"] = max(0, current_stock - delta)
+            product["updatedat"] = datetime.now().isoformat()
+        save_products_data(local_products)
+
+        customer_id = (
+            bill_data.get("customerId")
+            or bill_data.get("customerid")
+            or existing_bill.get("customerid")
+            or "CUST-1754821420265"
+        )
+        payment_method = (
+            bill_data.get("paymentMethod")
+            or bill_data.get("paymentmethod")
+            or existing_bill.get("paymentmethod")
+            or "cash"
+        )
+        status = bill_data.get("status") or existing_bill.get("status") or "completed"
+        subtotal = float(bill_data.get("subtotal", existing_bill.get("subtotal", 0)) or 0)
+        total = float(bill_data.get("total", existing_bill.get("total", 0)) or 0)
+        discount_amount = float(
+            bill_data.get("discountAmount", bill_data.get("discount_amount", existing_bill.get("discount_amount", 0))) or 0
+        )
+        discount_percentage = float(
+            bill_data.get("discountPercentage", bill_data.get("discount_percentage", existing_bill.get("discount_percentage", 0))) or 0
+        )
+
+        updated_bill = dict(existing_bill)
+        updated_bill["customerid"] = customer_id
+        updated_bill["paymentmethod"] = payment_method
+        updated_bill["status"] = status
+        updated_bill["subtotal"] = subtotal
+        updated_bill["total"] = total
+        updated_bill["discount_amount"] = discount_amount
+        updated_bill["discount_percentage"] = discount_percentage
+        updated_bill["updated_at"] = datetime.now().isoformat()
+        updated_bill["items"] = updated_items
+
+        # Keep customer fields for local display fallback
+        if bill_data.get("customerName") is not None:
+            updated_bill["customer_name"] = bill_data.get("customerName")
+        if bill_data.get("customerEmail") is not None:
+            updated_bill["customer_email"] = bill_data.get("customerEmail")
+        if bill_data.get("customerPhone") is not None:
+            updated_bill["customer_phone"] = bill_data.get("customerPhone")
+
+        bills[bill_index] = updated_bill
+        save_bills_data(bills)
+
+        # Best-effort cloud sync
+        try:
+            client = db.client
+            cloud_bill_data = {
+                "customerid": customer_id,
+                "paymentmethod": payment_method,
+                "status": status,
+                "subtotal": subtotal,
+                "total": total,
+                "discount_amount": discount_amount,
+                "discount_percentage": discount_percentage,
+                "updated_at": datetime.now().isoformat(),
+            }
+            execute_with_retry(
+                lambda: client.table("bills").update(cloud_bill_data).eq("id", bill_id),
+                f"bill update {bill_id}",
+                retries=2,
+            )
+
+            execute_with_retry(
+                lambda: client.table("billitems").delete().eq("billid", bill_id),
+                f"billitems reset for bill {bill_id}",
+                retries=2,
+            )
+            bill_items_for_db = []
+            for item in updated_items:
+                bill_items_for_db.append(
+                    {
+                        "billid": bill_id,
+                        "productid": item.get("product_id")
+                        or item.get("productid")
+                        or item.get("productId"),
+                        "quantity": item.get("quantity"),
+                        "price": item.get("price"),
+                        "total": item.get("total"),
+                    }
+                )
+            if bill_items_for_db:
+                execute_with_retry(
+                    lambda: client.table("billitems").insert(bill_items_for_db),
+                    f"billitems insert for updated bill {bill_id}",
+                    retries=2,
+                )
+
+            # Apply stock delta in cloud
+            cloud_stock_deltas = {pid: delta for pid, delta in qty_delta_by_product.items() if delta != 0}
+            if cloud_stock_deltas:
+                cloud_product_ids = list(cloud_stock_deltas.keys())
+                products_response = execute_with_retry(
+                    lambda: client.table("products").select("id, stock").in_("id", cloud_product_ids),
+                    f"products stock lookup for updated bill {bill_id}",
+                    retries=2,
+                )
+                for row in products_response.data or []:
+                    pid = row.get("id")
+                    if not pid:
+                        continue
+                    delta = int(cloud_stock_deltas.get(pid, 0))
+                    current_stock = int(row.get("stock") or 0)
+                    new_stock = max(0, current_stock - delta)
+                    execute_with_retry(
+                        lambda pid=pid, new_stock=new_stock: client.table("products").update({
+                            "stock": new_stock,
+                            "updatedat": datetime.now().isoformat(),
+                        }).eq("id", pid),
+                        f"products stock update {pid} for updated bill {bill_id}",
+                        retries=2,
+                    )
+        except Exception as supabase_error:
+            logger.warning(
+                f"Bill {bill_id} updated locally; Supabase sync deferred: {supabase_error}"
+            )
+
+        logger.info(f"Bill updated: {bill_id}")
+        return True, "Bill updated", 200
+
+    except Exception as e:
+        logger.error(f"Error updating bill {bill_id}: {e}", exc_info=True)
+        return False, str(e), 500
 
 
 def delete_bill(bill_id: str) -> Tuple[bool, str, int]:

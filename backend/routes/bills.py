@@ -139,6 +139,38 @@ def get_bills():
 
 
 # ======================================================
+# UPDATE BILL
+# ======================================================
+
+@bills_bp.route("/bills/<bill_id>", methods=["PUT"])
+def update_bill(bill_id):
+    """Update a bill within the allowed edit window"""
+    try:
+        bill_data = request.json or {}
+        success, message, status_code = bills_service.update_bill(bill_id, bill_data)
+
+        if success:
+            try:
+                from scripts.sync_manager import log_json_crud_operation
+                log_json_crud_operation(
+                    json_type="bills",
+                    operation="UPDATE",
+                    record_id=bill_id,
+                    data=bill_data,
+                )
+            except ImportError:
+                logger.warning("Sync manager not available")
+
+            return jsonify({"message": message, "id": bill_id}), status_code
+
+        return jsonify({"error": message}), status_code
+
+    except Exception as e:
+        logger.error("Error updating bill", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+# ======================================================
 # DELETE BILL
 # ======================================================
 
