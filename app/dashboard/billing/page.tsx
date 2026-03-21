@@ -868,6 +868,17 @@ export default function BillingPage() {
       .slice(0, 20);
   }, [currentProducts, productSearchTerm]);
 
+  const cartStockSummary = useMemo(() => {
+    const stockByProductId = new Map<string, number>();
+    currentProducts.forEach((product) => {
+      stockByProductId.set(product.id, Math.max(0, Number(product.stock) || 0));
+    });
+
+    const totalStock = billItems.reduce((sum, item) => sum + (stockByProductId.get(item.productId) ?? 0), 0);
+    const totalQuantity = billItems.reduce((sum, item) => sum + item.quantity, 0);
+    return { totalStock, totalQuantity };
+  }, [billItems, currentProducts]);
+
   const handleProductSearchAdd = () => {
     if (!productSearchTerm) return;
     const raw = productSearchTerm.trim();
@@ -1817,8 +1828,21 @@ export default function BillingPage() {
 
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Added Items</CardTitle>
-                        <CardDescription>{billItems.length} item(s) in this bill</CardDescription>
+                        <div className="flex items-center justify-between gap-2">
+                          <CardTitle className="text-lg">Added Items</CardTitle>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setBillItems([])}
+                            disabled={billItems.length === 0}
+                          >
+                            Clear All
+                          </Button>
+                        </div>
+                        <CardDescription>
+                          {billItems.length} item(s) • Qty {cartStockSummary.totalQuantity} • Stock {cartStockSummary.totalStock}
+                        </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         {billItems.length > 0 ? (
