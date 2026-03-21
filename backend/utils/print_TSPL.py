@@ -50,11 +50,11 @@ def generate_tspl(
     
     # Printer setup - ONCE at the start
     logger.info("⚙️  Adding printer setup commands...")
-    #tspl.append("GAPDETECT")
+    tspl.append("GAPDETECT")
     tspl.append(f"SIZE {_format_mm(width_mm)} mm,{_format_mm(height_mm)} mm")
     tspl.append("GAP 4 mm,0 mm")
     tspl.append("DENSITY 10")
-    tspl.append("SPEED 4")
+    tspl.append("SPEED 2")
     tspl.append("DIRECTION 1")
     tspl.append("REFERENCE 0,0")
     #tspl.append("OFFSET 0, 0")
