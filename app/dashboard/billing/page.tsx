@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw, ArrowUpDown, Pencil } from "lucide-react";
+import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw, ArrowUpDown, Pencil, RotateCcw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Upload } from "lucide-react";
 import { unifiedPrint } from "@/app/utils/printUtils";
@@ -99,6 +99,7 @@ interface BillItem {
 
 interface Bill {
   id: string;
+  storeId?: string;
   customerId?: string;
   customerName?: string;
   customerEmail?: string;
@@ -744,6 +745,7 @@ export default function BillingPage() {
     return {
       ...rawBill,
       id: rawBill.id || "",
+      storeId: rawBill.storeId || rawBill.store_id || rawBill.storeid || "",
       customerId,
       customerName:
         rawBill.customerName ||
@@ -1266,6 +1268,38 @@ export default function BillingPage() {
       refetchBills();
     } catch (error) {
       console.error("Error deleting bills", error);
+    }
+  };
+
+  const reviseBill = async (bill: Bill) => {
+    const normalized = normalizeBillForDisplay(bill);
+    if (!normalized?.id) return;
+
+    const confirmed = window.confirm(
+      `Revise bill ${normalized.id}?\n\nThis will restore stock and remove this bill data. This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const response = await api.post(`/api/bills/${normalized.id}/revise`, {
+        storeId: normalized.storeId || undefined,
+      });
+      if (!response.status.toString().startsWith("2")) {
+        throw new Error("Failed to revise bill");
+      }
+      if (selectedBill?.id === normalized.id) {
+        setIsViewDialogOpen(false);
+        setSelectedBill(null);
+      }
+      await Promise.all([refetchBills(), refetchProducts(), refetchCustomers()]);
+      alert("Bill revised successfully. Stock restored and bill removed.");
+    } catch (error: any) {
+      console.error("Error revising bill", error);
+      const message =
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        "Failed to revise bill.";
+      alert(message);
     }
   };
 
@@ -2410,6 +2444,9 @@ export default function BillingPage() {
                               <Button variant="outline" size="sm" onClick={() => handlePrintBill(bill)}>
                                 <Printer className="h-4 w-4" />
                               </Button>
+                              <Button variant="outline" size="sm" onClick={() => reviseBill(bill)} title="Revise Bill">
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
                               <Button variant="outline" size="sm" onClick={() => openDeleteDialog(bill.id)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -2700,6 +2737,12 @@ export default function BillingPage() {
                 >
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit Bill
+                </Button>
+              )}
+              {selectedBill && (
+                <Button variant="outline" onClick={() => reviseBill(selectedBill)}>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Revise Bill
                 </Button>
               )}
               {selectedBill && (

@@ -4,6 +4,7 @@ Handles all bill-related business logic and database operations
 """
 import logging
 import re
+import uuid
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
@@ -18,6 +19,7 @@ from utils.json_helpers import (
     get_products_data,
     save_products_data,
     get_store_inventory_data,
+    save_store_inventory_data,
     get_users_data,
 )
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
@@ -1133,4 +1135,221 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
     except Exception as e:
         print(f"❌ Error deleting bill: {e}")
         logger.error(f"Error deleting bill: {e}", exc_info=True)
+        return False, str(e), 500
+
+
+def revise_bill(bill_id: str, store_id_override: Optional[str] = None) -> Tuple[bool, str, int]:
+    """
+    Revise bill by:
+    1) restoring sold quantities back to store inventory (+ products stock)
+    2) deleting bill-related rows/data
+    """
+    try:
+        bills = get_bills_data()
+        local_bill = next((b for b in bills if b.get("id") == bill_id), None)
+
+        cloud_bill: Optional[Dict] = None
+        try:
+            client = db.client
+            cloud_bill_resp = execute_with_retry(
+                lambda: client.table("bills").select("*").eq("id", bill_id).limit(1),
+                f"lookup bill {bill_id} for revise",
+                retries=1,
+            )
+            if cloud_bill_resp.data:
+                cloud_bill = cloud_bill_resp.data[0]
+        except Exception as cloud_lookup_error:
+            logger.warning(f"Failed cloud bill lookup for revise {bill_id}: {cloud_lookup_error}")
+
+        source_bill = local_bill or cloud_bill
+        if not source_bill:
+            return False, "Bill not found", 404
+
+        store_id = (
+            str(store_id_override or "").strip()
+            or str(source_bill.get("storeid") or source_bill.get("store_id") or source_bill.get("storeId") or "").strip()
+        )
+        if not store_id:
+            return False, "Store id is required to revise this bill", 400
+
+        # Prefer local bill items; fallback to cloud billitems table.
+        source_items = source_bill.get("items") if source_bill else None
+        qty_by_product = _aggregate_item_quantity_by_product(source_items if isinstance(source_items, list) else [])
+
+        if not qty_by_product:
+            try:
+                client = db.client
+                billitems_resp = execute_with_retry(
+                    lambda: client.table("billitems").select("productid, quantity").eq("billid", bill_id),
+                    f"billitems lookup for revise {bill_id}",
+                    retries=2,
+                )
+                qty_by_product = {}
+                for row in (billitems_resp.data or []):
+                    pid = row.get("productid")
+                    qty = int(row.get("quantity") or 0)
+                    if not pid or qty <= 0:
+                        continue
+                    qty_by_product[pid] = qty_by_product.get(pid, 0) + qty
+            except Exception as billitems_lookup_error:
+                logger.warning(f"Failed cloud billitems lookup for revise {bill_id}: {billitems_lookup_error}")
+
+        if not qty_by_product:
+            return False, "No bill items found for stock restore", 400
+
+        now_iso = datetime.now().isoformat()
+
+        # Step 1A: Local restock (storeinventory + products)
+        local_products = get_products_data()
+        local_product_map = {p.get("id"): p for p in local_products if p.get("id")}
+        for pid, qty in qty_by_product.items():
+            product_row = local_product_map.get(pid)
+            if not product_row:
+                continue
+            current_stock = int(product_row.get("stock") or 0)
+            product_row["stock"] = current_stock + qty
+            product_row["updatedat"] = now_iso
+        save_products_data(local_products)
+
+        local_inventory = get_store_inventory_data()
+        for pid, qty in qty_by_product.items():
+            inv_row = next(
+                (
+                    row for row in local_inventory
+                    if str(row.get("storeid") or "") == store_id and str(row.get("productid") or "") == str(pid)
+                ),
+                None,
+            )
+            if inv_row:
+                inv_row["quantity"] = int(inv_row.get("quantity") or 0) + qty
+                inv_row["updatedat"] = now_iso
+            else:
+                local_inventory.append(
+                    {
+                        "id": f"SINV-{uuid.uuid4().hex[:12]}",
+                        "storeid": store_id,
+                        "productid": pid,
+                        "quantity": qty,
+                        "createdat": now_iso,
+                        "updatedat": now_iso,
+                    }
+                )
+        save_store_inventory_data(local_inventory)
+
+        # Step 1B: Cloud restock (strict: if this fails, do not delete bill rows)
+        try:
+            client = db.client
+            for pid, qty in qty_by_product.items():
+                inv_resp = execute_with_retry(
+                    lambda pid=pid: client.table("storeinventory")
+                    .select("id, quantity")
+                    .eq("storeid", store_id)
+                    .eq("productid", pid)
+                    .limit(1),
+                    f"storeinventory lookup for revise {bill_id}/{pid}",
+                    retries=2,
+                )
+                if inv_resp.data:
+                    inv_row = inv_resp.data[0]
+                    new_qty = int(inv_row.get("quantity") or 0) + qty
+                    execute_with_retry(
+                        lambda inv_id=inv_row.get("id"), new_qty=new_qty: client.table("storeinventory").update(
+                            {"quantity": new_qty, "updatedat": now_iso}
+                        ).eq("id", inv_id),
+                        f"storeinventory restock update for revise {bill_id}/{pid}",
+                        retries=2,
+                    )
+                else:
+                    execute_with_retry(
+                        lambda pid=pid, qty=qty: client.table("storeinventory").insert(
+                            {
+                                "id": f"SINV-{uuid.uuid4().hex[:12]}",
+                                "storeid": store_id,
+                                "productid": pid,
+                                "quantity": qty,
+                                "createdat": now_iso,
+                                "updatedat": now_iso,
+                            }
+                        ),
+                        f"storeinventory restock insert for revise {bill_id}/{pid}",
+                        retries=2,
+                    )
+
+                prod_resp = execute_with_retry(
+                    lambda pid=pid: client.table("products").select("id, stock").eq("id", pid).limit(1),
+                    f"products lookup for revise {bill_id}/{pid}",
+                    retries=2,
+                )
+                if prod_resp.data:
+                    row = prod_resp.data[0]
+                    new_stock = int(row.get("stock") or 0) + qty
+                    execute_with_retry(
+                        lambda pid=pid, new_stock=new_stock: client.table("products").update(
+                            {"stock": new_stock, "updatedat": now_iso}
+                        ).eq("id", pid),
+                        f"products restock update for revise {bill_id}/{pid}",
+                        retries=2,
+                    )
+        except Exception as restock_error:
+            logger.error(f"Cloud restock failed for revise {bill_id}: {restock_error}", exc_info=True)
+            return False, f"Stock restored locally but cloud restock failed: {restock_error}", 500
+
+        # Step 2A: Delete local bill + local discounts references
+        if local_bill:
+            filtered_local_bills = [b for b in bills if b.get("id") != bill_id]
+            save_bills_data(filtered_local_bills)
+
+        try:
+            discounts = get_discounts_data()
+            remaining_discounts = [
+                d for d in discounts if str(d.get("bill_id") or d.get("billId") or "") != bill_id
+            ]
+            save_discounts_data(remaining_discounts)
+        except Exception as local_discount_error:
+            logger.warning(f"Failed local discounts cleanup for revised bill {bill_id}: {local_discount_error}")
+
+        # Step 2B: Delete cloud bill-related rows
+        try:
+            execute_with_retry(
+                lambda: client.table("replacements").delete().eq("bill_id", bill_id),
+                f"replacements delete for revised bill {bill_id}",
+                retries=2,
+            )
+
+            discount_ids: List[str] = []
+            discount_lookup = execute_with_retry(
+                lambda: client.table("discounts").select("discount_id").eq("bill_id", bill_id),
+                f"discount lookup for revised bill {bill_id}",
+                retries=2,
+            )
+            for row in (discount_lookup.data or []):
+                did = row.get("discount_id")
+                if did:
+                    discount_ids.append(did)
+            if discount_ids:
+                execute_with_retry(
+                    lambda: client.table("discounts").delete().in_("discount_id", discount_ids),
+                    f"discounts delete for revised bill {bill_id}",
+                    retries=2,
+                )
+
+            execute_with_retry(
+                lambda: client.table("billitems").delete().eq("billid", bill_id),
+                f"billitems delete for revised bill {bill_id}",
+                retries=2,
+            )
+            execute_with_retry(
+                lambda: client.table("bills").delete().eq("id", bill_id),
+                f"bill delete for revised bill {bill_id}",
+                retries=2,
+            )
+        except Exception as cloud_delete_error:
+            logger.warning(f"Cloud cleanup failed for revised bill {bill_id}: {cloud_delete_error}")
+            return False, f"Stock restored but cloud cleanup failed: {cloud_delete_error}", 500
+
+        logger.info(f"Bill revised successfully: {bill_id}")
+        return True, "Bill revised: stock restored and bill data removed", 200
+
+    except Exception as e:
+        logger.error(f"Error revising bill {bill_id}: {e}", exc_info=True)
         return False, str(e), 500

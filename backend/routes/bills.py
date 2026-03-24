@@ -171,6 +171,38 @@ def update_bill(bill_id):
 
 
 # ======================================================
+# REVISE BILL
+# ======================================================
+
+@bills_bp.route("/bills/<bill_id>/revise", methods=["POST"])
+def revise_bill(bill_id):
+    """Revise bill: restore stock first, then remove bill-related data"""
+    try:
+        payload = request.json or {}
+        store_id = payload.get("storeId") or payload.get("storeid") or payload.get("store_id")
+        success, message, status_code = bills_service.revise_bill(bill_id, store_id_override=store_id)
+
+        if success:
+            try:
+                from scripts.sync_manager import log_json_crud_operation
+                log_json_crud_operation(
+                    json_type="bills",
+                    operation="DELETE",
+                    record_id=bill_id,
+                    data={"id": bill_id, "mode": "revise"},
+                )
+            except ImportError:
+                logger.warning("Sync manager not available")
+
+            return jsonify({"message": message, "id": bill_id}), status_code
+
+        return jsonify({"error": message}), status_code
+    except Exception as e:
+        logger.error("Error revising bill", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+# ======================================================
 # DELETE BILL
 # ======================================================
 
