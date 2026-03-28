@@ -69,6 +69,42 @@ interface SuperAdminUser {
   twofa?: TwoFactorStatus | null
 }
 
+const normalizeDataUrl = (value: unknown): string | null => {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (trimmed.startsWith("data:image/")) return trimmed
+  // Some backends send raw base64 without the data URL prefix.
+  if (/^[A-Za-z0-9+/=\r\n]+$/.test(trimmed) && trimmed.length > 100) {
+    return `data:image/png;base64,${trimmed.replace(/\s+/g, "")}`
+  }
+  return null
+}
+
+const pickQrDataUrl = (payload: any): string | null => {
+  const root = payload?.data && typeof payload.data === "object" ? payload.data : payload
+  return (
+    normalizeDataUrl(root?.qr_data_url) ||
+    normalizeDataUrl(root?.qrDataUrl) ||
+    normalizeDataUrl(root?.qr_data) ||
+    normalizeDataUrl(root?.qrData) ||
+    normalizeDataUrl(root?.qr_code) ||
+    normalizeDataUrl(root?.qrCode)
+  )
+}
+
+const pickOtpAuthUri = (payload: any): string | null => {
+  const root = payload?.data && typeof payload.data === "object" ? payload.data : payload
+  const value =
+    root?.otp_auth ||
+    root?.otpAuth ||
+    root?.otp_auth_uri ||
+    root?.otpAuthUri ||
+    root?.otpauth ||
+    null
+  return typeof value === "string" && value.trim() ? value.trim() : null
+}
+
 
 interface UpdateStatus {
   available: boolean
@@ -364,12 +400,16 @@ export default function SettingsPage() {
         throw new Error(data?.message || "Failed to start 2FA")
       }
 
-      setQrDataUrl(data.qr_data_url || null)
-      setOtpAuthUri(data.otp_auth || null)
+      const qrUrl = pickQrDataUrl(data)
+      const otpUri = pickOtpAuthUri(data)
+      setQrDataUrl(qrUrl)
+      setOtpAuthUri(otpUri)
 
       toast({
         title: "2FA secret created",
-        description: "Scan the QR code with an authenticator app and verify once.",
+        description: qrUrl
+          ? "Scan the QR code with an authenticator app and verify once."
+          : "2FA secret created. QR image missing in response; use the OTP URI shown below.",
       })
     } catch (error) {
       console.error("Error initiating 2FA:", error)
@@ -892,14 +932,20 @@ export default function SettingsPage() {
                               </DialogDescription>
                             </DialogHeader>
 
-                            {qrDataUrl ? (
+                            {qrDataUrl || otpAuthUri ? (
                               <div className="grid gap-6 lg:grid-cols-3 items-start">
                                 <div className="lg:col-span-1 flex flex-col items-center">
-                                  <img
-                                    src={qrDataUrl}
-                                    alt="2FA QR code"
-                                    className="h-56 w-56 rounded-md border bg-white shadow-sm"
-                                  />
+                                  {qrDataUrl ? (
+                                    <img
+                                      src={qrDataUrl}
+                                      alt="2FA QR code"
+                                      className="h-56 w-56 rounded-md border bg-white shadow-sm"
+                                    />
+                                  ) : (
+                                    <div className="h-56 w-56 rounded-md border bg-gray-50 text-gray-600 text-xs flex items-center justify-center text-center p-4">
+                                      QR image not available from backend response.
+                                    </div>
+                                  )}
                                   {otpAuthUri && (
                                     <p className="mt-3 text-xs text-gray-500 break-all text-center">
                                       {otpAuthUri}

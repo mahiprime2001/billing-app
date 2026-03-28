@@ -101,6 +101,10 @@ async function printInBrowserWindow(html: string, preferNewWindow = false): Prom
   });
 }
 
+function isTauriRuntime(): boolean {
+  return typeof window !== "undefined" && Boolean((window as any).__TAURI__);
+}
+
 async function printThermalLabel(content: string, isThermalPrinter: boolean): Promise<void> {
   if (!isThermalPrinter) {
     console.warn("Attempted to print thermal label to a non-thermal printer.");
@@ -194,9 +198,17 @@ export async function unifiedPrint({
 
   if (htmlContent) {
     console.log("🖨️ Using browser-based HTML printing");
-    const preferNewWindow =
-      typeof window !== "undefined" && Boolean((window as any).__TAURI__);
-    await printInBrowserWindow(htmlContent, preferNewWindow);
+    try {
+      // Prefer iframe-based printing even in Tauri; popup windows can be blocked.
+      await printInBrowserWindow(htmlContent, false);
+    } catch (err) {
+      // Fallback for Tauri desktop builds.
+      if (isTauriRuntime()) {
+        await invoke("print_html", { html: htmlContent });
+      } else {
+        throw err;
+      }
+    }
     return;
   }
 
@@ -218,9 +230,15 @@ export async function unifiedPrint({
 </head>
 <body><pre>${escapeHtml(thermalContent)}</pre></body>
 </html>`;
-    const preferNewWindow =
-      typeof window !== "undefined" && Boolean((window as any).__TAURI__);
-    await printInBrowserWindow(html, preferNewWindow);
+    try {
+      await printInBrowserWindow(html, false);
+    } catch (err) {
+      if (isTauriRuntime()) {
+        await invoke("print_html", { html });
+      } else {
+        throw err;
+      }
+    }
     return;
   }
 
