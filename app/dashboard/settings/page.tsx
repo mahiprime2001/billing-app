@@ -69,6 +69,58 @@ interface SuperAdminUser {
   twofa?: TwoFactorStatus | null
 }
 
+const BACKEND_API_BASE_URL = (
+  process.env.NEXT_PUBLIC_BACKEND_API_URL?.trim() || "http://127.0.0.1:8080"
+).replace(/\/+$/g, "")
+
+const backendApiUrl = (path: string): string => {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`
+  return `${BACKEND_API_BASE_URL}${normalizedPath}`
+}
+
+const toNetworkErrorMessage = (error: unknown, path: string): string => {
+  if (error instanceof TypeError && /Failed to fetch/i.test(error.message)) {
+    return `Unable to reach backend at ${backendApiUrl(path)}. Ensure backend is running and NEXT_PUBLIC_BACKEND_API_URL is configured.`
+  }
+  return error instanceof Error ? error.message : "Request failed"
+}
+
+const isTauriRuntime = (): boolean => typeof window !== "undefined" && "__TAURI__" in window
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const ensureBackendReadyIfTauri = async (): Promise<void> => {
+  if (!isTauriRuntime()) return
+  try {
+    await invoke<string>("ensure_backend_running")
+  } catch (error) {
+    console.error("Failed to invoke ensure_backend_running:", error)
+  }
+
+  // Wait briefly for backend startup and verify health.
+  for (let i = 0; i < 6; i++) {
+    try {
+      const health = await fetch(backendApiUrl("/health"), { cache: "no-store" })
+      if (health.ok) return
+    } catch {
+      // Ignore and retry
+    }
+    await sleep(500)
+  }
+}
+
+const fetchWithBackendRetry = async (path: string, init?: RequestInit): Promise<Response> => {
+  const url = backendApiUrl(path)
+  try {
+    return await fetch(url, init)
+  } catch (error) {
+    const shouldRetry = error instanceof TypeError && /Failed to fetch/i.test(error.message) && isTauriRuntime()
+    if (!shouldRetry) throw error
+    await ensureBackendReadyIfTauri()
+    return await fetch(url, init)
+  }
+}
+
 const normalizeDataUrl = (value: unknown): string | null => {
   if (typeof value !== "string") return null
   const trimmed = value.trim()
@@ -184,7 +236,7 @@ export default function SettingsPage() {
 
   const fetchAdminUsers = async () => {
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/admin-users")
+      const response = await fetchWithBackendRetry("/api/admin-users")
       if (response.ok) {
         const data = await response.json()
         const users = Array.isArray(data) ? data : Array.isArray(data?.adminUsers) ? data.adminUsers : []
@@ -201,7 +253,7 @@ export default function SettingsPage() {
       console.error("Failed to fetch admin users:", error)
       toast({
           title: "Error",
-          description: "Failed to load admin users for flush option.",
+          description: toNetworkErrorMessage(error, "/api/admin-users"),
           variant: "destructive",
       })
     }
@@ -209,7 +261,7 @@ export default function SettingsPage() {
 
   const fetchSuperAdmins = async () => {
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/2fa/super-admins")
+      const response = await fetchWithBackendRetry("/api/2fa/super-admins")
       if (!response.ok) {
         throw new Error(response.statusText)
       }
@@ -220,7 +272,7 @@ export default function SettingsPage() {
       console.error("Failed to load super admins for 2FA:", error)
       toast({
         title: "Error",
-        description: "Unable to load super admin list for 2FA.",
+        description: toNetworkErrorMessage(error, "/api/2fa/super-admins"),
         variant: "destructive",
       })
     }
@@ -228,7 +280,7 @@ export default function SettingsPage() {
 
   const loadSettings = async () => {
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/settings")
+      const response = await fetchWithBackendRetry("/api/settings")
       if (response.ok) {
         const fullData = await response.json();
         console.log("Incoming settings data to frontend:", JSON.stringify(fullData, null, 2)); // Debug log
@@ -259,7 +311,7 @@ export default function SettingsPage() {
   const saveSettings = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/settings", {
+      const response = await fetchWithBackendRetry("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -280,7 +332,7 @@ export default function SettingsPage() {
       console.error("Error saving settings:", error)
       toast({
         title: "Error",
-        description: "Failed to save settings. Please try again.",
+        description: toNetworkErrorMessage(error, "/api/settings"),
         variant: "destructive",
       })
     } finally {
@@ -386,7 +438,7 @@ export default function SettingsPage() {
     resetTwofaState()
 
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/2fa/initiate", {
+      const response = await fetchWithBackendRetry("/api/2fa/initiate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -415,7 +467,7 @@ export default function SettingsPage() {
       console.error("Error initiating 2FA:", error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to start 2FA",
+        description: toNetworkErrorMessage(error, "/api/2fa/initiate"),
         variant: "destructive",
       })
     } finally {
@@ -444,7 +496,7 @@ export default function SettingsPage() {
 
     setIsVerifying2fa(true)
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/2fa/verify", {
+      const response = await fetchWithBackendRetry("/api/2fa/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: selectedTwofaUser, code: verifyCode.trim() }),
@@ -467,10 +519,10 @@ export default function SettingsPage() {
       })
     } catch (error) {
       console.error("Error verifying 2FA:", error)
-      setTwofaMessage(error instanceof Error ? error.message : "Verification failed")
+      setTwofaMessage(toNetworkErrorMessage(error, "/api/2fa/verify"))
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to verify 2FA",
+        description: toNetworkErrorMessage(error, "/api/2fa/verify"),
         variant: "destructive",
       })
     } finally {
@@ -480,7 +532,7 @@ export default function SettingsPage() {
 
   const handleDelete2fa = async (userId: string) => {
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/2fa/delete", {
+      const response = await fetchWithBackendRetry("/api/2fa/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId }),
@@ -502,7 +554,7 @@ export default function SettingsPage() {
       console.error("Error deleting 2FA:", error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete 2FA",
+        description: toNetworkErrorMessage(error, "/api/2fa/delete"),
         variant: "destructive",
       })
     }
@@ -527,7 +579,7 @@ export default function SettingsPage() {
 
     setIsLoading(true)
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/flush-data", {
+      const response = await fetchWithBackendRetry("/api/flush-data", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -562,7 +614,7 @@ export default function SettingsPage() {
       console.error("Error flushing data:", error)
       toast({
         title: "Error",
-        description: "Failed to flush data. Please try again.",
+        description: toNetworkErrorMessage(error, "/api/flush-data"),
         variant: "destructive",
       })
     } finally {

@@ -33,6 +33,34 @@ def _build_qr_image(data: str) -> str:
     return f"data:image/png;base64,{encoded}"
 
 
+def _resolve_user_id(value: Optional[str]) -> Optional[str]:
+    """
+    Resolve an incoming identifier to a real users.id.
+    Accepts either a user id or an email and returns the canonical id.
+    """
+    if not value:
+        return None
+
+    candidate = value.strip()
+    if not candidate:
+        return None
+
+    try:
+        # First, treat the value as a direct user id.
+        by_id = db.client.table("users").select("id").eq("id", candidate).limit(1).execute()
+        if by_id.data:
+            return by_id.data[0].get("id")
+
+        # Fallback: treat it as an email.
+        by_email = db.client.table("users").select("id").eq("email", candidate).limit(1).execute()
+        if by_email.data:
+            return by_email.data[0].get("id")
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.warning("Unable to resolve user identifier '%s': %s", candidate, exc)
+
+    return None
+
+
 def _extract_twofa_status(row: Dict) -> Optional[Dict]:
     """Normalize the nested two_factor relation into a simple dict."""
     tf = row.get("two_factor")
@@ -97,9 +125,10 @@ def initiate_2fa(user_id: str, requested_by: str) -> Tuple[Optional[Dict], str, 
             "verified_at": None,
             "updated_at": _now_iso(),
         }
-        # Only set created_by when we have a valid user id (to satisfy FK)
-        if requested_by and requested_by != "system":
-            record["created_by"] = requested_by
+        # Only set created_by when we can resolve it to a valid users.id (FK-safe).
+        created_by_id = _resolve_user_id(requested_by if requested_by != "system" else None)
+        if created_by_id:
+            record["created_by"] = created_by_id
 
         # Upsert into Supabase
         db.client.table("two_factor").upsert(record).execute()

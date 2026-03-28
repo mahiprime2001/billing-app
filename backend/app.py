@@ -71,7 +71,8 @@ def create_app(config_name='default'):
         resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}},
         supports_credentials=True,
         methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization"],
+        # Include custom app headers used by frontend requests (e.g. 2FA setup).
+        allow_headers=["Content-Type", "Authorization", "X-User-Id"],
     )
     
     # Ensure data directories exist
