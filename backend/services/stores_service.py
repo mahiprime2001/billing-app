@@ -263,8 +263,10 @@ def get_available_products_for_assignment(store_id: str) -> List[Dict]:
         if not products_response or not products_response.data:
             return []
 
+        # Use select("*") to support deployments that may expose either
+        # storeid/productid or storeId/productId keys.
         inventory_response = execute_with_retry(
-            lambda: client.table("storeinventory").select("storeid, productid, quantity"),
+            lambda: client.table("storeinventory").select("*"),
             "storeinventory for available-products",
         )
         inventory_rows = inventory_response.data or []
@@ -273,12 +275,13 @@ def get_available_products_for_assignment(store_id: str) -> List[Dict]:
         current_store_qty_by_product: Dict[str, int] = defaultdict(int)
 
         for row in inventory_rows:
-            product_id = row.get("productid")
+            product_id = row.get("productid") or row.get("productId")
             if not product_id:
                 continue
             qty = int(row.get("quantity") or 0)
             total_allocated_by_product[product_id] += qty
-            if row.get("storeid") == store_id:
+            row_store_id = row.get("storeid") or row.get("storeId")
+            if row_store_id == store_id:
                 current_store_qty_by_product[product_id] += qty
 
         reserved_pending_by_product = _get_reserved_pending_transfer_qty(client)
@@ -609,11 +612,15 @@ def assign_products_to_store(
             if product_id not in product_map:
                 return False, f"Product {product_id} not found", 404, {}
 
-        allocations_response = client.table("storeinventory").select("productid, quantity").in_("productid", product_ids).execute()
+        # Pull all inventory rows so allocation math supports both
+        # productid and productId schemas without query-column mismatch.
+        allocations_response = client.table("storeinventory").select("*").execute()
         allocation_rows = allocations_response.data or []
         total_allocated_by_product: Dict[str, int] = defaultdict(int)
         for row in allocation_rows:
-            product_id = row.get("productid")
+            product_id = row.get("productid") or row.get("productId")
+            if product_id and product_id not in requested_qty_by_product:
+                continue
             if product_id:
                 total_allocated_by_product[product_id] += int(row.get("quantity") or 0)
 
