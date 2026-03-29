@@ -277,9 +277,10 @@ function StoreInsightModal({
   const [days] = useState(120);
   const [activeInsightTab, setActiveInsightTab] = useState<"live-feed" | "all-orders">("live-feed");
   const [hasLoadedLiveFeed, setHasLoadedLiveFeed] = useState(false);
-  const [hasLoadedOrders, setHasLoadedOrders] = useState(false);
   const [inventoryRows, setInventoryRows] = useState<StoreLiveInventoryRow[]>([]);
   const [liveBills, setLiveBills] = useState<any[]>([]);
+  const [liveProductSearch, setLiveProductSearch] = useState("");
+  const [selectedLiveBillTab, setSelectedLiveBillTab] = useState("");
   const [isLoadingLiveFeed, setIsLoadingLiveFeed] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>("");
   const [dates, setDates] = useState<DateCard[]>([]);
@@ -359,7 +360,7 @@ function StoreInsightModal({
     try {
       const [inventoryRes, billsRes] = await Promise.all([
         fetch(`${API}/api/stores/${store.id}/assigned-products`),
-        fetch(`${API}/api/bills`),
+        fetch(`${API}/api/bills?storeId=${encodeURIComponent(store.id)}&page=1&pageSize=200&paginate=1&details=0`),
       ]);
 
       if (inventoryRes.ok) {
@@ -371,10 +372,11 @@ function StoreInsightModal({
 
       if (billsRes.ok) {
         const billsData = await billsRes.json();
-        const filtered = (Array.isArray(billsData) ? billsData : [])
+        const list = Array.isArray(billsData) ? billsData : billsData?.data || [];
+        const filtered = (Array.isArray(list) ? list : [])
           .filter((bill) => getBillStoreId(bill) === normalizeStoreId(store.id))
           .sort((a, b) => new Date(getBillDate(b)).getTime() - new Date(getBillDate(a)).getTime());
-        setLiveBills(filtered.slice(0, 30));
+        setLiveBills(filtered.slice(0, 100));
       }
 
       setLastUpdated(new Date().toLocaleTimeString());
@@ -397,9 +399,10 @@ function StoreInsightModal({
     if (!open || !store) return;
     setActiveInsightTab("live-feed");
     setHasLoadedLiveFeed(false);
-    setHasLoadedOrders(false);
     setInventoryRows([]);
     setLiveBills([]);
+    setLiveProductSearch("");
+    setSelectedLiveBillTab("");
     setLastUpdated("");
     setOrders([]);
     setDates([]);
@@ -408,7 +411,7 @@ function StoreInsightModal({
   }, [open, store?.id]);
 
   useEffect(() => {
-    if (!open || !store || activeInsightTab !== "all-orders" || hasLoadedOrders) return;
+    if (!open || !store || activeInsightTab !== "all-orders") return;
 
     setIsLoadingCalendar(true);
     setOrders([]);
@@ -442,15 +445,13 @@ function StoreInsightModal({
           .map(([date, count]) => ({ date, count, totalStock: 0, totalValue: 0 }))
           .sort((a, b) => b.date.localeCompare(a.date));
         setDates(dateCards);
-        setHasLoadedOrders(true);
       })
       .catch(() => {
         setOrders([]);
         setDates([]);
-        setHasLoadedOrders(true);
       })
       .finally(() => setIsLoadingCalendar(false));
-  }, [open, store, days, activeInsightTab, hasLoadedOrders]);
+  }, [open, store, days, activeInsightTab]);
 
   const filteredOrders = useMemo(() => {
     let list = [...orders];
@@ -473,6 +474,87 @@ function StoreInsightModal({
 
     return list;
   }, [orders, selectedDate, orderStatusFilter]);
+
+  const filteredInventoryRows = useMemo(() => {
+    const search = liveProductSearch.trim().toLowerCase();
+    if (!search) return inventoryRows;
+    return inventoryRows.filter((row) => {
+      const productObj = row.products || {};
+      const barcode = String(productObj.barcode || row.barcode || "").toLowerCase();
+      const name = String(productObj.name || row.name || "").toLowerCase();
+      return barcode.includes(search) || name.includes(search);
+    });
+  }, [inventoryRows, liveProductSearch]);
+
+  const liveBillTabs = useMemo(() => {
+    if (liveBills.length === 0) return [] as Array<{ key: string; label: string; bills: any[] }>;
+
+    const monthGroups = new Map<string, any[]>();
+    liveBills.forEach((bill: any) => {
+      const dateText = getBillDate(bill);
+      const dt = dateText ? new Date(dateText) : null;
+      if (!dt || Number.isNaN(dt.getTime())) return;
+      const monthKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      monthGroups.set(monthKey, [...(monthGroups.get(monthKey) || []), bill]);
+    });
+
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const tabs: Array<{ key: string; label: string; bills: any[] }> = [];
+
+    Array.from(monthGroups.keys())
+      .sort((a, b) => b.localeCompare(a))
+      .forEach((monthKey) => {
+        const monthBills = [...(monthGroups.get(monthKey) || [])].sort(
+          (a, b) => new Date(getBillDate(b)).getTime() - new Date(getBillDate(a)).getTime(),
+        );
+
+        if (monthKey === currentMonthKey) {
+          const dayGroups = new Map<string, any[]>();
+          monthBills.forEach((bill: any) => {
+            const dt = new Date(getBillDate(bill));
+            const dayKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(
+              dt.getDate(),
+            ).padStart(2, "0")}`;
+            dayGroups.set(dayKey, [...(dayGroups.get(dayKey) || []), bill]);
+          });
+          Array.from(dayGroups.keys())
+            .sort((a, b) => b.localeCompare(a))
+            .forEach((dayKey) => {
+              const dt = new Date(`${dayKey}T00:00:00`);
+              tabs.push({
+                key: `day:${dayKey}`,
+                label: dt.toLocaleDateString(undefined, { day: "2-digit", month: "short" }),
+                bills: dayGroups.get(dayKey) || [],
+              });
+            });
+        } else {
+          const dt = new Date(`${monthKey}-01T00:00:00`);
+          tabs.push({
+            key: `month:${monthKey}`,
+            label: dt.toLocaleDateString(undefined, { month: "short", year: "numeric" }),
+            bills: monthBills,
+          });
+        }
+      });
+
+    return tabs;
+  }, [liveBills]);
+
+  useEffect(() => {
+    if (liveBillTabs.length === 0) {
+      setSelectedLiveBillTab("");
+      return;
+    }
+    if (!liveBillTabs.some((tab) => tab.key === selectedLiveBillTab)) {
+      setSelectedLiveBillTab(liveBillTabs[0].key);
+    }
+  }, [liveBillTabs, selectedLiveBillTab]);
+
+  const activeLiveBills = useMemo(() => {
+    const activeTab = liveBillTabs.find((tab) => tab.key === selectedLiveBillTab);
+    return activeTab?.bills || [];
+  }, [liveBillTabs, selectedLiveBillTab]);
 
   useEffect(() => {
     if (!open) {
@@ -674,6 +756,7 @@ function StoreInsightModal({
 
   const totalStock = inventoryRows.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
   const totalBillAmount = liveBills.reduce((sum, bill) => sum + Number(bill?.total || 0), 0);
+  const activeTabBillAmount = activeLiveBills.reduce((sum, bill) => sum + Number(bill?.total || 0), 0);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -696,23 +779,29 @@ function StoreInsightModal({
             </TabsList>
 
             <TabsContent value="live-feed" className="flex-1 min-h-0 mt-4 overflow-hidden">
-              <div className="flex justify-end mb-3">
-                <Button variant="outline" size="sm" onClick={() => fetchLiveData(true)} disabled={isLoadingLiveFeed}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingLiveFeed ? "animate-spin" : ""}`} />
-                  Refresh
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full min-h-0">
+              <div className="h-full min-h-0 flex flex-col">
+                <div className="flex justify-end mb-3 shrink-0">
+                  <Button variant="outline" size="sm" onClick={() => fetchLiveData(true)} disabled={isLoadingLiveFeed}>
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingLiveFeed ? "animate-spin" : ""}`} />
+                    Refresh
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
                 <Card className="flex flex-col min-h-0">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Products in Store</CardTitle>
                     <CardDescription>
-                      {inventoryRows.length} items • Total stock {totalStock}
+                      {filteredInventoryRows.length}/{inventoryRows.length} items • Total stock {totalStock}
                     </CardDescription>
+                    <Input
+                      placeholder="Search by barcode or product name..."
+                      value={liveProductSearch}
+                      onChange={(e) => setLiveProductSearch(e.target.value)}
+                    />
                   </CardHeader>
-                  <CardContent className="min-h-0 flex-1">
-                    <div className="border rounded-lg overflow-hidden h-full">
-                      <div className="overflow-auto h-full">
+                  <CardContent className="min-h-0 flex-1 overflow-hidden">
+                    <div className="border rounded-lg overflow-hidden h-[calc(90vh-390px)] min-h-[220px]">
+                      <div className="overflow-y-auto h-full pb-3">
                         <Table>
                           <TableHeader className="sticky top-0 bg-gray-50 z-10">
                             <TableRow>
@@ -723,14 +812,14 @@ function StoreInsightModal({
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {inventoryRows.length === 0 ? (
+                            {filteredInventoryRows.length === 0 ? (
                               <TableRow>
                                 <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                                  No assigned products found
+                                  {liveProductSearch ? "No products match your search" : "No assigned products found"}
                                 </TableCell>
                               </TableRow>
                             ) : (
-                              inventoryRows.map((row, idx) => {
+                              filteredInventoryRows.map((row, idx) => {
                                 const productObj = row.products || {};
                                 const barcode = productObj.barcode || row.barcode || "-";
                                 const name = productObj.name || row.name || "Unknown";
@@ -757,13 +846,26 @@ function StoreInsightModal({
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Recent Bills</CardTitle>
                     <CardDescription>
-                      {liveBills.length} recent bills • ₹{totalBillAmount.toFixed(2)}
+                      {activeLiveBills.length} bills in selected tab • ₹{activeTabBillAmount.toFixed(2)}
+                      {" "}({liveBills.length} total • ₹{totalBillAmount.toFixed(2)})
                       {lastUpdated ? ` • Updated at ${lastUpdated}` : ""}
                     </CardDescription>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {liveBillTabs.map((tab) => (
+                        <Button
+                          key={tab.key}
+                          size="sm"
+                          variant={selectedLiveBillTab === tab.key ? "default" : "outline"}
+                          onClick={() => setSelectedLiveBillTab(tab.key)}
+                        >
+                          {tab.label}
+                        </Button>
+                      ))}
+                    </div>
                   </CardHeader>
-                  <CardContent className="min-h-0 flex-1">
-                    <div className="border rounded-lg overflow-hidden h-full">
-                      <div className="overflow-auto h-full">
+                  <CardContent className="min-h-0 flex-1 overflow-hidden">
+                    <div className="border rounded-lg overflow-hidden h-[calc(90vh-390px)] min-h-[220px]">
+                      <div className="overflow-y-auto h-full pb-3">
                         <Table>
                           <TableHeader className="sticky top-0 bg-gray-50 z-10">
                             <TableRow>
@@ -774,14 +876,14 @@ function StoreInsightModal({
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {liveBills.length === 0 ? (
+                            {activeLiveBills.length === 0 ? (
                               <TableRow>
                                 <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                                  No bills found for this store
+                                  No bills found for this tab
                                 </TableCell>
                               </TableRow>
                             ) : (
-                              liveBills.map((bill: any) => {
+                              activeLiveBills.map((bill: any) => {
                                 const billDate = getBillDate(bill);
                                 return (
                                   <TableRow key={bill.id}>
@@ -805,12 +907,13 @@ function StoreInsightModal({
                     </div>
                   </CardContent>
                 </Card>
+                </div>
               </div>
             </TabsContent>
 
             <TabsContent value="all-orders" className="flex-1 min-h-0 mt-4 overflow-hidden">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-                <div className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full min-h-0">
+                <div className="space-y-4 min-h-0">
                   <h3 className="text-lg font-semibold flex items-center">
                     <Calendar className="h-5 w-5 mr-2" />
                     Transfer Calendar
@@ -828,7 +931,7 @@ function StoreInsightModal({
                     />
                   )}
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-4 min-h-0 flex flex-col">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <h3 className="text-lg font-semibold">
                       {selectedDate ? `Orders on ${selectedDate}` : "All Orders"}
@@ -863,7 +966,7 @@ function StoreInsightModal({
                     </div>
                   </div>
                   {filteredOrders.length > 0 ? (
-                      <div className="border rounded-lg overflow-hidden max-h-[500px] overflow-y-auto divide-y">
+                      <div className="border rounded-lg overflow-hidden flex-1 min-h-0 overflow-y-auto divide-y pb-3">
                         {filteredOrders.map((order) => (
                           <div key={order.id} className="w-full p-4 hover:bg-blue-50 transition-colors">
                             <div className="flex items-start justify-between gap-4">

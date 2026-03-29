@@ -15,31 +15,36 @@ logger = logging.getLogger(__name__)
 _BILLS_CACHE_TTL_SECONDS = 30
 _BILLS_CACHE_STALE_SECONDS = 180
 _BILLS_CACHE_LOCK = threading.Lock()
-_BILLS_CACHE = {"data": None, "expires_at": 0.0, "stale_until": 0.0}
-_BILLS_INFLIGHT: threading.Event | None = None
+_BILLS_CACHE: dict[str, dict] = {}
+_BILLS_INFLIGHT: dict[str, threading.Event] = {}
 
 
-def _get_bills_cache(allow_stale: bool = False):
+def _bills_cache_key(params: dict) -> str:
+    items = sorted((str(k), str(v)) for k, v in params.items())
+    return "&".join([f"{k}={v}" for k, v in items]) or "default"
+
+
+def _get_bills_cache(key: str, allow_stale: bool = False):
     now = time.time()
     with _BILLS_CACHE_LOCK:
-        data = _BILLS_CACHE.get("data")
-        expires_at = float(_BILLS_CACHE.get("expires_at") or 0)
-        stale_until = float(_BILLS_CACHE.get("stale_until") or 0)
-    if data is None:
+        entry = _BILLS_CACHE.get(key)
+    if not entry:
         return None
-    if now <= expires_at:
-        return data
-    if allow_stale and now <= stale_until:
-        return data
+    if now <= float(entry.get("expires_at") or 0):
+        return entry.get("data")
+    if allow_stale and now <= float(entry.get("stale_until") or 0):
+        return entry.get("data")
     return None
 
 
-def _set_bills_cache(data):
+def _set_bills_cache(key: str, data):
     now = time.time()
     with _BILLS_CACHE_LOCK:
-        _BILLS_CACHE["data"] = data
-        _BILLS_CACHE["expires_at"] = now + _BILLS_CACHE_TTL_SECONDS
-        _BILLS_CACHE["stale_until"] = now + _BILLS_CACHE_STALE_SECONDS
+        _BILLS_CACHE[key] = {
+            "data": data,
+            "expires_at": now + _BILLS_CACHE_TTL_SECONDS,
+            "stale_until": now + _BILLS_CACHE_STALE_SECONDS,
+        }
 
 # Create Blueprint
 bills_bp = Blueprint("bills", __name__, url_prefix="/api")
@@ -151,45 +156,104 @@ def get_bills():
     event_to_wait = None
     is_leader = False
     try:
-        cached = _get_bills_cache(allow_stale=False)
+        page = request.args.get("page", type=int)
+        page_size = request.args.get("pageSize", type=int)
+        from_date = request.args.get("from")
+        to_date = request.args.get("to")
+        store_id = request.args.get("storeId") or request.args.get("store_id")
+        details_flag = request.args.get("details")
+        paginate_flag = request.args.get("paginate")
+
+        wants_paginated = (
+            paginate_flag == "1"
+            or page is not None
+            or page_size is not None
+            or from_date
+            or to_date
+            or store_id
+        )
+
+        if page is None:
+            page = 1
+        if page_size is None:
+            page_size = 100
+        if details_flag is None:
+            details_flag = "1"
+
+        cache_key = _bills_cache_key(
+            {
+                "page": page if wants_paginated else "",
+                "pageSize": page_size if wants_paginated else "",
+                "from": from_date or "",
+                "to": to_date or "",
+                "storeId": store_id or "",
+                "details": details_flag,
+            }
+        )
+
+        cached = _get_bills_cache(cache_key, allow_stale=False)
         if cached is not None:
             return jsonify(cached), 200
 
         with _BILLS_CACHE_LOCK:
             now = time.time()
-            cached_data = _BILLS_CACHE.get("data")
-            cached_expiry = float(_BILLS_CACHE.get("expires_at") or 0)
-            if cached_data is not None and now <= cached_expiry:
-                return jsonify(cached_data), 200
+            entry = _BILLS_CACHE.get(cache_key)
+            if entry and now <= float(entry.get("expires_at") or 0):
+                return jsonify(entry.get("data") or []), 200
 
-            if _BILLS_INFLIGHT is None:
-                _BILLS_INFLIGHT = threading.Event()
+            inflight = _BILLS_INFLIGHT.get(cache_key)
+            if inflight is None:
+                _BILLS_INFLIGHT[cache_key] = threading.Event()
                 is_leader = True
             else:
-                event_to_wait = _BILLS_INFLIGHT
+                event_to_wait = inflight
 
         if not is_leader and event_to_wait is not None:
             event_to_wait.wait(timeout=6.0)
-            cached_after_wait = _get_bills_cache(allow_stale=True)
+            cached_after_wait = _get_bills_cache(cache_key, allow_stale=True)
             if cached_after_wait is not None:
                 return jsonify(cached_after_wait), 200
             return jsonify([]), 200
 
         # Leader path
         if supabase_circuit.is_offline():
-            cached_stale = _get_bills_cache(allow_stale=True)
+            cached_stale = _get_bills_cache(cache_key, allow_stale=True)
             if cached_stale is not None:
                 return jsonify(cached_stale), 200
             local = bills_service.get_local_bills()
-            _set_bills_cache(local)
-            return jsonify(local), 200
+            response_payload = local
+            if wants_paginated:
+                start = max(0, (page - 1) * page_size)
+                end = start + page_size
+                response_payload = {
+                    "data": local[start:end],
+                    "page": page,
+                    "pageSize": page_size,
+                    "hasMore": end < len(local),
+                    "total": len(local),
+                }
+            _set_bills_cache(cache_key, response_payload)
+            return jsonify(response_payload), 200
+
+        if wants_paginated or details_flag == "0":
+            result = bills_service.get_bills_paginated(
+                page=page,
+                page_size=page_size,
+                from_date=from_date,
+                to_date=to_date,
+                store_id=store_id,
+                include_details=(details_flag != "0"),
+            )
+            response_payload = result
+            _set_bills_cache(cache_key, response_payload)
+            return jsonify(response_payload), 200
 
         logger.info("Fetching bills with details from Supabase")
         bills = bills_service.get_supabase_bills_with_details()
 
         if bills:
             logger.info(f"Returning {len(bills)} bills with details")
-            _set_bills_cache(bills)
+            _set_bills_cache(cache_key, bills)
             return jsonify(bills), 200
 
         logger.warning("No detailed bills found, trying merged bills")
@@ -197,10 +261,10 @@ def get_bills():
 
         if status_code == 200:
             logger.info(f"Returning {len(bills)} merged bills")
-            _set_bills_cache(bills)
+            _set_bills_cache(cache_key, bills)
             return jsonify(bills), 200
 
-        cached_stale = _get_bills_cache(allow_stale=True)
+        cached_stale = _get_bills_cache(cache_key, allow_stale=True)
         if cached_stale is not None:
             return jsonify(cached_stale), 200
 
@@ -208,7 +272,7 @@ def get_bills():
         return jsonify([]), 200
 
     except Exception:
-        cached_stale = _get_bills_cache(allow_stale=True)
+        cached_stale = _get_bills_cache(cache_key, allow_stale=True)
         if cached_stale is not None:
             return jsonify(cached_stale), 200
         logger.error("Error in get_bills", exc_info=True)
@@ -216,9 +280,9 @@ def get_bills():
     finally:
         if is_leader:
             with _BILLS_CACHE_LOCK:
-                if _BILLS_INFLIGHT is not None:
-                    _BILLS_INFLIGHT.set()
-                    _BILLS_INFLIGHT = None
+                done_event = _BILLS_INFLIGHT.pop(cache_key, None)
+                if done_event is not None:
+                    done_event.set()
 
 
 # ======================================================

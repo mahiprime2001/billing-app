@@ -6,7 +6,7 @@ import logging
 import re
 import uuid
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from zoneinfo import ZoneInfo
 
 from utils.supabase_db import db
@@ -238,6 +238,451 @@ def get_supabase_bills() -> List[Dict]:
         return []
 
 
+def _enrich_bills_with_details(client, bills: List[Dict]) -> List[Dict]:
+    def normalize_id(value) -> Optional[str]:
+        if value is None:
+            return None
+        text_val = str(value).strip()
+        return text_val or None
+
+    def chunked(values: List[str], size: int = 200) -> List[List[str]]:
+        return [values[i:i + size] for i in range(0, len(values), size)]
+
+    bill_ids = [normalize_id(bill.get("id")) for bill in bills]
+    bill_ids = [bid for bid in bill_ids if bid]
+
+    # Step 2: Fetch bill items only for these bills
+    all_items: List[Dict] = []
+    if bill_ids:
+        for chunk in chunked(bill_ids):
+            items_response = execute_with_retry(
+                lambda chunk=chunk: client.table("billitems").select("*").in_("billid", chunk),
+                "billitems by bill ids",
+            )
+            all_items.extend(items_response.data or [])
+
+    # Step 3: Fetch replacements only for these bills
+    replacements: List[Dict] = []
+    if bill_ids:
+        for chunk in chunked(bill_ids):
+            replacements_response = execute_with_retry(
+                lambda chunk=chunk: client.table("replacements").select("*").in_("bill_id", chunk),
+                "replacements by bill ids",
+            )
+            replacements.extend(replacements_response.data or [])
+
+    # Step 4: Collect product ids from bill items and replacements
+    product_ids: List[str] = []
+    product_id_set = set()
+    for item in all_items:
+        product_id = normalize_id(
+            item.get("productid") or item.get("product_id") or item.get("productId")
+        )
+        if product_id and product_id not in product_id_set:
+            product_id_set.add(product_id)
+            product_ids.append(product_id)
+
+    for replacement in replacements:
+        replaced_product_id = normalize_id(
+            replacement.get("replaced_product_id")
+            or replacement.get("replacedproductid")
+            or replacement.get("replacedProductId")
+        )
+        new_product_id = normalize_id(
+            replacement.get("new_product_id")
+            or replacement.get("newproductid")
+            or replacement.get("newProductId")
+        )
+        for pid in (replaced_product_id, new_product_id):
+            if pid and pid not in product_id_set:
+                product_id_set.add(pid)
+                product_ids.append(pid)
+
+    # Step 5: Fetch products only for relevant ids
+    product_rows: List[Dict] = []
+    if product_ids:
+        for chunk in chunked(product_ids):
+            products_response = execute_with_retry(
+                lambda chunk=chunk: client.table("products").select("id,name,price,hsn_code_id,hsn_codes(tax)").in_("id", chunk),
+                "products for bills",
+            )
+            for row in products_response.data or []:
+                hsn_ref = row.get("hsn_codes")
+                if isinstance(hsn_ref, list):
+                    hsn_ref = hsn_ref[0] if hsn_ref else None
+                if isinstance(hsn_ref, dict):
+                    row["tax"] = hsn_ref.get("tax", 0) or 0
+                else:
+                    row["tax"] = row.get("tax", 0) or 0
+                product_rows.append(row)
+    if product_ids and not product_rows:
+        try:
+            local_products = get_products_data()
+            for row in local_products:
+                pid = normalize_id(row.get("id"))
+                if not pid or pid not in product_id_set:
+                    continue
+                product_rows.append(
+                    {
+                        "id": row.get("id"),
+                        "name": row.get("name"),
+                        "price": row.get("price") or row.get("sellingprice") or row.get("selling_price"),
+                        "tax": row.get("tax"),
+                        "hsn_code_id": row.get("hsn_code_id") or row.get("hsncodeid"),
+                    }
+                )
+        except Exception as local_products_error:
+            logger.warning(f"Failed to load local products fallback: {local_products_error}")
+
+    # Step 6: Build HSN lookup map for relevant products
+    hsn_ids: List[str] = []
+    hsn_id_set = set()
+    for product in product_rows:
+        hsn_code_id = product.get("hsn_code_id") or product.get("hsncodeid")
+        if hsn_code_id is None:
+            continue
+        hsn_id = normalize_id(hsn_code_id)
+        if hsn_id and hsn_id not in hsn_id_set:
+            hsn_id_set.add(hsn_id)
+            hsn_ids.append(hsn_id)
+
+    hsn_map: Dict[str, str] = {}
+    if hsn_ids:
+        for chunk in chunked(hsn_ids):
+            hsn_response = execute_with_retry(
+                lambda chunk=chunk: client.table("hsn_codes").select("id,hsn_code").in_("id", chunk),
+                "hsn_codes for bills",
+            )
+            for code in hsn_response.data or []:
+                code_id = code.get("id")
+                if code_id is None:
+                    continue
+                display_code = (
+                    code.get("hsn_code")
+                    or code.get("hsncode")
+                    or str(code_id)
+                )
+                hsn_map[str(code_id)] = str(display_code)
+
+    # Step 7: Build product lookup map
+    products_map: Dict[str, Dict] = {}
+    for product in product_rows:
+        product_id = normalize_id(product.get("id"))
+        if not product_id:
+            continue
+        hsn_code_id = product.get("hsn_code_id") or product.get("hsncodeid")
+        hsn_code = hsn_map.get(str(hsn_code_id), str(hsn_code_id)) if hsn_code_id else None
+        products_map[product_id] = {
+            "name": product.get("name", "Unknown Product"),
+            "price": product.get("price", 0),
+            "tax": product.get("tax", 0),
+            "hsn_code_id": hsn_code_id,
+            "hsn_code": hsn_code,
+        }
+
+    # Step 8: Build replacements metadata
+    replacements_by_bill: Dict[str, Dict] = {}
+    replacement_original_by_bill: Dict[str, str] = {}
+    replaced_original_bills = set()
+    for replacement in replacements:
+        bill_id = normalize_id(
+            replacement.get("bill_id")
+            or replacement.get("billid")
+            or replacement.get("billId")
+        )
+        original_bill_id = normalize_id(
+            replacement.get("original_bill_id")
+            or replacement.get("originalbillid")
+            or replacement.get("originalBillId")
+        )
+
+        if original_bill_id:
+            replaced_original_bills.add(original_bill_id)
+
+        if not bill_id:
+            continue
+
+        if bill_id not in replacements_by_bill:
+            replacements_by_bill[bill_id] = {
+                "rows": 0,
+                "quantity": 0,
+                "final_amount": 0.0,
+                "replacement_items": [],
+            }
+
+        replacement_stats = replacements_by_bill[bill_id]
+        replaced_product_id = normalize_id(
+            replacement.get("replaced_product_id")
+            or replacement.get("replacedproductid")
+            or replacement.get("replacedProductId")
+        )
+        new_product_id = normalize_id(
+            replacement.get("new_product_id")
+            or replacement.get("newproductid")
+            or replacement.get("newProductId")
+        )
+        try:
+            quantity = int(replacement.get("quantity") or 0)
+        except (TypeError, ValueError):
+            quantity = 0
+        try:
+            price = float(replacement.get("price") or 0)
+        except (TypeError, ValueError):
+            price = 0.0
+        try:
+            final_amount = float(replacement.get("final_amount") or 0)
+        except (TypeError, ValueError):
+            final_amount = 0.0
+        line_total = final_amount if final_amount > 0 else (price * quantity)
+
+        replaced_product_name = products_map.get(replaced_product_id, {}).get(
+            "name", "Unknown Product"
+        )
+        new_product_name = products_map.get(new_product_id, {}).get(
+            "name", "Unknown Product"
+        )
+
+        replacement_stats["rows"] += 1
+        replacement_stats["quantity"] += quantity
+        replacement_stats["final_amount"] += line_total
+        replacement_stats["replacement_items"].append(
+            {
+                "id": replacement.get("id"),
+                "replaced_product_id": replaced_product_id,
+                "replaced_product_name": replaced_product_name,
+                "new_product_id": new_product_id,
+                "new_product_name": new_product_name,
+                "quantity": quantity,
+                "price": price,
+                "final_amount": line_total,
+                "damage_reason": replacement.get("damage_reason") or replacement.get("reason"),
+            }
+        )
+
+        if original_bill_id and bill_id not in replacement_original_by_bill:
+            replacement_original_by_bill[bill_id] = original_bill_id
+
+    # Step 9: Group and enrich bill items
+    items_by_bill: Dict[str, List[Dict]] = {}
+    for item in all_items:
+        bill_id = normalize_id(item.get("billid") or item.get("bill_id") or item.get("billId"))
+        product_id = normalize_id(item.get("productid") or item.get("product_id") or item.get("productId"))
+        if not bill_id:
+            continue
+
+        product_info = products_map.get(product_id)
+        if product_info:
+            item["productname"] = product_info["name"]
+            item["productName"] = product_info["name"]
+            item["productId"] = product_id
+            item["tax"] = product_info.get("tax", 0)
+            if product_info.get("hsn_code_id") is not None:
+                item["hsn_code_id"] = product_info.get("hsn_code_id")
+                item["hsnCodeId"] = product_info.get("hsn_code_id")
+            if product_info.get("hsn_code"):
+                item["hsn_code"] = product_info.get("hsn_code")
+                item["hsnCode"] = product_info.get("hsn_code")
+        else:
+            item["productname"] = "Unknown Product"
+            item["productName"] = "Unknown Product"
+            item["productId"] = product_id
+
+        items_by_bill.setdefault(bill_id, []).append(item)
+
+    # Step 10: Attach items + replacement metadata to bills
+    for bill in bills:
+        bill_id = normalize_id(bill.get("id"))
+        bill_items = items_by_bill.get(bill_id, [])
+        existing_items = bill.get("items") or []
+        if existing_items and isinstance(existing_items, str):
+            try:
+                import json as _json
+                existing_items = _json.loads(existing_items)
+            except Exception:
+                existing_items = []
+        replacement_stats = replacements_by_bill.get(bill_id)
+
+        replacement_items_as_bill_items = []
+        if replacement_stats:
+            for replacement_item in replacement_stats.get("replacement_items", []):
+                line_total = float(
+                    replacement_item.get("final_amount")
+                    or (
+                        float(replacement_item.get("price") or 0)
+                        * int(replacement_item.get("quantity") or 0)
+                    )
+                )
+                replacement_items_as_bill_items.append(
+                    {
+                        "productid": replacement_item.get("new_product_id"),
+                        "productId": replacement_item.get("new_product_id"),
+                        "productname": replacement_item.get("new_product_name"),
+                        "productName": replacement_item.get("new_product_name"),
+                        "quantity": int(replacement_item.get("quantity") or 0),
+                        "price": float(replacement_item.get("price") or 0),
+                        "total": line_total,
+                        "is_replacement_item": True,
+                        "isReplacementItem": True,
+                        "replaced_product_id": replacement_item.get("replaced_product_id"),
+                        "replacedProductId": replacement_item.get("replaced_product_id"),
+                        "replaced_product_name": replacement_item.get("replaced_product_name"),
+                        "replacedProductName": replacement_item.get("replaced_product_name"),
+                        "final_amount": replacement_item.get("final_amount"),
+                        "finalAmount": replacement_item.get("final_amount"),
+                    }
+                )
+
+        if replacement_stats and replacement_items_as_bill_items:
+            resolved_items = replacement_items_as_bill_items
+        else:
+            resolved_items = bill_items or existing_items or replacement_items_as_bill_items
+        bill["items"] = resolved_items
+
+        bill["is_replacement"] = bool(replacement_stats)
+        bill["isReplacement"] = bool(replacement_stats)
+        bill["replacement_items_count"] = replacement_stats["rows"] if replacement_stats else 0
+        bill["replacementItemsCount"] = replacement_stats["rows"] if replacement_stats else 0
+        bill["replacement_quantity"] = replacement_stats["quantity"] if replacement_stats else 0
+        bill["replacementQuantity"] = replacement_stats["quantity"] if replacement_stats else 0
+        bill["replacement_final_amount"] = (
+            round(replacement_stats["final_amount"], 2) if replacement_stats else 0
+        )
+        bill["replacementFinalAmount"] = (
+            round(replacement_stats["final_amount"], 2) if replacement_stats else 0
+        )
+        bill["replacement_original_bill_id"] = replacement_original_by_bill.get(bill_id)
+        bill["replacementOriginalBillId"] = replacement_original_by_bill.get(bill_id)
+        bill["has_been_replaced"] = bill_id in replaced_original_bills if bill_id else False
+        bill["hasBeenReplaced"] = bill_id in replaced_original_bills if bill_id else False
+        bill["replacement_items"] = (
+            replacement_stats.get("replacement_items", []) if replacement_stats else []
+        )
+        bill["replacementItems"] = (
+            replacement_stats.get("replacement_items", []) if replacement_stats else []
+        )
+
+        if replacement_stats:
+            replacement_total = round(float(replacement_stats.get("final_amount") or 0), 2)
+            if replacement_total > 0:
+                existing_total = bill.get("total")
+                try:
+                    existing_total_num = float(existing_total or 0)
+                except (TypeError, ValueError):
+                    existing_total_num = 0.0
+                if existing_total_num <= 0:
+                    bill["total"] = replacement_total
+
+            existing_subtotal = bill.get("subtotal")
+            try:
+                existing_subtotal_num = float(existing_subtotal or 0)
+            except (TypeError, ValueError):
+                existing_subtotal_num = 0.0
+
+            if existing_subtotal_num <= 0:
+                computed_subtotal = round(
+                    sum(float(item.get("total") or 0) for item in resolved_items), 2
+                )
+                if computed_subtotal > 0:
+                    bill["subtotal"] = computed_subtotal
+
+    # Ensure discount fields exist; keep backward-compat keys if needed.
+    for bill in bills:
+        if "discount_percentage" not in bill and "discountpercentage" in bill:
+            bill["discount_percentage"] = bill.get("discountpercentage")
+        if "discount_amount" not in bill and "discountamount" in bill:
+            bill["discount_amount"] = bill.get("discountamount")
+
+        if bill.get("discount_percentage") is None:
+            bill["discount_percentage"] = 0
+        if bill.get("discount_amount") is None:
+            bill["discount_amount"] = 0
+
+    transformed_bills = [convert_snake_to_camel(bill) for bill in bills]
+    return transformed_bills
+
+
+def get_bills_paginated(
+    page: int = 1,
+    page_size: int = 100,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    store_id: Optional[str] = None,
+    include_details: bool = True,
+) -> Dict[str, Any]:
+    """
+    Paginated bills endpoint.
+    Returns {data, page, pageSize, total, hasMore}.
+    """
+    try:
+        client = db.client
+
+        if include_details:
+            # Try RPC first (if exists), fall back to standard fetch/enrichment.
+            try:
+                rpc_params = {
+                    "page": page,
+                    "page_size": page_size,
+                    "from_date": from_date,
+                    "to_date": to_date,
+                    "store_id": store_id,
+                }
+                rpc_params = {k: v for k, v in rpc_params.items() if v}
+                rpc_response = execute_with_retry(
+                    lambda: client.rpc("bills_with_details", rpc_params),
+                    "bills_with_details rpc",
+                )
+                rpc_data = rpc_response.data or []
+                return {
+                    "data": rpc_data,
+                    "page": page,
+                    "pageSize": page_size,
+                    "total": len(rpc_data),
+                    "hasMore": len(rpc_data) == page_size,
+                }
+            except Exception:
+                pass
+
+        query = client.table("bills").select("*", count="exact")
+        if store_id:
+            query = query.eq("storeid", store_id)
+        if from_date:
+            query = query.gte("created_at", from_date)
+        if to_date:
+            query = query.lte("created_at", to_date)
+        query = query.order("created_at", desc=True)
+
+        start = max(0, (page - 1) * page_size)
+        end = start + page_size - 1
+        response = execute_with_retry(
+            lambda: query.range(start, end),
+            "bills paginated",
+        )
+        bills = response.data or []
+        total = response.count if response.count is not None else len(bills)
+
+        if include_details:
+            bills = _enrich_bills_with_details(client, bills)
+
+        return {
+            "data": bills,
+            "page": page,
+            "pageSize": page_size,
+            "total": total,
+            "hasMore": (start + page_size) < (total or 0),
+        }
+    except Exception as e:
+        if is_transient_supabase_error(e):
+            logger.warning("Paginated bills fetch failed (transient): %s", e)
+        else:
+            logger.error("Paginated bills fetch failed: %s", e, exc_info=True)
+        return {
+            "data": [],
+            "page": page,
+            "pageSize": page_size,
+            "total": 0,
+            "hasMore": False,
+        }
+
 
 def get_supabase_bills_with_details() -> List[Dict]:
     """
@@ -249,17 +694,6 @@ def get_supabase_bills_with_details() -> List[Dict]:
             logger.info("Supabase circuit open; skipping detailed cloud bills read.")
             return []
         client = db.client
-
-        def normalize_id(value) -> Optional[str]:
-            if value is None:
-                return None
-            text_val = str(value).strip()
-            return text_val or None
-
-        def chunked(values: List[str], size: int = 200) -> List[List[str]]:
-            return [values[i:i + size] for i in range(0, len(values), size)]
-
-        # Step 1: Fetch bills
         bills_response = execute_with_retry(
             lambda: client.table("bills").select("*"),
             "bills (with details)",
@@ -268,28 +702,7 @@ def get_supabase_bills_with_details() -> List[Dict]:
         if not bills:
             return []
 
-        bill_ids = [normalize_id(bill.get("id")) for bill in bills]
-        bill_ids = [bid for bid in bill_ids if bid]
-
-        # Step 2: Fetch bill items only for these bills
-        all_items: List[Dict] = []
-        if bill_ids:
-            for chunk in chunked(bill_ids):
-                items_response = execute_with_retry(
-                    lambda chunk=chunk: client.table("billitems").select("*").in_("billid", chunk),
-                    "billitems by bill ids",
-                )
-                all_items.extend(items_response.data or [])
-
-        # Step 3: Fetch replacements only for these bills
-        replacements: List[Dict] = []
-        if bill_ids:
-            for chunk in chunked(bill_ids):
-                replacements_response = execute_with_retry(
-                    lambda chunk=chunk: client.table("replacements").select("*").in_("bill_id", chunk),
-                    "replacements by bill ids",
-                )
-                replacements.extend(replacements_response.data or [])
+        return _enrich_bills_with_details(client, bills)
 
         # Step 4: Collect product ids from bill items and replacements
         product_ids: List[str] = []
