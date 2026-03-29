@@ -5,12 +5,15 @@ Handles all store and inventory-related business logic and database operations
 
 import logging
 import uuid
+import json
+import os
 from datetime import datetime, timedelta
 from typing import Any, List, Dict, Optional, Tuple
 from collections import defaultdict
 
 from utils.supabase_db import db
-from utils.supabase_resilience import execute_with_retry
+from utils.supabase_resilience import execute_with_retry, is_transient_supabase_error
+from config import Config
 from utils.json_helpers import (
     get_stores_data,
     save_stores_data,
@@ -564,17 +567,70 @@ def get_store_inventory(store_id: str) -> Tuple[Optional[List[Dict]], int]:
     """Get inventory for a specific store"""
     try:
         client = db.client
-        response = client.table("storeinventory")\
-            .select("*, products(name, price, barcode)")\
-            .eq('storeid', store_id)\
-            .execute()
-        
+        response = execute_with_retry(
+            lambda: client.table("storeinventory")
+            .select("*, products(name, price, barcode)")
+            .eq("storeid", store_id),
+            f"store inventory for {store_id}",
+        )
+
         if not response or not response.data:
-            return [], 200
-        
+            try:
+                # Fallback to local cache if cloud has no rows / query mismatch
+                local_inventory = get_store_inventory_data()
+                local_products = get_products_data()
+                product_map = {str(p.get("id")): p for p in local_products if p.get("id")}
+                rows: List[Dict] = []
+                for inv in local_inventory:
+                    row_store_id = inv.get("storeid") or inv.get("storeId")
+                    if row_store_id != store_id:
+                        continue
+                    product_id = inv.get("productid") or inv.get("productId")
+                    product = product_map.get(str(product_id), {})
+                    row = dict(inv)
+                    row["products"] = {
+                        "name": product.get("name"),
+                        "price": product.get("price"),
+                        "barcode": product.get("barcode"),
+                    }
+                    rows.append(row)
+                return [convert_snake_to_camel(inv) for inv in rows], 200
+            except Exception as local_err:
+                logger.warning(f"Local store inventory fallback failed for {store_id}: {local_err}")
+                return [], 200
+
         transformed = [convert_snake_to_camel(inv) for inv in response.data]
         return transformed, 200
     except Exception as e:
+        if is_transient_supabase_error(e):
+            logger.warning(
+                "Transient Supabase error getting store inventory for %s; falling back to local cache: %s",
+                store_id,
+                e,
+            )
+            try:
+                local_inventory = get_store_inventory_data()
+                local_products = get_products_data()
+                product_map = {str(p.get("id")): p for p in local_products if p.get("id")}
+                rows: List[Dict] = []
+                for inv in local_inventory:
+                    row_store_id = inv.get("storeid") or inv.get("storeId")
+                    if row_store_id != store_id:
+                        continue
+                    product_id = inv.get("productid") or inv.get("productId")
+                    product = product_map.get(str(product_id), {})
+                    row = dict(inv)
+                    row["products"] = {
+                        "name": product.get("name"),
+                        "price": product.get("price"),
+                        "barcode": product.get("barcode"),
+                    }
+                    rows.append(row)
+                return [convert_snake_to_camel(inv) for inv in rows], 200
+            except Exception as local_err:
+                logger.warning(f"Local store inventory fallback failed for {store_id}: {local_err}")
+                return [], 200
+
         logger.error(f"Error getting store inventory: {e}", exc_info=True)
         return [], 500
 
@@ -856,13 +912,19 @@ def get_store_transfer_orders(store_id: str, status: Optional[str] = None) -> Tu
         query = client.table("inventory_transfer_orders").select("*").eq("store_id", store_id)
         if status:
             query = query.eq("status", status)
-        response = query.order("created_at", desc=True).execute()
+        response = execute_with_retry(
+            lambda: query.order("created_at", desc=True),
+            f"transfer orders for store {store_id}",
+        )
         orders = response.data or []
         if not orders:
             return [], 200
 
         order_ids = [order.get("id") for order in orders if order.get("id")]
-        items_response = client.table("inventory_transfer_items").select("*").in_("transfer_order_id", order_ids).execute()
+        items_response = execute_with_retry(
+            lambda: client.table("inventory_transfer_items").select("*").in_("transfer_order_id", order_ids),
+            f"transfer order items for store {store_id}",
+        )
         items = items_response.data or []
 
         items_by_order: Dict[str, List[Dict]] = defaultdict(list)
@@ -902,6 +964,13 @@ def get_store_transfer_orders(store_id: str, status: Optional[str] = None) -> Tu
             )
         return result, 200
     except Exception as e:
+        if is_transient_supabase_error(e):
+            logger.warning(
+                "Transient Supabase error getting transfer orders for store %s; returning empty list: %s",
+                store_id,
+                e,
+            )
+            return [], 200
         logger.error(f"Error getting transfer orders for store {store_id}: {e}", exc_info=True)
         return [], 500
 
@@ -910,13 +979,19 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
     """Fetch one transfer order with items and computed missing qty per item."""
     try:
         client = db.client
-        order_response = client.table("inventory_transfer_orders").select("*").eq("id", order_id).limit(1).execute()
+        order_response = execute_with_retry(
+            lambda: client.table("inventory_transfer_orders").select("*").eq("id", order_id).limit(1),
+            f"transfer order details {order_id}",
+        )
         if not order_response.data:
             return None, 404
 
-        items_response = client.table("inventory_transfer_items").select("*, products(name, barcode, selling_price)").eq(
-            "transfer_order_id", order_id
-        ).execute()
+        items_response = execute_with_retry(
+            lambda: client.table("inventory_transfer_items")
+            .select("*, products(name, barcode, selling_price)")
+            .eq("transfer_order_id", order_id),
+            f"transfer order items {order_id}",
+        )
         items = items_response.data or []
         normalized_items = []
         for item in items:
@@ -939,8 +1014,101 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
         order["items"] = normalized_items
         return order, 200
     except Exception as e:
+        if is_transient_supabase_error(e):
+            logger.warning(
+                "Transient Supabase error getting transfer order details %s; returning temporary-unavailable status: %s",
+                order_id,
+                e,
+            )
+            return None, 503
         logger.error(f"Error getting transfer order details {order_id}: {e}", exc_info=True)
         return None, 500
+
+
+def _remove_transfer_order_from_local_cache(order_id: str, transfer_item_ids: List[str]) -> None:
+    """
+    Best-effort cleanup for local sync/cache json files related to transfer orders.
+    """
+    file_specs = [
+        ("inventory_transfer_orders.json", lambda row: str(row.get("id")) == order_id),
+        (
+            "inventory_transfer_items.json",
+            lambda row: str(row.get("transfer_order_id")) == order_id,
+        ),
+        (
+            "inventory_transfer_verifications.json",
+            lambda row: str(row.get("order_id")) == order_id,
+        ),
+        (
+            "inventory_transfer_scans.json",
+            lambda row: str(row.get("transfer_item_id")) in set(transfer_item_ids),
+        ),
+    ]
+
+    for filename, should_remove in file_specs:
+        path = os.path.join(Config.JSON_DIR, filename)
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            if not isinstance(data, list):
+                continue
+            filtered = [row for row in data if not should_remove(row if isinstance(row, dict) else {})]
+            if len(filtered) == len(data):
+                continue
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(filtered, fh, indent=2, ensure_ascii=False)
+        except Exception as cache_err:
+            logger.warning(f"Failed local transfer-order cache cleanup for {filename}: {cache_err}")
+
+
+def delete_transfer_order(order_id: str) -> Tuple[bool, str, int, Optional[str]]:
+    """Delete transfer order and linked rows from Supabase and local cache."""
+    try:
+        client = db.client
+        order_resp = execute_with_retry(
+            lambda: client.table("inventory_transfer_orders").select("id, store_id").eq("id", order_id).limit(1),
+            f"lookup transfer order {order_id}",
+        )
+        order_rows = order_resp.data or []
+        if not order_rows:
+            return False, "Transfer order not found", 404, None
+
+        store_id = order_rows[0].get("store_id")
+
+        items_resp = execute_with_retry(
+            lambda: client.table("inventory_transfer_items").select("id").eq("transfer_order_id", order_id),
+            f"lookup transfer order items {order_id}",
+        )
+        item_ids = [str(row.get("id")) for row in (items_resp.data or []) if row.get("id")]
+
+        if item_ids:
+            execute_with_retry(
+                lambda: client.table("inventory_transfer_scans").delete().in_("transfer_item_id", item_ids),
+                f"delete transfer scans {order_id}",
+            )
+
+        execute_with_retry(
+            lambda: client.table("inventory_transfer_verifications").delete().eq("order_id", order_id),
+            f"delete transfer verifications {order_id}",
+        )
+        execute_with_retry(
+            lambda: client.table("inventory_transfer_items").delete().eq("transfer_order_id", order_id),
+            f"delete transfer items {order_id}",
+        )
+        execute_with_retry(
+            lambda: client.table("inventory_transfer_orders").delete().eq("id", order_id),
+            f"delete transfer order {order_id}",
+        )
+
+        _remove_transfer_order_from_local_cache(order_id, item_ids)
+        return True, "Transfer order deleted successfully", 200, str(store_id) if store_id else None
+    except Exception as e:
+        if is_transient_supabase_error(e):
+            return False, "Supabase temporarily unavailable. Please try again in a moment.", 503, None
+        logger.error(f"Error deleting transfer order {order_id}: {e}", exc_info=True)
+        return False, str(e), 500, None
 
 
 def get_damaged_inventory_events(

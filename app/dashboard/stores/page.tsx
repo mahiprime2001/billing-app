@@ -29,6 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Plus,
   Edit,
@@ -43,7 +44,6 @@ import {
   Calendar,
   Building,
   Info,
-  Activity,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
@@ -275,10 +275,18 @@ function StoreInsightModal({
   store: StoreType | null;
 }) {
   const [days] = useState(120);
+  const [activeInsightTab, setActiveInsightTab] = useState<"live-feed" | "all-orders">("live-feed");
+  const [hasLoadedLiveFeed, setHasLoadedLiveFeed] = useState(false);
+  const [hasLoadedOrders, setHasLoadedOrders] = useState(false);
+  const [inventoryRows, setInventoryRows] = useState<StoreLiveInventoryRow[]>([]);
+  const [liveBills, setLiveBills] = useState<any[]>([]);
+  const [isLoadingLiveFeed, setIsLoadingLiveFeed] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string>("");
   const [dates, setDates] = useState<DateCard[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [orders, setOrders] = useState<TransferOrder[]>([]);
-  const [dateOrders, setDateOrders] = useState<TransferOrder[]>([]);
+  const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | "pending" | "completed">("all");
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<TransferOrder | null>(null);
   const [orderDetails, setOrderDetails] = useState<TransferOrderDetails | null>(null);
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
@@ -290,6 +298,9 @@ function StoreInsightModal({
     const text = String(value);
     return text.length >= 10 ? text.slice(0, 10) : "";
   };
+  const getBillStoreId = (bill: any) =>
+    normalizeStoreId(bill?.storeId || bill?.storeid || bill?.store_id);
+  const getBillDate = (bill: any) => bill?.timestamp || bill?.date || bill?.createdAt || bill?.created_at || "";
 
   const formatDateTime = (value?: string) => {
     if (!value) return "-";
@@ -310,6 +321,17 @@ function StoreInsightModal({
     Number(item.products?.sellingPrice ?? item.products?.selling_price ?? 0);
   const getItemName = (item: TransferOrderItem) => item.products?.name || "Unknown Product";
   const getItemBarcode = (item: TransferOrderItem) => item.products?.barcode || "-";
+  const getOrderStatus = (order: TransferOrder) => String(order.status || "pending").toLowerCase();
+
+  const isPendingOrder = (order: TransferOrder) => {
+    const status = getOrderStatus(order);
+    return status === "pending" || status === "in_progress" || status === "in-progress";
+  };
+
+  const isCompletedOrder = (order: TransferOrder) => {
+    const status = getOrderStatus(order);
+    return status === "completed" || status === "closed_with_issues" || status === "closed-with-issues";
+  };
 
   const getStatusMeta = (item: TransferOrderItem) => {
     const assigned = getAssignedQty(item);
@@ -331,14 +353,67 @@ function StoreInsightModal({
     return { totalProducts, totalAmount, totalLines: orderDetails.items.length };
   }, [orderDetails]);
 
+  const fetchLiveData = async (showLoader = false) => {
+    if (!store) return;
+    if (showLoader) setIsLoadingLiveFeed(true);
+    try {
+      const [inventoryRes, billsRes] = await Promise.all([
+        fetch(`${API}/api/stores/${store.id}/assigned-products`),
+        fetch(`${API}/api/bills`),
+      ]);
+
+      if (inventoryRes.ok) {
+        const invData = await inventoryRes.json();
+        const rows = Array.isArray(invData) ? invData : [];
+        const inStockOnly = rows.filter((row: StoreLiveInventoryRow) => Number(row?.quantity || 0) > 0);
+        setInventoryRows(inStockOnly);
+      }
+
+      if (billsRes.ok) {
+        const billsData = await billsRes.json();
+        const filtered = (Array.isArray(billsData) ? billsData : [])
+          .filter((bill) => getBillStoreId(bill) === normalizeStoreId(store.id))
+          .sort((a, b) => new Date(getBillDate(b)).getTime() - new Date(getBillDate(a)).getTime());
+        setLiveBills(filtered.slice(0, 30));
+      }
+
+      setLastUpdated(new Date().toLocaleTimeString());
+    } catch (error) {
+      console.error("Error loading store live feed:", error);
+    } finally {
+      if (showLoader) setIsLoadingLiveFeed(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!open || !store || activeInsightTab !== "live-feed") return;
+    fetchLiveData(!hasLoadedLiveFeed);
+    setHasLoadedLiveFeed(true);
+    const timer = setInterval(() => fetchLiveData(false), 30000);
+    return () => clearInterval(timer);
+  }, [open, store?.id, activeInsightTab, hasLoadedLiveFeed]);
+
   useEffect(() => {
     if (!open || !store) return;
+    setActiveInsightTab("live-feed");
+    setHasLoadedLiveFeed(false);
+    setHasLoadedOrders(false);
+    setInventoryRows([]);
+    setLiveBills([]);
+    setLastUpdated("");
+    setOrders([]);
+    setDates([]);
+    setSelectedDate(null);
+    setOrderStatusFilter("all");
+  }, [open, store?.id]);
+
+  useEffect(() => {
+    if (!open || !store || activeInsightTab !== "all-orders" || hasLoadedOrders) return;
 
     setIsLoadingCalendar(true);
     setOrders([]);
     setDates([]);
     setSelectedDate(null);
-    setDateOrders([]);
 
     fetch(`${API}/api/stores/${store.id}/transfer-orders`)
       .then((r) => r.json())
@@ -367,23 +442,37 @@ function StoreInsightModal({
           .map(([date, count]) => ({ date, count, totalStock: 0, totalValue: 0 }))
           .sort((a, b) => b.date.localeCompare(a.date));
         setDates(dateCards);
-        if (dateCards.length > 0) setSelectedDate(dateCards[0].date);
+        setHasLoadedOrders(true);
       })
       .catch(() => {
         setOrders([]);
         setDates([]);
+        setHasLoadedOrders(true);
       })
       .finally(() => setIsLoadingCalendar(false));
-  }, [open, store, days]);
+  }, [open, store, days, activeInsightTab, hasLoadedOrders]);
 
-  useEffect(() => {
-    if (!selectedDate) {
-      setDateOrders([]);
-      return;
+  const filteredOrders = useMemo(() => {
+    let list = [...orders];
+
+    if (selectedDate) {
+      list = list.filter((order) => getDateKey(order.createdAt || order.created_at) === selectedDate);
     }
-    const filtered = orders.filter((order) => getDateKey(order.createdAt || order.created_at) === selectedDate);
-    setDateOrders(filtered);
-  }, [orders, selectedDate]);
+
+    if (orderStatusFilter === "pending") {
+      list = list.filter(isPendingOrder);
+    } else if (orderStatusFilter === "completed") {
+      list = list.filter(isCompletedOrder);
+    }
+
+    list.sort((a, b) => {
+      const aTs = new Date(a.createdAt || a.created_at || "").getTime();
+      const bTs = new Date(b.createdAt || b.created_at || "").getTime();
+      return bTs - aTs;
+    });
+
+    return list;
+  }, [orders, selectedDate, orderStatusFilter]);
 
   useEffect(() => {
     if (!open) {
@@ -400,15 +489,91 @@ function StoreInsightModal({
       setOrderDetails(null);
       setIsOrderDialogOpen(true);
 
-      const response = await fetch(`${API}/api/transfer-orders/${order.id}`);
-      if (!response.ok) throw new Error("Failed to load transfer order");
+      const maxAttempts = 3;
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        response = await fetch(`${API}/api/transfer-orders/${order.id}`);
+        if (response.ok) break;
+        if (attempt < maxAttempts - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+        }
+      }
+
+      if (!response || !response.ok) {
+        setOrderDetails({
+          id: order.id,
+          createdAt: order.createdAt || order.created_at,
+          status: order.status || "pending",
+          items: [],
+        });
+        return;
+      }
+
       const payload = await response.json();
-      setOrderDetails(payload);
+      setOrderDetails({
+        id: payload?.id || order.id,
+        createdAt: payload?.createdAt || payload?.created_at || order.createdAt || order.created_at,
+        status: payload?.status || order.status || "pending",
+        items: Array.isArray(payload?.items) ? payload.items : [],
+      });
     } catch (error) {
-      console.error("Error loading transfer order:", error);
-      setOrderDetails(null);
+      console.warn("Error loading transfer order details, using fallback payload.");
+      setOrderDetails({
+        id: order.id,
+        createdAt: order.createdAt || order.created_at,
+        status: order.status || "pending",
+        items: [],
+      });
     } finally {
       setIsLoadingOrderDetails(false);
+    }
+  };
+
+  const handleDeleteOrder = async (order: TransferOrder) => {
+    if (!store) return;
+    const confirmed = window.confirm(`Delete order ${order.id}? This will remove it from local cache and Supabase.`);
+    if (!confirmed) return;
+
+    try {
+      setDeletingOrderId(order.id);
+      const response = await fetch(`${API}/api/transfer-orders/${order.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        const message = payload?.error || "Failed to delete order";
+        throw new Error(message);
+      }
+
+      setOrders((prev) => {
+        const next = prev.filter((row) => row.id !== order.id);
+        const recentDaysCutoff = new Date();
+        recentDaysCutoff.setDate(recentDaysCutoff.getDate() - days);
+        const grouped = new Map<string, number>();
+        next.forEach((row) => {
+          const dateKey = getDateKey(row.createdAt || row.created_at);
+          if (!dateKey) return;
+          const asDate = new Date(`${dateKey}T00:00:00`);
+          if (asDate < recentDaysCutoff) return;
+          grouped.set(dateKey, (grouped.get(dateKey) || 0) + 1);
+        });
+        const dateCards: DateCard[] = Array.from(grouped.entries())
+          .map(([date, count]) => ({ date, count, totalStock: 0, totalValue: 0 }))
+          .sort((a, b) => b.date.localeCompare(a.date));
+        setDates(dateCards);
+        if (selectedDate && !dateCards.some((d) => d.date === selectedDate)) {
+          setSelectedDate(null);
+        }
+        return next;
+      });
+
+      if (selectedOrder?.id === order.id) {
+        setIsOrderDialogOpen(false);
+        setSelectedOrder(null);
+        setOrderDetails(null);
+      }
+    } catch (error: any) {
+      alert(error?.message || "Unable to delete order right now");
+    } finally {
+      setDeletingOrderId(null);
     }
   };
 
@@ -507,85 +672,245 @@ function StoreInsightModal({
 
   if (!open || !store) return null;
 
+  const totalStock = inventoryRows.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
+  const totalBillAmount = liveBills.reduce((sum, bill) => sum + Number(bill?.total || 0), 0);
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="text-lg font-semibold flex items-center">
             <Building className="h-5 w-5 mr-2 text-blue-600" />
-            {store.name} - Transfer Orders
+            {store.name} - Store Insights
           </DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center">
-                <Calendar className="h-5 w-5 mr-2" />
-                Transfer Calendar
-              </h3>
-              {isLoadingCalendar ? (
-                <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
-                  <p className="text-gray-500 text-sm">Loading calendar...</p>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <Tabs
+            value={activeInsightTab}
+            onValueChange={(value) => setActiveInsightTab(value as "live-feed" | "all-orders")}
+            className="h-full flex flex-col"
+          >
+            <TabsList className="grid w-full max-w-sm grid-cols-2">
+              <TabsTrigger value="live-feed">Live Feed</TabsTrigger>
+              <TabsTrigger value="all-orders">All Orders</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="live-feed" className="flex-1 min-h-0 mt-4 overflow-hidden">
+              <div className="flex justify-end mb-3">
+                <Button variant="outline" size="sm" onClick={() => fetchLiveData(true)} disabled={isLoadingLiveFeed}>
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingLiveFeed ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full min-h-0">
+                <Card className="flex flex-col min-h-0">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Products in Store</CardTitle>
+                    <CardDescription>
+                      {inventoryRows.length} items • Total stock {totalStock}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="min-h-0 flex-1">
+                    <div className="border rounded-lg overflow-hidden h-full">
+                      <div className="overflow-auto h-full">
+                        <Table>
+                          <TableHeader className="sticky top-0 bg-gray-50 z-10">
+                            <TableRow>
+                              <TableHead>Barcode</TableHead>
+                              <TableHead>Product</TableHead>
+                              <TableHead className="text-right">Qty</TableHead>
+                              <TableHead className="text-right">Price</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {inventoryRows.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                                  No assigned products found
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              inventoryRows.map((row, idx) => {
+                                const productObj = row.products || {};
+                                const barcode = productObj.barcode || row.barcode || "-";
+                                const name = productObj.name || row.name || "Unknown";
+                                const qty = Number(row.quantity || 0);
+                                const price = Number(productObj.price || row.price || 0);
+                                return (
+                                  <TableRow key={row.id || `${barcode}-${idx}`}>
+                                    <TableCell className="font-mono text-xs">{barcode}</TableCell>
+                                    <TableCell>{name}</TableCell>
+                                    <TableCell className="text-right">{qty}</TableCell>
+                                    <TableCell className="text-right">₹{price.toFixed(2)}</TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="flex flex-col min-h-0">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Recent Bills</CardTitle>
+                    <CardDescription>
+                      {liveBills.length} recent bills • ₹{totalBillAmount.toFixed(2)}
+                      {lastUpdated ? ` • Updated at ${lastUpdated}` : ""}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="min-h-0 flex-1">
+                    <div className="border rounded-lg overflow-hidden h-full">
+                      <div className="overflow-auto h-full">
+                        <Table>
+                          <TableHeader className="sticky top-0 bg-gray-50 z-10">
+                            <TableRow>
+                              <TableHead>Bill ID</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead className="text-right">Total</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {liveBills.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                                  No bills found for this store
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              liveBills.map((bill: any) => {
+                                const billDate = getBillDate(bill);
+                                return (
+                                  <TableRow key={bill.id}>
+                                    <TableCell className="font-mono text-xs">{bill.id}</TableCell>
+                                    <TableCell className="text-xs">
+                                      {billDate ? new Date(billDate).toLocaleString() : "-"}
+                                    </TableCell>
+                                    <TableCell className="text-right font-medium">
+                                      ₹{Number(bill.total || 0).toFixed(2)}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant="outline">{bill.status || "completed"}</Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="all-orders" className="flex-1 min-h-0 mt-4 overflow-hidden">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    Transfer Calendar
+                  </h3>
+                  {isLoadingCalendar ? (
+                    <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
+                      <p className="text-gray-500 text-sm">Loading calendar...</p>
+                    </div>
+                  ) : (
+                    <MiniCalendar
+                      dates={dates}
+                      selectedDate={selectedDate}
+                      onDateSelect={setSelectedDate}
+                      dataLabel="Has transfer orders"
+                    />
+                  )}
                 </div>
-              ) : (
-                <MiniCalendar
-                  dates={dates}
-                  selectedDate={selectedDate}
-                  onDateSelect={setSelectedDate}
-                  dataLabel="Has transfer orders"
-                />
-              )}
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">
-                {selectedDate ? `Orders on ${selectedDate}` : "Select a date to view transfer orders"}
-              </h3>
-              {selectedDate ? (
-                dateOrders.length > 0 ? (
-                  <div className="border rounded-lg overflow-hidden max-h-[500px] overflow-y-auto divide-y">
-                    {dateOrders.map((order) => (
-                      <button
-                        key={order.id}
-                        onClick={() => openOrderDetails(order)}
-                        className="w-full text-left p-4 hover:bg-blue-50 transition-colors"
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <h3 className="text-lg font-semibold">
+                      {selectedDate ? `Orders on ${selectedDate}` : "All Orders"}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant={orderStatusFilter === "all" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setOrderStatusFilter("all")}
                       >
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <p className="font-semibold text-sm">{order.id}</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {formatDateTime(order.createdAt || order.created_at)}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <Badge variant="outline" className="text-[11px]">
-                              {String(order.status || "pending").replace(/_/g, " ")}
-                            </Badge>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {Number(order.itemCount || 0)} items | Qty {Number(order.assignedQtyTotal || 0)}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
-                    <div className="text-center">
-                      <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                      <p className="text-gray-500 text-sm">No transfer orders available for this date</p>
+                        All Orders
+                      </Button>
+                      <Button
+                        variant={orderStatusFilter === "pending" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setOrderStatusFilter("pending")}
+                      >
+                        Pending
+                      </Button>
+                      <Button
+                        variant={orderStatusFilter === "completed" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setOrderStatusFilter("completed")}
+                      >
+                        Completed
+                      </Button>
+                      {selectedDate && (
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedDate(null)}>
+                          Clear Date
+                        </Button>
+                      )}
                     </div>
                   </div>
-                )
-              ) : (
-                <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
-                  <div className="text-center">
-                    <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                    <p className="text-gray-500 text-sm">Click a highlighted date to view transfer orders</p>
-                  </div>
+                  {filteredOrders.length > 0 ? (
+                      <div className="border rounded-lg overflow-hidden max-h-[500px] overflow-y-auto divide-y">
+                        {filteredOrders.map((order) => (
+                          <div key={order.id} className="w-full p-4 hover:bg-blue-50 transition-colors">
+                            <div className="flex items-start justify-between gap-4">
+                              <button onClick={() => openOrderDetails(order)} className="flex-1 text-left">
+                                <p className="font-semibold text-sm">{order.id}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {formatDateTime(order.createdAt || order.created_at)}
+                                </p>
+                              </button>
+                              <div className="text-right">
+                                <Badge variant="outline" className="text-[11px]">
+                                  {String(order.status || "pending").replace(/_/g, " ")}
+                                </Badge>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {Number(order.itemCount || 0)} items | Qty {Number(order.assignedQtyTotal || 0)}
+                                </p>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700"
+                                disabled={deletingOrderId === order.id}
+                                onClick={() => handleDeleteOrder(order)}
+                                title="Delete order"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
+                      <div className="text-center">
+                        <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 text-sm">
+                          {selectedDate
+                            ? "No transfer orders found for the selected date/filter"
+                            : "No transfer orders found for this filter"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
         <DialogFooter className="border-t pt-4">
           <Button variant="outline" onClick={onClose}>Close</Button>
@@ -698,188 +1023,6 @@ function StoreInsightModal({
   );
 }
 
-function StoreLiveFeedDialog({
-  open,
-  onClose,
-  store,
-}: {
-  open: boolean
-  onClose: () => void
-  store: StoreType | null
-}) {
-  const [inventoryRows, setInventoryRows] = useState<StoreLiveInventoryRow[]>([])
-  const [liveBills, setLiveBills] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<string>("")
-
-  const getBillStoreId = (bill: any) =>
-    normalizeStoreId(bill?.storeId || bill?.storeid || bill?.store_id)
-
-  const getBillDate = (bill: any) => bill?.timestamp || bill?.date || bill?.createdAt || bill?.created_at || ""
-
-  const fetchLiveData = async (showLoader = false) => {
-    if (!store) return
-    if (showLoader) setLoading(true)
-    try {
-      const [inventoryRes, billsRes] = await Promise.all([
-        fetch(`${API}/api/stores/${store.id}/assigned-products`),
-        fetch(`${API}/api/bills`),
-      ])
-
-      if (inventoryRes.ok) {
-        const invData = await inventoryRes.json()
-        const rows = Array.isArray(invData) ? invData : []
-        const inStockOnly = rows.filter((row: StoreLiveInventoryRow) => Number(row?.quantity || 0) > 0)
-        setInventoryRows(inStockOnly)
-      }
-
-      if (billsRes.ok) {
-        const billsData = await billsRes.json()
-        const filtered = (Array.isArray(billsData) ? billsData : [])
-          .filter((bill) => getBillStoreId(bill) === normalizeStoreId(store.id))
-          .sort((a, b) => new Date(getBillDate(b)).getTime() - new Date(getBillDate(a)).getTime())
-        setLiveBills(filtered.slice(0, 30))
-      }
-
-      setLastUpdated(new Date().toLocaleTimeString())
-    } catch (error) {
-      console.error("Error loading store live feed:", error)
-    } finally {
-      if (showLoader) setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (!open || !store) return
-    fetchLiveData(true)
-    const timer = setInterval(() => fetchLiveData(false), 10000)
-    return () => clearInterval(timer)
-  }, [open, store?.id])
-
-  if (!open || !store) return null
-
-  const totalStock = inventoryRows.reduce((sum, row) => sum + Number(row.quantity || 0), 0)
-  const totalBillAmount = liveBills.reduce((sum, bill) => sum + Number(bill?.total || 0), 0)
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="border-b pb-3">
-          <DialogTitle>{store.name} - Live Feed</DialogTitle>
-          <DialogDescription>
-            Live store view: assigned products and recent bills
-            {lastUpdated ? ` • Updated at ${lastUpdated}` : ""}
-          </DialogDescription>
-          <div className="flex justify-end pr-10 pt-2">
-            <Button variant="outline" size="sm" onClick={() => fetchLiveData(true)} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-          </div>
-        </DialogHeader>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
-          <Card className="flex flex-col min-h-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Products in Store</CardTitle>
-              <CardDescription>{inventoryRows.length} items • Total stock {totalStock}</CardDescription>
-            </CardHeader>
-            <CardContent className="min-h-0 flex-1">
-              <div className="border rounded-lg overflow-hidden h-full">
-                <div className="overflow-auto h-full">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-gray-50 z-10">
-                      <TableRow>
-                        <TableHead>Barcode</TableHead>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
-                        <TableHead className="text-right">Price</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {inventoryRows.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                            No assigned products found
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        inventoryRows.map((row, idx) => {
-                          const productObj = row.products || {}
-                          const barcode = productObj.barcode || row.barcode || "-"
-                          const name = productObj.name || row.name || "Unknown"
-                          const qty = Number(row.quantity || 0)
-                          const price = Number(productObj.price || row.price || 0)
-                          return (
-                            <TableRow key={row.id || `${barcode}-${idx}`}>
-                              <TableCell className="font-mono text-xs">{barcode}</TableCell>
-                              <TableCell>{name}</TableCell>
-                              <TableCell className="text-right">{qty}</TableCell>
-                              <TableCell className="text-right">₹{price.toFixed(2)}</TableCell>
-                            </TableRow>
-                          )
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="flex flex-col min-h-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Recent Bills</CardTitle>
-              <CardDescription>{liveBills.length} recent bills • ₹{totalBillAmount.toFixed(2)}</CardDescription>
-            </CardHeader>
-            <CardContent className="min-h-0 flex-1">
-              <div className="border rounded-lg overflow-hidden h-full">
-                <div className="overflow-auto h-full">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-gray-50 z-10">
-                      <TableRow>
-                        <TableHead>Bill ID</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {liveBills.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                            No bills found for this store
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        liveBills.map((bill: any) => {
-                          const billDate = getBillDate(bill)
-                          return (
-                            <TableRow key={bill.id}>
-                              <TableCell className="font-mono text-xs">{bill.id}</TableCell>
-                              <TableCell className="text-xs">
-                                {billDate ? new Date(billDate).toLocaleString() : "-"}
-                              </TableCell>
-                              <TableCell className="text-right font-medium">₹{Number(bill.total || 0).toFixed(2)}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline">{bill.status || "completed"}</Badge>
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 export default function StoresPage() {
   const router = useRouter()
   const [stores, setStores] = useState<StoreType[]>([])
@@ -898,8 +1041,6 @@ export default function StoresPage() {
   // Store insight modal state
   const [insightOpen, setInsightOpen] = useState(false)
   const [selectedStore, setSelectedStore] = useState<StoreType | null>(null)
-  const [liveFeedOpen, setLiveFeedOpen] = useState(false)
-  const [liveFeedStore, setLiveFeedStore] = useState<StoreType | null>(null)
 
   
   useEffect(() => {
@@ -1132,11 +1273,6 @@ export default function StoresPage() {
   const openStoreModal = (store: StoreType) => {
     setSelectedStore(store)
     setInsightOpen(true)
-  }
-
-  const openStoreLiveFeed = (store: StoreType) => {
-    setLiveFeedStore(store)
-    setLiveFeedOpen(true)
   }
 
   const filteredStores = stores.filter((store) => {
@@ -1407,18 +1543,6 @@ export default function StoresPage() {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                openStoreLiveFeed(store)
-                              }}
-                              className="bg-violet-50 hover:bg-violet-100 border-violet-200"
-                              title="Live feed"
-                            >
-                              <Activity className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
                                 openStoreModal(store)
                               }}
                               className="bg-blue-50 hover:bg-blue-100 border-blue-200"
@@ -1484,11 +1608,6 @@ export default function StoresPage() {
           open={insightOpen}
           onClose={() => setInsightOpen(false)}
           store={selectedStore}
-        />
-        <StoreLiveFeedDialog
-          open={liveFeedOpen}
-          onClose={() => setLiveFeedOpen(false)}
-          store={liveFeedStore}
         />
       </div>
     </DashboardLayout>

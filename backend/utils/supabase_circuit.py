@@ -8,20 +8,28 @@ import threading
 _lock = threading.Lock()
 _offline_until = 0.0
 _offline_cooldown_seconds = 45
+_offline_cooldown_max_seconds = 300
+_failure_streak = 0
 _last_probe_at = 0.0
 _probe_interval_seconds = 10
 
 
 def mark_failure() -> None:
-    global _offline_until
+    global _offline_until, _failure_streak
     with _lock:
-        _offline_until = time.time() + _offline_cooldown_seconds
+        _failure_streak += 1
+        cooldown = min(
+            _offline_cooldown_max_seconds,
+            _offline_cooldown_seconds * (2 ** max(0, _failure_streak - 1)),
+        )
+        _offline_until = time.time() + cooldown
 
 
 def mark_success() -> None:
-    global _offline_until
+    global _offline_until, _failure_streak
     with _lock:
         _offline_until = 0.0
+        _failure_streak = 0
 
 
 def is_offline() -> bool:
@@ -48,3 +56,8 @@ def force_probe() -> None:
     with _lock:
         _offline_until = 0.0
         _last_probe_at = 0.0
+
+
+def time_remaining_seconds() -> float:
+    with _lock:
+        return max(0.0, _offline_until - time.time())

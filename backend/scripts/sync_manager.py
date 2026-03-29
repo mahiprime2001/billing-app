@@ -59,6 +59,12 @@ class EnhancedSyncManager:
         self.settings_file = os.path.join(base_dir, 'data', 'json', 'settings.json')
         self.is_running = False
         self.sync_thread = None
+        self.enable_remote_sync_table = str(os.environ.get("ENABLE_REMOTE_SYNC_TABLE", "false")).strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
         
         # Ensure directories exist
         self._ensure_directory_exists(os.path.dirname(self.local_sync_table_file))
@@ -280,6 +286,12 @@ class EnhancedSyncManager:
         Pull changes from Supabase sync_table and apply to local JSON.
         Can be optionally filtered by table_name and forced for a full pull.
         """
+        if not self.enable_remote_sync_table:
+            return {
+                "status": "skipped",
+                "message": "Remote sync_table pull disabled",
+                "pulled": 0,
+            }
         try:
             last_sync = self.get_last_sync_timestamp()
             logger.info(f"Pulling from Supabase sync_table. Last sync: {last_sync or 'Never'}. Table: {table_name or 'All'}, Full Pull: {force_full_pull}")
@@ -877,6 +889,12 @@ class EnhancedSyncManager:
         
         # Supabase sync_table
         supabase_cleaned = 0
+        if not self.enable_remote_sync_table:
+            return {
+                "status": "success",
+                "local_cleaned": local_cleaned,
+                "supabase_cleaned": 0
+            }
         try:
             response = self.supabase_db.client.table("sync_table").delete().lt("created_at", cutoff_date.isoformat()).execute()
             if response.data:

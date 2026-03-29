@@ -10,7 +10,8 @@ from typing import List, Dict, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 from utils.supabase_db import db
-from utils.supabase_resilience import execute_with_retry
+from utils.supabase_resilience import execute_with_retry, is_transient_supabase_error
+import utils.supabase_circuit as supabase_circuit
 from utils.json_helpers import (
     get_bills_data,
     save_bills_data,
@@ -217,6 +218,9 @@ def get_supabase_bills() -> List[Dict]:
     Get bills directly from Supabase
     """
     try:
+        if supabase_circuit.is_offline():
+            logger.info("Supabase circuit open; skipping cloud bills read and using fallback flow.")
+            return []
         client = db.client
         response = execute_with_retry(
             lambda: client.table("bills").select("*"),
@@ -227,7 +231,10 @@ def get_supabase_bills() -> List[Dict]:
         logger.debug(f"Returning {len(transformed_bills)} bills from Supabase.")
         return transformed_bills
     except Exception as e:
-        logger.error(f"Error getting Supabase bills: {e}", exc_info=True)
+        if is_transient_supabase_error(e):
+            logger.warning(f"Error getting Supabase bills (falling back to local/merged): {e}")
+        else:
+            logger.error(f"Error getting Supabase bills: {e}", exc_info=True)
         return []
 
 
@@ -238,6 +245,9 @@ def get_supabase_bills_with_details() -> List[Dict]:
     Optimized to fetch only related rows per request.
     """
     try:
+        if supabase_circuit.is_offline():
+            logger.info("Supabase circuit open; skipping detailed cloud bills read.")
+            return []
         client = db.client
 
         def normalize_id(value) -> Optional[str]:
@@ -611,7 +621,13 @@ def get_supabase_bills_with_details() -> List[Dict]:
         return transformed_bills
 
     except Exception as e:
-        logger.error(f"Error getting Supabase bills with details: {e}", exc_info=True)
+        if is_transient_supabase_error(e):
+            logger.warning(
+                "Transient Supabase error while getting bills with details; falling back to merged/local bills: %s",
+                e,
+            )
+        else:
+            logger.error(f"Error getting Supabase bills with details: {e}", exc_info=True)
         return []
 
 def get_merged_bills() -> Tuple[List[Dict], int]:
@@ -620,11 +636,20 @@ def get_merged_bills() -> Tuple[List[Dict], int]:
     Returns: (bills_list, status_code)
     """
     try:
-        # Fetch from Supabase (preferred source)
-        supabase_bills = get_supabase_bills()
-        
         # Fetch from local JSON (fallback)
         local_bills = get_local_bills()
+
+        # If circuit is open, avoid cloud calls and return local quickly.
+        if supabase_circuit.is_offline():
+            local_bills.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+            logger.debug(
+                "Supabase circuit open in get_merged_bills; returning %d local bills",
+                len(local_bills),
+            )
+            return local_bills, 200
+
+        # Fetch from Supabase (preferred source)
+        supabase_bills = get_supabase_bills()
         
         # Merge (Supabase takes precedence)
         bills_map = {}

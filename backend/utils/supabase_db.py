@@ -73,7 +73,10 @@ try:
                 raise httpx.ConnectTimeout("Supabase offline circuit is open")
             try:
                 response = super().request(method, url, *args, **kwargs)
-                supabase_circuit.mark_success()
+                if response.status_code >= 500:
+                    supabase_circuit.mark_failure()
+                else:
+                    supabase_circuit.mark_success()
                 return response
             except Exception:
                 supabase_circuit.mark_failure()

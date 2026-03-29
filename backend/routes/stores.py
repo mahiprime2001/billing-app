@@ -5,9 +5,56 @@ Flask blueprint for all store and inventory-related API endpoints
 
 from flask import Blueprint, jsonify, request
 import logging
+import threading
+import time
 from services import stores_service
+import utils.supabase_circuit as supabase_circuit
 
 logger = logging.getLogger(__name__)
+
+_TRANSFER_ORDERS_CACHE_TTL_SECONDS = 30
+_TRANSFER_ORDERS_CACHE_STALE_SECONDS = 180
+_TRANSFER_ORDERS_CACHE_LOCK = threading.Lock()
+_TRANSFER_ORDERS_CACHE: dict[str, dict] = {}
+_TRANSFER_ORDERS_INFLIGHT: dict[str, threading.Event] = {}
+
+
+def _transfer_orders_cache_key(store_id: str, status: str | None) -> str:
+    return f"{store_id}:{status or 'all'}"
+
+
+def _get_transfer_orders_cache(key: str, allow_stale: bool = False):
+    now = time.time()
+    with _TRANSFER_ORDERS_CACHE_LOCK:
+        entry = _TRANSFER_ORDERS_CACHE.get(key)
+    if not entry:
+        return None
+    if now <= float(entry.get("expires_at") or 0):
+        return entry.get("data")
+    if allow_stale and now <= float(entry.get("stale_until") or 0):
+        return entry.get("data")
+    return None
+
+
+def _set_transfer_orders_cache(key: str, data):
+    now = time.time()
+    with _TRANSFER_ORDERS_CACHE_LOCK:
+        _TRANSFER_ORDERS_CACHE[key] = {
+            "data": data,
+            "expires_at": now + _TRANSFER_ORDERS_CACHE_TTL_SECONDS,
+            "stale_until": now + _TRANSFER_ORDERS_CACHE_STALE_SECONDS,
+        }
+
+
+def _invalidate_transfer_orders_cache(store_id: str | None = None) -> None:
+    with _TRANSFER_ORDERS_CACHE_LOCK:
+        if store_id is None:
+            _TRANSFER_ORDERS_CACHE.clear()
+            return
+        prefix = f"{store_id}:"
+        keys_to_remove = [key for key in _TRANSFER_ORDERS_CACHE.keys() if key.startswith(prefix)]
+        for key in keys_to_remove:
+            _TRANSFER_ORDERS_CACHE.pop(key, None)
 
 # Create Blueprint
 stores_bp = Blueprint('stores', __name__, url_prefix='/api')
@@ -325,15 +372,62 @@ def get_inventory_by_date(store_id, date_str):
 @stores_bp.route('/stores/<store_id>/transfer-orders', methods=['GET'])
 def get_store_transfer_orders(store_id):
     """Get transfer orders for a store."""
+    status = request.args.get('status')
+    cache_key = _transfer_orders_cache_key(store_id, status)
+    wait_event = None
+    is_leader = False
     try:
-        status = request.args.get('status')
+        cached = _get_transfer_orders_cache(cache_key, allow_stale=False)
+        if cached is not None:
+            return jsonify(cached), 200
+
+        with _TRANSFER_ORDERS_CACHE_LOCK:
+            now = time.time()
+            entry = _TRANSFER_ORDERS_CACHE.get(cache_key)
+            if entry and now <= float(entry.get("expires_at") or 0):
+                return jsonify(entry.get("data") or []), 200
+
+            existing = _TRANSFER_ORDERS_INFLIGHT.get(cache_key)
+            if existing is None:
+                _TRANSFER_ORDERS_INFLIGHT[cache_key] = threading.Event()
+                is_leader = True
+            else:
+                wait_event = existing
+
+        if not is_leader and wait_event is not None:
+            wait_event.wait(timeout=6.0)
+            cached_after_wait = _get_transfer_orders_cache(cache_key, allow_stale=True)
+            if cached_after_wait is not None:
+                return jsonify(cached_after_wait), 200
+            return jsonify([]), 200
+
+        if supabase_circuit.is_offline():
+            cached_stale = _get_transfer_orders_cache(cache_key, allow_stale=True)
+            if cached_stale is not None:
+                return jsonify(cached_stale), 200
+            return jsonify([]), 200
+
         orders, status_code = stores_service.get_store_transfer_orders(store_id, status)
         if status_code == 200:
+            _set_transfer_orders_cache(cache_key, orders)
             return jsonify(orders), 200
+
+        cached_stale = _get_transfer_orders_cache(cache_key, allow_stale=True)
+        if cached_stale is not None:
+            return jsonify(cached_stale), 200
         return jsonify({'error': 'Failed to fetch transfer orders'}), status_code
     except Exception as e:
+        cached_stale = _get_transfer_orders_cache(cache_key, allow_stale=True)
+        if cached_stale is not None:
+            return jsonify(cached_stale), 200
         logger.error(f"Error in get_store_transfer_orders: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify([]), 200
+    finally:
+        if is_leader:
+            with _TRANSFER_ORDERS_CACHE_LOCK:
+                done_event = _TRANSFER_ORDERS_INFLIGHT.pop(cache_key, None)
+                if done_event is not None:
+                    done_event.set()
 
 
 @stores_bp.route('/transfer-orders/<order_id>', methods=['GET'])
@@ -348,6 +442,20 @@ def get_transfer_order_details(order_id):
         return jsonify({'error': 'Failed to fetch transfer order'}), status_code
     except Exception as e:
         logger.error(f"Error in get_transfer_order_details: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@stores_bp.route('/transfer-orders/<order_id>', methods=['DELETE'])
+def delete_transfer_order(order_id):
+    """Delete a transfer order from Supabase and local cache."""
+    try:
+        success, message, status_code, store_id = stores_service.delete_transfer_order(order_id)
+        if success:
+            _invalidate_transfer_orders_cache(store_id)
+            return jsonify({'message': message, 'id': order_id}), status_code
+        return jsonify({'error': message}), status_code
+    except Exception as e:
+        logger.error(f"Error in delete_transfer_order: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 

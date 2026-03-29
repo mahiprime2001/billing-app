@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from utils.supabase_db import db
+from utils.supabase_resilience import execute_with_retry, is_transient_supabase_error
 from utils.json_helpers import get_discounts_data, save_discounts_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
@@ -75,7 +76,10 @@ def get_supabase_discounts() -> List[Dict]:
     """Get discounts directly from Supabase"""
     try:
         client = db.client
-        response = client.table("discounts").select("*").execute()
+        response = execute_with_retry(
+            lambda: client.table("discounts").select("*"),
+            "discounts",
+        )
         discounts = response.data or []
 
         # Collect all user ids referenced by discounts (requester + approver)
@@ -93,10 +97,12 @@ def get_supabase_discounts() -> List[Dict]:
         if user_ids:
             try:
                 users_resp = (
-                    client.table("users")
-                    .select("id,name")
-                    .in_("id", list(user_ids))
-                    .execute()
+                    execute_with_retry(
+                        lambda: client.table("users")
+                        .select("id,name")
+                        .in_("id", list(user_ids)),
+                        "discount users lookup",
+                    )
                 )
                 for user in users_resp.data or []:
                     user_name_map[user["id"]] = user.get("name") or user["id"]
@@ -120,7 +126,10 @@ def get_supabase_discounts() -> List[Dict]:
         logger.debug(f"Returning {len(transformed)} discounts from Supabase.")
         return transformed
     except Exception as e:
-        logger.error(f"Error getting Supabase discounts: {e}", exc_info=True)
+        if is_transient_supabase_error(e):
+            logger.warning(f"Error getting Supabase discounts (falling back to local): {e}")
+        else:
+            logger.error(f"Error getting Supabase discounts: {e}", exc_info=True)
         return []
 
 

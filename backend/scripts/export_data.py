@@ -120,13 +120,7 @@ def export_all_data_from_supabase():
         }
         save_json("settings.json", settings_data)
 
-        # 14. Optional: synctable if you want a local backup
-        try:
-            response = SupabaseDBInstance.client.table("sync_table").select("*").execute()
-            synctable = response.data or []
-            save_json("synctable.json", synctable)
-        except Exception as e:
-            logger.warning(f"Could not fetch sync_table: {e}")
+        # 14. sync_table export intentionally disabled.
 
         logger.info("✅ Full Supabase export complete.")
 
