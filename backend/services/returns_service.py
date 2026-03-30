@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from utils.supabase_db import db
-from utils.supabase_resilience import execute_with_retry
+from utils.supabase_resilience import execute_with_retry, is_circuit_open_error
 from utils.json_helpers import get_returns_data, save_returns_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
@@ -144,8 +144,11 @@ def get_supabase_returns() -> List[Dict]:
         logger.debug(f"Returning {len(transformed_returns)} returns from Supabase.")
         return transformed_returns
     except Exception as e:
+        if is_circuit_open_error(e):
+            logger.info("Supabase circuit open while fetching returns; using local cache.")
+            return get_local_returns()
         logger.warning(f"Error getting Supabase returns (falling back to local): {e}")
-        return []
+        return get_local_returns()
 
 # ============================================
 # MERGED OPERATIONS

@@ -9,7 +9,11 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from utils.supabase_db import db
-from utils.supabase_resilience import execute_with_retry, is_transient_supabase_error
+from utils.supabase_resilience import (
+    execute_with_retry,
+    is_transient_supabase_error,
+    is_circuit_open_error,
+)
 from utils.json_helpers import get_discounts_data, save_discounts_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
@@ -126,11 +130,13 @@ def get_supabase_discounts() -> List[Dict]:
         logger.debug(f"Returning {len(transformed)} discounts from Supabase.")
         return transformed
     except Exception as e:
-        if is_transient_supabase_error(e):
+        if is_circuit_open_error(e):
+            logger.info("Supabase circuit open while fetching discounts; using local cache.")
+        elif is_transient_supabase_error(e):
             logger.warning(f"Error getting Supabase discounts (falling back to local): {e}")
         else:
             logger.error(f"Error getting Supabase discounts: {e}", exc_info=True)
-        return []
+        return get_local_discounts()
 
 
 # ============================================

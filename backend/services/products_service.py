@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from decimal import Decimal
 from utils.supabase_db import db
-from utils.supabase_resilience import execute_with_retry
+from utils.supabase_resilience import execute_with_retry, is_circuit_open_error
 from utils.json_helpers import (
     get_products_data,
     save_products_data,
@@ -401,8 +401,11 @@ def get_supabase_products_for_billing() -> List[Dict]:
         logger.debug(f"Returning {len(transformed_products)} products for billing (available stock).")
         return transformed_products
     except Exception as e:
-        logger.error(f"Error getting Supabase products for billing: {e}", exc_info=True)
-        return []
+        if is_circuit_open_error(e):
+            logger.info("Supabase circuit open while fetching products for billing; using local cache.")
+            return get_local_products_for_billing()
+        logger.warning(f"Error getting Supabase products for billing (falling back to local): {e}")
+        return get_local_products_for_billing()
 
 def insert_product_to_supabase(product_data: dict) -> Optional[dict]:
     """Insert a product into Supabase"""

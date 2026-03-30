@@ -71,6 +71,14 @@ def is_transient_supabase_error(err: Exception) -> bool:
     return False
 
 
+def is_circuit_open_error(err: Exception) -> bool:
+    """
+    Return True when the error is from the local Supabase circuit guard,
+    not from an upstream Supabase API failure.
+    """
+    return "Supabase offline circuit is open" in str(err)
+
+
 def execute_with_retry(build_query: Callable[[], T], label: str, retries: int = 2) -> T:
     """
     Execute a Supabase query and retry transient protocol disconnects.
@@ -91,6 +99,10 @@ def execute_with_retry(build_query: Callable[[], T], label: str, retries: int = 
             supabase_circuit.mark_success()
             return response
         except Exception as err:
+            # Circuit-open is an intentional local guard state; do not retry or
+            # re-mark failure, just bubble up to caller for fallback handling.
+            if is_circuit_open_error(err):
+                raise
             if not is_transient_supabase_error(err):
                 raise
             supabase_circuit.mark_failure()

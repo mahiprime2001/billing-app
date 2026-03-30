@@ -10,7 +10,7 @@ from typing import List, Dict, Optional, Tuple
 from collections import defaultdict
 
 from utils.supabase_db import db
-from utils.supabase_resilience import execute_with_retry
+from utils.supabase_resilience import execute_with_retry, is_circuit_open_error
 from utils.json_helpers import get_customers_data, save_customers_data, get_bills_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 from utils.concurrency_guard import extract_base_markers, safe_update_with_conflict_check
@@ -66,8 +66,11 @@ def get_supabase_customers() -> List[Dict]:
         logger.debug(f"Returning {len(transformed_customers)} customers from Supabase.")
         return transformed_customers
     except Exception as e:
-        logger.error(f"Error getting Supabase customers: {e}", exc_info=True)
-        return []
+        if is_circuit_open_error(e):
+            logger.info("Supabase circuit open while fetching customers; using local cache.")
+            return get_local_customers()
+        logger.warning(f"Error getting Supabase customers (falling back to local): {e}")
+        return get_local_customers()
 
 # ============================================
 # MERGED OPERATIONS

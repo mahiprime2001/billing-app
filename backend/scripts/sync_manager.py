@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import schedule
 import glob
+import utils.supabase_circuit as supabase_circuit
 
 # Determine the base directory for resource loading
 if getattr(sys, 'frozen', False):
@@ -526,6 +527,19 @@ class EnhancedSyncManager:
         """
         Process pending logs sequentially
         """
+        if supabase_circuit.is_offline():
+            remaining = supabase_circuit.time_remaining_seconds()
+            logger.info(
+                "Supabase circuit open; deferring pending sync processing for %.1fs",
+                remaining,
+            )
+            return {
+                "status": "deferred",
+                "message": f"Supabase offline circuit open ({remaining:.1f}s remaining)",
+                "processed": 0,
+                "failed": 0,
+            }
+
         sync_table = self.get_local_sync_table()
         pending_logs = [log for log in sync_table if log.get('status') == 'pending']
         
@@ -675,13 +689,15 @@ class EnhancedSyncManager:
                 if table_name.lower() == "bills":
                     bill_payload = dict(change_data)
                     items = bill_payload.pop("items", []) or []
-                    bill_payload["id"] = bill_payload.get("id") or record_id
+                    bill_payload["id"] = record_id
 
                     # normalize common frontend keys to Supabase snake_case keys
                     if "storeId" in bill_payload and "storeid" not in bill_payload:
                         bill_payload["storeid"] = bill_payload.pop("storeId")
                     if "customerId" in bill_payload and "customerid" not in bill_payload:
                         bill_payload["customerid"] = bill_payload.pop("customerId")
+                    if "userId" in bill_payload and "userid" not in bill_payload:
+                        bill_payload["userid"] = bill_payload.pop("userId")
                     if "paymentMethod" in bill_payload and "paymentmethod" not in bill_payload:
                         bill_payload["paymentmethod"] = bill_payload.pop("paymentMethod")
                     if "createdBy" in bill_payload and "createdby" not in bill_payload:
@@ -690,6 +706,12 @@ class EnhancedSyncManager:
                         bill_payload["created_at"] = bill_payload.pop("createdAt")
                     if "updatedAt" in bill_payload and "updated_at" not in bill_payload:
                         bill_payload["updated_at"] = bill_payload.pop("updatedAt")
+                    if "discountAmount" in bill_payload and "discount_amount" not in bill_payload:
+                        bill_payload["discount_amount"] = bill_payload.pop("discountAmount")
+                    if "discountPercentage" in bill_payload and "discount_percentage" not in bill_payload:
+                        bill_payload["discount_percentage"] = bill_payload.pop("discountPercentage")
+                    if "date" in bill_payload and "timestamp" not in bill_payload:
+                        bill_payload["timestamp"] = bill_payload.pop("date")
 
                     # Ensure createdby references users.id (FK-safe). If unresolved, drop it.
                     created_by_candidate = bill_payload.get("createdby")
@@ -721,9 +743,29 @@ class EnhancedSyncManager:
                             )
                             bill_payload.pop("createdby", None)
 
+                    # Keep only supported Supabase bills columns.
+                    allowed_bill_columns = {
+                        "id",
+                        "storeid",
+                        "customerid",
+                        "userid",
+                        "subtotal",
+                        "total",
+                        "paymentmethod",
+                        "timestamp",
+                        "status",
+                        "createdby",
+                        "created_at",
+                        "updated_at",
+                        "discount_amount",
+                        "discount_percentage",
+                    }
+                    bill_payload = {k: v for k, v in bill_payload.items() if k in allowed_bill_columns}
+
                     if change_type == "CREATE":
                         self.supabase_db.client.table("bills").upsert(bill_payload).execute()
                     else:
+                        bill_payload.pop("id", None)
                         self.supabase_db.client.table("bills").update(bill_payload).eq("id", record_id).execute()
 
                     if isinstance(items, list):
@@ -751,6 +793,50 @@ class EnhancedSyncManager:
                             self.supabase_db.client.table("billitems").insert(db_items).execute()
 
                     logger.info(f"{change_type} operation on Bills for {record_id} successful")
+                    return True
+                
+                if table_name.lower() == "users":
+                    payload = dict(change_data)
+                    payload.pop("assignedStores", None)
+                    payload.pop("assignedstores", None)
+                    if "sessionDuration" in payload and "sessionduration" not in payload:
+                        payload["sessionduration"] = payload.pop("sessionDuration")
+                    if "totalSessionDuration" in payload and "totalsessionduration" not in payload:
+                        payload["totalsessionduration"] = payload.pop("totalSessionDuration")
+                    if "createdAt" in payload and "createdat" not in payload:
+                        payload["createdat"] = payload.pop("createdAt")
+                    if "updatedAt" in payload and "updatedat" not in payload:
+                        payload["updatedat"] = payload.pop("updatedAt")
+                    if "lastLogin" in payload and "lastlogin" not in payload:
+                        payload["lastlogin"] = payload.pop("lastLogin")
+                    if "lastLogout" in payload and "lastlogout" not in payload:
+                        payload["lastlogout"] = payload.pop("lastLogout")
+
+                    payload["id"] = payload.get("id") or record_id
+                    if change_type == "CREATE":
+                        table_client.upsert(payload).execute()
+                    else:
+                        payload.pop("id", None)
+                        table_client.update(payload).eq("id", record_id).execute()
+                    logger.info(f"{change_type} operation on Users for {record_id} successful")
+                    return True
+
+                if table_name.lower() == "batch":
+                    payload = dict(change_data)
+                    if "batchNumber" in payload and "batch_number" not in payload:
+                        payload["batch_number"] = payload.pop("batchNumber")
+                    if "createdAt" in payload and "createdat" not in payload:
+                        payload["createdat"] = payload.pop("createdAt")
+                    if "updatedAt" in payload and "updatedat" not in payload:
+                        payload["updatedat"] = payload.pop("updatedAt")
+                    payload["id"] = payload.get("id") or record_id
+
+                    if change_type == "CREATE":
+                        table_client.upsert(payload).execute()
+                    else:
+                        payload.pop("id", None)
+                        table_client.update(payload).eq("id", record_id).execute()
+                    logger.info(f"{change_type} operation on batch for {record_id} successful")
                     return True
 
                 if table_name.lower() == "returns":

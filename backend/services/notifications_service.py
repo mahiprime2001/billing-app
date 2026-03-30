@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 
 from utils.supabase_db import db
-from utils.supabase_resilience import execute_with_retry
+from utils.supabase_resilience import execute_with_retry, is_circuit_open_error
 from utils.json_helpers import get_notifications_data, save_notifications_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
@@ -54,7 +54,10 @@ def get_supabase_notifications() -> List[Dict]:
         logger.debug(f"Returning {len(transformed_notifications)} notifications from Supabase.")
         return transformed_notifications
     except Exception as e:
-        logger.warning(f"Error getting Supabase notifications (falling back to local): {e}")
+        if is_circuit_open_error(e):
+            logger.info("Supabase circuit open while fetching notifications; using local cache.")
+        else:
+            logger.warning(f"Error getting Supabase notifications (falling back to local): {e}")
         return []
 
 
