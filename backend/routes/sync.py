@@ -132,6 +132,26 @@ def reconnect_sync():
         return jsonify({"error": str(e)}), 500
 
 
+@sync_bp.route('/sync/resend', methods=['POST'])
+def resend_unsent_sync():
+    """Requeue failed/skipped logs and resend to Supabase"""
+    try:
+        from services import sync_service
+        success, message, status_code = sync_service.resend_unsent_syncs()
+
+        if success:
+            return jsonify({"message": message}), status_code
+        else:
+            return jsonify({"error": message}), status_code
+
+    except ImportError:
+        logger.warning("Sync service not available")
+        return jsonify({"error": "Sync service not available"}), 503
+    except Exception as e:
+        logger.error(f"Error in resend_unsent_sync: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @sync_bp.route('/sync/cleanup', methods=['POST'])
 def cleanup_sync():
     """Cleanup old sync records"""

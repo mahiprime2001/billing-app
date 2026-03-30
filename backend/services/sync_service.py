@@ -148,6 +148,11 @@ def trigger_reconnect_sync() -> Tuple[bool, str, int]:
 
         sync_manager = get_sync_manager()
 
+        requeue_result = (
+            sync_manager.requeue_unsent_logs()
+            if hasattr(sync_manager, "requeue_unsent_logs")
+            else {"status": "unsupported"}
+        )
         push_result = (
             sync_manager.process_pending_logs()
             if hasattr(sync_manager, "process_pending_logs")
@@ -164,9 +169,30 @@ def trigger_reconnect_sync() -> Tuple[bool, str, int]:
             else {"status": "unsupported"}
         )
 
-        return True, f"Reconnect sync completed: push={push_result}, retry={retry_result}, pull={pull_result}", 200
+        return True, f"Reconnect sync completed: requeue={requeue_result}, push={push_result}, retry={retry_result}, pull={pull_result}", 200
     except ImportError:
         return False, "Sync manager not available", 503
     except Exception as e:
         logger.error(f"Error triggering reconnect sync: {e}", exc_info=True)
+        return False, str(e), 500
+
+
+def resend_unsent_syncs() -> Tuple[bool, str, int]:
+    """
+    Force resend of unsent logs (failed/skipped) after a fix.
+    Returns (success, message, status_code)
+    """
+    try:
+        from scripts.sync_manager import get_sync_manager
+        sync_manager = get_sync_manager()
+
+        if hasattr(sync_manager, "requeue_unsent_logs"):
+            result = sync_manager.requeue_unsent_logs()
+            return True, f"Resend completed: {result}", 200
+        return False, "Resend not supported", 501
+
+    except ImportError:
+        return False, "Sync manager not available", 503
+    except Exception as e:
+        logger.error(f"Error resending unsent syncs: {e}", exc_info=True)
         return False, str(e), 500

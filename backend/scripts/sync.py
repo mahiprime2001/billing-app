@@ -441,6 +441,14 @@ def apply_change_to_db(
                     # If no column info (and not userstores), use all snake_cased_data
                     filtered_data = snake_cased_data
                 
+                # Ensure primary key is present for upserts when available.
+                if (
+                    record_id
+                    and 'id' not in filtered_data
+                    and (not columns or 'id' in columns)
+                ):
+                    filtered_data['id'] = record_id
+
                 logger_instance.debug(f"Upserting into {table_name_lower} (data: {filtered_data})")
                 on_conflict_value = "id" # Most tables use 'id' as primary key
                 composite_record_id_for_sync = record_id # Default to existing record_id

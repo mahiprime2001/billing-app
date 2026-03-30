@@ -661,6 +661,14 @@ class EnhancedSyncManager:
                     return False
 
             elif change_type in ['CREATE', 'UPDATE']:
+                # Ensure primary key is present for insert-style operations when appropriate.
+                if (
+                    table_name.lower() not in {"returns", "discounts", "bills", "userstores"}
+                    and record_id
+                    and "id" not in change_data
+                ):
+                    change_data["id"] = record_id
+
                 logger.debug(f"Executing {change_type} operation on Supabase for {table_name} with ID: {record_id}, Data: {change_data}")
 
                 # Bills need special handling to split bill header + items
@@ -870,6 +878,33 @@ class EnhancedSyncManager:
         
         return {"status": "success", "message": "No logs eligible for retry", "retried": 0}
 
+    def requeue_unsent_logs(self, include_skipped: bool = True) -> Dict:
+        """
+        Reset failed (and optionally skipped) logs back to pending, then process them.
+        Useful after fixing a bug that caused repeated failures.
+        """
+        sync_table = self.get_local_sync_table()
+        requeued = 0
+
+        for entry in sync_table:
+            status = entry.get('status')
+            if status == 'failed' or (include_skipped and status == 'skipped'):
+                entry['status'] = 'pending'
+                entry['retry_count'] = 0
+                entry.pop('error_message', None)
+                entry.pop('last_retry', None)
+                requeued += 1
+
+        self.save_local_sync_table(sync_table)
+
+        if requeued > 0:
+            logger.info(f"Reset {requeued} unsent logs to pending")
+            result = self.process_pending_logs()
+            result['requeued'] = requeued
+            return result
+
+        return {"status": "success", "message": "No unsent logs to requeue", "requeued": 0}
+
     def cleanup_old_logs(self) -> Dict:
         """
         Clean up logs older than 30 days
@@ -932,6 +967,7 @@ class EnhancedSyncManager:
             
             # Initial sync on startup
             logger.info("Performing initial sync and immediate cleanup")
+            self.requeue_unsent_logs()
             self.cleanup_old_logs()
             self.scheduled_push_and_pull()
             
@@ -952,6 +988,16 @@ class EnhancedSyncManager:
         logger.info("=== Starting scheduled sync cycle ===")
         
         try:
+            # If Supabase is reachable, requeue failed/skipped logs automatically.
+            try:
+                sync_table = self.get_local_sync_table()
+                unsent = [log for log in sync_table if log.get('status') in ('failed', 'skipped')]
+                if unsent and self.supabase_db.is_available():
+                    logger.info(f"Supabase available; requeuing {len(unsent)} unsent logs")
+                    self.requeue_unsent_logs()
+            except Exception as requeue_err:
+                logger.warning(f"Auto requeue failed: {requeue_err}")
+
             # Step 1: Push local pending logs to Supabase
             logger.info("Step 1: Pushing pending logs to Supabase")
             push_result = self.process_pending_logs()
