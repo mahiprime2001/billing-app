@@ -45,6 +45,7 @@ if PROJECT_ROOT not in sys.path:
 
 from utils.supabase_db import SupabaseDB
 from scripts.sync import apply_change_to_db
+from utils.json_utils import convert_camel_to_snake
 
 class EnhancedSyncManager:
     """
@@ -116,10 +117,14 @@ class EnhancedSyncManager:
             pass
 
         text = str(error)
+        if "PGRST204" in text:
+            return "PGRST204"
         if "PGRST205" in text:
             return "PGRST205"
         if "PGRST100" in text:
             return "PGRST100"
+        if "42703" in text:
+            return "42703"
         return None
 
     def _is_missing_sync_table_error(self, error: Exception) -> bool:
@@ -128,6 +133,58 @@ class EnhancedSyncManager:
             return True
         text = str(error)
         return "Could not find the table 'public.sync_table'" in text
+
+    def _is_schema_or_column_error(self, error: Exception) -> bool:
+        """Detect errors that usually mean bad payload keys or stale schema cache."""
+        code = self._get_postgrest_error_code(error)
+        if code in {"PGRST204", "42703"}:
+            return True
+        text = str(error).lower()
+        return (
+            "could not find the" in text and "column" in text
+        ) or "column does not exist" in text
+
+    def _sanitize_generic_payload(self, change_data: Dict, record_id: str) -> Dict:
+        """Normalize generic table payloads and strip known non-column markers."""
+        payload = convert_camel_to_snake(change_data or {}) if isinstance(change_data, dict) else {}
+        for marker_key in (
+            "_deleted",
+            "baseupdatedat",
+            "base_updated_at",
+            "baseversion",
+            "base_version",
+        ):
+            payload.pop(marker_key, None)
+        if record_id and "id" not in payload:
+            payload["id"] = record_id
+        return payload
+
+    def _verify_product_exists_remotely(self, record_id: str) -> Optional[bool]:
+        """
+        Verify product existence after a write.
+        Returns:
+            True  -> product exists remotely
+            False -> product missing remotely
+            None  -> verification skipped (read not possible/error)
+        """
+        if not record_id:
+            return None
+        try:
+            result = (
+                self.supabase_db.client.table("products")
+                .select("id")
+                .eq("id", record_id)
+                .limit(1)
+                .execute()
+            )
+            return bool(result.data)
+        except Exception as verify_err:
+            logger.warning(
+                "Product sync verification skipped for %s due to read error: %s",
+                record_id,
+                verify_err,
+            )
+            return None
 
     def get_local_sync_table(self) -> List[Dict]:
         return self._safe_json_load(self.local_sync_table_file, [])
@@ -542,11 +599,36 @@ class EnhancedSyncManager:
 
         sync_table = self.get_local_sync_table()
         pending_logs = [log for log in sync_table if log.get('status') == 'pending']
-        
+
         if not pending_logs:
             logger.info("No pending sync logs to process")
             return {"status": "success", "message": "No pending logs", "processed": 0, "failed": 0}
-        
+
+        # Prioritize low-retry and product logs so a backlog of failed heavy logs
+        # does not starve product/create updates.
+        table_priority = {"Products": 0, "StoreInventory": 1, "Bills": 2}
+        pending_logs.sort(
+            key=lambda log: (
+                int(log.get("retry_count", 0) or 0),
+                table_priority.get(log.get("table_name"), 5),
+                log.get("created_at", ""),
+                int(log.get("id", 0) or 0),
+            )
+        )
+
+        # Keep each cycle bounded to avoid long blocking runs.
+        try:
+            max_per_cycle = int(os.environ.get("SYNC_MAX_LOGS_PER_CYCLE", "200"))
+        except ValueError:
+            max_per_cycle = 200
+        if max_per_cycle > 0 and len(pending_logs) > max_per_cycle:
+            logger.info(
+                "Limiting this sync cycle to %s/%s pending logs",
+                max_per_cycle,
+                len(pending_logs),
+            )
+            pending_logs = pending_logs[:max_per_cycle]
+
         logger.info(f"Processing {len(pending_logs)} pending sync logs")
         
         processed = 0
@@ -586,11 +668,113 @@ class EnhancedSyncManager:
         self.save_local_sync_table(sync_table)
         logger.info(f"Finished processing: {processed} processed, {failed} failed")
         
+        verification = self.check_sync_table_completion(check_remote=False)
+
         return {
             "status": "success",
             "message": f"Processed {processed} logs, {failed} failed",
             "processed": processed,
-            "failed": failed
+            "failed": failed,
+            "all_processed": verification.get("all_processed", False),
+            "remaining_local": verification.get("remaining_local", 0),
+        }
+
+    def check_sync_table_completion(self, check_remote: bool = True, include_recent_limit: int = 20) -> Dict:
+        """
+        Check whether all sync entries are fully processed.
+        Local completion means there are no pending/failed/skipped rows.
+        Remote completion (when enabled) means no pending/failed rows in Supabase sync_table.
+        """
+        sync_table = self.get_local_sync_table()
+        local_pending = [e for e in sync_table if e.get("status") == "pending"]
+        local_failed = [e for e in sync_table if e.get("status") == "failed"]
+        local_skipped = [e for e in sync_table if e.get("status") == "skipped"]
+        local_remaining = local_pending + local_failed + local_skipped
+
+        local_summary = {
+            "total": len(sync_table),
+            "pending": len(local_pending),
+            "failed": len(local_failed),
+            "skipped": len(local_skipped),
+            "completed": len([e for e in sync_table if e.get("status") == "completed"]),
+            "remaining": len(local_remaining),
+            "all_processed": len(local_remaining) == 0,
+            "recent_unprocessed": [
+                {
+                    "id": e.get("id"),
+                    "table_name": e.get("table_name"),
+                    "change_type": e.get("change_type"),
+                    "record_id": e.get("record_id"),
+                    "status": e.get("status"),
+                    "retry_count": e.get("retry_count", 0),
+                    "error_message": e.get("error_message"),
+                    "created_at": e.get("created_at"),
+                }
+                for e in sorted(
+                    local_remaining,
+                    key=lambda x: (x.get("created_at", ""), int(x.get("id", 0) or 0)),
+                    reverse=True,
+                )[: max(0, int(include_recent_limit or 0))]
+            ],
+        }
+
+        remote_summary = {
+            "enabled": self.enable_remote_sync_table,
+            "checked": False,
+            "all_processed": None,
+            "pending": None,
+            "failed": None,
+            "remaining": None,
+            "error": None,
+        }
+
+        if check_remote and self.enable_remote_sync_table:
+            remote_summary["checked"] = True
+            try:
+                pending_resp = (
+                    self.supabase_db.client.table("sync_table")
+                    .select("id", count="exact")
+                    .eq("status", "pending")
+                    .execute()
+                )
+                failed_resp = (
+                    self.supabase_db.client.table("sync_table")
+                    .select("id", count="exact")
+                    .eq("status", "failed")
+                    .execute()
+                )
+                pending_count = int(pending_resp.count or 0)
+                failed_count = int(failed_resp.count or 0)
+                remote_remaining = pending_count + failed_count
+                remote_summary.update(
+                    {
+                        "pending": pending_count,
+                        "failed": failed_count,
+                        "remaining": remote_remaining,
+                        "all_processed": remote_remaining == 0,
+                    }
+                )
+            except Exception as remote_err:
+                remote_summary["error"] = str(remote_err)
+                if self._is_missing_sync_table_error(remote_err):
+                    remote_summary["all_processed"] = True
+                    remote_summary["remaining"] = 0
+                else:
+                    logger.warning("Could not check remote sync_table completion: %s", remote_err)
+
+        # If remote wasn't checked, final answer is based on local queue only.
+        if remote_summary["checked"] and remote_summary["all_processed"] is not None:
+            all_processed = bool(local_summary["all_processed"] and remote_summary["all_processed"])
+        else:
+            all_processed = bool(local_summary["all_processed"])
+
+        return {
+            "all_processed": all_processed,
+            "remaining_local": local_summary["remaining"],
+            "remaining_remote": remote_summary["remaining"],
+            "local": local_summary,
+            "remote": remote_summary,
+            "checked_at": datetime.now().isoformat(),
         }
 
     def apply_change_to_supabase_db(self, table_name: str, change_type: str, record_id: str, change_data: Dict) -> bool:
@@ -909,31 +1093,74 @@ class EnhancedSyncManager:
                 # so always route through scripts.sync.apply_change_to_db.
                 if table_name.lower() == "products":
                     success = apply_change_to_db(table_name, change_type, record_id, change_data, logger)
-                    if success:
-                        logger.info(f"{change_type} operation on Products for {record_id} successful via apply_change_to_db")
-                    else:
+                    if not success:
                         logger.error(f"{change_type} operation on Products for {record_id} failed via apply_change_to_db")
+                        return False
+
+                    # Guard against "processed but missing in Supabase" cases.
+                    if change_type in {"CREATE", "UPDATE"}:
+                        verify_result = self._verify_product_exists_remotely(record_id)
+                        if verify_result is False:
+                            logger.error(
+                                "Product %s marked synced but missing remotely after %s; forcing retry",
+                                record_id,
+                                change_type,
+                            )
+                            return False
+                    logger.info(f"{change_type} operation on Products for {record_id} successful via apply_change_to_db")
                     return success
-                
-                if change_type == 'CREATE':
-                    response = table_client.insert(change_data).execute()
-                elif change_type == 'UPDATE':
-                    response = table_client.update(change_data).eq("id", record_id).execute()
-                
-                if response.data:
-                    logger.info(f"{change_type} operation on {table_name} for {record_id} successful")
-                    return True
+
+                # For all other tables, route through apply_change_to_db to ensure
+                # column filtering/normalization and avoid raw payload PGRST204 failures.
+                sanitized_payload = self._sanitize_generic_payload(change_data, record_id)
+                success = apply_change_to_db(table_name, change_type, record_id, sanitized_payload, logger)
+                if success:
+                    logger.info(f"{change_type} operation on {table_name} for {record_id} successful via apply_change_to_db")
                 else:
-                    logger.error(f"{change_type} operation on {table_name} for {record_id} failed: {response.error}")
-                    # Log specific Supabase error if available
-                    if response.error:
-                        logger.error(f"Supabase error details: {response.error}")
-                    return False
+                    logger.error(f"{change_type} operation on {table_name} for {record_id} failed via apply_change_to_db")
+                return success
 
             logger.warning(f"Unknown change_type '{change_type}' for table {table_name} with ID {record_id}. No action taken.")
             return False
                     
         except Exception as e:
+            if self._is_schema_or_column_error(e):
+                logger.warning(
+                    "Schema/column error for %s %s (%s). Retrying once via sanitized apply_change_to_db.",
+                    table_name,
+                    record_id,
+                    change_type,
+                )
+                try:
+                    sanitized_payload = self._sanitize_generic_payload(change_data, record_id)
+                    fallback_success = apply_change_to_db(
+                        table_name,
+                        change_type,
+                        record_id,
+                        sanitized_payload,
+                        logger,
+                    )
+                    if fallback_success and table_name.lower() == "products" and change_type in {"CREATE", "UPDATE"}:
+                        verify_result = self._verify_product_exists_remotely(record_id)
+                        if verify_result is False:
+                            logger.error(
+                                "Fallback write succeeded but product %s still missing remotely after %s",
+                                record_id,
+                                change_type,
+                            )
+                            return False
+                    return fallback_success
+                except Exception as fallback_err:
+                    logger.error(
+                        "Fallback apply_change_to_db failed for %s (ID: %s, Type: %s): %s",
+                        table_name,
+                        record_id,
+                        change_type,
+                        fallback_err,
+                        exc_info=True,
+                    )
+                    return False
+
             logger.error(f"Error applying change to Supabase for {table_name} (ID: {record_id}, Type: {change_type}): {e}", exc_info=True)
             return False
 
@@ -1136,13 +1363,16 @@ class EnhancedSyncManager:
     def get_sync_status(self) -> Dict:
         """Get current sync status"""
         sync_table = self.get_local_sync_table()
+        completion = self.check_sync_table_completion(check_remote=False)
         return {
             "is_running": self.is_running,
             "last_sync": self.get_last_sync_timestamp(),
             "pending_logs": len([log for log in sync_table if log.get('status') == 'pending']),
             "failed_logs": len([log for log in sync_table if log.get('status') == 'failed']),
             "completed_logs": len([log for log in sync_table if log.get('status') == 'completed']),
-            "total_logs": len(sync_table)
+            "total_logs": len(sync_table),
+            "all_processed": completion.get("all_processed", False),
+            "remaining_local": completion.get("remaining_local", 0),
         }
 
 
