@@ -165,6 +165,21 @@ def _resolve_creator_user_id(raw_value: Optional[str]) -> Optional[str]:
     return None
 
 
+def _build_stock_validation_error(
+    product_id: str,
+    product_name: str,
+    requested_qty: int,
+    available_qty: int,
+    global_stock: int,
+    allocated_qty: int,
+) -> str:
+    return (
+        f"Insufficient available stock for '{product_name}' (productId: {product_id}). "
+        f"Requested: {requested_qty}, Available: {available_qty}, "
+        f"Stock: {global_stock}, Allocated: {allocated_qty}"
+    )
+
+
 def _next_billitem_id(client) -> int:
     """Fetch next safe billitems.id (works even if sequence is stale)."""
     try:
@@ -1175,9 +1190,13 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
                 available = max(0, global_stock - allocated)
                 if req_qty > available:
                     product_name = product_row.get("name", pid)
-                    return None, (
-                        f"Insufficient available stock for '{product_name}'. "
-                        f"Available: {available}, Requested: {req_qty}"
+                    return None, _build_stock_validation_error(
+                        product_id=pid,
+                        product_name=product_name,
+                        requested_qty=req_qty,
+                        available_qty=available,
+                        global_stock=global_stock,
+                        allocated_qty=allocated,
                     ), 400
 
             # Reduce local product stock and clamp to zero
@@ -1344,9 +1363,13 @@ def update_bill(bill_id: str, bill_data: dict) -> Tuple[bool, str, int]:
             available = max(0, global_stock - allocated)
             if delta > available:
                 product_name = product_row.get("name", pid)
-                return False, (
-                    f"Insufficient available stock for '{product_name}'. "
-                    f"Available: {available}, Additional required: {delta}"
+                return False, _build_stock_validation_error(
+                    product_id=pid,
+                    product_name=product_name,
+                    requested_qty=delta,
+                    available_qty=available,
+                    global_stock=global_stock,
+                    allocated_qty=allocated,
                 ), 400
 
         for product in local_products:
