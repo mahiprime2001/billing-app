@@ -527,23 +527,44 @@ def get_merged_products() -> Tuple[List[Dict], int]:
     Returns (products_list, status_code)
     """
     try:
-        # Fetch from Supabase first (source of truth)
+        # Fetch both sources and merge by product id (Supabase wins on conflicts).
+        # This prevents "missing in UI" when cloud has only a partial subset.
         supabase_products = get_supabase_products()
-        if supabase_products:
-            try:
-                cache_rows = [convert_camel_to_snake(p) for p in supabase_products]
-                save_products_data(cache_rows)
-            except Exception as cache_err:
-                logger.warning(f"Failed to refresh local products cache: {cache_err}")
-            supabase_products.sort(key=lambda x: x.get('name', ''), reverse=False)
-            logger.debug(f"Returning {len(supabase_products)} products from Supabase (cache refreshed)")
-            return supabase_products, 200
-
-        # Offline fallback
         local_products = get_local_products()
-        local_products.sort(key=lambda x: x.get('name', ''), reverse=False)
-        logger.debug(f"Returning {len(local_products)} products from local fallback")
-        return local_products, 200
+
+        merged_by_id: Dict[str, Dict] = {}
+        merged_without_id: List[Dict] = []
+
+        for p in local_products:
+            pid = p.get("id")
+            if pid:
+                merged_by_id[str(pid)] = p
+            else:
+                merged_without_id.append(p)
+
+        for p in supabase_products:
+            pid = p.get("id")
+            if pid:
+                merged_by_id[str(pid)] = p
+            else:
+                merged_without_id.append(p)
+
+        merged_products = list(merged_by_id.values()) + merged_without_id
+
+        try:
+            cache_rows = [convert_camel_to_snake(p) for p in merged_products]
+            save_products_data(cache_rows)
+        except Exception as cache_err:
+            logger.warning(f"Failed to refresh local products cache from merged set: {cache_err}")
+
+        merged_products.sort(key=lambda x: x.get('name', ''), reverse=False)
+        logger.debug(
+            "Returning %s merged products (supabase=%s, local=%s)",
+            len(merged_products),
+            len(supabase_products),
+            len(local_products),
+        )
+        return merged_products, 200
     except Exception as e:
         logger.error(f"Error getting merged products: {e}", exc_info=True)
         return [], 500

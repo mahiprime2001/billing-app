@@ -186,6 +186,112 @@ class EnhancedSyncManager:
             )
             return None
 
+    def _fetch_all_supabase_product_ids(self, page_size: int = 1000) -> Optional[set]:
+        """
+        Fetch all product IDs from Supabase in pages.
+        Returns None when fetch fails.
+        """
+        ids = set()
+        start = 0
+        safe_page_size = max(1, int(page_size or 1000))
+        try:
+            while True:
+                end = start + safe_page_size - 1
+                resp = (
+                    self.supabase_db.client.table("products")
+                    .select("id")
+                    .range(start, end)
+                    .execute()
+                )
+                rows = resp.data or []
+                for row in rows:
+                    pid = row.get("id")
+                    if pid:
+                        ids.add(str(pid))
+                if len(rows) < safe_page_size:
+                    break
+                start += safe_page_size
+            return ids
+        except Exception as e:
+            logger.warning("Failed fetching Supabase product IDs for reconciliation: %s", e)
+            return None
+
+    def reconcile_products_with_supabase(self, queue_missing_only: bool = True) -> Dict:
+        """
+        Compare local products.json against Supabase products and queue missing products for upload.
+        """
+        try:
+            local_products = self._safe_json_load(
+                os.path.join(self.base_dir, "data", "json", "products.json"),
+                [],
+            )
+            if not isinstance(local_products, list):
+                local_products = []
+
+            local_by_id = {}
+            for product in local_products:
+                if not isinstance(product, dict):
+                    continue
+                pid = product.get("id")
+                if pid:
+                    local_by_id[str(pid)] = product
+
+            remote_ids = self._fetch_all_supabase_product_ids()
+            if remote_ids is None:
+                return {
+                    "status": "error",
+                    "message": "Could not fetch Supabase product IDs",
+                    "local_products": len(local_by_id),
+                    "queued": 0,
+                }
+
+            missing_ids = [pid for pid in local_by_id.keys() if pid not in remote_ids]
+            if not missing_ids:
+                return {
+                    "status": "success",
+                    "message": "No missing products detected",
+                    "local_products": len(local_by_id),
+                    "remote_products": len(remote_ids),
+                    "missing": 0,
+                    "queued": 0,
+                }
+
+            sync_table = self.get_local_sync_table()
+            already_queued_ids = set()
+            for entry in sync_table:
+                if (
+                    entry.get("table_name") == "Products"
+                    and entry.get("status") in ("pending", "failed", "skipped")
+                    and entry.get("record_id")
+                ):
+                    already_queued_ids.add(str(entry.get("record_id")))
+
+            queued = 0
+            for pid in missing_ids:
+                if queue_missing_only and pid in already_queued_ids:
+                    continue
+                self.log_crud_operation("Products", "CREATE", pid, local_by_id.get(pid, {}))
+                queued += 1
+
+            logger.info(
+                "Products reconciliation complete: local=%s remote=%s missing=%s queued=%s",
+                len(local_by_id),
+                len(remote_ids),
+                len(missing_ids),
+                queued,
+            )
+            return {
+                "status": "success",
+                "message": "Products reconciliation completed",
+                "local_products": len(local_by_id),
+                "remote_products": len(remote_ids),
+                "missing": len(missing_ids),
+                "queued": queued,
+            }
+        except Exception as e:
+            logger.error("Error reconciling products with Supabase: %s", e, exc_info=True)
+            return {"status": "error", "message": str(e), "queued": 0}
+
     def get_local_sync_table(self) -> List[Dict]:
         return self._safe_json_load(self.local_sync_table_file, [])
 
@@ -762,11 +868,18 @@ class EnhancedSyncManager:
                 else:
                     logger.warning("Could not check remote sync_table completion: %s", remote_err)
 
-        # If remote wasn't checked, final answer is based on local queue only.
-        if remote_summary["checked"] and remote_summary["all_processed"] is not None:
+        # Final status rules:
+        # 1) If remote wasn't requested/checked -> local-only status.
+        # 2) If remote check errored/unknown -> not fully processed (unknown remote state).
+        # 3) If remote check succeeded -> local AND remote must both be fully processed.
+        if not remote_summary["checked"]:
+            all_processed = bool(local_summary["all_processed"])
+        elif remote_summary.get("error"):
+            all_processed = False
+        elif remote_summary["all_processed"] is not None:
             all_processed = bool(local_summary["all_processed"] and remote_summary["all_processed"])
         else:
-            all_processed = bool(local_summary["all_processed"])
+            all_processed = False
 
         return {
             "all_processed": all_processed,
@@ -1296,6 +1409,15 @@ class EnhancedSyncManager:
             
             # Initial sync on startup
             logger.info("Performing initial sync and immediate cleanup")
+            reconcile_enabled = str(os.environ.get("SYNC_ENABLE_PRODUCTS_RECONCILE", "true")).strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+            if reconcile_enabled:
+                reconcile_result = self.reconcile_products_with_supabase(queue_missing_only=True)
+                logger.info(f"Initial products reconciliation result: {reconcile_result}")
             self.requeue_unsent_logs()
             self.cleanup_old_logs()
             self.scheduled_push_and_pull()
@@ -1326,6 +1448,17 @@ class EnhancedSyncManager:
                     self.requeue_unsent_logs()
             except Exception as requeue_err:
                 logger.warning(f"Auto requeue failed: {requeue_err}")
+
+            # Self-heal path: queue local products that are missing remotely.
+            reconcile_enabled = str(os.environ.get("SYNC_ENABLE_PRODUCTS_RECONCILE", "true")).strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+            if reconcile_enabled:
+                reconcile_result = self.reconcile_products_with_supabase(queue_missing_only=True)
+                logger.info(f"Products reconciliation result: {reconcile_result}")
 
             # Step 1: Push local pending logs to Supabase
             logger.info("Step 1: Pushing pending logs to Supabase")

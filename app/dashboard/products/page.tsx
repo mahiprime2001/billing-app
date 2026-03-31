@@ -139,7 +139,7 @@ export default function ProductsPage() {
     .map(p => ({
       ...p,
       barcodes: typeof p.barcode === 'string' && p.barcode.trim() !== ''
-        ? p.barcode.split(',')
+        ? p.barcode.split(',').map((b) => b.trim()).filter((b) => b !== "")
         : [],
       price: typeof p.price === 'number' ? p.price : Number((p as any).price ?? 0),
       sellingPrice:
@@ -416,13 +416,41 @@ export default function ProductsPage() {
     return barcode.length >= 1 && barcode.length <= 80;
   };
 
+  const resetProductFilters = () => {
+    setSearchTerm("");
+    setSearchScope("all");
+    setStockFilter("all");
+    setPriceRange({ min: "", max: "" });
+    setBatchFilter("all");
+    setSellingPriceRange({ min: "", max: "" });
+    setDateAddedFilter({ from: "", to: "" });
+    setHsnFilter("all");
+    setBatchAssignmentFilter("all");
+    setTaxRange({ min: "", max: "" });
+    setSortBy("newest");
+
+    setDraftPriceRange({ min: "", max: "" });
+    setDraftBatchFilter("all");
+    setDraftSellingPriceRange({ min: "", max: "" });
+    setDraftDateAddedFilter({ from: "", to: "" });
+    setDraftHsnFilter("all");
+    setDraftBatchAssignmentFilter("all");
+    setDraftTaxRange({ min: "", max: "" });
+  };
+
+  const focusBarcodeInList = (barcode: string) => {
+    resetProductFilters();
+    setSearchScope("barcode");
+    setSearchTerm(barcode.trim());
+  };
+
   const handleAddProduct = async () => {
     if (!formData.name || !formData.price || !formData.stock) {
       alert("Please fill in all required fields");
       return;
     }
 
-    const validBarcodes = formData.barcodes.filter(b => b.trim() !== "");
+    const validBarcodes = Array.from(new Set(formData.barcodes.map((b) => b.trim()).filter((b) => b !== "")));
     if (validBarcodes.length === 0) {
       alert("Please add at least one barcode.");
       return;
@@ -433,9 +461,13 @@ export default function ProductsPage() {
         alert(`Please enter a valid barcode (1-80 characters) for: ${barcode}`);
         return;
       }
-      const existingBarcode = products.find((p) => p.barcodes?.includes(barcode)); // Use `products` for finding existing barcodes
+      const barcodeKey = barcode.trim().toLowerCase();
+      const existingBarcode = products.find((p) =>
+        (p.barcodes || []).some((b) => String(b).trim().toLowerCase() === barcodeKey)
+      );
       if (existingBarcode) {
-        alert(`Barcode already exists: ${barcode} (Product: ${existingBarcode.name})`);
+        focusBarcodeInList(barcode);
+        alert(`Barcode already exists: ${barcode} (Product: ${existingBarcode.name}). Filters were cleared and search was set to this barcode.`);
         return;
       }
     }
@@ -482,7 +514,7 @@ export default function ProductsPage() {
       return;
     }
 
-    const validBarcodes = formData.barcodes.filter(b => b.trim() !== "");
+    const validBarcodes = Array.from(new Set(formData.barcodes.map((b) => b.trim()).filter((b) => b !== "")));
     if (validBarcodes.length === 0) {
       alert("Please add at least one barcode.");
       return;
@@ -493,10 +525,14 @@ export default function ProductsPage() {
         alert(`Please enter a valid barcode (1-80 characters) for: ${barcode}`);
         return;
       }
-      const otherProducts = products.filter((p) => p.id !== editingProduct.id); // Use `products` for filtering
-      const existingBarcode = otherProducts.find((p) => p.barcodes?.includes(barcode)); // Use `barcodes` property
+      const otherProducts = products.filter((p) => p.id !== editingProduct.id);
+      const barcodeKey = barcode.trim().toLowerCase();
+      const existingBarcode = otherProducts.find((p) =>
+        (p.barcodes || []).some((b) => String(b).trim().toLowerCase() === barcodeKey)
+      );
       if (existingBarcode) {
-        alert(`Barcode already exists: ${barcode} (Product: ${existingBarcode.name})`);
+        focusBarcodeInList(barcode);
+        alert(`Barcode already exists: ${barcode} (Product: ${existingBarcode.name}). Filters were cleared and search was set to this barcode.`);
         return;
         }
     }
@@ -1926,6 +1962,11 @@ const handleDeleteProduct = async (productId: string) => {
                       ? "Try adjusting your search or filters"
                       : "Get started by adding your first product"}
                   </p>
+                  {products.length > 0 && (
+                    <Button variant="outline" onClick={resetProductFilters} type="button" className="mr-2">
+                      Reset Filters
+                    </Button>
+                  )}
                   {!searchTerm && stockFilter === "all" && searchScope === "all" && (
                     <Button onClick={() => setIsAddDialogOpen(true)} type="button">
                       <Plus className="h-4 w-4 mr-2" />
