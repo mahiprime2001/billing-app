@@ -770,15 +770,13 @@ class EnhancedSyncManager:
 
                     if isinstance(items, list):
                         self.supabase_db.client.table("billitems").delete().eq("billid", record_id).execute()
-                        max_id_resp = self.supabase_db.client.table("billitems").select("id").order("id", desc=True).limit(1).execute()
-                        next_item_id = int(max_id_resp.data[0]["id"]) + 1 if max_id_resp.data else 1
                         db_items = []
                         for item in items:
                             if not isinstance(item, dict):
                                 continue
                             db_items.append(
                                 {
-                                    "id": next_item_id,
+                                    # Do NOT include 'id' — it is GENERATED ALWAYS AS IDENTITY in Supabase
                                     "billid": record_id,
                                     "productid": item.get("productid")
                                     or item.get("product_id")
@@ -788,7 +786,6 @@ class EnhancedSyncManager:
                                     "total": item.get("total"),
                                 }
                             )
-                            next_item_id += 1
                         if db_items:
                             self.supabase_db.client.table("billitems").insert(db_items).execute()
 
@@ -887,6 +884,25 @@ class EnhancedSyncManager:
                     else:
                         table_client.update(payload).eq("id", record_id).execute()
                     logger.info(f"{change_type} operation on Customers for {record_id} successful")
+                    return True
+
+                if table_name.lower() == "stores":
+                    payload = dict(change_data)
+                    # Supabase stores columns: id, name, address, phone, status, createdat, updatedat
+                    # Strip fields that don't exist in Supabase schema
+                    for unsupported in ("manager", "Manager"):
+                        payload.pop(unsupported, None)
+                    if "createdAt" in payload and "createdat" not in payload:
+                        payload["createdat"] = payload.pop("createdAt")
+                    if "updatedAt" in payload and "updatedat" not in payload:
+                        payload["updatedat"] = payload.pop("updatedAt")
+                    payload["id"] = payload.get("id") or record_id
+                    if change_type == "CREATE":
+                        table_client.upsert(payload).execute()
+                    else:
+                        payload.pop("id", None)
+                        table_client.update(payload).eq("id", record_id).execute()
+                    logger.info(f"{change_type} operation on Stores for {record_id} successful")
                     return True
 
                 # Products need strict column normalization/filtering (e.g. hsnCode -> hsn_code_id),
