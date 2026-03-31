@@ -136,6 +136,7 @@ const WALK_IN_CUSTOMER_ID = "CUST-1754821420265";
 const WALK_IN_CUSTOMER_NAME = "Walk-in Customer";
 const BILL_EDIT_WINDOW_HOURS = 24;
 const BILL_EDIT_WINDOW_MS = BILL_EDIT_WINDOW_HOURS * 60 * 60 * 1000;
+const BILLING_POLL_INTERVAL_MS = 300000;
 const WALK_IN_CUSTOMER_FALLBACK: Customer = {
   id: WALK_IN_CUSTOMER_ID,
   name: WALK_IN_CUSTOMER_NAME,
@@ -339,6 +340,40 @@ export default function BillingPage() {
 
         console.log(`fetchData: Processed ${dataType}`, processedData);
 
+        // If cloud returns empty but local JSON has data, prefer local to avoid blank UI
+        // during temporary Supabase/circuit-open windows.
+        if (Array.isArray(processedData) && processedData.length === 0) {
+          const localFallback = await api.get(localStorageEndpoint).catch(() => null);
+          const localRows = Array.isArray(localFallback?.data) ? localFallback.data : [];
+          if (localRows.length > 0) {
+            console.log(`fetchData: Using local ${dataType} fallback because cloud returned empty list.`);
+            if (dataType === "products") {
+              return localRows.map((product: any) => ({
+                ...product,
+                stock: product.stock || 0,
+                sellingPrice:
+                  product.sellingPrice ??
+                  product.selling_price ??
+                  product.displayPrice ??
+                  product.price ??
+                  0,
+              }));
+            }
+            if (dataType === "customers") {
+              return localRows.map((customer: any) => ({
+                id: customer.id,
+                name: customer.name,
+                email: customer.email,
+                phone: customer.phone,
+                address: customer.address,
+                createdAt: customer.createdat || customer.createdAt,
+                updatedAt: customer.updatedat || customer.updatedAt,
+              }));
+            }
+            return localRows;
+          }
+        }
+
         // Silent background update
         api.post(updateLocalStorageEndpoint, processedData).catch(() => {});
 
@@ -385,20 +420,8 @@ export default function BillingPage() {
 
   const fetchBills = useCallback(async () => {
     console.log("fetchBills: Starting fetch...");
-    try {
-      console.log("fetchBills: Fetching from Supabase...");
-      const response = await api.get("/api/supabase/bills-with-details");
-      const data = response.data;
-      console.log("fetchBills: Raw data from API", data);
-      console.log("fetchBills: Number of bills", data.length);
-
-      // Check first bill's items
-      if (data.length > 0 && data[0].items) {
-        console.log("fetchBills: First bill items", data[0].items);
-        console.log("fetchBills: First item details", data[0].items[0]);
-      }
-
-      const processedData = data.map((bill: any) => {
+    const mapBills = (rows: any[]) =>
+      rows.map((bill: any) => {
         console.log(`fetchBills: Processing bill ${bill.id}`);
         // FIX: Handle discount percentage - prioritize the correct field
         const discountPct = bill.discountpercentage || bill.discountPercentage || 0;
@@ -438,6 +461,28 @@ export default function BillingPage() {
         };
       });
 
+    const extractBillsArray = (payload: any): any[] => {
+      if (Array.isArray(payload)) return payload;
+      if (Array.isArray(payload?.data)) return payload.data;
+      return [];
+    };
+
+    try {
+      // Use resilient merged endpoint (handles cache + fallback internally).
+      console.log("fetchBills: Fetching from merged endpoint...");
+      const response = await api.get("/api/bills");
+      const data = extractBillsArray(response.data);
+      console.log("fetchBills: Raw data from API", data);
+      console.log("fetchBills: Number of bills", data.length);
+
+      // Check first bill's items
+      if (data.length > 0 && data[0].items) {
+        console.log("fetchBills: First bill items", data[0].items);
+        console.log("fetchBills: First item details", data[0].items[0]);
+      }
+
+      const processedData = mapBills(data);
+
       console.log("fetchBills: Final processed data", processedData);
 
       // Silent background update
@@ -445,49 +490,12 @@ export default function BillingPage() {
 
       return processedData;
     } catch (error) {
-      console.error("fetchBills: Error fetching from Supabase", error);
+      console.error("fetchBills: Error fetching from backend", error);
       console.log("fetchBills: Falling back to local storage");
       const localResponse = await api.get("/api/local/bills");
       console.log("fetchBills: Local data", localResponse.data);
-
-      return localResponse.data.map((bill: any) => {
-        // FIX: Handle discount percentage in local data too
-        const discountPct = bill.discountpercentage || bill.discountPercentage || 0;
-        const discountAmt = bill.discountamount || bill.discountAmount || 0;
-
-        // FIX: Handle tax percentage and amount
-        const taxPct = bill.taxpercentage || bill.taxPercentage || 0;
-        const taxAmt = bill.taxamount || bill.taxAmount || bill.tax || 0;
-        const isReplacement = Boolean(bill.isReplacement ?? bill.is_replacement);
-        const replacementFinalAmount = Number(
-          bill.replacementFinalAmount ?? bill.replacement_final_amount ?? 0
-        );
-        const replacementOriginalBillId =
-          bill.replacementOriginalBillId ?? bill.replacement_original_bill_id ?? "";
-        const paymentMethod = bill.paymentMethod ?? bill.paymentmethod ?? "";
-        const createdBy =
-          bill.createdBy ||
-          bill.createdby ||
-          bill.created_by ||
-          adminUser?.name ||
-          getStoredAdminName();
-
-        return {
-          ...bill,
-          date: bill.timestamp || bill.date,
-          tax: taxAmt,
-          taxPercentage: taxPct,
-          status: bill.status || "Paid",
-          items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
-          discountPercentage: discountPct,
-          discountAmount: discountAmt,
-          isReplacement,
-          replacementFinalAmount,
-          replacementOriginalBillId,
-          paymentMethod,
-          createdBy,
-        };
-      });
+      const localData = extractBillsArray(localResponse.data);
+      return mapBills(localData);
     }
   }, [adminUser]);
 
@@ -496,10 +504,10 @@ export default function BillingPage() {
     [fetchData]
   );
 
-  // Use polling with LONGER intervals (20 seconds instead of 5)
-  const { data: productsData, loading: productsLoading, error: productsError, refetch: refetchProducts } = usePolling<Product[]>(fetchProducts, { interval: 20000 });
-  const { data: billsData, loading: billsLoading, error: billsError, refetch: refetchBills } = usePolling<Bill[]>(fetchBills, { interval: 20000 });
-  const { data: customersData, loading: customersLoading, error: customersError, refetch: refetchCustomers } = usePolling<Customer[]>(fetchCustomers, { interval: 20000 });
+  // Use slower polling to reduce backend/Supabase pressure.
+  const { data: productsData, loading: productsLoading, error: productsError, refetch: refetchProducts } = usePolling<Product[]>(fetchProducts, { interval: BILLING_POLL_INTERVAL_MS });
+  const { data: billsData, loading: billsLoading, error: billsError, refetch: refetchBills } = usePolling<Bill[]>(fetchBills, { interval: BILLING_POLL_INTERVAL_MS });
+  const { data: customersData, loading: customersLoading, error: customersError, refetch: refetchCustomers } = usePolling<Customer[]>(fetchCustomers, { interval: BILLING_POLL_INTERVAL_MS });
 
   // Manual refresh function
   const handleManualRefresh = async () => {
