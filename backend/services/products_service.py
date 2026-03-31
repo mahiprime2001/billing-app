@@ -24,6 +24,19 @@ from utils.concurrency_guard import extract_base_markers, safe_update_with_confl
 
 logger = logging.getLogger(__name__)
 
+PRODUCTS_CLOUD_COLUMNS = {
+    "id",
+    "name",
+    "price",
+    "stock",
+    "batchid",
+    "selling_price",
+    "createdat",
+    "updatedat",
+    "barcode",
+    "hsn_code_id",
+}
+
 # ============================================
 # HELPER FUNCTIONS
 # ============================================
@@ -151,6 +164,52 @@ def _normalize_hsn_code_id(raw_value) -> Optional[int]:
     raise ValueError(
         f"Invalid HSN reference '{value}'. Select an HSN code that exists in Supabase."
     )
+
+
+def _prepare_product_payload_for_cloud(product_id: str, data: Dict, existing_local: Optional[Dict] = None) -> Dict:
+    """
+    Normalize/filter product payload to match Supabase products table.
+    This is intentionally tolerant for legacy offline rows with missing timestamps.
+    """
+    payload = convert_camel_to_snake(dict(data or {}))
+    existing = existing_local or {}
+    now_iso = datetime.now().isoformat()
+
+    # Primary key
+    payload["id"] = payload.get("id") or product_id
+
+    # Field alias normalization
+    if "batch_id" in payload and "batchid" not in payload:
+        payload["batchid"] = payload.get("batch_id")
+    if "hsn_code" in payload and "hsn_code_id" not in payload:
+        payload["hsn_code_id"] = payload.get("hsn_code")
+
+    # Remove non-schema fields used by UI/local cache only.
+    for k in ("tax", "display_price", "barcodes", "batch_id", "hsn_code"):
+        payload.pop(k, None)
+
+    # Timestamp normalization (legacy rows may have null values)
+    payload["createdat"] = (
+        payload.get("createdat")
+        or existing.get("createdat")
+        or now_iso
+    )
+    payload["updatedat"] = now_iso
+
+    # Empty FK values -> NULL
+    if str(payload.get("batchid") or "").strip() == "":
+        payload["batchid"] = None
+    if str(payload.get("hsn_code_id") or "").strip() == "":
+        payload["hsn_code_id"] = None
+
+    # Coerce hsn_code_id to int when present
+    if payload.get("hsn_code_id") is not None:
+        try:
+            payload["hsn_code_id"] = int(payload["hsn_code_id"])
+        except Exception:
+            payload["hsn_code_id"] = None
+
+    return {k: payload.get(k) for k in PRODUCTS_CLOUD_COLUMNS if k in payload}
 
 # ============================================
 # HSN CODE UTILITIES
@@ -661,7 +720,13 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
             try:
                 update_data["hsn_code_id"] = _normalize_hsn_code_id(update_data.get("hsn_code_id"))
             except ValueError as e:
-                return False, str(e), 400
+                # Legacy/offline repair path: don't block entire update if HSN mapping is invalid.
+                logger.warning(
+                    "Invalid HSN reference for product %s during update; storing as NULL. Details: %s",
+                    product_id,
+                    e,
+                )
+                update_data["hsn_code_id"] = None
         
         # Find the product in local storage
         products = get_products_data()
@@ -691,8 +756,14 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
         if base_updated_at is None and product_index != -1:
             base_updated_at = products[product_index].get("updatedat")
 
-        # Update in Supabase first (remove _deleted field if present)
+        # Build normalized cloud payload and remove soft-delete marker if present.
         update_data_clean = {k: v for k, v in update_data.items() if k != '_deleted'}
+        cloud_payload = _prepare_product_payload_for_cloud(
+            product_id=product_id,
+            data={**products[product_index], **update_data_clean},
+            existing_local=products[product_index],
+        )
+
         client = db.client
         try:
             update_result = safe_update_with_conflict_check(
@@ -700,15 +771,27 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
                 table_name="products",
                 id_column="id",
                 record_id=product_id,
-                update_payload=update_data_clean,
+                update_payload=dict(cloud_payload),
                 updated_at_column="updatedat",
                 base_version=base_version,
                 base_updated_at=base_updated_at,
             )
             if not update_result["ok"]:
                 if update_result.get("conflict"):
-                    return False, update_result.get("message", "Update conflict"), 409
-                return False, "Failed to update product in Supabase", 500
+                    msg = str(update_result.get("message", "Update conflict"))
+                    # Legacy rows with null/absent markers can be repaired via upsert.
+                    if "Missing baseVersion/baseUpdatedAt" in msg:
+                        upsert_resp = execute_with_retry(
+                            lambda: client.table("products").upsert(cloud_payload, on_conflict="id"),
+                            f"products legacy repair upsert {product_id}",
+                            retries=2,
+                        )
+                        if not upsert_resp.data:
+                            return False, "Failed to repair and update product in Supabase", 500
+                    else:
+                        return False, msg, 409
+                else:
+                    return False, "Failed to update product in Supabase", 500
         except Exception as supabase_error:
             logger.warning(
                 f"Supabase update failed for product {product_id}; applying local fallback: {supabase_error}"

@@ -220,3 +220,30 @@ def resend_local_products(include_outdated: bool = True, process_now: bool = Tru
     except Exception as e:
         logger.error(f"Error resending local products: {e}", exc_info=True)
         return False, str(e), 500
+
+
+def reconcile_and_upload_local_products(
+    include_outdated: bool = True,
+    limit: int = 0,
+    queue_failures: bool = True,
+) -> Tuple[bool, str, int]:
+    """
+    Directly compare local products with Supabase and upload missing/newer rows immediately.
+    """
+    try:
+        from scripts.sync_manager import get_sync_manager
+        sync_manager = get_sync_manager()
+
+        if hasattr(sync_manager, "reconcile_and_upload_products_from_local"):
+            result = sync_manager.reconcile_and_upload_products_from_local(
+                include_outdated=include_outdated,
+                limit=limit,
+                queue_failures=queue_failures,
+            )
+            return True, f"Direct reconcile+upload completed: {result}", 200
+        return False, "Direct reconcile+upload not supported", 501
+    except ImportError:
+        return False, "Sync manager not available", 503
+    except Exception as e:
+        logger.error(f"Error in direct reconcile+upload of products: {e}", exc_info=True)
+        return False, str(e), 500

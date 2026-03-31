@@ -189,6 +189,35 @@ def resend_local_products_sync():
         return jsonify({"error": str(e)}), 500
 
 
+@sync_bp.route('/sync/reconcile-products', methods=['POST'])
+def reconcile_products_direct_sync():
+    """Directly reconcile local products with Supabase and upload missing/newer rows."""
+    try:
+        from services import sync_service
+
+        body = request.json or {}
+        include_outdated = _as_bool(body.get("includeOutdated"), True)
+        queue_failures = _as_bool(body.get("queueFailures"), True)
+        limit = int(body.get("limit", 0) or 0)
+
+        success, message, status_code = sync_service.reconcile_and_upload_local_products(
+            include_outdated=include_outdated,
+            limit=limit,
+            queue_failures=queue_failures,
+        )
+
+        if success:
+            return jsonify({"message": message}), status_code
+        return jsonify({"error": message}), status_code
+
+    except ImportError:
+        logger.warning("Sync service not available")
+        return jsonify({"error": "Sync service not available"}), 503
+    except Exception as e:
+        logger.error(f"Error in reconcile_products_direct_sync: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @sync_bp.route('/sync/cleanup', methods=['POST'])
 def cleanup_sync():
     """Cleanup old sync records"""

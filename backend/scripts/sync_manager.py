@@ -160,6 +160,99 @@ class EnhancedSyncManager:
             payload["id"] = record_id
         return payload
 
+    def _normalize_product_payload_for_cloud(self, record_id: str, change_data: Dict) -> Dict:
+        """
+        Normalize product payload before sending to Supabase.
+        Handles null/empty timestamps and FK-unsafe values defensively.
+        """
+        payload = convert_camel_to_snake(change_data or {}) if isinstance(change_data, dict) else {}
+        now_iso = datetime.now().isoformat()
+
+        if record_id and not payload.get("id"):
+            payload["id"] = record_id
+
+        # Normalize timestamp fields to avoid null-driven update edge cases.
+        if not payload.get("createdat"):
+            payload["createdat"] = now_iso
+        if not payload.get("updatedat"):
+            payload["updatedat"] = now_iso
+
+        # Normalize common aliases.
+        if "batch_id" in payload and "batchid" not in payload:
+            payload["batchid"] = payload.get("batch_id")
+        if "batchId" in payload and "batchid" not in payload:
+            payload["batchid"] = payload.get("batchId")
+        if "hsn_code" in payload and "hsn_code_id" not in payload:
+            payload["hsn_code_id"] = payload.get("hsn_code")
+
+        # Remove fields not meant for products persistence.
+        payload.pop("tax", None)
+        payload.pop("hsn_code", None)
+        payload.pop("batchId", None)
+
+        # Empty strings should not hit FK columns.
+        if str(payload.get("batchid") or "").strip() == "":
+            payload["batchid"] = None
+        if str(payload.get("hsn_code_id") or "").strip() == "":
+            payload["hsn_code_id"] = None
+
+        # Ensure hsn_code_id is numeric when present; otherwise drop to None.
+        if payload.get("hsn_code_id") is not None:
+            try:
+                payload["hsn_code_id"] = int(payload.get("hsn_code_id"))
+            except Exception:
+                logger.warning(
+                    "Invalid hsn_code_id '%s' for product %s; setting to NULL",
+                    payload.get("hsn_code_id"),
+                    record_id,
+                )
+                payload["hsn_code_id"] = None
+
+        # FK safety: null out non-existent parent IDs so upsert can proceed.
+        try:
+            batch_id = payload.get("batchid")
+            if batch_id is not None:
+                batch_exists = (
+                    self.supabase_db.client.table("batch")
+                    .select("id")
+                    .eq("id", str(batch_id))
+                    .limit(1)
+                    .execute()
+                    .data
+                )
+                if not batch_exists:
+                    logger.warning(
+                        "batchid '%s' not found for product %s; setting batchid to NULL",
+                        batch_id,
+                        record_id,
+                    )
+                    payload["batchid"] = None
+        except Exception as batch_check_err:
+            logger.debug("Could not validate batch FK for %s: %s", record_id, batch_check_err)
+
+        try:
+            hsn_id = payload.get("hsn_code_id")
+            if hsn_id is not None:
+                hsn_exists = (
+                    self.supabase_db.client.table("hsn_codes")
+                    .select("id")
+                    .eq("id", int(hsn_id))
+                    .limit(1)
+                    .execute()
+                    .data
+                )
+                if not hsn_exists:
+                    logger.warning(
+                        "hsn_code_id '%s' not found for product %s; setting hsn_code_id to NULL",
+                        hsn_id,
+                        record_id,
+                    )
+                    payload["hsn_code_id"] = None
+        except Exception as hsn_check_err:
+            logger.debug("Could not validate HSN FK for %s: %s", record_id, hsn_check_err)
+
+        return payload
+
     def _verify_product_exists_remotely(self, record_id: str) -> Optional[bool]:
         """
         Verify product existence after a write.
@@ -245,6 +338,18 @@ class EnhancedSyncManager:
             return rows_by_id
         except Exception as e:
             logger.warning("Failed fetching Supabase products for deep reconciliation: %s", e)
+            return None
+
+    @staticmethod
+    def _parse_iso_dt(value: Any) -> Optional[datetime]:
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            return datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except Exception:
             return None
 
     def reconcile_products_with_supabase(self, queue_missing_only: bool = True) -> Dict:
@@ -429,6 +534,99 @@ class EnhancedSyncManager:
         except Exception as e:
             logger.error("Error queueing local products for resend: %s", e, exc_info=True)
             return {"status": "error", "message": str(e), "queued_total": 0}
+
+    def reconcile_and_upload_products_from_local(
+        self,
+        include_outdated: bool = True,
+        limit: int = 0,
+        queue_failures: bool = True,
+    ) -> Dict:
+        """
+        Directly reconcile local products JSON with Supabase and upload missing/outdated rows.
+        This bypasses pending-log-only behavior and writes to Supabase immediately.
+        """
+        try:
+            local_products = self._safe_json_load(
+                os.path.join(self.base_dir, "data", "json", "products.json"),
+                [],
+            )
+            if not isinstance(local_products, list):
+                local_products = []
+
+            local_by_id: Dict[str, Dict] = {}
+            for product in local_products:
+                if not isinstance(product, dict):
+                    continue
+                pid = product.get("id")
+                if pid:
+                    local_by_id[str(pid)] = product
+
+            remote_by_id = self._fetch_all_supabase_products_by_id()
+            if remote_by_id is None:
+                return {
+                    "status": "error",
+                    "message": "Could not fetch Supabase products",
+                    "uploaded": 0,
+                    "failed": 0,
+                }
+
+            candidates: List[Dict[str, str]] = []
+            for pid, local_row in local_by_id.items():
+                remote_row = remote_by_id.get(pid)
+                if not remote_row:
+                    candidates.append({"id": pid, "op": "CREATE"})
+                    continue
+
+                if not include_outdated:
+                    continue
+
+                local_updated = self._parse_iso_dt(local_row.get("updatedat") or local_row.get("updatedAt"))
+                remote_updated = self._parse_iso_dt(remote_row.get("updatedat") or remote_row.get("updatedAt"))
+                local_created = self._parse_iso_dt(local_row.get("createdat") or local_row.get("createdAt"))
+                remote_created = self._parse_iso_dt(remote_row.get("createdat") or remote_row.get("createdAt"))
+
+                # Prefer updatedat; fallback to createdat
+                local_ts = local_updated or local_created
+                remote_ts = remote_updated or remote_created
+                if local_ts and (not remote_ts or local_ts > remote_ts):
+                    candidates.append({"id": pid, "op": "UPDATE"})
+
+            if limit and int(limit) > 0:
+                candidates = candidates[: int(limit)]
+
+            uploaded = 0
+            failed = 0
+            failed_ids: List[Dict[str, str]] = []
+
+            for item in candidates:
+                pid = item["id"]
+                op = item["op"]
+                payload = local_by_id.get(pid, {})
+                ok = self.apply_change_to_supabase_db("Products", op, pid, payload)
+                if ok:
+                    uploaded += 1
+                else:
+                    failed += 1
+                    failed_ids.append({"id": pid, "op": op})
+                    if queue_failures:
+                        self.log_crud_operation("Products", op, pid, payload)
+
+            result = {
+                "status": "success",
+                "message": "Direct products reconciliation upload completed",
+                "local_products": len(local_by_id),
+                "remote_products": len(remote_by_id),
+                "candidates": len(candidates),
+                "uploaded": uploaded,
+                "failed": failed,
+                "queued_failures": len(failed_ids) if queue_failures else 0,
+                "failed_ids_preview": failed_ids[:20],
+            }
+            logger.info("Direct local->Supabase product reconciliation result: %s", result)
+            return result
+        except Exception as e:
+            logger.error("Error in direct local product reconciliation upload: %s", e, exc_info=True)
+            return {"status": "error", "message": str(e), "uploaded": 0, "failed": 0}
 
     def get_local_sync_table(self) -> List[Dict]:
         return self._safe_json_load(self.local_sync_table_file, [])
@@ -1343,7 +1541,8 @@ class EnhancedSyncManager:
                 # Products need strict column normalization/filtering (e.g. hsnCode -> hsn_code_id),
                 # so always route through scripts.sync.apply_change_to_db.
                 if table_name.lower() == "products":
-                    success = apply_change_to_db(table_name, change_type, record_id, change_data, logger)
+                    normalized_payload = self._normalize_product_payload_for_cloud(record_id, change_data)
+                    success = apply_change_to_db(table_name, change_type, record_id, normalized_payload, logger)
                     if not success:
                         logger.error(f"{change_type} operation on Products for {record_id} failed via apply_change_to_db")
                         return False
