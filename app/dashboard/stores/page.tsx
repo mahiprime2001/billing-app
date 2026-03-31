@@ -489,56 +489,46 @@ function StoreInsightModal({
   const liveBillTabs = useMemo(() => {
     if (liveBills.length === 0) return [] as Array<{ key: string; label: string; bills: any[] }>;
 
-    const monthGroups = new Map<string, any[]>();
+    const dayGroups = new Map<string, any[]>();
     liveBills.forEach((bill: any) => {
       const dateText = getBillDate(bill);
       const dt = dateText ? new Date(dateText) : null;
       if (!dt || Number.isNaN(dt.getTime())) return;
-      const monthKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-      monthGroups.set(monthKey, [...(monthGroups.get(monthKey) || []), bill]);
+      const dayKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(
+        2,
+        "0",
+      )}`;
+      dayGroups.set(dayKey, [...(dayGroups.get(dayKey) || []), bill]);
     });
 
     const now = new Date();
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const tabs: Array<{ key: string; label: string; bills: any[] }> = [];
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(
+      2,
+      "0",
+    )}`;
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(
+      yesterday.getDate(),
+    ).padStart(2, "0")}`;
 
-    Array.from(monthGroups.keys())
+    return Array.from(dayGroups.keys())
       .sort((a, b) => b.localeCompare(a))
-      .forEach((monthKey) => {
-        const monthBills = [...(monthGroups.get(monthKey) || [])].sort(
+      .map((dayKey) => {
+        const dayBills = [...(dayGroups.get(dayKey) || [])].sort(
           (a, b) => new Date(getBillDate(b)).getTime() - new Date(getBillDate(a)).getTime(),
         );
+        const dt = new Date(`${dayKey}T00:00:00`);
+        const dateLabel = dt.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+        const label =
+          dayKey === todayKey ? `Today (${dateLabel})` : dayKey === yesterdayKey ? `Yesterday (${dateLabel})` : dateLabel;
 
-        if (monthKey === currentMonthKey) {
-          const dayGroups = new Map<string, any[]>();
-          monthBills.forEach((bill: any) => {
-            const dt = new Date(getBillDate(bill));
-            const dayKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(
-              dt.getDate(),
-            ).padStart(2, "0")}`;
-            dayGroups.set(dayKey, [...(dayGroups.get(dayKey) || []), bill]);
-          });
-          Array.from(dayGroups.keys())
-            .sort((a, b) => b.localeCompare(a))
-            .forEach((dayKey) => {
-              const dt = new Date(`${dayKey}T00:00:00`);
-              tabs.push({
-                key: `day:${dayKey}`,
-                label: dt.toLocaleDateString(undefined, { day: "2-digit", month: "short" }),
-                bills: dayGroups.get(dayKey) || [],
-              });
-            });
-        } else {
-          const dt = new Date(`${monthKey}-01T00:00:00`);
-          tabs.push({
-            key: `month:${monthKey}`,
-            label: dt.toLocaleDateString(undefined, { month: "short", year: "numeric" }),
-            bills: monthBills,
-          });
-        }
+        return {
+          key: dayKey,
+          label,
+          bills: dayBills,
+        };
       });
-
-    return tabs;
   }, [liveBills]);
 
   useEffect(() => {
@@ -760,11 +750,11 @@ function StoreInsightModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
+      <DialogContent className="w-[95vw] max-w-6xl max-h-[90vh] flex flex-col">
         <DialogHeader className="border-b pb-4">
-          <DialogTitle className="text-lg font-semibold flex items-center">
-            <Building className="h-5 w-5 mr-2 text-blue-600" />
-            {store.name} - Store Insights
+          <DialogTitle className="text-lg font-semibold flex items-center gap-2 min-w-0">
+            <Building className="h-5 w-5 text-blue-600 shrink-0" />
+            <span className="min-w-0 break-words">{store.name} - Store Insights</span>
           </DialogTitle>
         </DialogHeader>
         <div className="flex-1 min-h-0 overflow-hidden">
@@ -801,12 +791,12 @@ function StoreInsightModal({
                   </CardHeader>
                   <CardContent className="min-h-0 flex-1 overflow-hidden">
                     <div className="border rounded-lg overflow-hidden h-[calc(90vh-390px)] min-h-[220px]">
-                      <div className="overflow-y-auto h-full pb-3">
-                        <Table>
+                      <div className="overflow-auto h-full pb-3">
+                        <Table className="table-fixed min-w-[640px]">
                           <TableHeader className="sticky top-0 bg-gray-50 z-10">
                             <TableRow>
-                              <TableHead>Barcode</TableHead>
-                              <TableHead>Product</TableHead>
+                              <TableHead className="w-[28%]">Barcode</TableHead>
+                              <TableHead className="w-[42%]">Product</TableHead>
                               <TableHead className="text-right">Qty</TableHead>
                               <TableHead className="text-right">Price</TableHead>
                             </TableRow>
@@ -827,8 +817,8 @@ function StoreInsightModal({
                                 const price = Number(productObj.price || row.price || 0);
                                 return (
                                   <TableRow key={row.id || `${barcode}-${idx}`}>
-                                    <TableCell className="font-mono text-xs">{barcode}</TableCell>
-                                    <TableCell>{name}</TableCell>
+                                    <TableCell className="font-mono text-xs break-all">{barcode}</TableCell>
+                                    <TableCell className="break-words">{name}</TableCell>
                                     <TableCell className="text-right">{qty}</TableCell>
                                     <TableCell className="text-right">₹{price.toFixed(2)}</TableCell>
                                   </TableRow>
@@ -857,6 +847,7 @@ function StoreInsightModal({
                           size="sm"
                           variant={selectedLiveBillTab === tab.key ? "default" : "outline"}
                           onClick={() => setSelectedLiveBillTab(tab.key)}
+                          className="shrink-0"
                         >
                           {tab.label}
                         </Button>
@@ -865,44 +856,42 @@ function StoreInsightModal({
                   </CardHeader>
                   <CardContent className="min-h-0 flex-1 overflow-hidden">
                     <div className="border rounded-lg overflow-hidden h-[calc(90vh-390px)] min-h-[220px]">
-                      <div className="overflow-y-auto h-full pb-3">
-                        <Table>
-                          <TableHeader className="sticky top-0 bg-gray-50 z-10">
-                            <TableRow>
-                              <TableHead>Bill ID</TableHead>
-                              <TableHead>Date</TableHead>
-                              <TableHead className="text-right">Total</TableHead>
-                              <TableHead>Status</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {activeLiveBills.length === 0 ? (
-                              <TableRow>
-                                <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                                  No bills found for this tab
-                                </TableCell>
-                              </TableRow>
-                            ) : (
-                              activeLiveBills.map((bill: any) => {
-                                const billDate = getBillDate(bill);
-                                return (
-                                  <TableRow key={bill.id}>
-                                    <TableCell className="font-mono text-xs">{bill.id}</TableCell>
-                                    <TableCell className="text-xs">
-                                      {billDate ? new Date(billDate).toLocaleString() : "-"}
-                                    </TableCell>
-                                    <TableCell className="text-right font-medium">
-                                      ₹{Number(bill.total || 0).toFixed(2)}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge variant="outline">{bill.status || "completed"}</Badge>
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })
-                            )}
-                          </TableBody>
-                        </Table>
+                      <div className="h-full overflow-auto p-2">
+                        {activeLiveBills.length === 0 ? (
+                          <div className="text-center py-10 text-gray-500 text-sm">No bills found for this date</div>
+                        ) : (
+                          <div className="space-y-2">
+                            {activeLiveBills.map((bill: any) => {
+                              const billDate = getBillDate(bill);
+                              return (
+                                <details key={bill.id} className="rounded-md border bg-white group">
+                                  <summary className="list-none cursor-pointer px-3 py-2">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <p className="font-mono text-xs break-all">{bill.id}</p>
+                                        <p className="text-xs text-gray-500 break-words">
+                                          {billDate ? new Date(billDate).toLocaleString() : "-"}
+                                        </p>
+                                      </div>
+                                      <div className="text-right shrink-0">
+                                        <p className="text-sm font-semibold">₹{Number(bill.total || 0).toFixed(2)}</p>
+                                        <Badge variant="outline" className="text-[11px] break-words whitespace-normal">
+                                          {bill.status || "completed"}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  </summary>
+                                  <div className="border-t px-3 py-2 bg-gray-50 text-xs text-gray-700">
+                                    <p>Bill ID: {bill.id}</p>
+                                    <p>Date: {billDate ? new Date(billDate).toLocaleString() : "-"}</p>
+                                    <p>Total: ₹{Number(bill.total || 0).toFixed(2)}</p>
+                                    <p>Status: {bill.status || "completed"}</p>
+                                  </div>
+                                </details>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>
