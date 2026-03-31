@@ -6,6 +6,7 @@ import json
 import logging
 import threading
 import time
+from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import schedule
@@ -216,6 +217,36 @@ class EnhancedSyncManager:
             logger.warning("Failed fetching Supabase product IDs for reconciliation: %s", e)
             return None
 
+    def _fetch_all_supabase_products_by_id(self, page_size: int = 1000) -> Optional[Dict[str, Dict]]:
+        """
+        Fetch Supabase products keyed by ID with minimal fields required for reconciliation.
+        Returns None when fetch fails.
+        """
+        rows_by_id: Dict[str, Dict] = {}
+        start = 0
+        safe_page_size = max(1, int(page_size or 1000))
+        try:
+            while True:
+                end = start + safe_page_size - 1
+                resp = (
+                    self.supabase_db.client.table("products")
+                    .select("id,updatedat,createdat")
+                    .range(start, end)
+                    .execute()
+                )
+                rows = resp.data or []
+                for row in rows:
+                    pid = row.get("id")
+                    if pid:
+                        rows_by_id[str(pid)] = row
+                if len(rows) < safe_page_size:
+                    break
+                start += safe_page_size
+            return rows_by_id
+        except Exception as e:
+            logger.warning("Failed fetching Supabase products for deep reconciliation: %s", e)
+            return None
+
     def reconcile_products_with_supabase(self, queue_missing_only: bool = True) -> Dict:
         """
         Compare local products.json against Supabase products and queue missing products for upload.
@@ -291,6 +322,113 @@ class EnhancedSyncManager:
         except Exception as e:
             logger.error("Error reconciling products with Supabase: %s", e, exc_info=True)
             return {"status": "error", "message": str(e), "queued": 0}
+
+    def queue_local_products_for_resync(
+        self,
+        include_outdated: bool = True,
+        process_now: bool = True,
+        limit: int = 0,
+    ) -> Dict:
+        """
+        Force requeue local products so unsent/offline changes can be pushed again.
+        - missing products -> queued as CREATE
+        - outdated products (local.updatedat > remote.updatedat) -> queued as UPDATE
+        """
+        try:
+            local_products = self._safe_json_load(
+                os.path.join(self.base_dir, "data", "json", "products.json"),
+                [],
+            )
+            if not isinstance(local_products, list):
+                local_products = []
+
+            local_by_id: Dict[str, Dict] = {}
+            for product in local_products:
+                if not isinstance(product, dict):
+                    continue
+                pid = product.get("id")
+                if pid:
+                    local_by_id[str(pid)] = product
+
+            remote_by_id = self._fetch_all_supabase_products_by_id()
+            if remote_by_id is None:
+                return {
+                    "status": "error",
+                    "message": "Could not fetch Supabase products",
+                    "queued": 0,
+                    "processed": 0,
+                }
+
+            current_sync = self.get_local_sync_table()
+            pending_ids_by_op: Dict[str, set] = defaultdict(set)
+            for entry in current_sync:
+                if entry.get("table_name") != "Products":
+                    continue
+                if entry.get("status") != "pending":
+                    continue
+                rid = entry.get("record_id")
+                op = str(entry.get("change_type", "")).upper()
+                if rid and op in {"CREATE", "UPDATE"}:
+                    pending_ids_by_op[op].add(str(rid))
+
+            missing_ids = []
+            outdated_ids = []
+
+            for pid, local_row in local_by_id.items():
+                remote_row = remote_by_id.get(pid)
+                if not remote_row:
+                    missing_ids.append(pid)
+                    continue
+
+                if not include_outdated:
+                    continue
+
+                local_updated = str(local_row.get("updatedat") or local_row.get("updatedAt") or "")
+                remote_updated = str(remote_row.get("updatedat") or remote_row.get("updatedAt") or "")
+                if local_updated and (not remote_updated or local_updated > remote_updated):
+                    outdated_ids.append(pid)
+
+            if limit and int(limit) > 0:
+                cap = int(limit)
+                missing_ids = missing_ids[:cap]
+                remaining = max(0, cap - len(missing_ids))
+                outdated_ids = outdated_ids[:remaining]
+
+            queued_create = 0
+            queued_update = 0
+            for pid in missing_ids:
+                if pid in pending_ids_by_op["CREATE"]:
+                    continue
+                self.log_crud_operation("Products", "CREATE", pid, local_by_id.get(pid, {}))
+                queued_create += 1
+
+            for pid in outdated_ids:
+                if pid in pending_ids_by_op["UPDATE"]:
+                    continue
+                self.log_crud_operation("Products", "UPDATE", pid, local_by_id.get(pid, {}))
+                queued_update += 1
+
+            push_result = None
+            if process_now and (queued_create + queued_update) > 0:
+                push_result = self.process_pending_logs()
+
+            result = {
+                "status": "success",
+                "message": "Local products queued for resend",
+                "local_products": len(local_by_id),
+                "remote_products": len(remote_by_id),
+                "missing_detected": len(missing_ids),
+                "outdated_detected": len(outdated_ids),
+                "queued_create": queued_create,
+                "queued_update": queued_update,
+                "queued_total": queued_create + queued_update,
+                "push_result": push_result,
+            }
+            logger.info("Forced local product resend result: %s", result)
+            return result
+        except Exception as e:
+            logger.error("Error queueing local products for resend: %s", e, exc_info=True)
+            return {"status": "error", "message": str(e), "queued_total": 0}
 
     def get_local_sync_table(self) -> List[Dict]:
         return self._safe_json_load(self.local_sync_table_file, [])

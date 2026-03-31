@@ -196,3 +196,27 @@ def resend_unsent_syncs() -> Tuple[bool, str, int]:
     except Exception as e:
         logger.error(f"Error resending unsent syncs: {e}", exc_info=True)
         return False, str(e), 500
+
+
+def resend_local_products(include_outdated: bool = True, process_now: bool = True, limit: int = 0) -> Tuple[bool, str, int]:
+    """
+    Force requeue and resend products from local JSON to Supabase.
+    Useful when pending logs are empty but local product changes were missed.
+    """
+    try:
+        from scripts.sync_manager import get_sync_manager
+        sync_manager = get_sync_manager()
+
+        if hasattr(sync_manager, "queue_local_products_for_resync"):
+            result = sync_manager.queue_local_products_for_resync(
+                include_outdated=include_outdated,
+                process_now=process_now,
+                limit=limit,
+            )
+            return True, f"Local product resend completed: {result}", 200
+        return False, "Local product resend not supported", 501
+    except ImportError:
+        return False, "Sync manager not available", 503
+    except Exception as e:
+        logger.error(f"Error resending local products: {e}", exc_info=True)
+        return False, str(e), 500

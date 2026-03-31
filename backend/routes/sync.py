@@ -11,6 +11,14 @@ logger = logging.getLogger(__name__)
 # Create Blueprint
 sync_bp = Blueprint('sync', __name__, url_prefix='/api')
 
+
+def _as_bool(value, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
 # ============================================
 # SYNC STATUS & HEARTBEAT
 # ============================================
@@ -149,6 +157,35 @@ def resend_unsent_sync():
         return jsonify({"error": "Sync service not available"}), 503
     except Exception as e:
         logger.error(f"Error in resend_unsent_sync: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@sync_bp.route('/sync/resend-products', methods=['POST'])
+def resend_local_products_sync():
+    """Force requeue/resend of local products to Supabase."""
+    try:
+        from services import sync_service
+
+        body = request.json or {}
+        include_outdated = _as_bool(body.get("includeOutdated"), True)
+        process_now = _as_bool(body.get("processNow"), True)
+        limit = int(body.get("limit", 0) or 0)
+
+        success, message, status_code = sync_service.resend_local_products(
+            include_outdated=include_outdated,
+            process_now=process_now,
+            limit=limit,
+        )
+
+        if success:
+            return jsonify({"message": message}), status_code
+        return jsonify({"error": message}), status_code
+
+    except ImportError:
+        logger.warning("Sync service not available")
+        return jsonify({"error": "Sync service not available"}), 503
+    except Exception as e:
+        logger.error(f"Error in resend_local_products_sync: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
