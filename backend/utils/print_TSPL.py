@@ -6,6 +6,21 @@ def _format_mm(value):
         return str(int(float(value)))
     return f"{float(value):.2f}".rstrip("0").rstrip(".")
 
+DOTS_PER_MM = 8  # 203 DPI default; adjust if your printer uses a different DPI
+
+def _mm_to_dots(value_mm):
+    try:
+        return int(round(float(value_mm) * DOTS_PER_MM))
+    except Exception:
+        return 0
+
+def _estimate_code128_width_dots(data, narrow=1):
+    if not data:
+        return 0
+    # Approximation: 11 modules per symbol, + start + checksum, + stop (13)
+    # Add quiet zones (10 modules each side).
+    modules = (len(data) + 2) * 11 + 13 + 20
+    return modules * max(1, int(narrow))
 
 def generate_tspl(
     products,
@@ -33,6 +48,11 @@ def generate_tspl(
 
     width_mm = 80.0
     height_mm = 12.0
+    is_25x25_4up = isinstance(label_profile, dict) and label_profile.get("type") == "25x25_4up"
+    profile_columns = 1
+    profile_label_w = 0.0
+    profile_gap_h = 0.0
+    profile_label_w_dots = 0
     if isinstance(label_size, dict):
         try:
             width_value = label_size.get("widthMm", width_mm)
@@ -51,8 +71,38 @@ def generate_tspl(
     # Printer setup - ONCE at the start
     logger.info("⚙️  Adding printer setup commands...")
     tspl.append("GAPDETECT")
-    tspl.append(f"SIZE {_format_mm(width_mm)} mm,{_format_mm(height_mm)} mm")
-    tspl.append("GAP 4 mm,0 mm")
+    if is_25x25_4up:
+        paper_w = label_profile.get("paper_width_mm")
+        paper_h = label_profile.get("paper_height_mm")
+        gap_h = label_profile.get("gap_horizontal_mm")
+        gap_v = label_profile.get("gap_vertical_mm")
+
+        if paper_w and paper_h:
+            tspl.append(f"SIZE {_format_mm(paper_w)} mm,{_format_mm(paper_h)} mm")
+        else:
+            tspl.append("SIZE ,")
+
+        if gap_h is not None and gap_v is not None:
+            tspl.append(f"GAP {_format_mm(gap_h)} mm,{_format_mm(gap_v)} mm")
+        else:
+            tspl.append("GAP ,")
+
+        try:
+            profile_columns = max(1, int(label_profile.get("columns") or 4))
+        except Exception:
+            profile_columns = 4
+        try:
+            profile_label_w = float(label_profile.get("label_width_mm") or 25)
+        except Exception:
+            profile_label_w = 25.0
+        try:
+            profile_gap_h = float(label_profile.get("gap_horizontal_mm") or 0)
+        except Exception:
+            profile_gap_h = 0.0
+        profile_label_w_dots = _mm_to_dots(profile_label_w)
+    else:
+        tspl.append(f"SIZE {_format_mm(width_mm)} mm,{_format_mm(height_mm)} mm")
+        tspl.append("GAP 4 mm,0 mm")
     tspl.append("DENSITY 10")
     tspl.append("SPEED 2")
     tspl.append("DIRECTION 1")
@@ -77,7 +127,18 @@ def generate_tspl(
             
             logger.info(f"  Label #{label_counter}: Product '{product.get('name', 'Unknown')}' (ID: {product.get('id')})")
             
-            tspl.append("CLS")
+            if is_25x25_4up:
+                if label_counter % profile_columns == 1:
+                    tspl.append("CLS")  # start new row
+
+                col_index = (label_counter - 1) % profile_columns
+                label_pitch_mm = profile_label_w + profile_gap_h
+                x_offset = _mm_to_dots(col_index * label_pitch_mm)
+                y_offset = 0
+            else:
+                tspl.append("CLS")
+                x_offset = 0
+                y_offset = 0
             
             # Get barcode
             barcode = ""
@@ -95,21 +156,47 @@ def generate_tspl(
             logger.info(f"    🔖 Barcode: {barcode}")
             
             # Barcode
-            tspl.append(f'BARCODE 20,0,"128",55,1,0,1,1,"{barcode}"')
-            
-            # Text elements - Use font size "2" for batch, name, and price (next biggest from current "1")
-            tspl.append(f'TEXT 240,30,"1",0,1,1,"{product["name"]}"')
+            if is_25x25_4up:
+                barcode_height = 70
+                barcode_y = 6
+                barcode_width = _estimate_code128_width_dots(barcode, narrow=1)
+                barcode_x = x_offset + max(0, (profile_label_w_dots - barcode_width) // 2)
+                tspl.append(
+                    f'BARCODE {barcode_x},{barcode_y},"128",{barcode_height},1,0,1,1,"{barcode}"'
+                )
+            else:
+                tspl.append(f'BARCODE {20 + x_offset},{0 + y_offset},"128",55,1,0,1,1,"{barcode}"')
             
             # Batch Information (if available)
             batch_number = product.get('batchNumber', '')
-            if batch_number and batch_number.strip():
-                logger.info(f"    📦 Batch: {batch_number}")
-                tspl.append(f'TEXT 240,6,"1",0,1,1,"{batch_number}"')
-                # Adjust price position down if batch is present
-                price_y = 54
+
+            # Text elements - Use font size "2" for batch, name, and price (next biggest from current "1")
+            if is_25x25_4up:
+                text_left = x_offset + 12
+                line_gap = 18
+                base_text_y = 90
+                # Batch (optional)
+                if batch_number and batch_number.strip():
+                    tspl.append(f'TEXT {text_left},{base_text_y},"1",0,1,1,"{batch_number}"')
+                    name_y = base_text_y + line_gap
+                    price_y = name_y + line_gap
+                else:
+                    name_y = base_text_y
+                    price_y = base_text_y + line_gap
+
+                tspl.append(f'TEXT {text_left},{name_y},"1",0,1,1,"{product["name"]}"')
             else:
-                # No batch, price stays at original position
-                price_y = 44
+                tspl.append(f'TEXT {240 + x_offset},{30 + y_offset},"1",0,1,1,"{product["name"]}"')
+            
+            if not is_25x25_4up:
+                if batch_number and batch_number.strip():
+                    logger.info(f"    📦 Batch: {batch_number}")
+                    tspl.append(f'TEXT {240 + x_offset},{6 + y_offset},"1",0,1,1,"{batch_number}"')
+                    # Adjust price position down if batch is present
+                    price_y = 54
+                else:
+                    # No batch, price stays at original position
+                    price_y = 44
             
             # Price - Use font size "2" for better visibility
             # Only use selling_price or sellingPrice, never price
@@ -123,12 +210,25 @@ def generate_tspl(
             except Exception:
                 selling_val = 0.0
             logger.info(f"    💰 Selling Price: Rs.{selling_val:.2f}")
-            tspl.append(f'TEXT 240,60,"2",0,1,1,"MRP.{selling_val:.2f}"')
+            if is_25x25_4up:
+                tspl.append(f'TEXT {text_left},{price_y},"1",0,1,1,"Price: {selling_val:.2f}"')
+            else:
+                tspl.append(f'TEXT {240 + x_offset},{60 + y_offset},"2",0,1,1,"MRP.{selling_val:.2f}"')
             
             # Print ONE label
-            tspl.append("PRINT 1")
-            logger.info(f"    ✅ Added PRINT 1 command (Label #{label_counter})")
+            if is_25x25_4up:
+                if label_counter % profile_columns == 0:
+                    tspl.append("PRINT 1")
+                    logger.info(f"    ✅ Added PRINT 1 command (Label #{label_counter})")
+            else:
+                tspl.append("PRINT 1")
+                logger.info(f"    ✅ Added PRINT 1 command (Label #{label_counter})")
     
+    if is_25x25_4up:
+        if label_counter % profile_columns != 0:
+            tspl.append("PRINT 1")
+            logger.info("    ✅ Added final PRINT 1 command for remaining labels")
+
     # Feed ONCE at the end
     tspl.append("FEED 0")
     logger.info(f"\n✅ Added FEED 0 command")

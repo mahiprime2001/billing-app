@@ -149,7 +149,7 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
         bill_rows_data = []
         try:
             inventory_rows = execute_with_retry(
-                lambda: client.table("storeinventory").select("*"),
+                lambda: client.table("storeinventory").select("storeid,productid,quantity").limit(10000),
                 "storeinventory (all stores)",
             )
             inventory_rows_data = inventory_rows.data or []
@@ -161,7 +161,7 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
 
         try:
             bill_rows = execute_with_retry(
-                lambda: client.table("bills").select("*"),
+                lambda: client.table("bills").select("storeid,total").limit(10000),
                 "bills (all stores)",
             )
             bill_rows_data = bill_rows.data or []

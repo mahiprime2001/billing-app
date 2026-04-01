@@ -25,6 +25,18 @@ import { getBarcode } from "@/app/utils/getBarcode";
 import { unifiedPrint } from "@/app/utils/printUtils";
 import type { Product } from "@/lib/types";
 
+type BackendLabelProfile = {
+  type: string;
+  columns: number;
+  rows: number;
+  paper_width_mm: number | null;
+  paper_height_mm: number | null;
+  gap_horizontal_mm: number | null;
+  gap_vertical_mm: number | null;
+  label_width_mm: number;
+  label_height_mm: number;
+};
+
 type LabelProfile = {
   id: string;
   name: string;
@@ -33,6 +45,7 @@ type LabelProfile = {
   barcodeWidth: number;
   barcodeHeight: number;
   barcodeDisplayValue: boolean;
+  backendProfile?: BackendLabelProfile;
 };
 
 const LABEL_PROFILES: LabelProfile[] = [
@@ -53,6 +66,26 @@ const LABEL_PROFILES: LabelProfile[] = [
     barcodeWidth: 2,
     barcodeHeight: 35,
     barcodeDisplayValue: false,
+  },
+  {
+    id: "25x25-1x4",
+    name: "25mm x 25mm (1x4)",
+    widthMm: 25,
+    heightMm: 25,
+    barcodeWidth: 2,
+    barcodeHeight: 35,
+    barcodeDisplayValue: false,
+    backendProfile: {
+      type: "25x25_4up",
+      columns: 4,
+      rows: 1,
+      paper_width_mm: null,
+      paper_height_mm: null,
+      gap_horizontal_mm: null,
+      gap_vertical_mm: null,
+      label_width_mm: 25,
+      label_height_mm: 25,
+    },
   },
 ];
 
@@ -252,6 +285,7 @@ export default function PrintDialog({
           labelProfile: {
             id: selectedProfile.id,
             name: selectedProfile.name,
+            ...(selectedProfile.backendProfile ?? {}),
           },
           labelDimensions: {
             widthMm: labelWidth,
