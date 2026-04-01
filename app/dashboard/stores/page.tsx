@@ -494,46 +494,58 @@ function StoreInsightModal({
   const liveBillTabs = useMemo(() => {
     if (liveBills.length === 0) return [] as Array<{ key: string; label: string; bills: any[] }>;
 
-    const dayGroups = new Map<string, any[]>();
+    const monthGroups = new Map<string, any[]>();
     liveBills.forEach((bill: any) => {
       const dateText = getBillDate(bill);
       const dt = dateText ? new Date(dateText) : null;
       if (!dt || Number.isNaN(dt.getTime())) return;
-      const dayKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(
-        2,
-        "0",
-      )}`;
-      dayGroups.set(dayKey, [...(dayGroups.get(dayKey) || []), bill]);
+      const monthKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      monthGroups.set(monthKey, [...(monthGroups.get(monthKey) || []), bill]);
     });
 
     const now = new Date();
-    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(
-      2,
-      "0",
-    )}`;
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
-    const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(
-      yesterday.getDate(),
-    ).padStart(2, "0")}`;
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const tabs: Array<{ key: string; label: string; bills: any[] }> = [];
 
-    return Array.from(dayGroups.keys())
+    Array.from(monthGroups.keys())
       .sort((a, b) => b.localeCompare(a))
-      .map((dayKey) => {
-        const dayBills = [...(dayGroups.get(dayKey) || [])].sort(
+      .forEach((monthKey) => {
+        const monthBills = [...(monthGroups.get(monthKey) || [])].sort(
           (a, b) => new Date(getBillDate(b)).getTime() - new Date(getBillDate(a)).getTime(),
         );
-        const dt = new Date(`${dayKey}T00:00:00`);
-        const dateLabel = dt.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
-        const label =
-          dayKey === todayKey ? `Today (${dateLabel})` : dayKey === yesterdayKey ? `Yesterday (${dateLabel})` : dateLabel;
 
-        return {
-          key: dayKey,
-          label,
-          bills: dayBills,
-        };
+        if (monthKey < currentMonthKey) {
+          const monthDate = new Date(`${monthKey}-01T00:00:00`);
+          tabs.push({
+            key: `month:${monthKey}`,
+            label: monthDate.toLocaleDateString(undefined, { month: "short", year: "numeric" }),
+            bills: monthBills,
+          });
+          return;
+        }
+
+        const dayGroups = new Map<string, any[]>();
+        monthBills.forEach((bill: any) => {
+          const dayKey = getDateKey(getBillDate(bill));
+          if (!dayKey) return;
+          dayGroups.set(dayKey, [...(dayGroups.get(dayKey) || []), bill]);
+        });
+
+        Array.from(dayGroups.keys())
+          .sort((a, b) => b.localeCompare(a))
+          .forEach((dayKey) => {
+            const dayDate = new Date(`${dayKey}T00:00:00`);
+            tabs.push({
+              key: `day:${dayKey}`,
+              label: dayDate.toLocaleDateString(undefined, { day: "2-digit", month: "short" }),
+              bills: [...(dayGroups.get(dayKey) || [])].sort(
+                (a, b) => new Date(getBillDate(b)).getTime() - new Date(getBillDate(a)).getTime(),
+              ),
+            });
+          });
       });
+
+    return tabs;
   }, [liveBills]);
 
   useEffect(() => {
@@ -803,7 +815,7 @@ function StoreInsightModal({
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                 {/* Products Section */}
                 <Card className="shadow-sm">
-                  <CardHeader>
+                  <CardHeader className="pb-4">
                     <CardTitle>Products in Store</CardTitle>
                     <CardDescription>
                       {filteredInventoryRows.length} / {inventoryRows.length} items • Total stock: {totalStock}
@@ -856,24 +868,26 @@ function StoreInsightModal({
                 <Card className="shadow-sm">
                   <CardHeader>
                     <CardTitle>Recent Bills</CardTitle>
-                    <CardDescription>
-                      {activeLiveBills.length} bills • ₹{activeTabBillAmount.toFixed(2)} 
-                      <span className="text-muted-foreground"> (Total: ₹{totalBillAmount.toFixed(2)})</span>
-                      {lastUpdated && <div className="text-xs text-muted-foreground mt-1">Updated {lastUpdated}</div>}
-                    </CardDescription>
-
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {liveBillTabs.map((tab) => (
+                    <div className="mt-2 overflow-x-auto">
+                      <div className="flex gap-2 min-w-max pb-1">
+                        {liveBillTabs.map((tab) => (
                         <Button
                           key={tab.key}
                           size="sm"
                           variant={selectedLiveBillTab === tab.key ? "default" : "outline"}
                           onClick={() => setSelectedLiveBillTab(tab.key)}
+                          className="shrink-0"
                         >
                           {tab.label}
                         </Button>
-                      ))}
+                        ))}
+                      </div>
                     </div>
+                    <CardDescription>
+                      {activeLiveBills.length} bills • ₹{activeTabBillAmount.toFixed(2)} 
+                      <span className="text-muted-foreground"> (Total: ₹{totalBillAmount.toFixed(2)})</span>
+                      {lastUpdated && <div className="text-xs text-muted-foreground mt-1">Updated {lastUpdated}</div>}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="max-h-[calc(100vh-280px)] overflow-auto">
@@ -918,10 +932,10 @@ function StoreInsightModal({
             </TabsContent>
 
             {/* ===================== ALL ORDERS TAB ===================== */}
-            <TabsContent value="all-orders" className="flex-1 p-8 overflow-auto">
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 h-full">
+            <TabsContent value="all-orders" className="flex-1 p-8 overflow-hidden">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 h-full min-h-0">
                 {/* Calendar */}
-                <div>
+                <div className="xl:sticky xl:top-0 self-start">
                   <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
                     <Calendar className="h-5 w-5" /> Transfer Calendar
                   </h3>
@@ -940,7 +954,7 @@ function StoreInsightModal({
                 </div>
 
                 {/* Orders List */}
-                <div className="flex flex-col">
+                <div className="flex flex-col min-h-0">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-semibold">
                       {selectedDate ? `Orders • ${selectedDate}` : "All Transfer Orders"}
@@ -964,7 +978,7 @@ function StoreInsightModal({
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-auto space-y-3 pr-2">
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-2 pb-24 min-h-0">
                     {filteredOrders.length > 0 ? (
                       filteredOrders.map((order) => (
                         <div
