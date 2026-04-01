@@ -356,11 +356,12 @@ function StoreInsightModal({
 
   const fetchLiveData = async (showLoader = false) => {
     if (!store) return;
+    const normalizedStoreId = normalizeStoreId(store.id) || store.id;
     if (showLoader) setIsLoadingLiveFeed(true);
     try {
       const [inventoryRes, billsRes] = await Promise.all([
-        fetch(`${API}/api/stores/${store.id}/assigned-products`),
-        fetch(`${API}/api/bills?storeId=${encodeURIComponent(store.id)}&page=1&pageSize=200&paginate=1&details=0`),
+        fetch(`${API}/api/stores/${normalizedStoreId}/assigned-products`),
+        fetch(`${API}/api/bills?storeId=${encodeURIComponent(normalizedStoreId)}&page=1&pageSize=200&paginate=1&details=0`),
       ]);
 
       if (inventoryRes.ok) {
@@ -418,10 +419,12 @@ function StoreInsightModal({
     setDates([]);
     setSelectedDate(null);
 
-    fetch(`${API}/api/stores/${store.id}/transfer-orders`)
+    const normalizedStoreId = normalizeStoreId(store.id) || store.id;
+    fetch(`${API}/api/stores/${normalizedStoreId}/transfer-orders`)
       .then((r) => r.json())
       .then((payload) => {
         const list = Array.isArray(payload) ? payload : [];
+        console.log("Transfer orders fetched:", list.length, "orders");
         const normalized: TransferOrder[] = list.map((order: any) => ({
           ...order,
           createdAt: order.createdAt || order.created_at,
@@ -445,8 +448,10 @@ function StoreInsightModal({
           .map(([date, count]) => ({ date, count, totalStock: 0, totalValue: 0 }))
           .sort((a, b) => b.date.localeCompare(a.date));
         setDates(dateCards);
+        console.log("Calendar dates populated:", dateCards.length, "dates");
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("Error fetching transfer orders:", err);
         setOrders([]);
         setDates([]);
       })
@@ -750,166 +755,179 @@ function StoreInsightModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-6xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="border-b pb-4">
-          <DialogTitle className="text-lg font-semibold flex items-center gap-2 min-w-0">
-            <Building className="h-5 w-5 text-blue-600 shrink-0" />
-            <span className="min-w-0 break-words">{store.name} - Store Insights</span>
-          </DialogTitle>
+      <DialogContent className="max-w-7xl h-[94vh] flex flex-col p-0 overflow-hidden border-0 shadow-2xl">
+        {/* Header */}
+        <DialogHeader className="border-b px-8 py-6 bg-gradient-to-r from-slate-50 to-white">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
+              <Building className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <DialogTitle className="text-2xl font-semibold tracking-tight">{store.name}</DialogTitle>
+              <p className="text-sm text-muted-foreground">Store Insights • Real-time Overview</p>
+            </div>
+          </div>
         </DialogHeader>
-        <div className="flex-1 min-h-0 overflow-hidden">
+
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <Tabs
             value={activeInsightTab}
-            onValueChange={(value) => setActiveInsightTab(value as "live-feed" | "all-orders")}
-            className="h-full flex flex-col"
+            onValueChange={(v) => setActiveInsightTab(v as "live-feed" | "all-orders")}
+            className="flex flex-col h-full"
           >
-            <TabsList className="grid w-full max-w-sm grid-cols-2">
-              <TabsTrigger value="live-feed">Live Feed</TabsTrigger>
-              <TabsTrigger value="all-orders">All Orders</TabsTrigger>
-            </TabsList>
+            {/* Tabs Navigation */}
+            <div className="px-8 pt-6 pb-4 border-b bg-white">
+              <TabsList className="grid w-full max-w-md grid-cols-2 bg-gray-100 p-1.5 rounded-2xl">
+                <TabsTrigger value="live-feed" className="rounded-xl py-3 data-[state=active]:shadow-sm">
+                  Live Feed
+                </TabsTrigger>
+                <TabsTrigger value="all-orders" className="rounded-xl py-3 data-[state=active]:shadow-sm">
+                  Transfer Orders
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-            <TabsContent value="live-feed" className="flex-1 min-h-0 mt-4 overflow-hidden">
-              <div className="h-full min-h-0 flex flex-col">
-                <div className="flex justify-end mb-3 shrink-0">
-                  <Button variant="outline" size="sm" onClick={() => fetchLiveData(true)} disabled={isLoadingLiveFeed}>
-                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingLiveFeed ? "animate-spin" : ""}`} />
-                    Refresh
-                  </Button>
+            {/* ===================== LIVE FEED TAB ===================== */}
+            <TabsContent value="live-feed" className="flex-1 p-8 overflow-auto">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-2xl font-semibold">Live Activity</h3>
+                  <p className="text-muted-foreground">Current inventory and recent sales</p>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
-                <Card className="flex flex-col min-h-0">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Products in Store</CardTitle>
+                <Button onClick={() => fetchLiveData(true)} disabled={isLoadingLiveFeed} className="gap-2">
+                  <RefreshCw className={`h-4 w-4 ${isLoadingLiveFeed ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                {/* Products Section */}
+                <Card className="shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Products in Store</CardTitle>
                     <CardDescription>
-                      {filteredInventoryRows.length}/{inventoryRows.length} items • Total stock {totalStock}
+                      {filteredInventoryRows.length} / {inventoryRows.length} items • Total stock: {totalStock}
                     </CardDescription>
                     <Input
-                      placeholder="Search by barcode or product name..."
+                      placeholder="Search barcode or product name..."
                       value={liveProductSearch}
                       onChange={(e) => setLiveProductSearch(e.target.value)}
+                      className="mt-2"
                     />
                   </CardHeader>
-                  <CardContent className="min-h-0 flex-1 overflow-hidden">
-                    <div className="border rounded-lg overflow-hidden h-[calc(90vh-390px)] min-h-[220px]">
-                      <div className="overflow-auto h-full pb-3">
-                        <Table className="table-fixed min-w-[640px]">
-                          <TableHeader className="sticky top-0 bg-gray-50 z-10">
+                  <CardContent className="p-0">
+                    <div className="max-h-[calc(100vh-280px)] overflow-auto">
+                      <Table>
+                        <TableHeader className="bg-gray-50 sticky top-0">
+                          <TableRow>
+                            <TableHead>Barcode</TableHead>
+                            <TableHead>Product</TableHead>
+                            <TableHead className="text-right">Quantity</TableHead>
+                            <TableHead className="text-right">Price</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredInventoryRows.length === 0 ? (
                             <TableRow>
-                              <TableHead className="w-[28%]">Barcode</TableHead>
-                              <TableHead className="w-[42%]">Product</TableHead>
-                              <TableHead className="text-right">Qty</TableHead>
-                              <TableHead className="text-right">Price</TableHead>
+                              <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                                {liveProductSearch ? "No products match your search" : "No assigned products"}
+                              </TableCell>
                             </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredInventoryRows.length === 0 ? (
-                              <TableRow>
-                                <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                                  {liveProductSearch ? "No products match your search" : "No assigned products found"}
-                                </TableCell>
-                              </TableRow>
-                            ) : (
-                              filteredInventoryRows.map((row, idx) => {
-                                const productObj = row.products || {};
-                                const barcode = productObj.barcode || row.barcode || "-";
-                                const name = productObj.name || row.name || "Unknown";
-                                const qty = Number(row.quantity || 0);
-                                const price = Number(productObj.price || row.price || 0);
-                                return (
-                                  <TableRow key={row.id || `${barcode}-${idx}`}>
-                                    <TableCell className="font-mono text-xs break-all">{barcode}</TableCell>
-                                    <TableCell className="break-words">{name}</TableCell>
-                                    <TableCell className="text-right">{qty}</TableCell>
-                                    <TableCell className="text-right">₹{price.toFixed(2)}</TableCell>
-                                  </TableRow>
-                                );
-                              })
-                            )}
-                          </TableBody>
-                        </Table>
-                      </div>
+                          ) : (
+                            filteredInventoryRows.map((row, idx) => {
+                              const p = row.products || {};
+                              return (
+                                <TableRow key={idx} className="hover:bg-blue-50/50">
+                                  <TableCell className="font-mono">{p.barcode || row.barcode || "-"}</TableCell>
+                                  <TableCell className="font-medium">{p.name || row.name || "Unknown"}</TableCell>
+                                  <TableCell className="text-right font-semibold">{row.quantity || 0}</TableCell>
+                                  <TableCell className="text-right">₹{(p.price || row.price || 0).toFixed(2)}</TableCell>
+                                </TableRow>
+                              );
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="flex flex-col min-h-0">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Recent Bills</CardTitle>
+                {/* Bills Section */}
+                <Card className="shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Recent Bills</CardTitle>
                     <CardDescription>
-                      {activeLiveBills.length} bills in selected tab • ₹{activeTabBillAmount.toFixed(2)}
-                      {" "}({liveBills.length} total • ₹{totalBillAmount.toFixed(2)})
-                      {lastUpdated ? ` • Updated at ${lastUpdated}` : ""}
+                      {activeLiveBills.length} bills • ₹{activeTabBillAmount.toFixed(2)} 
+                      <span className="text-muted-foreground"> (Total: ₹{totalBillAmount.toFixed(2)})</span>
+                      {lastUpdated && <div className="text-xs text-muted-foreground mt-1">Updated {lastUpdated}</div>}
                     </CardDescription>
-                    <div className="flex gap-2 overflow-x-auto pb-1">
+
+                    <div className="flex flex-wrap gap-2 mt-3">
                       {liveBillTabs.map((tab) => (
                         <Button
                           key={tab.key}
                           size="sm"
                           variant={selectedLiveBillTab === tab.key ? "default" : "outline"}
                           onClick={() => setSelectedLiveBillTab(tab.key)}
-                          className="shrink-0"
                         >
                           {tab.label}
                         </Button>
                       ))}
                     </div>
                   </CardHeader>
-                  <CardContent className="min-h-0 flex-1 overflow-hidden">
-                    <div className="border rounded-lg overflow-hidden h-[calc(90vh-390px)] min-h-[220px]">
-                      <div className="h-full overflow-auto p-2">
-                        {activeLiveBills.length === 0 ? (
-                          <div className="text-center py-10 text-gray-500 text-sm">No bills found for this date</div>
-                        ) : (
-                          <div className="space-y-2">
-                            {activeLiveBills.map((bill: any) => {
-                              const billDate = getBillDate(bill);
-                              return (
-                                <details key={bill.id} className="rounded-md border bg-white group">
-                                  <summary className="list-none cursor-pointer px-3 py-2">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="min-w-0">
-                                        <p className="font-mono text-xs break-all">{bill.id}</p>
-                                        <p className="text-xs text-gray-500 break-words">
-                                          {billDate ? new Date(billDate).toLocaleString() : "-"}
-                                        </p>
-                                      </div>
-                                      <div className="text-right shrink-0">
-                                        <p className="text-sm font-semibold">₹{Number(bill.total || 0).toFixed(2)}</p>
-                                        <Badge variant="outline" className="text-[11px] break-words whitespace-normal">
-                                          {bill.status || "completed"}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  </summary>
-                                  <div className="border-t px-3 py-2 bg-gray-50 text-xs text-gray-700">
-                                    <p>Bill ID: {bill.id}</p>
-                                    <p>Date: {billDate ? new Date(billDate).toLocaleString() : "-"}</p>
-                                    <p>Total: ₹{Number(bill.total || 0).toFixed(2)}</p>
-                                    <p>Status: {bill.status || "completed"}</p>
-                                  </div>
-                                </details>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
+                  <CardContent className="p-0">
+                    <div className="max-h-[calc(100vh-280px)] overflow-auto">
+                      <Table>
+                        <TableHeader className="bg-gray-50 sticky top-0">
+                          <TableRow>
+                            <TableHead>Bill ID</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {activeLiveBills.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
+                                No bills in selected period
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            activeLiveBills.map((bill) => (
+                              <TableRow key={bill.id} className="hover:bg-gray-50">
+                                <TableCell className="font-mono text-sm">{bill.id}</TableCell>
+                                <TableCell>{formatDateTime(getBillDate(bill))}</TableCell>
+                                <TableCell className="text-right font-semibold text-emerald-600">
+                                  ₹{Number(bill.total || 0).toFixed(2)}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="capitalize">
+                                    {bill.status || "completed"}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
                     </div>
                   </CardContent>
                 </Card>
-                </div>
               </div>
             </TabsContent>
 
-            <TabsContent value="all-orders" className="flex-1 min-h-0 mt-4 overflow-hidden">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full min-h-0">
-                <div className="space-y-4 min-h-0">
-                  <h3 className="text-lg font-semibold flex items-center">
-                    <Calendar className="h-5 w-5 mr-2" />
-                    Transfer Calendar
+            {/* ===================== ALL ORDERS TAB ===================== */}
+            <TabsContent value="all-orders" className="flex-1 p-8 overflow-auto">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 h-full">
+                {/* Calendar */}
+                <div>
+                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <Calendar className="h-5 w-5" /> Transfer Calendar
                   </h3>
                   {isLoadingCalendar ? (
-                    <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
-                      <p className="text-gray-500 text-sm">Loading calendar...</p>
+                    <div className="h-96 flex items-center justify-center border rounded-3xl bg-gray-50">
+                      Loading calendar...
                     </div>
                   ) : (
                     <MiniCalendar
@@ -920,33 +938,24 @@ function StoreInsightModal({
                     />
                   )}
                 </div>
-                <div className="space-y-4 min-h-0 flex flex-col">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <h3 className="text-lg font-semibold">
-                      {selectedDate ? `Orders on ${selectedDate}` : "All Orders"}
+
+                {/* Orders List */}
+                <div className="flex flex-col">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-semibold">
+                      {selectedDate ? `Orders • ${selectedDate}` : "All Transfer Orders"}
                     </h3>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant={orderStatusFilter === "all" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setOrderStatusFilter("all")}
-                      >
-                        All Orders
-                      </Button>
-                      <Button
-                        variant={orderStatusFilter === "pending" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setOrderStatusFilter("pending")}
-                      >
-                        Pending
-                      </Button>
-                      <Button
-                        variant={orderStatusFilter === "completed" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setOrderStatusFilter("completed")}
-                      >
-                        Completed
-                      </Button>
+                    <div className="flex gap-2">
+                      {["all", "pending", "completed"].map((f) => (
+                        <Button
+                          key={f}
+                          variant={orderStatusFilter === f ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setOrderStatusFilter(f as any)}
+                        >
+                          {f.charAt(0).toUpperCase() + f.slice(1)}
+                        </Button>
+                      ))}
                       {selectedDate && (
                         <Button variant="ghost" size="sm" onClick={() => setSelectedDate(null)}>
                           Clear Date
@@ -954,158 +963,174 @@ function StoreInsightModal({
                       )}
                     </div>
                   </div>
-                  {filteredOrders.length > 0 ? (
-                      <div className="border rounded-lg overflow-hidden flex-1 min-h-0 overflow-y-auto divide-y pb-3">
-                        {filteredOrders.map((order) => (
-                          <div key={order.id} className="w-full p-4 hover:bg-blue-50 transition-colors">
-                            <div className="flex items-start justify-between gap-4">
-                              <button onClick={() => openOrderDetails(order)} className="flex-1 text-left">
-                                <p className="font-semibold text-sm">{order.id}</p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {formatDateTime(order.createdAt || order.created_at)}
-                                </p>
-                              </button>
-                              <div className="text-right">
-                                <Badge variant="outline" className="text-[11px]">
-                                  {String(order.status || "pending").replace(/_/g, " ")}
-                                </Badge>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {Number(order.itemCount || 0)} items | Qty {Number(order.assignedQtyTotal || 0)}
-                                </p>
-                              </div>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-red-600 hover:text-red-700"
-                                disabled={deletingOrderId === order.id}
-                                onClick={() => handleDeleteOrder(order)}
-                                title="Delete order"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+
+                  <div className="flex-1 overflow-auto space-y-3 pr-2">
+                    {filteredOrders.length > 0 ? (
+                      filteredOrders.map((order) => (
+                        <div
+                          key={order.id}
+                          className="border rounded-2xl p-6 hover:border-blue-200 hover:shadow transition-all group"
+                        >
+                          <div className="flex justify-between items-start">
+                            <button
+                              onClick={() => openOrderDetails(order)}
+                              className="text-left flex-1"
+                            >
+                              <p className="font-semibold text-lg group-hover:text-blue-600 transition-colors">
+                                {order.id}
+                              </p>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {formatDateTime(order.createdAt || order.created_at)}
+                              </p>
+                            </button>
+
+                            <div className="text-right">
+                              <Badge variant={isPendingOrder(order) ? "secondary" : "default"}>
+                                {String(order.status || "pending").replace(/_/g, " ")}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                {order.itemCount || 0} items • {order.assignedQtyTotal || 0} qty
+                              </p>
                             </div>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:bg-red-50 ml-4"
+                              onClick={() => handleDeleteOrder(order)}
+                              disabled={deletingOrderId === order.id}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
-                        ))}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="h-80 flex flex-col items-center justify-center text-center border rounded-3xl bg-gray-50">
+                        <Calendar className="h-14 w-14 text-gray-300 mb-4" />
+                        <p className="text-muted-foreground">No orders found for the selected filter</p>
                       </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-64 border-2 border-dashed border-gray-200 rounded-lg">
-                      <div className="text-center">
-                        <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-500 text-sm">
-                          {selectedDate
-                            ? "No transfer orders found for the selected date/filter"
-                            : "No transfer orders found for this filter"}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </TabsContent>
           </Tabs>
         </div>
-        <DialogFooter className="border-t pt-4">
-          <Button variant="outline" onClick={onClose}>Close</Button>
+
+        <DialogFooter className="border-t px-8 py-6 bg-white">
+          <Button variant="outline" onClick={onClose} className="px-10">
+            Close
+          </Button>
         </DialogFooter>
 
+        {/* ===================== ORDER DETAILS DIALOG ===================== */}
         <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
-          <DialogContent className="max-w-5xl max-h-[90vh]">
-            <DialogHeader className="border-b pb-3">
-              <DialogTitle className="text-lg">
-                Transfer Order Details
-              </DialogTitle>
+          <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
+            <DialogHeader className="px-8 py-6 border-b">
+              <DialogTitle className="text-2xl">Transfer Order Details</DialogTitle>
               {selectedOrder && (
-                <DialogDescription>
-                  Order ID: <span className="font-medium text-foreground">{selectedOrder.id}</span>
+                <DialogDescription className="text-base">
+                  Order ID: <span className="font-mono font-medium">{selectedOrder.id}</span>
                 </DialogDescription>
               )}
             </DialogHeader>
 
-            {isLoadingOrderDetails ? (
-              <div className="h-60 flex items-center justify-center text-sm text-gray-500">
-                Loading order details...
-              </div>
-            ) : orderDetails ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs text-gray-500">Order ID</p>
-                    <p className="font-semibold mt-1">{orderDetails.id}</p>
+            <div className="flex-1 overflow-auto p-8">
+              {isLoadingOrderDetails ? (
+                <div className="flex items-center justify-center h-64">Loading order details...</div>
+              ) : orderDetails ? (
+                <div className="space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-xs text-muted-foreground">Order ID</p>
+                        <p className="font-mono text-lg font-semibold mt-1">{orderDetails.id}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-xs text-muted-foreground">Store</p>
+                        <p className="font-semibold mt-1">{store.name}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-xs text-muted-foreground">Date</p>
+                        <p className="font-semibold mt-1">{formatDateTime(orderDetails.createdAt)}</p>
+                      </CardContent>
+                    </Card>
                   </div>
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs text-gray-500">Store Name</p>
-                    <p className="font-semibold mt-1">{store.name}</p>
-                  </div>
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs text-gray-500">Date</p>
-                    <p className="font-semibold mt-1">{formatDateTime(orderDetails.createdAt || orderDetails.created_at)}</p>
-                  </div>
-                </div>
 
-                <div className={`border rounded-lg ${orderDetails.items.length > 10 ? "max-h-[420px] overflow-y-auto" : ""}`}>
-                  <Table>
-                    <TableHeader className="bg-slate-100 sticky top-0 z-10">
-                      <TableRow>
-                        <TableHead className="text-xs">S.No</TableHead>
-                        <TableHead className="text-xs">Product Barcode</TableHead>
-                        <TableHead className="text-xs">Product Name</TableHead>
-                        <TableHead className="text-xs text-right">Quantity</TableHead>
-                        <TableHead className="text-xs">Status</TableHead>
-                        <TableHead className="text-xs text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {orderDetails.items.map((item, idx) => {
-                        const qty = getAssignedQty(item);
-                        const amount = qty * getItemPrice(item);
-                        const statusMeta = getStatusMeta(item);
-                        return (
-                          <TableRow key={item.id}>
-                            <TableCell className="text-xs">{idx + 1}</TableCell>
-                            <TableCell className="text-xs font-mono">{getItemBarcode(item)}</TableCell>
-                            <TableCell className="text-xs">{getItemName(item)}</TableCell>
-                            <TableCell className="text-xs text-right">{qty}</TableCell>
-                            <TableCell className="text-xs">
-                              <Badge variant={statusMeta.variant} className="text-[11px]">
-                                {statusMeta.label}
-                              </Badge>
-                              {statusMeta.label === "Partial Verified" && (
-                                <p className="text-[10px] text-gray-500 mt-1">
-                                  Verified {statusMeta.verified}, Not Verified {statusMeta.unverified}
-                                </p>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-xs text-right">₹{amount.toFixed(2)}</TableCell>
+                  <Card>
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle>Order Items</CardTitle>
+                        <Badge variant="outline">{orderTotals.totalLines} items</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>S.No</TableHead>
+                            <TableHead>Barcode</TableHead>
+                            <TableHead>Product Name</TableHead>
+                            <TableHead className="text-right">Qty</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
                           </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                    <TableFooter className="bg-slate-50 sticky bottom-0">
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-xs font-semibold">
-                          Total ({orderTotals.totalLines} line items)
-                        </TableCell>
-                        <TableCell className="text-xs font-semibold text-right">{orderTotals.totalProducts}</TableCell>
-                        <TableCell className="text-xs font-semibold">-</TableCell>
-                        <TableCell className="text-xs font-semibold text-right">₹{orderTotals.totalAmount.toFixed(2)}</TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </div>
-              </div>
-            ) : (
-              <div className="h-60 flex items-center justify-center text-sm text-gray-500">
-                Could not load order details.
-              </div>
-            )}
+                        </TableHeader>
+                        <TableBody>
+                          {orderDetails.items.map((item, idx) => {
+                            const qty = getAssignedQty(item);
+                            const amount = qty * getItemPrice(item);
+                            const statusMeta = getStatusMeta(item);
 
-            <DialogFooter className="border-t pt-4">
+                            return (
+                              <TableRow key={idx}>
+                                <TableCell>{idx + 1}</TableCell>
+                                <TableCell className="font-mono">{getItemBarcode(item)}</TableCell>
+                                <TableCell>{getItemName(item)}</TableCell>
+                                <TableCell className="text-right font-medium">{qty}</TableCell>
+                                <TableCell>
+                                  <Badge variant={statusMeta.variant}>
+                                    {statusMeta.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right font-medium">
+                                  ₹{amount.toFixed(2)}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                        <TableFooter>
+                          <TableRow>
+                            <TableCell colSpan={3} className="font-semibold">Total</TableCell>
+                            <TableCell className="text-right font-semibold">{orderTotals.totalProducts}</TableCell>
+                            <TableCell></TableCell>
+                            <TableCell className="text-right font-semibold text-lg">
+                              ₹{orderTotals.totalAmount.toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        </TableFooter>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                <div className="text-center py-20 text-muted-foreground">Could not load order details.</div>
+              )}
+            </div>
+
+            <DialogFooter className="px-8 py-6 border-t">
               <Button variant="outline" onClick={() => setIsOrderDialogOpen(false)}>
                 Close
               </Button>
               <Button onClick={handleOrderPrint} disabled={!orderDetails}>
-                <Printer className="h-4 w-4 mr-2" />
-                Print
+                <Printer className="mr-2 h-4 w-4" />
+                Print Order
               </Button>
             </DialogFooter>
           </DialogContent>
