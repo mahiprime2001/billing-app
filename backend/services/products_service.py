@@ -175,6 +175,16 @@ def _prepare_product_payload_for_cloud(product_id: str, data: Dict, existing_loc
     existing = existing_local or {}
     now_iso = datetime.now().isoformat()
 
+    def _first_timestamp(*values):
+        """Return first non-empty timestamp-like value."""
+        for value in values:
+            if value is None:
+                continue
+            if isinstance(value, str) and value.strip() == "":
+                continue
+            return value
+        return None
+
     # Primary key
     payload["id"] = payload.get("id") or product_id
 
@@ -188,12 +198,19 @@ def _prepare_product_payload_for_cloud(product_id: str, data: Dict, existing_loc
     for k in ("tax", "display_price", "barcodes", "batch_id", "hsn_code"):
         payload.pop(k, None)
 
-    # Timestamp normalization (legacy rows may have null values)
-    payload["createdat"] = (
-        payload.get("createdat")
-        or existing.get("createdat")
-        or now_iso
+    # Timestamp normalization (legacy rows may have mixed key formats).
+    # Keep original creation timestamp on updates; never rewrite it to now
+    # just because the source key variant differs (createdat vs created_at vs createdAt).
+    payload_created_at = _first_timestamp(
+        payload.get("createdat"),
+        payload.get("created_at"),
     )
+    existing_created_at = _first_timestamp(
+        existing.get("createdat"),
+        existing.get("created_at"),
+        existing.get("createdAt"),
+    )
+    payload["createdat"] = payload_created_at or existing_created_at or now_iso
     payload["updatedat"] = now_iso
 
     # Empty FK values -> NULL
