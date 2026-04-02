@@ -219,8 +219,6 @@ export default function BillingPage() {
 
   // Initial load
   useEffect(() => {
-    console.log("BillingPage: Component mounting...");
-
     if (typeof window !== "undefined") {
       localStorage.setItem("adminLoggedIn", "true");
       const storedAdmin = localStorage.getItem("adminUser");
@@ -238,9 +236,7 @@ export default function BillingPage() {
     fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/settings`)
       .then((res) => res.json())
       .then((data) => {
-        console.log("Settings: Loaded settings", data);
         if (data.systemSettings) {
-          // Handle both camelCase and snake_case
           const settings = data.systemSettings;
           const normalizedSettings = {
             gstin: settings.gstin || "",
@@ -250,7 +246,6 @@ export default function BillingPage() {
             companyPhone: settings.companyPhone || settings.company_phone || settings.companyphone || "",
             companyEmail: settings.companyEmail || settings.company_email || settings.companyemail || "",
           };
-          console.log("Settings: Normalized settings", normalizedSettings);
           setSystemSettings(normalizedSettings);
         }
         if (data.billFormats) {
@@ -304,14 +299,9 @@ export default function BillingPage() {
       updateLocalStorageEndpoint: string,
       dataType: string
     ) => {
-      console.log(`fetchData: Fetching ${dataType}...`);
-
       try {
-        console.log(`fetchData: Fetching ${dataType} from Supabase...`);
         const supabaseResponse = await api.get(supabaseEndpoint);
         const data = supabaseResponse.data;
-        console.log(`fetchData: Raw ${dataType} from API`, data);
-
         let processedData = data;
 
         if (dataType === "products") {
@@ -338,15 +328,12 @@ export default function BillingPage() {
           }));
         }
 
-        console.log(`fetchData: Processed ${dataType}`, processedData);
-
         // If cloud returns empty but local JSON has data, prefer local to avoid blank UI
         // during temporary Supabase/circuit-open windows.
         if (Array.isArray(processedData) && processedData.length === 0) {
           const localFallback = await api.get(localStorageEndpoint).catch(() => null);
           const localRows = Array.isArray(localFallback?.data) ? localFallback.data : [];
           if (localRows.length > 0) {
-            console.log(`fetchData: Using local ${dataType} fallback because cloud returned empty list.`);
             if (dataType === "products") {
               return localRows.map((product: any) => ({
                 ...product,
@@ -380,9 +367,7 @@ export default function BillingPage() {
         return processedData;
       } catch (error) {
         console.warn(`Failed to fetch ${dataType} from Supabase, falling back to local`, error);
-        console.log(`fetchData: Falling back to local for ${dataType}`);
         const localResponse = await api.get(localStorageEndpoint);
-        console.log(`fetchData: Local ${dataType} data`, localResponse.data);
 
         if (dataType === "products") {
           return localResponse.data.map((product: any) => ({
@@ -419,10 +404,8 @@ export default function BillingPage() {
   );
 
   const fetchBills = useCallback(async () => {
-    console.log("fetchBills: Starting fetch...");
     const mapBills = (rows: any[]) =>
       rows.map((bill: any) => {
-        console.log(`fetchBills: Processing bill ${bill.id}`);
         // FIX: Handle discount percentage - prioritize the correct field
         const discountPct = bill.discountpercentage || bill.discountPercentage || 0;
         const discountAmt = bill.discountamount || bill.discountAmount || 0;
@@ -468,32 +451,16 @@ export default function BillingPage() {
     };
 
     try {
-      // Use resilient merged endpoint (handles cache + fallback internally).
-      console.log("fetchBills: Fetching from merged endpoint...");
-      const response = await api.get("/api/bills");
+      // Use paginated endpoint to avoid fetching all bills at once
+      const response = await api.get("/api/bills?paginate=1&page=1&pageSize=200&details=1");
       const data = extractBillsArray(response.data);
-      console.log("fetchBills: Raw data from API", data);
-      console.log("fetchBills: Number of bills", data.length);
-
-      // Check first bill's items
-      if (data.length > 0 && data[0].items) {
-        console.log("fetchBills: First bill items", data[0].items);
-        console.log("fetchBills: First item details", data[0].items[0]);
-      }
-
       const processedData = mapBills(data);
-
-      console.log("fetchBills: Final processed data", processedData);
-
       // Silent background update
       api.post("/api/local/bills/update", processedData).catch(() => {});
-
       return processedData;
     } catch (error) {
-      console.error("fetchBills: Error fetching from backend", error);
-      console.log("fetchBills: Falling back to local storage");
+      console.error("fetchBills: Error fetching from backend, falling back to local", error);
       const localResponse = await api.get("/api/local/bills");
-      console.log("fetchBills: Local data", localResponse.data);
       const localData = extractBillsArray(localResponse.data);
       return mapBills(localData);
     }
@@ -511,7 +478,6 @@ export default function BillingPage() {
 
   // Manual refresh function
   const handleManualRefresh = async () => {
-    console.log("handleManualRefresh: Manual refresh triggered.");
     setIsRefreshing(true);
     try {
       await Promise.all([refetchProducts(), refetchBills(), refetchCustomers()]);
@@ -879,18 +845,6 @@ export default function BillingPage() {
     setIsCreateDialogOpen(true);
   };
 
-  useEffect(() => {
-    console.log("Products: Updated products data", productsData);
-  }, [productsData]);
-
-  useEffect(() => {
-    console.log("Bills: Updated bills data", billsData);
-  }, [billsData]);
-
-  useEffect(() => {
-    console.log("Customers: Updated customers data", customersData);
-  }, [customersData]);
-
   // Auto-select Walk-in customer from Supabase (or fallback constant)
   useEffect(() => {
     if (!customersData) return;
@@ -926,8 +880,6 @@ export default function BillingPage() {
     if (!product) return;
 
     const desiredQty = Math.max(1, qtyOverride ?? quantity);
-
-    console.log("addItemToBill: Adding product to bill", product, "Quantity:", desiredQty);
 
     const price = getProductSellingPrice(product);
     const availableStock =
@@ -979,7 +931,6 @@ export default function BillingPage() {
   };
 
   const removeItemFromBill = (productId: string) => {
-    console.log("removeItemFromBill: Removing product ID from bill", productId);
     setBillItems(billItems.filter((item) => item.productId !== productId));
   };
 
@@ -1048,8 +999,6 @@ export default function BillingPage() {
   const createBill = async () => {
     const isWalkInSelected = selectedCustomerId === WALK_IN_CUSTOMER_ID;
     if (billItems.length === 0) return;
-
-    console.log("createBill: Attempting to create bill...");
 
     const { subtotal, tax, discountAmount, total, effectiveDiscountPct, taxRate } = calculateTotals();
     const selectedCustomer =
@@ -1142,9 +1091,7 @@ export default function BillingPage() {
         createdBy: createdBy || undefined,
       };
 
-      console.log("createBill: Bill payload", newBill);
       const response = await api.post("/api/bills", newBill);
-      console.log("createBill: API response", response);
 
       if (!response.status.toString().startsWith("2")) {
         throw new Error("Failed to create bill");
@@ -1351,13 +1298,11 @@ export default function BillingPage() {
   };
 
   const viewBill = (bill: Bill) => {
-    console.log("viewBill: Viewing bill", bill);
     setSelectedBill(normalizeBillForDisplay(bill));
     setIsViewDialogOpen(true);
   };
 
   const viewCustomer = (customer: Customer) => {
-    console.log("viewCustomer: Viewing customer", customer);
     setSelectedCustomer(customer);
     setIsCustomerViewDialogOpen(true);
   };
@@ -1689,9 +1634,6 @@ export default function BillingPage() {
   };
 
   const handlePrintBill = async (billToPrint: Bill) => {
-    console.log("handlePrintBill: Printing bill", billToPrint);
-    console.log("handlePrintBill: System settings", systemSettings);
-    console.log("handlePrintBill: Bill items", billToPrint.items);
 
     const printable = buildPrintableInvoice(billToPrint);
     setPrintBill(billToPrint);
@@ -1889,22 +1831,16 @@ export default function BillingPage() {
   const handleImportBills = async () => {
     if (!importFile) return;
 
-    console.log("handleImportBills: Importing bills from file", importFile.name);
-
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
         const importedBills = JSON.parse(e.target?.result as string);
-        console.log("handleImportBills: Parsed bills for import", importedBills);
-
         const response = await api.post("/api/bills/import", importedBills);
-        console.log("handleImportBills: Import API response", response);
 
         if (!response.status.toString().startsWith("2")) {
           throw new Error("Failed to import bills");
         }
 
-        console.log("Bills imported successfully");
         setIsImportDialogOpen(false);
         setImportFile(null);
         refetchBills();

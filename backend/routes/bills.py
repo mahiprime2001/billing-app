@@ -155,6 +155,7 @@ def get_bills():
     global _BILLS_INFLIGHT
     event_to_wait = None
     is_leader = False
+    cache_key = "default"          # ← safe sentinel; overwritten before first use
     try:
         page = request.args.get("page", type=int)
         page_size = request.args.get("pageSize", type=int)
