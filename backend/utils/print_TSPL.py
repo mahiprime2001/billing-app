@@ -51,7 +51,10 @@ def generate_tspl(
     is_25x25_4up = isinstance(label_profile, dict) and label_profile.get("type") == "25x25_4up"
     profile_columns = 1
     profile_label_w = 0.0
+    profile_paper_w = 0.0
     profile_gap_h = 0.0
+    profile_gap_v = 0.0
+    profile_margin_left = 0.0
     profile_label_w_dots = 0
     if isinstance(label_size, dict):
         try:
@@ -72,21 +75,6 @@ def generate_tspl(
     logger.info("⚙️  Adding printer setup commands...")
     tspl.append("GAPDETECT")
     if is_25x25_4up:
-        paper_w = label_profile.get("paper_width_mm")
-        paper_h = label_profile.get("paper_height_mm")
-        gap_h = label_profile.get("gap_horizontal_mm")
-        gap_v = label_profile.get("gap_vertical_mm")
-
-        if paper_w and paper_h:
-            tspl.append(f"SIZE {_format_mm(paper_w)} mm,{_format_mm(paper_h)} mm")
-        else:
-            tspl.append("SIZE ,")
-
-        if gap_h is not None and gap_v is not None:
-            tspl.append(f"GAP {_format_mm(gap_h)} mm,{_format_mm(gap_v)} mm")
-        else:
-            tspl.append("GAP ,")
-
         try:
             profile_columns = max(1, int(label_profile.get("columns") or 4))
         except Exception:
@@ -96,9 +84,47 @@ def generate_tspl(
         except Exception:
             profile_label_w = 25.0
         try:
-            profile_gap_h = float(label_profile.get("gap_horizontal_mm") or 0)
+            # Horizontal pitch between columns; many 4-up 25mm stocks are ~0-0.5mm.
+            profile_gap_h = float(label_profile.get("gap_horizontal_mm") or 0.5)
         except Exception:
-            profile_gap_h = 0.0
+            profile_gap_h = 0.5
+        try:
+            # Feed-direction gap between label rows.
+            profile_gap_v = float(label_profile.get("gap_vertical_mm") or 2)
+        except Exception:
+            profile_gap_v = 2.0
+        try:
+            profile_paper_w = float(label_profile.get("paper_width_mm") or 103)
+        except Exception:
+            profile_paper_w = 103.0
+        try:
+            paper_h = float(label_profile.get("paper_height_mm") or profile_label_w)
+        except Exception:
+            paper_h = profile_label_w
+
+        # Optional explicit margins; defaults are 1.5mm on both sides for this stock.
+        margin_left_raw = label_profile.get("margin_left_mm")
+        margin_right_raw = label_profile.get("margin_right_mm")
+        try:
+            margin_left_mm = float(margin_left_raw) if margin_left_raw is not None else 1.5
+        except Exception:
+            margin_left_mm = 1.5
+        try:
+            margin_right_mm = float(margin_right_raw) if margin_right_raw is not None else 1.5
+        except Exception:
+            margin_right_mm = 1.5
+
+        used_width_mm = (profile_columns * profile_label_w) + (
+            max(0, profile_columns - 1) * profile_gap_h
+        )
+        remaining_mm = max(0.0, profile_paper_w - used_width_mm)
+        if margin_left_mm is not None:
+            profile_margin_left = max(0.0, margin_left_mm)
+        else:
+            profile_margin_left = max(0.0, remaining_mm - margin_right_mm)
+
+        tspl.append(f"SIZE {_format_mm(profile_paper_w)} mm,{_format_mm(paper_h)} mm")
+        tspl.append(f"GAP {_format_mm(profile_gap_v)} mm,0 mm")
         profile_label_w_dots = _mm_to_dots(profile_label_w)
     else:
         tspl.append(f"SIZE {_format_mm(width_mm)} mm,{_format_mm(height_mm)} mm")
@@ -133,7 +159,7 @@ def generate_tspl(
 
                 col_index = (label_counter - 1) % profile_columns
                 label_pitch_mm = profile_label_w + profile_gap_h
-                x_offset = _mm_to_dots(col_index * label_pitch_mm)
+                x_offset = _mm_to_dots(profile_margin_left + (col_index * label_pitch_mm))
                 y_offset = 0
             else:
                 tspl.append("CLS")
@@ -165,7 +191,7 @@ def generate_tspl(
                     f'BARCODE {barcode_x},{barcode_y},"128",{barcode_height},1,0,1,1,"{barcode}"'
                 )
             else:
-                tspl.append(f'BARCODE {20 + x_offset},{0 + y_offset},"128",55,1,0,1,1,"{barcode}"')
+                tspl.append(f'BARCODE {40 + x_offset},{0 + y_offset},"128",55,1,0,1,1,"{barcode}"')
             
             # Batch Information (if available)
             batch_number = product.get('batchNumber', '')

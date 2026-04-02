@@ -35,6 +35,8 @@ type BackendLabelProfile = {
   gap_vertical_mm: number | null;
   label_width_mm: number;
   label_height_mm: number;
+  margin_left_mm?: number | null;
+  margin_right_mm?: number | null;
 };
 
 type LabelProfile = {
@@ -79,12 +81,14 @@ const LABEL_PROFILES: LabelProfile[] = [
       type: "25x25_4up",
       columns: 4,
       rows: 1,
-      paper_width_mm: null,
-      paper_height_mm: null,
-      gap_horizontal_mm: null,
-      gap_vertical_mm: null,
+      paper_width_mm: 103,
+      paper_height_mm: 25,
+      gap_horizontal_mm: 0.5,
+      gap_vertical_mm: 2,
       label_width_mm: 25,
       label_height_mm: 25,
+      margin_left_mm: 1.5,
+      margin_right_mm: 1.5,
     },
   },
 ];
