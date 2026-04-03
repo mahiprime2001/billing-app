@@ -1197,14 +1197,11 @@ export default function StoresPage() {
   }, [router])
 
   const loadData = async (assignedStoreId?: string | null) => {
-    try {
-      const [storesResponse, billsResponse] = await Promise.all([
-        fetch(`${API}/api/stores`),
-        fetch(`${API}/api/bills`)
-      ]);
-
-      if (storesResponse.ok) {
-        let storesData: StoreType[] = await storesResponse.json();
+    // Fetch stores immediately — don't block on bills
+    fetch(`${API}/api/stores`)
+      .then(async (storesResponse) => {
+        if (!storesResponse.ok) return;
+        const storesData: any[] = await storesResponse.json();
         const seenIds = new Set<string>();
         const uniqueStores = storesData.map((store: any) => {
           let uniqueId = store.id || store.ID || store._id;
@@ -1221,15 +1218,17 @@ export default function StoresPage() {
         } else {
           setStores(uniqueStores);
         }
-      }
+      })
+      .catch((error) => console.error("Error loading stores:", error));
 
-      if (billsResponse.ok) {
+    // Fetch bills separately — slow Supabase retries won't block the stores list
+    fetch(`${API}/api/bills`)
+      .then(async (billsResponse) => {
+        if (!billsResponse.ok) return;
         const billsData = await billsResponse.json();
         setBills(billsData);
-      }
-    } catch (error) {
-      console.error("Error loading data:", error);
-    }
+      })
+      .catch((error) => console.error("Error loading bills:", error));
   }
 
   

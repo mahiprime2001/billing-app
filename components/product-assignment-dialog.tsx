@@ -393,14 +393,16 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
     }
   }
 
-  const filteredProducts = products.filter(
-    (p) =>
-      Number(p.availableStock || 0) > 0 &&
-      (
-        p.name?.toLowerCase().includes(search.toLowerCase()) ||
-        p.barcode?.toLowerCase().includes(search.toLowerCase())
-      )
-  )
+  const filteredProducts = products.filter((p) => {
+    const available = Number(p.availableStock || 0)
+    const assigned = Number(p.currentStoreStock || 0)
+    const visible = available > 0 || assigned > 0
+    if (!visible) return false
+    return (
+      p.name?.toLowerCase().includes(search.toLowerCase()) ||
+      p.barcode?.toLowerCase().includes(search.toLowerCase())
+    )
+  })
 
   const selectedCount = Object.values(selected).filter(Boolean).length
   const selectedProductsList = products.filter(p => selected[p.id || p.barcode])

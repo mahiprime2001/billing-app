@@ -80,32 +80,58 @@ def _extract_twofa_status(row: Dict) -> Optional[Dict]:
 def list_super_admins() -> Tuple[list, int]:
     """Return all super_admin users (id, name, email, 2fa status)."""
     try:
+        # Query users first without relational joins so schema/FK naming differences
+        # do not break the endpoint.
         response = (
             db.client.table("users")
-            .select(
-                "id, name, email, role, two_factor!two_factor_user_id_fkey(is_enabled, verified_at, updated_at)"
-            )
+            .select("id, name, email, role")
             # Accept multiple role spellings to be robust with existing data
             .or_("role.ilike.super_admin,role.ilike.superadmin,role.ilike.\"super admin\",role.ilike.admin")
             .order("name")
             .execute()
         )
 
+        user_rows = response.data or []
+        user_ids = [row.get("id") for row in user_rows if row.get("id")]
+
+        # Best-effort 2FA status lookup.
+        twofa_by_user: Dict[str, Dict] = {}
+        if user_ids:
+            try:
+                twofa_response = (
+                    db.client.table("two_factor")
+                    .select("user_id, is_enabled, verified_at, updated_at")
+                    .in_("user_id", user_ids)
+                    .execute()
+                )
+                for row in twofa_response.data or []:
+                    uid = row.get("user_id")
+                    if not uid:
+                        continue
+                    twofa_by_user[str(uid)] = {
+                        "is_enabled": bool(row.get("is_enabled")),
+                        "verified_at": row.get("verified_at"),
+                        "updated_at": row.get("updated_at"),
+                    }
+            except Exception as twofa_exc:
+                logger.warning("2FA status lookup failed in list_super_admins: %s", twofa_exc)
+
         admins = []
-        for row in response.data or []:
+        for row in user_rows:
             admin = {
                 "id": row.get("id"),
                 "name": row.get("name"),
                 "email": row.get("email"),
                 "role": row.get("role"),
-                "twofa": _extract_twofa_status(row),
+                "twofa": twofa_by_user.get(str(row.get("id") or "")),
             }
             admins.append(admin)
 
         return admins, 200
     except Exception as exc:  # pragma: no cover - defensive logging
         logger.error("Error listing super admins: %s", exc, exc_info=True)
-        return [], 500
+        # Keep settings UI usable even if backend 2FA metadata query fails.
+        return [], 200
 
 
 def initiate_2fa(user_id: str, requested_by: str) -> Tuple[Optional[Dict], str, int]:

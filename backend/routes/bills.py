@@ -117,6 +117,7 @@ def get_supabase_bills_with_details():
 # ======================================================
 
 @bills_bp.route("/bills", methods=["POST"])
+@bills_bp.route("/bills/", methods=["POST"])
 def create_bill():
     """Create bill - always saves locally, syncs to Supabase when available"""
     try:
@@ -144,6 +145,7 @@ def create_bill():
         return jsonify({"error": str(e)}), 500
 
 @bills_bp.route("/bills", methods=["GET"])
+@bills_bp.route("/bills/", methods=["GET"])
 def get_bills():
     """
     Main bills endpoint used by frontend
@@ -291,6 +293,7 @@ def get_bills():
 # ======================================================
 
 @bills_bp.route("/bills/<bill_id>", methods=["PUT"])
+@bills_bp.route("/bills/<bill_id>/", methods=["PUT"])
 def update_bill(bill_id):
     """Update a bill within the allowed edit window"""
     try:
@@ -323,6 +326,7 @@ def update_bill(bill_id):
 # ======================================================
 
 @bills_bp.route("/bills/<bill_id>/revise", methods=["POST"])
+@bills_bp.route("/bills/<bill_id>/revise/", methods=["POST"])
 def revise_bill(bill_id):
     """Revise bill: restore stock first, then remove bill-related data"""
     try:
@@ -355,6 +359,7 @@ def revise_bill(bill_id):
 # ======================================================
 
 @bills_bp.route("/bills/<bill_id>", methods=["DELETE"])
+@bills_bp.route("/bills/<bill_id>/", methods=["DELETE"])
 def delete_bill(bill_id):
     """Delete a bill"""
     try:

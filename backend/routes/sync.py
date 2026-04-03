@@ -23,7 +23,7 @@ def _as_bool(value, default: bool) -> bool:
 # SYNC STATUS & HEARTBEAT
 # ============================================
 
-@sync_bp.route('/sync/status', methods=['GET'])
+@sync_bp.route('/sync/status', methods=['GET'], strict_slashes=False)
 def get_sync_status():
     """
     Heartbeat endpoint - Check if backend is alive and get sync status

@@ -192,6 +192,7 @@ export default function BillingPage() {
   const printPaperSize = "Thermal 80mm";
   const [adminUser, setAdminUser] = useState<{ id?: string; name?: string; role?: string; email?: string } | null>(null);
   const [creatorNameById, setCreatorNameById] = useState<Record<string, string>>({});
+  const [allProductNameById, setAllProductNameById] = useState<Record<string, string>>({});
 
   // Form state
   const [customerName, setCustomerName] = useState(WALK_IN_CUSTOMER_NAME);
@@ -289,6 +290,43 @@ export default function BillingPage() {
     };
 
     void loadUsers();
+  }, []);
+
+  useEffect(() => {
+    const loadAllProductsForNameLookup = async () => {
+      try {
+        const extractRows = (payload: any): any[] => {
+          if (Array.isArray(payload)) return payload;
+          if (Array.isArray(payload?.data)) return payload.data;
+          return [];
+        };
+
+        // Try merged endpoint first; fallback to local cache endpoint.
+        const [mergedResp, localResp] = await Promise.allSettled([
+          api.get("/api/products"),
+          api.get("/api/local/products"),
+        ]);
+
+        const mergedRows =
+          mergedResp.status === "fulfilled" ? extractRows(mergedResp.value?.data) : [];
+        const localRows =
+          localResp.status === "fulfilled" ? extractRows(localResp.value?.data) : [];
+        const rows = mergedRows.length > 0 ? mergedRows : localRows;
+
+        const map: Record<string, string> = {};
+        rows.forEach((row: any) => {
+          const id = String(row?.id || "").trim();
+          const name = String(row?.name || "").trim();
+          if (id && name) map[id] = name;
+        });
+        setAllProductNameById(map);
+      } catch (error) {
+        console.warn("Failed to load all-products name lookup", error);
+        setAllProductNameById({});
+      }
+    };
+
+    void loadAllProductsForNameLookup();
   }, []);
 
   // Optimized fetch function with silent updates
@@ -404,6 +442,15 @@ export default function BillingPage() {
   );
 
   const fetchBills = useCallback(async () => {
+    const safeParseItems = (rawItems: unknown): unknown => {
+      if (typeof rawItems !== "string") return rawItems;
+      try {
+        return JSON.parse(rawItems);
+      } catch {
+        return [];
+      }
+    };
+
     const mapBills = (rows: any[]) =>
       rows.map((bill: any) => {
         // FIX: Handle discount percentage - prioritize the correct field
@@ -433,7 +480,7 @@ export default function BillingPage() {
           tax: taxAmt,
           taxPercentage: taxPct,
           status: bill.status || "Paid",
-          items: typeof bill.items === "string" ? JSON.parse(bill.items) : bill.items,
+          items: safeParseItems(bill.items ?? bill.billItems ?? bill.bill_items),
           discountPercentage: discountPct,
           discountAmount: discountAmt,
           isReplacement,
@@ -454,7 +501,16 @@ export default function BillingPage() {
       // Use paginated endpoint to avoid fetching all bills at once
       const response = await api.get("/api/bills?paginate=1&page=1&pageSize=200&details=1");
       const data = extractBillsArray(response.data);
-      const processedData = mapBills(data);
+      let processedData = mapBills(data);
+
+      // If API returns empty during transient backend/supabase windows, fallback to local bills.
+      if (processedData.length === 0) {
+        const localResponse = await api.get("/api/local/bills").catch(() => null);
+        const localData = extractBillsArray(localResponse?.data);
+        if (localData.length > 0) {
+          processedData = mapBills(localData);
+        }
+      }
       // Silent background update
       api.post("/api/local/bills/update", processedData).catch(() => {});
       return processedData;
@@ -495,6 +551,21 @@ export default function BillingPage() {
 
   const currentProducts = useMemo<Product[]>(() => productsData ?? [], [productsData]);
   const currentCustomers = useMemo<Customer[]>(() => customersData ?? [], [customersData]);
+  const productNameLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    currentProducts.forEach((product) => {
+      const id = String(product?.id || "").trim();
+      const name = String(product?.name || "").trim();
+      if (id && name) map.set(id, name);
+    });
+    return map;
+  }, [currentProducts]);
+
+  const resolveProductNameById = (productId: string): string | undefined => {
+    const key = String(productId || "").trim();
+    if (!key) return undefined;
+    return productNameLookup.get(key) || allProductNameById[key];
+  };
 
   const customerLookup = useMemo(() => {
     const map = new Map<string, Customer>();
@@ -563,6 +634,14 @@ export default function BillingPage() {
     }
 
     return items.map((item: any) => {
+      const productId = item.productId || item.product_id || item.productid || "";
+      const resolvedProductName =
+        item.productName ||
+        item.product_name ||
+        item.productname ||
+        item.name ||
+        resolveProductNameById(String(productId)) ||
+        "Unknown Product";
       const quantity = parseNumber(item.quantity);
       const sellingPrice = parseNumber(
         item.sellingPrice ?? item.selling_price ?? item.displayPrice ?? item.price
@@ -571,8 +650,8 @@ export default function BillingPage() {
       const total = parseNumber(item.total || quantity * price);
 
       return {
-        productId: item.productId || item.product_id || item.productid || "",
-        productName: item.productName || item.product_name || item.productname || "Unknown Product",
+        productId,
+        productName: resolvedProductName,
         quantity,
         price,
         sellingPrice,
@@ -624,6 +703,7 @@ export default function BillingPage() {
           item.product_name ||
           item.productname ||
           item.name ||
+          resolveProductNameById(String(productId)) ||
           "Unknown Product";
 
         return {
@@ -650,6 +730,9 @@ export default function BillingPage() {
       ? (rawBill.replacementItems || rawBill.replacement_items)
       : [];
     const itemsFromReplacement: BillItem[] = replacementRows.map((item: any) => {
+      const newProductId = item.new_product_id || item.newProductId || item.productId || "";
+      const replacedProductId =
+        item.replaced_product_id || item.replacedProductId || item.replacedproductid || "";
       const quantity = parseNumber(item.quantity);
       const sellingPrice = parseNumber(
         item.sellingPrice ?? item.selling_price ?? item.displayPrice ?? item.price
@@ -657,9 +740,13 @@ export default function BillingPage() {
       const price = sellingPrice;
       const total = parseNumber(item.final_amount ?? item.finalAmount ?? quantity * price);
       return {
-        productId: item.new_product_id || item.newProductId || item.productId || "",
+        productId: newProductId,
         productName:
-          item.new_product_name || item.newProductName || item.productName || "Replacement Item",
+          item.new_product_name ||
+          item.newProductName ||
+          item.productName ||
+          resolveProductNameById(String(newProductId)) ||
+          "Replacement Item",
         quantity,
         price,
         sellingPrice,
@@ -667,10 +754,13 @@ export default function BillingPage() {
         taxPercentage: parseNumber(item.taxPercentage ?? item.tax_percentage ?? item.tax ?? item.gst),
         hsnCode: item.hsnCode || item.hsn || item.hsn_code || item.hsnCodeId || item.hsn_code_id || "-",
         isReplacementItem: true,
-        replacedProductId:
-          item.replaced_product_id || item.replacedProductId || item.replacedproductid || "",
+        replacedProductId,
         replacedProductName:
-          item.replaced_product_name || item.replacedProductName || item.productName || "",
+          item.replaced_product_name ||
+          item.replacedProductName ||
+          resolveProductNameById(String(replacedProductId)) ||
+          item.productName ||
+          "",
       };
     });
     const items =
@@ -754,7 +844,7 @@ export default function BillingPage() {
 
   const currentBills = useMemo<Bill[]>(
     () => (billsData ?? []).map((bill) => normalizeBillForDisplay(bill)),
-    [billsData, customerLookup, creatorNameById]
+    [billsData, customerLookup, creatorNameById, productNameLookup, allProductNameById]
   );
 
   const getBillTimestampMs = (bill: Bill): number | null => {

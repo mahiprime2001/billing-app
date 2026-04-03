@@ -5,10 +5,13 @@ Handles all bill-related business logic and database operations
 import logging
 import re
 import uuid
+import os
+import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple, Any
 from zoneinfo import ZoneInfo
 
+from config import Config
 from utils.supabase_db import db
 from utils.supabase_resilience import execute_with_retry, is_transient_supabase_error
 import utils.supabase_circuit as supabase_circuit
@@ -28,6 +31,76 @@ from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 logger = logging.getLogger(__name__)
 INVOICE_ID_REGEX = re.compile(r"^INV-(\d{8})(\d{4})$")
 IST_ZONE = ZoneInfo("Asia/Kolkata")
+
+
+def _load_local_billitems() -> List[Dict[str, Any]]:
+    path = os.path.join(Config.JSON_DIR, "billitems.json")
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, list) else []
+    except Exception as e:
+        logger.warning("Failed to read local billitems.json: %s", e)
+        return []
+
+
+def _enrich_local_bills_with_local_items(bills: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Ensure local bills include `items` by joining local billitems.json.
+    This prevents blank bill-item views when fallback uses local JSON bills.
+    """
+    if not bills:
+        return bills
+
+    try:
+        billitems_rows = _load_local_billitems()
+        if not billitems_rows:
+            return bills
+
+        products_map: Dict[str, Dict[str, Any]] = {}
+        for product in get_products_data():
+            pid = str(product.get("id") or "").strip()
+            if pid:
+                products_map[pid] = product
+
+        items_by_bill: Dict[str, List[Dict[str, Any]]] = {}
+        for row in billitems_rows:
+            bill_id = str(row.get("billid") or row.get("bill_id") or row.get("billId") or "").strip()
+            if not bill_id:
+                continue
+            product_id = str(row.get("productid") or row.get("product_id") or row.get("productId") or "").strip()
+            product = products_map.get(product_id, {})
+            quantity = int(row.get("quantity") or 0)
+            price = float(row.get("price") or 0)
+            total = float(row.get("total") or (quantity * price))
+
+            item = {
+                "productid": product_id,
+                "product_name": product.get("name") or "Unknown Product",
+                "quantity": quantity,
+                "price": price,
+                "selling_price": product.get("selling_price") or product.get("sellingPrice") or price,
+                "total": total,
+                "hsn_code_id": product.get("hsn_code_id") or product.get("hsnCodeId") or product.get("hsn_code"),
+            }
+            items_by_bill.setdefault(bill_id, []).append(item)
+
+        for bill in bills:
+            existing_items = bill.get("items")
+            if isinstance(existing_items, list) and len(existing_items) > 0:
+                continue
+            bill_id = str(bill.get("id") or "").strip()
+            if not bill_id:
+                bill["items"] = []
+                continue
+            bill["items"] = items_by_bill.get(bill_id, [])
+
+        return bills
+    except Exception as e:
+        logger.warning("Failed enriching local bills with local billitems: %s", e)
+        return bills
 
 
 def _get_today_invoice_prefix() -> str:
@@ -201,6 +274,7 @@ def get_local_bills() -> List[Dict]:
     """
     try:
         bills = get_bills_data()
+        bills = _enrich_local_bills_with_local_items(bills)
         transformed_bills = [convert_snake_to_camel(bill) for bill in bills]
         logger.debug(f"Returning {len(transformed_bills)} bills from local JSON.")
         return transformed_bills
@@ -647,13 +721,24 @@ def get_bills_paginated(
                     "bills_with_details rpc",
                 )
                 rpc_data = rpc_response.data or []
-                return {
-                    "data": rpc_data,
-                    "page": page,
-                    "pageSize": page_size,
-                    "total": len(rpc_data),
-                    "hasMore": len(rpc_data) == page_size,
-                }
+                has_item_payload = any(
+                    bool(
+                        row.get("items")
+                        or row.get("billItems")
+                        or row.get("bill_items")
+                    )
+                    for row in rpc_data
+                )
+                # If RPC exists but returns rows without item details, continue to
+                # normal fetch + enrichment path instead of returning blank items.
+                if rpc_data and has_item_payload:
+                    return {
+                        "data": rpc_data,
+                        "page": page,
+                        "pageSize": page_size,
+                        "total": len(rpc_data),
+                        "hasMore": len(rpc_data) == page_size,
+                    }
             except Exception:
                 pass
 
@@ -690,13 +775,84 @@ def get_bills_paginated(
             logger.warning("Paginated bills fetch failed (transient): %s", e)
         else:
             logger.error("Paginated bills fetch failed: %s", e, exc_info=True)
-        return {
-            "data": [],
-            "page": page,
-            "pageSize": page_size,
-            "total": 0,
-            "hasMore": False,
-        }
+        # Offline/local fallback so billing UI never goes blank when cloud paging fails.
+        try:
+            local_rows = get_local_bills()
+
+            if store_id:
+                local_rows = [
+                    row for row in local_rows
+                    if str(
+                        row.get("storeId")
+                        or row.get("storeid")
+                        or row.get("store_id")
+                        or ""
+                    ) == str(store_id)
+                ]
+
+            def _to_dt(value: Any):
+                if not value:
+                    return None
+                try:
+                    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+                except Exception:
+                    return None
+
+            from_dt = _to_dt(from_date)
+            to_dt = _to_dt(to_date)
+            if from_dt or to_dt:
+                filtered_rows = []
+                for row in local_rows:
+                    row_dt = _to_dt(
+                        row.get("createdAt")
+                        or row.get("created_at")
+                        or row.get("timestamp")
+                        or row.get("date")
+                    )
+                    if row_dt is None:
+                        continue
+                    if from_dt and row_dt < from_dt:
+                        continue
+                    if to_dt and row_dt > to_dt:
+                        continue
+                    filtered_rows.append(row)
+                local_rows = filtered_rows
+
+            local_rows.sort(
+                key=lambda r: str(
+                    r.get("createdAt")
+                    or r.get("created_at")
+                    or r.get("timestamp")
+                    or r.get("date")
+                    or ""
+                ),
+                reverse=True,
+            )
+
+            start = max(0, (page - 1) * page_size)
+            end = start + page_size
+            sliced = local_rows[start:end]
+            logger.info(
+                "Paginated bills fallback to local JSON: returned %s rows (total=%s)",
+                len(sliced),
+                len(local_rows),
+            )
+            return {
+                "data": sliced,
+                "page": page,
+                "pageSize": page_size,
+                "total": len(local_rows),
+                "hasMore": end < len(local_rows),
+            }
+        except Exception as local_error:
+            logger.error("Paginated bills local fallback failed: %s", local_error, exc_info=True)
+            return {
+                "data": [],
+                "page": page,
+                "pageSize": page_size,
+                "total": 0,
+                "hasMore": False,
+            }
 
 
 def get_supabase_bills_with_details() -> List[Dict]:

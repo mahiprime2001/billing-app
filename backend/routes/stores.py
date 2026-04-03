@@ -103,6 +103,7 @@ def sync_stores():
 # ============================================
 
 @stores_bp.route('/stores', methods=['GET'])
+@stores_bp.route('/stores/', methods=['GET'])
 def get_stores():
     """Get all stores with inventory statistics (merged from local and Supabase)"""
     try:
@@ -120,6 +121,7 @@ def get_stores():
         return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
 
 @stores_bp.route('/stores', methods=['POST'])
+@stores_bp.route('/stores/', methods=['POST'])
 def create_store():
     """Create store"""
     try:
@@ -370,6 +372,7 @@ def get_inventory_by_date(store_id, date_str):
 
 
 @stores_bp.route('/stores/<store_id>/transfer-orders', methods=['GET'])
+@stores_bp.route('/stores/<store_id>/transfer-orders/', methods=['GET'])
 def get_store_transfer_orders(store_id):
     """Get transfer orders for a store."""
     status = request.args.get('status')
@@ -431,6 +434,7 @@ def get_store_transfer_orders(store_id):
 
 
 @stores_bp.route('/transfer-orders/<order_id>', methods=['GET'])
+@stores_bp.route('/transfer-orders/<order_id>/', methods=['GET'])
 def get_transfer_order_details(order_id):
     """Get transfer order details with computed progress."""
     try:
@@ -446,6 +450,7 @@ def get_transfer_order_details(order_id):
 
 
 @stores_bp.route('/transfer-orders/<order_id>', methods=['DELETE'])
+@stores_bp.route('/transfer-orders/<order_id>/', methods=['DELETE'])
 def delete_transfer_order(order_id):
     """Delete a transfer order from Supabase and local cache."""
     try:

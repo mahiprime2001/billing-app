@@ -12,7 +12,11 @@ from typing import Any, List, Dict, Optional, Tuple
 from collections import defaultdict
 
 from utils.supabase_db import db
-from utils.supabase_resilience import execute_with_retry, is_transient_supabase_error
+from utils.supabase_resilience import (
+    execute_with_retry,
+    is_transient_supabase_error,
+    is_circuit_open_error,
+)
 from config import Config
 from utils.json_helpers import (
     get_stores_data,
@@ -254,6 +258,71 @@ def _get_reserved_pending_transfer_qty(client: Any, product_ids: Optional[List[s
     return reserved_by_product
 
 
+def _to_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _get_available_products_for_assignment_local(store_id: str) -> List[Dict]:
+    """
+    Offline/local fallback for available-products.
+    Uses local products + local storeinventory. Pending transfer reservations are
+    not subtracted in fallback mode.
+    """
+    products = get_products_data() or []
+    inventory_rows = get_store_inventory_data() or []
+
+    total_allocated_by_product: Dict[str, int] = defaultdict(int)
+    current_store_qty_by_product: Dict[str, int] = defaultdict(int)
+
+    for row in inventory_rows:
+        product_id = row.get("productid") or row.get("productId") or row.get("product_id")
+        if not product_id:
+            continue
+        qty = _to_int(row.get("quantity"))
+        total_allocated_by_product[product_id] += qty
+        row_store_id = row.get("storeid") or row.get("storeId") or row.get("store_id")
+        if str(row_store_id) == str(store_id):
+            current_store_qty_by_product[product_id] += qty
+
+    result: List[Dict] = []
+    for product in products:
+        product_id = product.get("id")
+        if not product_id:
+            continue
+        global_stock = _to_int(product.get("stock"))
+        total_allocated = total_allocated_by_product.get(product_id, 0)
+        current_store_qty = current_store_qty_by_product.get(product_id, 0)
+        available_stock = max(0, global_stock - total_allocated)
+
+        result.append(
+            {
+                **product,
+                "availableStock": available_stock,
+                "currentStoreStock": current_store_qty,
+                "totalAllocated": total_allocated,
+                "pendingReserved": 0,
+                "globalStock": global_stock,
+            }
+        )
+
+    # Keep already-assigned items visible in the assignment UI even when no
+    # additional stock is available to allocate.
+    available_products = [
+        convert_snake_to_camel(p)
+        for p in result
+        if p["availableStock"] > 0 or p["currentStoreStock"] > 0
+    ]
+    logger.info(
+        "Offline fallback: found %s locally available products for store %s",
+        len(available_products),
+        store_id,
+    )
+    return available_products
+
+
 def get_available_products_for_assignment(store_id: str) -> List[Dict]:
     """Get products with available stock (global - verified allocations - pending reserved transfers)."""
     try:
@@ -309,13 +378,29 @@ def get_available_products_for_assignment(store_id: str) -> List[Dict]:
                 "globalStock": global_stock
             })
         
-        available_products = [convert_snake_to_camel(p) for p in result if p['availableStock'] > 0]
+        # Keep already-assigned items visible in the assignment UI even when no
+        # additional stock is available to allocate.
+        available_products = [
+            convert_snake_to_camel(p)
+            for p in result
+            if p["availableStock"] > 0 or p["currentStoreStock"] > 0
+        ]
         logger.info(f"Found {len(available_products)} products available for store {store_id}")
         return available_products
         
     except Exception as e:
-        logger.error(f"Error getting available products for {store_id}: {e}", exc_info=True)
-        return []
+        if is_circuit_open_error(e):
+            logger.info(
+                "Supabase circuit open while fetching available products for %s; using local fallback.",
+                store_id,
+            )
+            return _get_available_products_for_assignment_local(store_id)
+        logger.warning(
+            "Error getting available products for %s from Supabase; using local fallback: %s",
+            store_id,
+            e,
+        )
+        return _get_available_products_for_assignment_local(store_id)
 
 # ============================================
 # SYNC OPERATIONS
@@ -909,14 +994,22 @@ def get_store_transfer_orders(store_id: str, status: Optional[str] = None) -> Tu
     """Fetch transfer orders for a store with computed progress and missing qty."""
     try:
         client = db.client
-        query = client.table("inventory_transfer_orders").select("*").eq("store_id", store_id)
-        if status:
-            query = query.eq("status", status)
+        # Pull rows and filter in Python to tolerate schema variants:
+        # store_id / storeid / storeId.
         response = execute_with_retry(
-            lambda: query.order("created_at", desc=True),
+            lambda: client.table("inventory_transfer_orders").select("*").order("created_at", desc=True),
             f"transfer orders for store {store_id}",
         )
-        orders = response.data or []
+        all_orders = response.data or []
+        orders = []
+        for row in all_orders:
+            row_store_id = row.get("store_id") or row.get("storeid") or row.get("storeId")
+            if str(row_store_id) != str(store_id):
+                continue
+            row_status = str(row.get("status") or "").lower()
+            if status and row_status != str(status).lower():
+                continue
+            orders.append(row)
         if not orders:
             return [], 200
 
@@ -986,13 +1079,34 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
         if not order_response.data:
             return None, 404
 
+        # Avoid relational select dependency (`products(...)`) because it may fail
+        # on deployments missing that explicit FK relationship metadata.
         items_response = execute_with_retry(
-            lambda: client.table("inventory_transfer_items")
-            .select("*, products(name, barcode, selling_price)")
-            .eq("transfer_order_id", order_id),
+            lambda: client.table("inventory_transfer_items").select("*").eq("transfer_order_id", order_id),
             f"transfer order items {order_id}",
         )
         items = items_response.data or []
+        product_ids = list(
+            {
+                str(item.get("product_id") or "").strip()
+                for item in items
+                if str(item.get("product_id") or "").strip()
+            }
+        )
+        product_map: Dict[str, Dict[str, Any]] = {}
+        if product_ids:
+            try:
+                products_response = execute_with_retry(
+                    lambda: client.table("products").select("*").in_("id", product_ids),
+                    f"transfer order products {order_id}",
+                )
+                for prod in products_response.data or []:
+                    pid = str(prod.get("id") or "").strip()
+                    if pid:
+                        product_map[pid] = prod
+            except Exception as product_error:
+                logger.warning("Failed to enrich transfer-order products for %s: %s", order_id, product_error)
+
         normalized_items = []
         for item in items:
             assigned = int(item.get("assigned_qty") or 0)
@@ -1000,12 +1114,19 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
             damaged = int(item.get("damaged_qty") or 0)
             wrong_store = int(item.get("wrong_store_qty") or 0)
             missing = max(0, assigned - verified - damaged - wrong_store)
+            product_id = str(item.get("product_id") or "").strip()
+            product_meta = product_map.get(product_id, {})
             normalized_items.append(
                 convert_snake_to_camel(
                     {
                         **item,
                         "missing_qty": missing,
                         "status": _derive_item_state(item),
+                        "products": {
+                            "name": product_meta.get("name"),
+                            "barcode": product_meta.get("barcode"),
+                            "selling_price": product_meta.get("selling_price") or product_meta.get("sellingPrice"),
+                        },
                     }
                 )
             )

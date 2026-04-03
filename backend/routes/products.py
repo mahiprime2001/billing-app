@@ -85,6 +85,7 @@ def get_supabase_products_for_billing():
 # ============================================
 
 @products_bp.route('/products', methods=['GET'])
+@products_bp.route('/products/', methods=['GET'])
 def get_products():
     """Get products by merging local and Supabase (Supabase takes precedence)"""
     try:
@@ -106,6 +107,7 @@ def get_products():
 # ============================================
 
 @products_bp.route('/products', methods=['POST'])
+@products_bp.route('/products/', methods=['POST'])
 def create_product():
     """Create product - OFFLINE FIRST approach with HSN auto-fill"""
     try:
@@ -129,6 +131,7 @@ def create_product():
 
 
 @products_bp.route('/products/<product_id>', methods=['PUT'])
+@products_bp.route('/products/<product_id>/', methods=['PUT'])
 def update_product(product_id):
     """Update product - OFFLINE FIRST approach with HSN auto-fill"""
     try:
@@ -152,6 +155,7 @@ def update_product(product_id):
 
 
 @products_bp.route('/products/<product_id>', methods=['DELETE'])
+@products_bp.route('/products/<product_id>/', methods=['DELETE'])
 def delete_product(product_id):
     """Delete product (hard delete - permanent removal)"""
     try:
