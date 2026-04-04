@@ -1130,7 +1130,7 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
         if product_ids:
             try:
                 products_response = execute_with_retry(
-                    lambda: client.table("products").select("*").in_("id", product_ids),
+                    lambda: client.table("products").select("id, name, barcode, selling_price, batchid, batch(id, batch_number)").in_("id", product_ids),
                     f"transfer order products {order_id}",
                 )
                 for prod in products_response.data or []:
@@ -1149,6 +1149,16 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
             missing = max(0, assigned - verified - damaged - wrong_store)
             product_id = str(item.get("product_id") or "").strip()
             product_meta = product_map.get(product_id, {})
+            
+            # Extract batch information
+            batch_ref = product_meta.get("batch")
+            batch_number = ""
+            if batch_ref:
+                if isinstance(batch_ref, list):
+                    batch_ref = batch_ref[0] if batch_ref else {}
+                if isinstance(batch_ref, dict):
+                    batch_number = batch_ref.get("batch_number", "")
+            
             normalized_items.append(
                 convert_snake_to_camel(
                     {
@@ -1159,6 +1169,7 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
                             "name": product_meta.get("name"),
                             "barcode": product_meta.get("barcode"),
                             "selling_price": product_meta.get("selling_price") or product_meta.get("sellingPrice"),
+                            "batch_number": batch_number,
                         },
                     }
                 )
