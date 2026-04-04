@@ -1877,10 +1877,10 @@ const handleDeleteProduct = async (productId: string) => {
                           </span>
                         </td>
                         <td className="p-4">
-                          <span className="font-medium">{product.stock}</span>
+                          <span className="font-medium">{product.globalStock ?? product.stock}</span>
                         </td>
                         <td className="p-4">
-                          <span className="font-medium">{product.stock}</span>
+                          <span className="font-medium">{product.availableStock ?? product.stock}</span>
                         </td>
                         <td className="p-4">
                           <div className="space-y-1">

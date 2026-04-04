@@ -4,6 +4,8 @@ export interface Product {
   price: number;
   barcode?: string; // String for backend storage, comma-separated
   stock: number;
+  globalStock?: number;
+  availableStock?: number;
   sellingPrice?: number;
   batchid?: string; // Changed from batchId to match database
   createdAt: string;

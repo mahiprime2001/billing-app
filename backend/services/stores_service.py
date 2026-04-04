@@ -68,7 +68,12 @@ def get_supabase_stores() -> List[Dict]:
         logger.debug(f"Returning {len(transformed_stores)} stores from Supabase.")
         return transformed_stores
     except Exception as e:
-        logger.error(f"Error getting Supabase stores: {e}", exc_info=True)
+        if is_circuit_open_error(e):
+            logger.info("Supabase circuit open while fetching stores; using local cache.")
+        elif is_transient_supabase_error(e):
+            logger.warning(f"Transient Supabase error while fetching stores; using local cache: {e}")
+        else:
+            logger.error(f"Error getting Supabase stores: {e}", exc_info=True)
         return []
 
 # ============================================
@@ -113,7 +118,16 @@ def get_store_inventory_stats(store_id: str) -> Tuple[int, int]:
         logger.debug(f"Store {store_id}: {product_count} products, {total_stock} total stock")
         return product_count, total_stock
     except Exception as e:
-        logger.error(f"Error getting inventory stats for store {store_id}: {e}", exc_info=True)
+        if is_circuit_open_error(e):
+            logger.info(
+                f"Supabase circuit open while fetching inventory stats for store {store_id}; returning zero stats."
+            )
+        elif is_transient_supabase_error(e):
+            logger.warning(
+                f"Transient Supabase error while fetching inventory stats for store {store_id}; returning zero stats: {e}"
+            )
+        else:
+            logger.error(f"Error getting inventory stats for store {store_id}: {e}", exc_info=True)
         return 0, 0
 
 def get_store_bill_stats(store_id: str) -> Tuple[float, int]:
@@ -135,7 +149,16 @@ def get_store_bill_stats(store_id: str) -> Tuple[float, int]:
         logger.debug(f"Store {store_id}: {bill_count} bills, ₹{total_revenue:.2f} revenue")
         return total_revenue, bill_count
     except Exception as e:
-        logger.error(f"Error getting bill stats for store {store_id}: {e}", exc_info=True)
+        if is_circuit_open_error(e):
+            logger.info(
+                f"Supabase circuit open while fetching bill stats for store {store_id}; returning zero stats."
+            )
+        elif is_transient_supabase_error(e):
+            logger.warning(
+                f"Transient Supabase error while fetching bill stats for store {store_id}; returning zero stats: {e}"
+            )
+        else:
+            logger.error(f"Error getting bill stats for store {store_id}: {e}", exc_info=True)
         return 0.0, 0
 
 def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
@@ -158,10 +181,15 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
             )
             inventory_rows_data = inventory_rows.data or []
         except Exception as inventory_error:
-            logger.warning(
-                "Supabase inventory fetch failed in get_all_stores_with_inventory; continuing with empty inventory: %s",
-                inventory_error,
-            )
+            if is_circuit_open_error(inventory_error):
+                logger.info(
+                    "Supabase circuit open in get_all_stores_with_inventory; continuing with empty inventory."
+                )
+            else:
+                logger.warning(
+                    "Supabase inventory fetch failed in get_all_stores_with_inventory; continuing with empty inventory: %s",
+                    inventory_error,
+                )
 
         try:
             bill_rows = execute_with_retry(
@@ -170,10 +198,15 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
             )
             bill_rows_data = bill_rows.data or []
         except Exception as bills_error:
-            logger.warning(
-                "Supabase bills fetch failed in get_all_stores_with_inventory; continuing with empty bill stats: %s",
-                bills_error,
-            )
+            if is_circuit_open_error(bills_error):
+                logger.info(
+                    "Supabase circuit open in get_all_stores_with_inventory; continuing with empty bill stats."
+                )
+            else:
+                logger.warning(
+                    "Supabase bills fetch failed in get_all_stores_with_inventory; continuing with empty bill stats: %s",
+                    bills_error,
+                )
 
         inventory_by_store: Dict[str, Dict] = {}
         for row in inventory_rows_data:

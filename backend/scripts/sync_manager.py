@@ -1302,10 +1302,9 @@ class EnhancedSyncManager:
                 response = table_client.delete().eq("id", record_id).execute()
                 if response.data:
                     logger.info(f"DELETE operation on {table_name} for {record_id} successful")
-                    return True
                 else:
-                    logger.error(f"DELETE operation on {table_name} for {record_id} failed: {response.error}")
-                    return False
+                    logger.warning(f"DELETE operation on {table_name} for {record_id}: no row matched (may already be deleted)")
+                return True
 
             elif change_type in ['CREATE', 'UPDATE']:
                 # Ensure primary key is present for insert-style operations when appropriate.

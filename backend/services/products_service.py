@@ -633,6 +633,32 @@ def get_merged_products() -> Tuple[List[Dict], int]:
         except Exception as cache_err:
             logger.warning(f"Failed to refresh local products cache from merged set: {cache_err}")
 
+        try:
+            client = db.client
+            inventory_response = execute_with_retry(
+                lambda: client.table("storeinventory").select("productid, quantity"),
+                "storeinventory for merged products",
+                retries=2,
+            )
+            inventory_rows = inventory_response.data or []
+        except Exception as inv_err:
+            logger.warning("Storeinventory fetch failed in get_merged_products; using local fallback: %s", inv_err)
+            inventory_rows = get_store_inventory_data() or []
+
+        allocated_by_product: Dict[str, int] = {}
+        for row in inventory_rows:
+            pid = row.get("productid") or row.get("productId")
+            if not pid:
+                continue
+            allocated_by_product[str(pid)] = allocated_by_product.get(str(pid), 0) + int(row.get("quantity") or 0)
+
+        for p in merged_products:
+            pid = str(p.get("id") or "")
+            global_stock = int(p.get("stock") or 0)
+            allocated = allocated_by_product.get(pid, 0)
+            p["globalStock"] = global_stock
+            p["availableStock"] = max(0, global_stock - allocated)
+
         merged_products.sort(key=lambda x: x.get('name', ''), reverse=False)
         logger.debug(
             "Returning %s merged products (supabase=%s, local=%s)",

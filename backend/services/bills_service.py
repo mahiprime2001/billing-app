@@ -13,7 +13,11 @@ from zoneinfo import ZoneInfo
 
 from config import Config
 from utils.supabase_db import db
-from utils.supabase_resilience import execute_with_retry, is_transient_supabase_error
+from utils.supabase_resilience import (
+    execute_with_retry,
+    is_circuit_open_error,
+    is_transient_supabase_error,
+)
 import utils.supabase_circuit as supabase_circuit
 from utils.json_helpers import (
     get_bills_data,
@@ -1523,7 +1527,11 @@ def revise_bill(bill_id: str, store_id_override: Optional[str] = None) -> Tuple[
                 )
         save_store_inventory_data(local_inventory)
 
-        # Step 1B: Cloud restock (strict: if this fails, do not delete bill rows)
+        cloud_sync_deferred = False
+
+        # Step 1B: Cloud restock.
+        # For circuit-open/transient outages, defer cloud sync but continue local revise.
+        cloud_restock_completed = True
         try:
             client = db.client
             for pid, qty in qty_by_product.items():
@@ -1578,8 +1586,18 @@ def revise_bill(bill_id: str, store_id_override: Optional[str] = None) -> Tuple[
                         retries=2,
                     )
         except Exception as restock_error:
-            logger.error(f"Cloud restock failed for revise {bill_id}: {restock_error}", exc_info=True)
-            return False, f"Stock restored locally but cloud restock failed: {restock_error}", 500
+            cloud_restock_completed = False
+            if is_circuit_open_error(restock_error) or is_transient_supabase_error(restock_error):
+                cloud_sync_deferred = True
+                logger.warning(
+                    f"Cloud restock deferred for revise {bill_id}: {restock_error}"
+                )
+            else:
+                logger.error(
+                    f"Cloud restock failed for revise {bill_id}: {restock_error}",
+                    exc_info=True,
+                )
+                return False, f"Stock restored locally but cloud restock failed: {restock_error}", 500
 
         # Step 2A: Delete local bill + local discounts references
         if local_bill:
@@ -1595,46 +1613,60 @@ def revise_bill(bill_id: str, store_id_override: Optional[str] = None) -> Tuple[
         except Exception as local_discount_error:
             logger.warning(f"Failed local discounts cleanup for revised bill {bill_id}: {local_discount_error}")
 
-        # Step 2B: Delete cloud bill-related rows
-        try:
-            execute_with_retry(
-                lambda: client.table("replacements").delete().eq("bill_id", bill_id),
-                f"replacements delete for revised bill {bill_id}",
-                retries=2,
-            )
-
-            discount_ids: List[str] = []
-            discount_lookup = execute_with_retry(
-                lambda: client.table("discounts").select("discount_id").eq("bill_id", bill_id),
-                f"discount lookup for revised bill {bill_id}",
-                retries=2,
-            )
-            for row in (discount_lookup.data or []):
-                did = row.get("discount_id")
-                if did:
-                    discount_ids.append(did)
-            if discount_ids:
+        # Step 2B: Delete cloud bill-related rows only after cloud restock completes.
+        if cloud_restock_completed:
+            try:
                 execute_with_retry(
-                    lambda: client.table("discounts").delete().in_("discount_id", discount_ids),
-                    f"discounts delete for revised bill {bill_id}",
+                    lambda: client.table("replacements").delete().eq("bill_id", bill_id),
+                    f"replacements delete for revised bill {bill_id}",
                     retries=2,
                 )
 
-            execute_with_retry(
-                lambda: client.table("billitems").delete().eq("billid", bill_id),
-                f"billitems delete for revised bill {bill_id}",
-                retries=2,
+                discount_ids: List[str] = []
+                discount_lookup = execute_with_retry(
+                    lambda: client.table("discounts").select("discount_id").eq("bill_id", bill_id),
+                    f"discount lookup for revised bill {bill_id}",
+                    retries=2,
+                )
+                for row in (discount_lookup.data or []):
+                    did = row.get("discount_id")
+                    if did:
+                        discount_ids.append(did)
+                if discount_ids:
+                    execute_with_retry(
+                        lambda: client.table("discounts").delete().in_("discount_id", discount_ids),
+                        f"discounts delete for revised bill {bill_id}",
+                        retries=2,
+                    )
+
+                execute_with_retry(
+                    lambda: client.table("billitems").delete().eq("billid", bill_id),
+                    f"billitems delete for revised bill {bill_id}",
+                    retries=2,
+                )
+                execute_with_retry(
+                    lambda: client.table("bills").delete().eq("id", bill_id),
+                    f"bill delete for revised bill {bill_id}",
+                    retries=2,
+                )
+            except Exception as cloud_delete_error:
+                if is_circuit_open_error(cloud_delete_error) or is_transient_supabase_error(cloud_delete_error):
+                    cloud_sync_deferred = True
+                    logger.warning(
+                        f"Cloud cleanup deferred for revised bill {bill_id}: {cloud_delete_error}"
+                    )
+                else:
+                    logger.warning(f"Cloud cleanup failed for revised bill {bill_id}: {cloud_delete_error}")
+                    return False, f"Stock restored but cloud cleanup failed: {cloud_delete_error}", 500
+        else:
+            cloud_sync_deferred = True
+            logger.info(
+                f"Skipped cloud cleanup for revised bill {bill_id} because cloud restock was deferred"
             )
-            execute_with_retry(
-                lambda: client.table("bills").delete().eq("id", bill_id),
-                f"bill delete for revised bill {bill_id}",
-                retries=2,
-            )
-        except Exception as cloud_delete_error:
-            logger.warning(f"Cloud cleanup failed for revised bill {bill_id}: {cloud_delete_error}")
-            return False, f"Stock restored but cloud cleanup failed: {cloud_delete_error}", 500
 
         logger.info(f"Bill revised successfully: {bill_id}")
+        if cloud_sync_deferred:
+            return True, "Bill revised locally; cloud sync deferred", 200
         return True, "Bill revised: stock restored and bill data removed", 200
 
     except Exception as e:
