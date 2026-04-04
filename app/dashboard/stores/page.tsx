@@ -112,6 +112,7 @@ type TransferOrderItem = {
     barcode?: string
     sellingPrice?: number
     selling_price?: number
+    batchNumber?: string
   }
 }
 
@@ -322,6 +323,7 @@ function StoreInsightModal({
     Number(item.products?.sellingPrice ?? item.products?.selling_price ?? 0);
   const getItemName = (item: TransferOrderItem) => item.products?.name || "Unknown Product";
   const getItemBarcode = (item: TransferOrderItem) => item.products?.barcode || "-";
+  const getItemBatchNumber = (item: TransferOrderItem) => item.products?.batchNumber || "-";
   const getOrderStatus = (order: TransferOrder) => String(order.status || "pending").toLowerCase();
 
   const isPendingOrder = (order: TransferOrder) => {
@@ -687,6 +689,7 @@ function StoreInsightModal({
             <td>${idx + 1}</td>
             <td>${escapeHtml(getItemBarcode(item))}</td>
             <td>${escapeHtml(getItemName(item))}</td>
+            <td>${escapeHtml(getItemBatchNumber(item))}</td>
             <td style="text-align:right">${qty}</td>
             <td style="text-align:right">₹${amount.toFixed(2)}</td>
           </tr>
@@ -734,6 +737,7 @@ function StoreInsightModal({
                 <th>S.No</th>
                 <th>Product Barcode</th>
                 <th>Product Name</th>
+                <th>Batch</th>
                 <th class="right">Quantity</th>
                 <th class="right">Amount</th>
               </tr>
@@ -741,7 +745,7 @@ function StoreInsightModal({
             <tbody>${rows}</tbody>
             <tfoot>
               <tr>
-                <td colspan="3">Total</td>
+                <td colspan="4">Total</td>
                 <td class="right">${orderTotals.totalProducts}</td>
                 <td class="right">₹${orderTotals.totalAmount.toFixed(2)}</td>
               </tr>
@@ -1090,6 +1094,7 @@ function StoreInsightModal({
                             <TableHead>S.No</TableHead>
                             <TableHead>Barcode</TableHead>
                             <TableHead>Product Name</TableHead>
+                            <TableHead>Batch</TableHead>
                             <TableHead className="text-right">Qty</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
@@ -1106,6 +1111,7 @@ function StoreInsightModal({
                                 <TableCell>{idx + 1}</TableCell>
                                 <TableCell className="font-mono">{getItemBarcode(item)}</TableCell>
                                 <TableCell>{getItemName(item)}</TableCell>
+                                <TableCell className="font-mono">{getItemBatchNumber(item)}</TableCell>
                                 <TableCell className="text-right font-medium">{qty}</TableCell>
                                 <TableCell>
                                   <Badge variant={statusMeta.variant}>
@@ -1121,7 +1127,7 @@ function StoreInsightModal({
                         </TableBody>
                         <TableFooter>
                           <TableRow>
-                            <TableCell colSpan={3} className="font-semibold">Total</TableCell>
+                            <TableCell colSpan={4} className="font-semibold">Total</TableCell>
                             <TableCell className="text-right font-semibold">{orderTotals.totalProducts}</TableCell>
                             <TableCell></TableCell>
                             <TableCell className="text-right font-semibold text-lg">

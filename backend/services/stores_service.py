@@ -1094,6 +1094,7 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
             }
         )
         product_map: Dict[str, Dict[str, Any]] = {}
+        batch_ids = set()
         if product_ids:
             try:
                 products_response = execute_with_retry(
@@ -1104,8 +1105,27 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
                     pid = str(prod.get("id") or "").strip()
                     if pid:
                         product_map[pid] = prod
+                        batch_id = str(prod.get("batchid") or "").strip()
+                        if batch_id:
+                            batch_ids.add(batch_id)
             except Exception as product_error:
                 logger.warning("Failed to enrich transfer-order products for %s: %s", order_id, product_error)
+
+        # Fetch batch numbers for all batch IDs
+        batch_map: Dict[str, str] = {}
+        if batch_ids:
+            try:
+                batches_response = execute_with_retry(
+                    lambda: client.table("batch").select("id, batch_number").in_("id", list(batch_ids)),
+                    f"transfer order batches {order_id}",
+                )
+                for batch in batches_response.data or []:
+                    batch_id = str(batch.get("id") or "").strip()
+                    batch_number = str(batch.get("batch_number") or "").strip()
+                    if batch_id:
+                        batch_map[batch_id] = batch_number
+            except Exception as batch_error:
+                logger.warning("Failed to enrich transfer-order batches for %s: %s", order_id, batch_error)
 
         normalized_items = []
         for item in items:
@@ -1116,6 +1136,8 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
             missing = max(0, assigned - verified - damaged - wrong_store)
             product_id = str(item.get("product_id") or "").strip()
             product_meta = product_map.get(product_id, {})
+            batch_id = str(product_meta.get("batchid") or "").strip()
+            batch_number = batch_map.get(batch_id, "-") if batch_id else "-"
             normalized_items.append(
                 convert_snake_to_camel(
                     {
@@ -1126,6 +1148,7 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
                             "name": product_meta.get("name"),
                             "barcode": product_meta.get("barcode"),
                             "selling_price": product_meta.get("selling_price") or product_meta.get("sellingPrice"),
+                            "batch_number": batch_number,
                         },
                     }
                 )
