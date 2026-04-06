@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { differenceInCalendarDays, eachDayOfInterval, endOfDay, format, startOfDay, subDays } from 'date-fns'
+import { differenceInCalendarDays, endOfDay, format, startOfDay, subDays } from 'date-fns'
 import * as XLSX from 'xlsx'
 import {
   AlertTriangle,
   BarChart3,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   DollarSign,
   Download,
   Package,
@@ -92,6 +94,7 @@ interface Bill {
 interface StoreRecord {
   id: string
   name: string
+  address: string
   status: string
 }
 
@@ -129,6 +132,7 @@ interface DailyStats {
 interface StoreAnalytics {
   storeId: string
   storeName: string
+  storeAddress: string
   revenue: number
   discount: number
   bills: number
@@ -171,13 +175,6 @@ interface InventoryAnalytics {
   potentialProfit: number
 }
 
-interface CategoryAnalytics {
-  category: string
-  revenue: number
-  quantity: number
-  bills: number
-  productCount: number
-}
 
 interface StoreNonSellingStats {
   storeId: string
@@ -219,9 +216,7 @@ type TabValue =
   | 'revenue'
   | 'stores'
   | 'products'
-  | 'categories'
   | 'inventory'
-  | 'nonselling'
   | 'returns'
 
 const formatCurrency = (value: number): string =>
@@ -287,6 +282,7 @@ const normalizeStores = (rawStores: any[]): StoreRecord[] => {
   return rawStores.map((store) => ({
     id: String(store.id || ''),
     name: store.name || 'Unknown Store',
+    address: store.address || '',
     status: String(store.status || 'active').toLowerCase(),
   }))
 }
@@ -339,22 +335,182 @@ const summarizeBills = (rows: Bill[]): MetricSummary => {
   }
 }
 
-const buildSheet = (rows: Array<Record<string, unknown>>) => {
-  const sheet = XLSX.utils.json_to_sheet(rows)
+const CURRENCY_KEYS = new Set([
+  'revenue', 'gross_sales', 'replacement_amount', 'replacements', 'returns_amount',
+  'returns_refunded', 'net_revenue', 'net_sales', 'discount', 'total_discount',
+  'avg_bill', 'average_bill_value', 'avg_selling_price', 'return_amount', 'refund_amount',
+  'cost_price', 'selling_price', 'margin_per_unit', 'profit_per_unit', 'cost_value',
+  'total_cost_value', 'potential_sales_value', 'total_selling_value', 'potential_profit',
+  'total_potential_profit', 'blocked_value', 'amount', 'credit', 'debit',
+])
+
+const PCT_KEYS = new Set(['margin_pct', 'profit_margin'])
+
+const HEADER_LABELS: Record<string, string> = {
+  // Summary / general
+  sl_no: 'Sl. No.',
+  report_generated_at: 'Report Generated At',
+  selected_store: 'Store',
+  date_range_days: 'Period (Days)',
+  range_start: 'From Date',
+  range_end: 'To Date',
+  description: 'Description',
+  value: 'Value',
+
+  // Revenue
+  date: 'Date',
+  month: 'Month',
+  gross_sales: 'Gross Sales (₹)',
+  replacements: 'Replacements (₹)',
+  returns_refunded: 'Returns / Refunds (₹)',
+  net_sales: 'Net Sales (₹)',
+  total_discount: 'Discount Given (₹)',
+  total_bills: 'No. of Bills',
+  total_items_sold: 'Items Sold',
+  average_bill_value: 'Avg. Bill Value (₹)',
+
+  // Stores
+  store_name: 'Store Name',
+  store_address: 'Store Address',
+  revenue: 'Revenue (₹)',
+  discount: 'Discount (₹)',
+  bills: 'No. of Bills',
+  items: 'Items Sold',
+  avg_bill: 'Avg. Bill Value (₹)',
+
+  // Products
+  product_name: 'Product Name',
+  quantity: 'Qty Sold',
+  avg_selling_price: 'Avg. Selling Price (₹)',
+  last_sold: 'Last Sold On',
+
+  // Inventory
+  stock: 'Current Stock (Units)',
+  cost_price: 'Cost Price (₹)',
+  selling_price: 'Selling Price (₹)',
+  profit_per_unit: 'Profit / Unit (₹)',
+  profit_margin: 'Profit Margin (%)',
+  total_cost_value: 'Total Cost Value (₹)',
+  total_selling_value: 'Total Selling Value (₹)',
+  total_potential_profit: 'Total Potential Profit (₹)',
+
+  // Returns
+  return_date: 'Return Date',
+  return_id: 'Return ID',
+  product_returned: 'Product Returned',
+  return_status: 'Status',
+  refund_amount: 'Refund Amount (₹)',
+
+  // Ledger
+  transaction_date: 'Transaction Date',
+  type: 'Type',
+  reference_id: 'Reference ID',
+  store: 'Store',
+  status: 'Status',
+  credit: 'Credit (₹)',
+  debit: 'Debit (₹)',
+  amount: 'Net Amount (₹)',
+  remarks: 'Remarks',
+
+  // Bills
+  bill_id: 'Bill / Invoice No.',
+  total_items: 'Total Items',
+  net_sales: 'Net Sales (₹)',
+  gross_sales: 'Gross Sales (₹)',
+  total_discount: 'Discount (₹)',
+  total_bills: 'No. of Bills',
+  total_items_sold: 'Items Sold',
+  average_bill_value: 'Avg. Bill Value (₹)',
+}
+
+interface BuildSheetOpts {
+  hasTotalRow?: boolean
+  title?: string
+  subtitle?: string
+  notes?: string[]
+}
+
+const buildSheet = (
+  rows: Array<Record<string, unknown>>,
+  opts?: BuildSheetOpts,
+) => {
+  const hasTotalRow = opts?.hasTotalRow ?? true
+  const title = opts?.title
+  const subtitle = opts?.subtitle
+  const notes = opts?.notes || []
   const keys = rows.length > 0 ? Object.keys(rows[0]) : []
-  sheet['!cols'] = keys.map((key) => {
+
+  const headerRow = keys.map(
+    (k) => HEADER_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+  )
+
+  const aoa: unknown[][] = []
+
+  // Title block
+  if (title) {
+    aoa.push([title])
+    if (subtitle) aoa.push([subtitle])
+    aoa.push([]) // blank spacer
+  }
+
+  const headerRowIdx = aoa.length
+  aoa.push(headerRow)
+  rows.forEach((row) => {
+    aoa.push(keys.map((k) => (row as Record<string, unknown>)[k] ?? ''))
+  })
+
+  // Notes at the bottom
+  if (notes.length > 0) {
+    aoa.push([]) // spacer
+    notes.forEach((note) => aoa.push([note]))
+  }
+
+  const sheet = XLSX.utils.aoa_to_sheet(aoa)
+
+  // Merges — title rows and notes
+  const merges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> = []
+  if (title && keys.length > 1) {
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: keys.length - 1 } })
+    if (subtitle) merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: keys.length - 1 } })
+  }
+  const notesStartRow = headerRowIdx + rows.length + 1 + (notes.length > 0 ? 1 : 0)
+  notes.forEach((_, i) => {
+    if (keys.length > 1) {
+      merges.push({ s: { r: notesStartRow + i, c: 0 }, e: { r: notesStartRow + i, c: keys.length - 1 } })
+    }
+  })
+  if (merges.length > 0) sheet['!merges'] = merges
+
+  // Column widths
+  sheet['!cols'] = keys.map((key, idx) => {
+    const label = headerRow[idx]
     const maxValueLen = rows.reduce((max, row) => {
       const text = String((row as Record<string, unknown>)[key] ?? '')
       return Math.max(max, text.length)
-    }, key.length)
-    return { wch: Math.min(Math.max(maxValueLen + 2, 12), 45) }
+    }, label.length)
+    return { wch: Math.min(Math.max(maxValueLen + 4, 15), 55) }
   })
+
+  // Row heights for header
+  sheet['!rows'] = []
+  if (title) {
+    sheet['!rows'][0] = { hpt: 28 }
+    if (subtitle) sheet['!rows'][1] = { hpt: 20 }
+  }
+  sheet['!rows'][headerRowIdx] = { hpt: 24 }
+
+  // Auto-filter
   sheet['!autofilter'] = {
     ref: XLSX.utils.encode_range({
-      s: { r: 0, c: 0 },
-      e: { r: Math.max(rows.length, 1), c: Math.max(keys.length - 1, 0) },
+      s: { r: headerRowIdx, c: 0 },
+      e: { r: headerRowIdx + Math.max(rows.length, 1), c: Math.max(keys.length - 1, 0) },
     }),
   }
+
+  // Freeze panes
+  sheet['!freeze'] = { xSplit: 0, ySplit: headerRowIdx + 1 }
+
+  // Styling
   const range = sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : null
   if (range) {
     for (let r = range.s.r; r <= range.e.r; r += 1) {
@@ -362,19 +518,83 @@ const buildSheet = (rows: Array<Record<string, unknown>>) => {
         const ref = XLSX.utils.encode_cell({ r, c })
         const cell = (sheet as any)[ref]
         if (!cell) continue
-        const isHeader = r === 0
-        const isTotal = r === range.e.r
-        cell.s = {
-          border: {
-            top: { style: 'thin', color: { rgb: 'D1D5DB' } },
-            right: { style: 'thin', color: { rgb: 'D1D5DB' } },
-            bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
-            left: { style: 'thin', color: { rgb: 'D1D5DB' } },
-          },
-          ...(isHeader
-            ? { fill: { patternType: 'solid', fgColor: { rgb: 'E2E8F0' } }, font: { bold: true } }
-            : {}),
-          ...(isTotal ? { font: { bold: true } } : {}),
+
+        const isTitleRow = title ? r === 0 : false
+        const isSubtitleRow = title && subtitle ? r === 1 : false
+        const isHeaderRow = r === headerRowIdx
+        const isTotalRow = hasTotalRow && rows.length > 1 && r === headerRowIdx + rows.length
+        const isDataRow = r > headerRowIdx && r < headerRowIdx + rows.length + 1 && !isTotalRow
+        const isEvenDataRow = isDataRow && (r - headerRowIdx) % 2 === 0
+        const isNoteRow = r >= notesStartRow
+        const colKey = keys[c] || ''
+        const isCurrency = CURRENCY_KEYS.has(colKey)
+        const isPct = PCT_KEYS.has(colKey)
+        const isNumeric = isCurrency || isPct || typeof cell.v === 'number'
+
+        const thinBorder = {
+          top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          right: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+          left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        }
+
+        if (isTitleRow) {
+          cell.s = {
+            font: { bold: true, sz: 15, color: { rgb: '1E293B' } },
+            fill: { patternType: 'solid', fgColor: { rgb: 'DBEAFE' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+          }
+        } else if (isSubtitleRow) {
+          cell.s = {
+            font: { italic: true, sz: 10, color: { rgb: '64748B' } },
+            fill: { patternType: 'solid', fgColor: { rgb: 'EFF6FF' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+          }
+        } else if (isHeaderRow) {
+          cell.s = {
+            font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+            fill: { patternType: 'solid', fgColor: { rgb: '1E40AF' } },
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+            border: thinBorder,
+          }
+        } else if (isTotalRow) {
+          cell.s = {
+            font: { bold: true, sz: 11, color: { rgb: '1E293B' } },
+            fill: { patternType: 'solid', fgColor: { rgb: 'FEF3C7' } },
+            border: {
+              top: { style: 'double', color: { rgb: '1E40AF' } },
+              right: { style: 'thin', color: { rgb: 'CBD5E1' } },
+              bottom: { style: 'double', color: { rgb: '1E40AF' } },
+              left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+            },
+            alignment: isNumeric ? { horizontal: 'right' } : {},
+            numFmt: isCurrency ? '#,##0.00' : isPct ? '0.0"%"' : undefined,
+          }
+        } else if (isNoteRow) {
+          cell.s = {
+            font: { italic: true, sz: 9, color: { rgb: '64748B' } },
+            alignment: { wrapText: true },
+          }
+        } else {
+          cell.s = {
+            border: thinBorder,
+            font: { sz: 10 },
+            alignment: isNumeric ? { horizontal: 'right' } : { vertical: 'center' },
+            numFmt: isCurrency ? '#,##0.00' : isPct ? '0.0"%"' : undefined,
+            ...(isEvenDataRow
+              ? { fill: { patternType: 'solid', fgColor: { rgb: 'F8FAFC' } } }
+              : {}),
+          }
+        }
+
+        // Number formats
+        if (isCurrency && typeof cell.v === 'number') {
+          cell.t = 'n'
+          cell.z = '#,##0.00'
+        }
+        if (isPct && typeof cell.v === 'number') {
+          cell.t = 'n'
+          cell.z = '0.0"%"'
         }
       }
     }
@@ -459,11 +679,14 @@ export default function AnalyticsPage() {
   const [rangeFrom, setRangeFrom] = useState(format(subDays(new Date(), 29), 'yyyy-MM-dd'))
   const [rangeTo, setRangeTo] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [exportStore, setExportStore] = useState('all')
   const [activeTab, setActiveTab] = useState<TabValue>('overview')
   const [loading, setLoading] = useState(true)
   const [authChecked, setAuthChecked] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [productSearch, setProductSearch] = useState('')
+  const [revenueMonth, setRevenueMonth] = useState(new Date().getMonth())
+  const [revenueYear, setRevenueYear] = useState(new Date().getFullYear())
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('adminLoggedIn')
@@ -594,29 +817,26 @@ export default function AnalyticsPage() {
   const dailyStats = useMemo((): DailyStats[] => {
     const statsByDate = new Map<string, DailyStats>()
 
-    eachDayOfInterval({ start: dateWindows.currentStart, end: dateWindows.currentEnd }).forEach((day) => {
-      const key = format(day, 'yyyy-MM-dd')
-      statsByDate.set(key, {
-        date: key,
-        revenue: 0,
-        replacementAmount: 0,
-        returnsAmount: 0,
-        netRevenue: 0,
-        discount: 0,
-        bills: 0,
-        items: 0,
-        avgBill: 0,
-      })
-    })
-
     filteredBills.forEach((bill) => {
       const date = parseDate(bill.createdAt || bill.timestamp)
       if (!date) return
 
       const key = format(date, 'yyyy-MM-dd')
-      const bucket = statsByDate.get(key)
-      if (!bucket) return
+      if (!statsByDate.has(key)) {
+        statsByDate.set(key, {
+          date: key,
+          revenue: 0,
+          replacementAmount: 0,
+          returnsAmount: 0,
+          netRevenue: 0,
+          discount: 0,
+          bills: 0,
+          items: 0,
+          avgBill: 0,
+        })
+      }
 
+      const bucket = statsByDate.get(key)!
       const effectiveTotal = getEffectiveBillTotal(bill)
       bucket.revenue += effectiveTotal
       if (bill.isReplacement) {
@@ -633,8 +853,46 @@ export default function AnalyticsPage() {
       bucket.avgBill = bucket.bills > 0 ? bucket.revenue / bucket.bills : 0
     })
 
-    return Array.from(statsByDate.values())
-  }, [filteredBills, dateWindows, approvedReturnsByDate])
+    return Array.from(statsByDate.values()).sort((a, b) => a.date.localeCompare(b.date))
+  }, [filteredBills, approvedReturnsByDate])
+
+  const revenueYearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear()
+    const years: number[] = []
+    for (let y = 2025; y <= currentYear; y++) years.push(y)
+    return years
+  }, [])
+
+  const filteredDailyStats = useMemo(() => {
+    return dailyStats.filter((row) => {
+      const d = new Date(row.date)
+      return d.getFullYear() === revenueYear && d.getMonth() === revenueMonth
+    })
+  }, [dailyStats, revenueMonth, revenueYear])
+
+  const isAtMinMonth = revenueYear === 2025 && revenueMonth === 0
+  const now = new Date()
+  const isAtMaxMonth = revenueYear === now.getFullYear() && revenueMonth === now.getMonth()
+
+  const handleRevenuePrevMonth = useCallback(() => {
+    if (isAtMinMonth) return
+    if (revenueMonth === 0) {
+      setRevenueYear(revenueYear - 1)
+      setRevenueMonth(11)
+    } else {
+      setRevenueMonth(revenueMonth - 1)
+    }
+  }, [revenueMonth, revenueYear, isAtMinMonth])
+
+  const handleRevenueNextMonth = useCallback(() => {
+    if (isAtMaxMonth) return
+    if (revenueMonth === 11) {
+      setRevenueYear(revenueYear + 1)
+      setRevenueMonth(0)
+    } else {
+      setRevenueMonth(revenueMonth + 1)
+    }
+  }, [revenueMonth, revenueYear, isAtMaxMonth])
 
   const storeAnalytics = useMemo((): StoreAnalytics[] => {
     const storeMap = new Map<string, StoreAnalytics>()
@@ -643,6 +901,7 @@ export default function AnalyticsPage() {
       storeMap.set(store.id, {
         storeId: store.id,
         storeName: store.name,
+        storeAddress: store.address,
         revenue: 0,
         discount: 0,
         bills: 0,
@@ -658,6 +917,7 @@ export default function AnalyticsPage() {
         storeMap.set(bill.storeId, {
           storeId: bill.storeId,
           storeName: bill.storeName || 'Unknown Store',
+          storeAddress: '',
           revenue: 0,
           discount: 0,
           bills: 0,
@@ -778,51 +1038,6 @@ export default function AnalyticsPage() {
     return rows.sort((a, b) => b.momentum - a.momentum)
   }, [currentSalesMap, previousSalesMap])
 
-  const categoryAnalytics = useMemo((): CategoryAnalytics[] => {
-    const map = new Map<
-      string,
-      { revenue: number; quantity: number; billIds: Set<string>; soldProductIds: Set<string> }
-    >()
-
-    filteredBills.forEach((bill) => {
-      bill.items.forEach((item) => {
-        const category = productCategoryMap.get(item.productId) || 'Uncategorized'
-
-        if (!map.has(category)) {
-          map.set(category, {
-            revenue: 0,
-            quantity: 0,
-            billIds: new Set<string>(),
-            soldProductIds: new Set<string>(),
-          })
-        }
-
-        const stats = map.get(category)
-        if (!stats) return
-
-        stats.revenue += item.total
-        stats.quantity += item.quantity
-        stats.billIds.add(bill.id)
-        if (item.productId) stats.soldProductIds.add(item.productId)
-      })
-    })
-
-    const productCountByCategory = new Map<string, number>()
-    products.forEach((product) => {
-      const category = product.category || 'Uncategorized'
-      productCountByCategory.set(category, (productCountByCategory.get(category) || 0) + 1)
-    })
-
-    return Array.from(map.entries())
-      .map(([category, stats]) => ({
-        category,
-        revenue: stats.revenue,
-        quantity: stats.quantity,
-        bills: stats.billIds.size,
-        productCount: productCountByCategory.get(category) || 0,
-      }))
-      .sort((a, b) => b.revenue - a.revenue)
-  }, [filteredBills, productCategoryMap, products])
 
   const nonSellingProducts90Days = useMemo(() => {
     return products
@@ -1102,7 +1317,6 @@ export default function AnalyticsPage() {
   const topProducts = filteredProductAnalytics.slice(0, 15)
   const topTrending = trendingProducts.slice(0, 15)
   const topMarginProducts = inventoryAnalytics.slice(0, 15)
-  const topCategories = categoryAnalytics.slice(0, 10)
 
   const marginComparisonData = topMarginProducts.map((row) => ({
     productName: row.productName,
@@ -1118,128 +1332,262 @@ export default function AnalyticsPage() {
   const exportAnalyticsWorkbook = useCallback(() => {
     const timestamp = format(new Date(), 'yyyyMMdd_HHmmss')
     const workbook = XLSX.utils.book_new()
+    const rangeLabel = `${format(dateWindows.currentStart, 'dd MMM yyyy')} to ${format(dateWindows.currentEnd, 'dd MMM yyyy')}`
+    const generatedAt = format(new Date(), 'dd MMM yyyy, hh:mm a')
+
+    // ── Derive all export data from exportStore (independent of page filter) ──
+    const expStoreName =
+      exportStore === 'all'
+        ? 'All Stores'
+        : stores.find((s) => s.id === exportStore)?.name || 'Unknown Store'
+
+    const expBillsByStore = bills.filter(
+      (bill) => exportStore === 'all' || bill.storeId === exportStore,
+    )
+    const expFilteredBills = expBillsByStore.filter((bill) => {
+      const date = parseDate(bill.createdAt || bill.timestamp)
+      return !!date && date >= dateWindows.currentStart && date <= dateWindows.currentEnd
+    })
+
+    const expReturns = returns.filter((item) => {
+      const date = parseDate(item.createdAt)
+      if (!date || date < dateWindows.currentStart || date > dateWindows.currentEnd) return false
+      if (exportStore !== 'all' && item.storeId !== exportStore) return false
+      return true
+    })
+
+    const expApprovedReturnsByDate = new Map<string, number>()
+    expReturns.forEach((item) => {
+      if (item.status !== 'approved') return
+      const date = parseDate(item.createdAt)
+      if (!date) return
+      const key = format(date, 'yyyy-MM-dd')
+      expApprovedReturnsByDate.set(key, (expApprovedReturnsByDate.get(key) || 0) + item.returnAmount)
+    })
+
+    const expSummary = summarizeBills(expFilteredBills)
+    const expReplacementAmount = expFilteredBills
+      .filter((b) => b.isReplacement)
+      .reduce((sum, b) => sum + getEffectiveBillTotal(b), 0)
+    const expReturnsAmount = expReturns
+      .filter((r) => r.status === 'approved')
+      .reduce((sum, r) => sum + r.returnAmount, 0)
+    const expNetRevenue = expSummary.revenue - expReturnsAmount
+
+    // Daily stats (only dates with data)
+    const expDailyMap = new Map<string, DailyStats>()
+    expFilteredBills.forEach((bill) => {
+      const date = parseDate(bill.createdAt || bill.timestamp)
+      if (!date) return
+      const key = format(date, 'yyyy-MM-dd')
+      if (!expDailyMap.has(key)) {
+        expDailyMap.set(key, {
+          date: key, revenue: 0, replacementAmount: 0, returnsAmount: 0,
+          netRevenue: 0, discount: 0, bills: 0, items: 0, avgBill: 0,
+        })
+      }
+      const bucket = expDailyMap.get(key)!
+      const effectiveTotal = getEffectiveBillTotal(bill)
+      bucket.revenue += effectiveTotal
+      if (bill.isReplacement) bucket.replacementAmount += effectiveTotal
+      bucket.discount += bill.discountAmount
+      bucket.bills += 1
+      bucket.items += bill.items.reduce((sum, item) => sum + item.quantity, 0)
+    })
+    expDailyMap.forEach((bucket) => {
+      bucket.returnsAmount = expApprovedReturnsByDate.get(bucket.date) || 0
+      bucket.netRevenue = bucket.revenue - bucket.returnsAmount
+      bucket.avgBill = bucket.bills > 0 ? bucket.revenue / bucket.bills : 0
+    })
+    const expDailyStats = Array.from(expDailyMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+
+    // Store analytics
+    const expStoreMap = new Map<string, StoreAnalytics>()
+    const scopedStores = exportStore === 'all' ? stores : stores.filter((s) => s.id === exportStore)
+    scopedStores.forEach((store) => {
+      expStoreMap.set(store.id, {
+        storeId: store.id, storeName: store.name, storeAddress: store.address,
+        revenue: 0, discount: 0, bills: 0, items: 0, avgBill: 0,
+      })
+    })
+    expFilteredBills.forEach((bill) => {
+      if (!bill.storeId) return
+      if (!expStoreMap.has(bill.storeId)) {
+        expStoreMap.set(bill.storeId, {
+          storeId: bill.storeId, storeName: bill.storeName || 'Unknown Store', storeAddress: '',
+          revenue: 0, discount: 0, bills: 0, items: 0, avgBill: 0,
+        })
+      }
+      const s = expStoreMap.get(bill.storeId)!
+      const effectiveTotal = getEffectiveBillTotal(bill)
+      s.revenue += effectiveTotal
+      s.discount += bill.discountAmount
+      s.bills += 1
+      s.items += bill.items.reduce((sum, item) => sum + item.quantity, 0)
+    })
+    expStoreMap.forEach((s) => { s.avgBill = s.bills > 0 ? s.revenue / s.bills : 0 })
+    const expStoreAnalytics = Array.from(expStoreMap.values()).sort((a, b) => b.revenue - a.revenue)
+
+    // Product analytics
+    const expProductMap = new Map<string, {
+      productId: string; productName: string; quantity: number; revenue: number;
+      discount: number; billIds: Set<string>; avgSellingPrice: number; lastSoldAt: string;
+    }>()
+    expFilteredBills.forEach((bill) => {
+      bill.items.forEach((item) => {
+        if (!expProductMap.has(item.productId)) {
+          expProductMap.set(item.productId, {
+            productId: item.productId, productName: item.productName,
+            quantity: 0, revenue: 0, discount: 0, billIds: new Set(),
+            avgSellingPrice: 0, lastSoldAt: '',
+          })
+        }
+        const p = expProductMap.get(item.productId)!
+        p.quantity += item.quantity
+        p.revenue += item.total
+        p.billIds.add(bill.id)
+        const billDate = bill.createdAt || bill.timestamp
+        if (billDate > p.lastSoldAt) p.lastSoldAt = billDate
+      })
+    })
+    const expProductAnalytics = Array.from(expProductMap.values())
+      .map((p) => ({
+        ...p,
+        bills: p.billIds.size,
+        avgSellingPrice: p.quantity > 0 ? p.revenue / p.quantity : 0,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+
     const shouldUseMonthlyRevenue = selectedRangeDays > 30
 
-    const summaryRows = appendTotalRow(
-      [
-      {
-        report_generated_at: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
-        active_tab: activeTab,
-        selected_store: selectedStoreName,
-        date_range_days: selectedRangeDays,
-        range_start: format(dateWindows.currentStart, 'yyyy-MM-dd'),
-        range_end: format(dateWindows.currentEnd, 'yyyy-MM-dd'),
-        revenue: Number(currentSummary.revenue.toFixed(2)),
-        replacement_amount: Number(currentReplacementAmount.toFixed(2)),
-        returns_amount: Number(currentReturnsAmount.toFixed(2)),
-        net_revenue: Number(currentNetRevenue.toFixed(2)),
-        discount: Number(currentSummary.discount.toFixed(2)),
-        bills: currentSummary.bills,
-        items: currentSummary.items,
-        customers: currentSummary.customers,
-        avg_bill: Number(currentSummary.avgBill.toFixed(2)),
-      },
-      ],
-      [
-        'revenue',
-        'replacement_amount',
-        'returns_amount',
-        'net_revenue',
-        'discount',
-        'bills',
-        'items',
-        'customers',
-        'avg_bill',
-      ],
-      'report_generated_at',
-    )
-    XLSX.utils.book_append_sheet(workbook, buildSheet(summaryRows), 'Summary')
+    // Helper: resolve store name from id
+    const storeNameById = (id: string) => stores.find((s) => s.id === id)?.name || id
+    // Helper: resolve product name from id
+    const productNameById = (id: string) => products.find((p) => p.id === id)?.name || id
 
+    // ══════════════════════════════════════════
+    // 1. OVERVIEW
+    // ══════════════════════════════════════════
+    const summaryKV: Array<Record<string, unknown>> = [
+      { description: 'Report Generated On', value: generatedAt },
+      { description: 'Store', value: expStoreName },
+      { description: 'Report Period', value: rangeLabel },
+      { description: 'Number of Days', value: selectedRangeDays },
+      { description: '', value: '' },
+      { description: 'Gross Sales', value: Number(expSummary.revenue.toFixed(2)) },
+      { description: 'Replacements', value: Number(expReplacementAmount.toFixed(2)) },
+      { description: 'Returns / Refunds', value: Number(expReturnsAmount.toFixed(2)) },
+      { description: 'Net Sales (Gross − Returns)', value: Number(expNetRevenue.toFixed(2)) },
+      { description: 'Total Discount Given', value: Number(expSummary.discount.toFixed(2)) },
+      { description: '', value: '' },
+      { description: 'Total Bills Raised', value: expSummary.bills },
+      { description: 'Total Items Sold', value: expSummary.items },
+      { description: 'Unique Customers', value: expSummary.customers },
+      { description: 'Average Bill Value', value: Number(expSummary.avgBill.toFixed(2)) },
+      { description: '', value: '' },
+      { description: 'Inventory — Total Cost Value', value: Number(inventorySummary.totalCostValue.toFixed(2)) },
+      { description: 'Inventory — Potential Sales Value', value: Number(inventorySummary.totalPotentialSalesValue.toFixed(2)) },
+      { description: 'Inventory — Potential Profit', value: Number(inventorySummary.totalPotentialProfit.toFixed(2)) },
+      { description: 'Low Stock Products', value: inventorySummary.lowStockCount },
+      { description: 'Out of Stock Products', value: inventorySummary.outOfStockCount },
+    ]
+    XLSX.utils.book_append_sheet(
+      workbook,
+      buildSheet(summaryKV, {
+        hasTotalRow: false,
+        title: 'Business Overview',
+        subtitle: `${expStoreName} | ${rangeLabel} | Generated: ${generatedAt}`,
+        notes: [
+          'Note: Gross Sales includes all billed amounts. Net Sales = Gross Sales minus approved Returns/Refunds.',
+          'Replacement Amount is included in Gross Sales (items given as free replacements for defective goods).',
+          'Inventory values are as of the report generation date, not the end of the reporting period.',
+        ],
+      }),
+      'Overview',
+    )
+
+    // ══════════════════════════════════════════
+    // 2. SALES BREAKDOWN
+    // ══════════════════════════════════════════
     const monthlyRevenueRows = Array.from(
-      dailyStats.reduce((acc, row) => {
+      expDailyStats.reduce((acc, row) => {
         const monthKey = row.date.slice(0, 7)
         const prev = acc.get(monthKey) || {
-          month: monthKey,
-          revenue: 0,
-          replacement_amount: 0,
-          returns_amount: 0,
-          net_revenue: 0,
-          discount: 0,
-          bills: 0,
-          items: 0,
-          avg_bill: 0,
+          month: monthKey, revenue: 0, replacements: 0, returns: 0,
+          net: 0, discount: 0, bills: 0, items: 0, avg: 0,
         }
         prev.revenue += row.revenue
-        prev.replacement_amount += row.replacementAmount
-        prev.returns_amount += row.returnsAmount
-        prev.net_revenue += row.netRevenue
+        prev.replacements += row.replacementAmount
+        prev.returns += row.returnsAmount
+        prev.net += row.netRevenue
         prev.discount += row.discount
         prev.bills += row.bills
         prev.items += row.items
-        prev.avg_bill = prev.bills > 0 ? prev.revenue / prev.bills : 0
+        prev.avg = prev.bills > 0 ? prev.revenue / prev.bills : 0
         acc.set(monthKey, prev)
         return acc
       }, new Map<string, {
-        month: string
-        revenue: number
-        replacement_amount: number
-        returns_amount: number
-        net_revenue: number
-        discount: number
-        bills: number
-        items: number
-        avg_bill: number
-      }>())
-        .values(),
+        month: string; revenue: number; replacements: number;
+        returns: number; net: number; discount: number;
+        bills: number; items: number; avg: number
+      }>()).values(),
     )
 
-    const dailyRevenueRows = appendTotalRow(
+    const revenueSheetLabel = shouldUseMonthlyRevenue ? 'Monthly Sales' : 'Daily Sales'
+    const salesRows = appendTotalRow(
       shouldUseMonthlyRevenue
-        ? monthlyRevenueRows.map((row) => ({
+        ? monthlyRevenueRows.map((row, i) => ({
+            sl_no: i + 1,
             month: row.month,
-            revenue: Number(row.revenue.toFixed(2)),
-            replacement_amount: Number(row.replacement_amount.toFixed(2)),
-            returns_amount: Number(row.returns_amount.toFixed(2)),
-            net_revenue: Number(row.net_revenue.toFixed(2)),
-            discount: Number(row.discount.toFixed(2)),
-            bills: row.bills,
-            items: row.items,
-            avg_bill: Number(row.avg_bill.toFixed(2)),
+            gross_sales: Number(row.revenue.toFixed(2)),
+            replacements: Number(row.replacements.toFixed(2)),
+            returns_refunded: Number(row.returns.toFixed(2)),
+            net_sales: Number(row.net.toFixed(2)),
+            total_discount: Number(row.discount.toFixed(2)),
+            total_bills: row.bills,
+            total_items_sold: row.items,
+            average_bill_value: Number(row.avg.toFixed(2)),
           }))
-        : dailyStats.map((row) => ({
-            date: row.date,
-            revenue: Number(row.revenue.toFixed(2)),
-            replacement_amount: Number(row.replacementAmount.toFixed(2)),
-            returns_amount: Number(row.returnsAmount.toFixed(2)),
-            net_revenue: Number(row.netRevenue.toFixed(2)),
-            discount: Number(row.discount.toFixed(2)),
-            bills: row.bills,
-            items: row.items,
-            avg_bill: Number(row.avgBill.toFixed(2)),
+        : expDailyStats.map((row, i) => ({
+            sl_no: i + 1,
+            date: format(new Date(row.date), 'dd MMM yyyy'),
+            gross_sales: Number(row.revenue.toFixed(2)),
+            replacements: Number(row.replacementAmount.toFixed(2)),
+            returns_refunded: Number(row.returnsAmount.toFixed(2)),
+            net_sales: Number(row.netRevenue.toFixed(2)),
+            total_discount: Number(row.discount.toFixed(2)),
+            total_bills: row.bills,
+            total_items_sold: row.items,
+            average_bill_value: Number(row.avgBill.toFixed(2)),
           })),
       [
-        'revenue',
-        'replacement_amount',
-        'returns_amount',
-        'net_revenue',
-        'discount',
-        'bills',
-        'items',
-        'avg_bill',
+        'gross_sales', 'replacements', 'returns_refunded', 'net_sales',
+        'total_discount', 'total_bills', 'total_items_sold', 'average_bill_value',
       ],
-      shouldUseMonthlyRevenue ? 'month' : 'date',
+      'sl_no',
     )
-
     XLSX.utils.book_append_sheet(
       workbook,
-      buildSheet(dailyRevenueRows),
-      'Daily Revenue',
+      buildSheet(salesRows, {
+        title: `${revenueSheetLabel} Breakdown`,
+        subtitle: `${expStoreName} | ${rangeLabel}`,
+        notes: [
+          'Gross Sales = Total billed amount (including replacements).',
+          'Net Sales = Gross Sales minus Returns/Refunds. This is the actual revenue received.',
+          'Avg. Bill Value = Gross Sales ÷ Number of Bills.',
+        ],
+      }),
+      revenueSheetLabel,
     )
 
+    // ══════════════════════════════════════════
+    // 3. STORE-WISE PERFORMANCE
+    // ══════════════════════════════════════════
     const storeRows = appendTotalRow(
-      storeAnalytics.map((row) => ({
-        store_id: row.storeId,
+      expStoreAnalytics.map((row, i) => ({
+        sl_no: i + 1,
         store_name: row.storeName,
+        store_address: row.storeAddress || '—',
         revenue: Number(row.revenue.toFixed(2)),
         discount: Number(row.discount.toFixed(2)),
         bills: row.bills,
@@ -1247,110 +1595,221 @@ export default function AnalyticsPage() {
         avg_bill: Number(row.avgBill.toFixed(2)),
       })),
       ['revenue', 'discount', 'bills', 'items', 'avg_bill'],
-      'store_id',
+      'sl_no',
     )
-
     XLSX.utils.book_append_sheet(
       workbook,
-      buildSheet(storeRows),
+      buildSheet(storeRows, {
+        title: 'Store-wise Sales Performance',
+        subtitle: `${rangeLabel}`,
+        notes: [
+          'Revenue = Total billed amount for each store in the selected period.',
+          'Discount = Total discount given across all bills for that store.',
+        ],
+      }),
       'Stores',
     )
 
+    // ══════════════════════════════════════════
+    // 4. PRODUCT SALES
+    // ══════════════════════════════════════════
     const productRows = appendTotalRow(
-      filteredProductAnalytics.map((row) => ({
-        product_id: row.productId,
+      expProductAnalytics.map((row, i) => ({
+        sl_no: i + 1,
         product_name: row.productName,
         quantity: row.quantity,
         revenue: Number(row.revenue.toFixed(2)),
         discount: Number(row.discount.toFixed(2)),
         bills: row.bills,
         avg_selling_price: Number(row.avgSellingPrice.toFixed(2)),
-        last_sold: row.lastSoldAt || '',
+        last_sold: row.lastSoldAt ? format(new Date(row.lastSoldAt), 'dd MMM yyyy') : 'Not sold in period',
       })),
       ['quantity', 'revenue', 'discount', 'bills', 'avg_selling_price'],
-      'product_id',
+      'sl_no',
     )
-
     XLSX.utils.book_append_sheet(
       workbook,
-      buildSheet(productRows),
-      'Products',
+      buildSheet(productRows, {
+        title: 'Product-wise Sales Report',
+        subtitle: `${expStoreName} | ${rangeLabel}`,
+        notes: [
+          'Qty Sold = Total units sold across all bills in the period.',
+          'Avg. Selling Price = Revenue ÷ Qty Sold. May differ from MRP if discounts were applied.',
+          'Last Sold On = Most recent sale date within the reporting period.',
+        ],
+      }),
+      'Product Sales',
     )
-    const returnsRows = appendTotalRow(
-      returnsInPeriod.map((item) => ({
-        return_id: item.returnId,
-        product_id: item.productId,
-        status: item.status,
-        return_amount: Number(item.returnAmount.toFixed(2)),
-        discount: 0,
-        created_at: item.createdAt,
+
+    // ══════════════════════════════════════════
+    // 5. INVENTORY VALUATION & MARGINS
+    // ══════════════════════════════════════════
+    const inventoryRows = appendTotalRow(
+      inventoryAnalytics.map((row, i) => ({
+        sl_no: i + 1,
+        product_name: row.productName,
+        stock: row.stock,
+        cost_price: Number(row.costPrice.toFixed(2)),
+        selling_price: Number(row.sellingPrice.toFixed(2)),
+        profit_per_unit: Number(row.marginPerUnit.toFixed(2)),
+        profit_margin: row.marginPct !== null ? Number(row.marginPct.toFixed(1)) : 0,
+        total_cost_value: Number(row.costValue.toFixed(2)),
+        total_selling_value: Number(row.potentialSalesValue.toFixed(2)),
+        total_potential_profit: Number(row.potentialProfit.toFixed(2)),
       })),
-      ['return_amount', 'discount'],
-      'return_id',
+      ['stock', 'cost_price', 'selling_price', 'profit_per_unit', 'total_cost_value', 'total_selling_value', 'total_potential_profit'],
+      'sl_no',
     )
-
     XLSX.utils.book_append_sheet(
       workbook,
-      buildSheet(returnsRows),
+      buildSheet(inventoryRows, {
+        title: 'Inventory Valuation & Profit Margins',
+        subtitle: `As of ${generatedAt}`,
+        notes: [
+          'Cost Price = Purchase/procurement cost per unit.',
+          'Selling Price = Listed retail price per unit.',
+          'Profit / Unit = Selling Price minus Cost Price.',
+          'Profit Margin (%) = (Profit / Unit ÷ Cost Price) × 100.',
+          'Total Cost Value = Cost Price × Current Stock. This is the capital tied up in inventory.',
+          'Total Selling Value = Selling Price × Current Stock. This is the expected revenue if all stock is sold at listed price.',
+          'Total Potential Profit = Total Selling Value minus Total Cost Value.',
+        ],
+      }),
+      'Inventory',
+    )
+
+    // ══════════════════════════════════════════
+    // 6. RETURNS & REFUNDS
+    // ══════════════════════════════════════════
+    const returnsRows = appendTotalRow(
+      expReturns.map((item, i) => ({
+        sl_no: i + 1,
+        return_date: item.createdAt ? format(new Date(item.createdAt), 'dd MMM yyyy') : '',
+        return_id: item.returnId,
+        product_returned: productNameById(item.productId),
+        store: item.storeId ? storeNameById(item.storeId) : '—',
+        return_status: (item.status || 'pending').charAt(0).toUpperCase() + (item.status || 'pending').slice(1),
+        refund_amount: Number(item.returnAmount.toFixed(2)),
+      })),
+      ['refund_amount'],
+      'sl_no',
+    )
+    XLSX.utils.book_append_sheet(
+      workbook,
+      buildSheet(returnsRows, {
+        title: 'Returns & Refunds Register',
+        subtitle: `${expStoreName} | ${rangeLabel}`,
+        notes: [
+          'This sheet lists all return/refund transactions raised during the reporting period.',
+          'Status: Approved = refund processed; Pending = awaiting approval; Rejected = refund denied.',
+          'Refund Amount is deducted from Gross Sales to arrive at Net Sales in the Overview.',
+        ],
+      }),
       'Returns',
     )
 
-    const replacementReturnRows = [
-      ...filteredBills
+    // ══════════════════════════════════════════
+    // 7. REPLACEMENTS & RETURNS LEDGER
+    // ══════════════════════════════════════════
+    const ledgerRows = [
+      ...expFilteredBills
         .filter((bill) => bill.isReplacement)
         .map((bill) => {
           const date = parseDate(bill.createdAt || bill.timestamp)
-          const signedAmount = Math.round(getEffectiveBillTotal(bill))
+          const amt = Math.round(getEffectiveBillTotal(bill))
           return {
-            date: date ? format(date, 'yyyy-MM-dd HH:mm:ss') : '',
-            movement_type: 'replacement',
+            transaction_date: date ? format(date, 'dd MMM yyyy HH:mm') : '',
+            type: 'Replacement' as const,
             reference_id: bill.id,
-            store_id: bill.storeId || '',
-            status: 'completed',
-            signed_amount: `+${signedAmount}`,
-            amount_int: signedAmount,
+            store: bill.storeId ? storeNameById(bill.storeId) : '—',
+            status: 'Completed',
+            credit: amt,
+            debit: 0,
+            amount: amt,
+            remarks: 'Free replacement issued for defective/returned goods',
           }
         }),
-      ...returnsInPeriod.map((item) => {
+      ...expReturns.map((item) => {
         const date = parseDate(item.createdAt)
-        const signedAmount = -Math.round(item.returnAmount || 0)
+        const amt = Math.round(item.returnAmount || 0)
         return {
-          date: date ? format(date, 'yyyy-MM-dd HH:mm:ss') : '',
-          movement_type: 'return',
+          transaction_date: date ? format(date, 'dd MMM yyyy HH:mm') : '',
+          type: 'Return / Refund' as const,
           reference_id: item.returnId,
-          store_id: item.storeId || '',
-          status: item.status || 'pending',
-          signed_amount: `${signedAmount}`,
-          amount_int: signedAmount,
+          store: item.storeId ? storeNameById(item.storeId) : '—',
+          status: (item.status || 'pending').charAt(0).toUpperCase() + (item.status || 'pending').slice(1),
+          credit: 0,
+          debit: amt,
+          amount: -amt,
+          remarks: `Customer refund — ${productNameById(item.productId)}`,
         }
       }),
     ].sort((a, b) => {
-      const aTime = parseDate(a.date)?.getTime() || 0
-      const bTime = parseDate(b.date)?.getTime() || 0
+      const aTime = parseDate(a.transaction_date)?.getTime() || 0
+      const bTime = parseDate(b.transaction_date)?.getTime() || 0
       return bTime - aTime
     })
-
+    const numberedLedger = ledgerRows.map((row, i) => ({ sl_no: i + 1, ...row }))
     XLSX.utils.book_append_sheet(
       workbook,
-      buildSheet(replacementReturnRows),
-      'replacement-returns',
+      buildSheet(numberedLedger, {
+        hasTotalRow: false,
+        title: 'Replacements & Refunds Ledger',
+        subtitle: `${expStoreName} | ${rangeLabel}`,
+        notes: [
+          'Credit = Amount added (replacement goods issued). Debit = Amount refunded to customer.',
+          'Net Amount = Credit minus Debit. Positive = inflow, Negative = outflow.',
+          'This ledger can be used for reconciliation with bank statements and GST return filings.',
+        ],
+      }),
+      'Ledger',
     )
 
-    XLSX.writeFile(workbook, `analytics_full_report_${timestamp}.xlsx`, { cellStyles: true })
+    // ══════════════════════════════════════════
+    // 8. BILL-WISE DETAILS
+    // ══════════════════════════════════════════
+    const billDetailRows = expFilteredBills.map((bill, i) => {
+      const date = parseDate(bill.createdAt || bill.timestamp)
+      const effectiveTotal = getEffectiveBillTotal(bill)
+      return {
+        sl_no: i + 1,
+        date: date ? format(date, 'dd MMM yyyy') : '',
+        bill_id: bill.id,
+        store: bill.storeId ? storeNameById(bill.storeId) : '—',
+        total_items: bill.items.reduce((sum, item) => sum + item.quantity, 0),
+        gross_sales: Number(effectiveTotal.toFixed(2)),
+        total_discount: Number(bill.discountAmount.toFixed(2)),
+        net_sales: Number((effectiveTotal - bill.discountAmount).toFixed(2)),
+        type: bill.isReplacement ? 'Replacement' : 'Regular Sale',
+      }
+    })
+    XLSX.utils.book_append_sheet(
+      workbook,
+      buildSheet(billDetailRows, {
+        hasTotalRow: false,
+        title: 'Bill-wise Transaction Details',
+        subtitle: `${expStoreName} | ${rangeLabel} | ${expFilteredBills.length} bills`,
+        notes: [
+          'Each row represents one bill/invoice raised during the reporting period.',
+          'Replacement bills are goods issued free as replacements — they appear in Gross Sales but no payment is collected.',
+          'Use Bill ID to cross-reference with individual invoice records.',
+        ],
+      }),
+      'All Bills',
+    )
+
+    const safeStoreName = expStoreName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30)
+    XLSX.writeFile(workbook, `Sales_Report_${safeStoreName}_${timestamp}.xlsx`, { cellStyles: true })
   }, [
-    activeTab,
-    selectedStoreName,
+    exportStore,
     selectedRangeDays,
     dateWindows,
-    currentSummary,
-    currentReplacementAmount,
-    currentReturnsAmount,
-    currentNetRevenue,
-    dailyStats,
-    storeAnalytics,
-    filteredProductAnalytics,
-    filteredBills,
-    returnsInPeriod,
+    bills,
+    returns,
+    stores,
+    products,
+    inventorySummary,
+    inventoryAnalytics,
   ])
 
   if (!authChecked || loading) {
@@ -1372,7 +1831,7 @@ export default function AnalyticsPage() {
               <div>
                 <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Advanced Analytics</h1>
                 <p className="text-sm text-slate-600">
-                  Deep reporting with tab-level exports, category analysis, and non-selling detection.
+                  Deep reporting with sales breakdown, store performance, inventory valuation, and audit-ready exports.
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   {`Showing ${selectedRangeDays} day window (${format(
@@ -1431,7 +1890,12 @@ export default function AnalyticsPage() {
                     <SelectItem value="all">All Stores</SelectItem>
                     {stores.map((store) => (
                       <SelectItem key={store.id} value={store.id}>
-                        {store.name}
+                        <div>
+                          <span>{store.name}</span>
+                          {store.address && (
+                            <span className="ml-2 text-xs text-muted-foreground">{store.address}</span>
+                          )}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1448,6 +1912,7 @@ export default function AnalyticsPage() {
 
                 <Button
                   onClick={() => {
+                    setExportStore(selectedStore)
                     setExportDialogOpen(true)
                   }}
                   className="bg-emerald-500 text-slate-900 hover:bg-emerald-400"
@@ -1470,17 +1935,42 @@ export default function AnalyticsPage() {
             </DialogHeader>
 
             <div className="space-y-4">
-              <Select value={selectedDaysPreset} onValueChange={handleMainPresetChange}>
-                <SelectTrigger className="w-full border-slate-300 bg-white text-slate-800">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {RANGE_PRESETS.map((days) => (
-                    <SelectItem key={days} value={days.toString()}>{`Last ${days} Days`}</SelectItem>
-                  ))}
-                  <SelectItem value="custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Store</label>
+                <Select value={exportStore} onValueChange={setExportStore}>
+                  <SelectTrigger className="w-full border-slate-300 bg-white text-slate-800">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Stores</SelectItem>
+                    {stores.map((store) => (
+                      <SelectItem key={store.id} value={store.id}>
+                        <div>
+                          <span>{store.name}</span>
+                          {store.address && (
+                            <span className="ml-2 text-xs text-muted-foreground">{store.address}</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Date Range</label>
+                <Select value={selectedDaysPreset} onValueChange={handleMainPresetChange}>
+                  <SelectTrigger className="w-full border-slate-300 bg-white text-slate-800">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RANGE_PRESETS.map((days) => (
+                      <SelectItem key={days} value={days.toString()}>{`Last ${days} Days`}</SelectItem>
+                    ))}
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <Input
@@ -1660,14 +2150,8 @@ export default function AnalyticsPage() {
             <TabsTrigger value="products" className="rounded-lg">
               Products
             </TabsTrigger>
-            <TabsTrigger value="categories" className="rounded-lg">
-              Categories
-            </TabsTrigger>
             <TabsTrigger value="inventory" className="rounded-lg">
               Inventory
-            </TabsTrigger>
-            <TabsTrigger value="nonselling" className="rounded-lg">
-              Non-Selling
             </TabsTrigger>
             <TabsTrigger value="returns" className="rounded-lg">
               Returns
@@ -1733,13 +2217,48 @@ export default function AnalyticsPage() {
           </TabsContent>
 
           <TabsContent value="revenue" className="space-y-4">
+            {/* Month/Year Navigator */}
+            <div className="flex items-center justify-center gap-3">
+              <Button variant="outline" size="icon" onClick={handleRevenuePrevMonth} disabled={isAtMinMonth}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="min-w-[120px] text-center text-lg font-semibold">
+                {format(new Date(revenueYear, revenueMonth), 'MMMM')}
+              </span>
+              <Select
+                value={String(revenueYear)}
+                onValueChange={(val) => {
+                  const y = Number(val)
+                  setRevenueYear(y)
+                  const currentNow = new Date()
+                  if (y === currentNow.getFullYear() && revenueMonth > currentNow.getMonth()) {
+                    setRevenueMonth(currentNow.getMonth())
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {revenueYearOptions.map((y) => (
+                    <SelectItem key={y} value={String(y)}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="icon" onClick={handleRevenueNextMonth} disabled={isAtMaxMonth}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Revenue, Bills and Items by Day</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={360}>
-                  <LineChart data={dailyStats}>
+                  <LineChart data={filteredDailyStats}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tickFormatter={(value) => format(new Date(value), 'dd MMM')} />
                     <YAxis yAxisId="left" />
@@ -1794,7 +2313,14 @@ export default function AnalyticsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dailyStats.map((row) => (
+                    {filteredDailyStats.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center text-muted-foreground">
+                          No revenue data for this month.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {filteredDailyStats.map((row) => (
                       <TableRow key={row.date}>
                         <TableCell>{format(new Date(row.date), 'dd MMM yyyy')}</TableCell>
                         <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
@@ -1857,7 +2383,12 @@ export default function AnalyticsPage() {
                     )}
                     {storeAnalytics.map((storeRow) => (
                       <TableRow key={storeRow.storeId}>
-                        <TableCell className="font-medium">{storeRow.storeName}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">{storeRow.storeName}</div>
+                          {storeRow.storeAddress && (
+                            <div className="text-xs text-muted-foreground">{storeRow.storeAddress}</div>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">{formatCurrency(storeRow.revenue)}</TableCell>
                         <TableCell className="text-right">{storeRow.bills}</TableCell>
                         <TableCell className="text-right">{storeRow.items}</TableCell>
@@ -1935,7 +2466,6 @@ export default function AnalyticsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead>Category</TableHead>
                       <TableHead className="text-right">Qty Sold</TableHead>
                       <TableHead className="text-right">Revenue</TableHead>
                       <TableHead className="text-right">Bills</TableHead>
@@ -1946,7 +2476,7 @@ export default function AnalyticsPage() {
                   <TableBody>
                     {filteredProductAnalytics.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
                           No product sales in this period.
                         </TableCell>
                       </TableRow>
@@ -1954,7 +2484,6 @@ export default function AnalyticsPage() {
                     {filteredProductAnalytics.slice(0, 30).map((row) => (
                       <TableRow key={row.productId}>
                         <TableCell className="font-medium">{row.productName}</TableCell>
-                        <TableCell>{row.category}</TableCell>
                         <TableCell className="text-right">{row.quantity}</TableCell>
                         <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
                         <TableCell className="text-right">{row.bills}</TableCell>
@@ -1970,82 +2499,6 @@ export default function AnalyticsPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="categories" className="space-y-4">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card className={PANEL_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Revenue by Category</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={topCategories}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="category" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                      <Bar dataKey="revenue" fill="#2563eb" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card className={PANEL_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Quantity by Category</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <PieChart>
-                      <Pie data={topCategories} dataKey="quantity" nameKey="category" outerRadius={100} label>
-                        {topCategories.map((entry, index) => (
-                          <Cell key={`${entry.category}-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className={PANEL_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Category Performance Table</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Revenue</TableHead>
-                      <TableHead className="text-right">Qty Sold</TableHead>
-                      <TableHead className="text-right">Bills</TableHead>
-                      <TableHead className="text-right">Total Products</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {categoryAnalytics.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
-                          No category sales data in this period.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {categoryAnalytics.map((row) => (
-                      <TableRow key={row.category}>
-                        <TableCell className="font-medium">{row.category}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
-                        <TableCell className="text-right">{row.quantity}</TableCell>
-                        <TableCell className="text-right">{row.bills}</TableCell>
-                        <TableCell className="text-right">{row.productCount}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="inventory" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -2099,7 +2552,6 @@ export default function AnalyticsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead>Category</TableHead>
                       <TableHead className="text-right">Stock</TableHead>
                       <TableHead className="text-right">Cost</TableHead>
                       <TableHead className="text-right">Selling</TableHead>
@@ -2112,7 +2564,6 @@ export default function AnalyticsPage() {
                     {inventoryAnalytics.slice(0, 50).map((row) => (
                       <TableRow key={row.productId}>
                         <TableCell className="font-medium">{row.productName}</TableCell>
-                        <TableCell>{row.category}</TableCell>
                         <TableCell className="text-right">{row.stock}</TableCell>
                         <TableCell className="text-right">{formatCurrency(row.costPrice)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(row.sellingPrice)}</TableCell>
@@ -2133,80 +2584,6 @@ export default function AnalyticsPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="nonselling" className="space-y-4">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card className={PANEL_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Non-Selling Products by Store (90 Days)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={nonSellingByStoreChart}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="storeName" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="nonSellingCount" fill="#dc2626" name="Non-Selling Count" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card className={PANEL_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Overall Non-Selling (90 Days) by Blocked Value</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={nonSellingProducts90Days.slice(0, 12)} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis dataKey="productName" type="category" width={130} />
-                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                      <Bar dataKey="blockedValue" fill="#f59e0b" name="Blocked Value" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className={PANEL_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Store-wise Top Non-Selling Products (90 Days)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Store</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead className="text-right">Stock</TableHead>
-                      <TableHead className="text-right">Blocked Value</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {storeWiseNonSelling90Days.every((storeRow) => storeRow.topNonSelling.length === 0) && (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground">
-                          No non-selling products found for selected scope.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {storeWiseNonSelling90Days.flatMap((storeRow) =>
-                      storeRow.topNonSelling.map((product) => (
-                        <TableRow key={`${storeRow.storeId}-${product.productId}`}>
-                          <TableCell className="font-medium">{storeRow.storeName}</TableCell>
-                          <TableCell>{product.productName}</TableCell>
-                          <TableCell className="text-right">{product.stock}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(product.blockedValue)}</TableCell>
-                        </TableRow>
-                      )),
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="returns" className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-2">
