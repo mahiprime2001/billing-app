@@ -262,6 +262,10 @@ export default function PrintDialog({
     setLoading(true);
     try {
       const shouldUseBackend = forceBackendPrint || directPrint;
+      if (shouldUseBackend && (!selectedPrinter || availablePrinters.length === 0)) {
+        alert("Please wait for printers to load and select a printer.");
+        return;
+      }
 
       if (shouldUseBackend) {
         const selectedProfile =
@@ -426,6 +430,10 @@ export default function PrintDialog({
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
   }
+
+  const backendPrintBlocked =
+    (forceBackendPrint || directPrint) &&
+    (!selectedPrinter || availablePrinters.length === 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -624,7 +632,7 @@ export default function PrintDialog({
           <Button
             type="button"
             onClick={handlePrint}
-            disabled={loading}
+            disabled={loading || backendPrintBlocked}
             className="bg-blue-600 hover:bg-blue-700"
           >
             {loading ? "Printing..." : "Print"}
