@@ -72,6 +72,7 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
   const [allProducts, setAllProducts] = useState<AssignedProduct[]>([])
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [quantityMap, setQuantityMap] = useState<Record<string, number>>({})
+  const [scanOrder, setScanOrder] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [assigning, setAssigning] = useState(false)
   const [search, setSearch] = useState('')
@@ -91,6 +92,7 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
     } else {
       setSelected({})
       setQuantityMap({})
+      setScanOrder([])
       setSearch('')
       setActiveDraftId("")
     }
@@ -146,6 +148,7 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
   const handleClearAll = () => {
     setSelected({})
     setQuantityMap({})
+    setScanOrder([])
     setSearch('')
     setActiveDraftId("")
     persistPendingOrders([])
@@ -202,6 +205,7 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
 
     setSelected(nextSelected)
     setQuantityMap(nextQuantityMap)
+    setScanOrder(Object.keys(nextSelected).filter((k) => nextSelected[k]))
     setActiveDraftId(draftId)
 
     if (missingCount > 0) {
@@ -271,15 +275,22 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
   const toggleProduct = (id: string) => {
     setSelected(prev => {
       const newSelected = { ...prev, [id]: !prev[id] }
-      
-      // Initialize quantity to 1 when selecting
-      if (newSelected[id] && !quantityMap[id]) {
-        const product = products.find(p => (p.id || p.barcode) === id)
-        if (product && (product.stock || 0) > 0) {
-          setQuantityMap(prevQty => ({ ...prevQty, [id]: 1 }))
+
+      if (newSelected[id]) {
+        // Selecting: add to end of scan order (remove duplicate first)
+        setScanOrder(prevOrder => [...prevOrder.filter(k => k !== id), id])
+        // Initialize quantity to 1 when selecting
+        if (!quantityMap[id]) {
+          const product = products.find(p => (p.id || p.barcode) === id)
+          if (product && (product.stock || 0) > 0) {
+            setQuantityMap(prevQty => ({ ...prevQty, [id]: 1 }))
+          }
         }
+      } else {
+        // Deselecting: remove from scan order
+        setScanOrder(prevOrder => prevOrder.filter(k => k !== id))
       }
-      
+
       return newSelected
     })
   }
@@ -381,6 +392,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
       setOpen(false);
       setSelected({});
       setQuantityMap({});
+      setScanOrder([]);
       setSearch('');
       
       setTimeout(() => fetchProducts(), 500);
@@ -405,7 +417,11 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
   })
 
   const selectedCount = Object.values(selected).filter(Boolean).length
-  const selectedProductsList = products.filter(p => selected[p.id || p.barcode])
+  // Last scanned on top: reverse scan order, then map to products
+  const selectedProductsList = [...scanOrder]
+    .reverse()
+    .map(key => products.find(p => (p.id || p.barcode) === key))
+    .filter(Boolean) as AssignedProduct[]
   const totalSelectedStock = selectedProductsList.reduce((sum, p) => {
     const key = p.id || p.barcode
     return sum + Number(quantityMap[key] || 0)
@@ -461,6 +477,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
     }
 
     setSelected((prev) => ({ ...prev, [key]: true }))
+    setScanOrder((prev) => [...prev.filter(k => k !== key), key])
     setQuantityMap((prev) => {
       const current = prev[key] || 0
       const next = Math.min(availableStock, Math.max(1, current + 1))
