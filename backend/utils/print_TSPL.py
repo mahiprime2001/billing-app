@@ -108,8 +108,8 @@ def generate_tspl(
         for product in products:
             logger.info(f"  Label #{label_counter + 1}: '{product.get('name', 'Unknown')}'")
 
-            # Safe barcode
-            barcodes_str = str(product.get("barcodes", ""))
+            # Safe barcode — tries 'barcodes' (plural), then 'barcode' (singular), then product id
+            barcodes_str = str(product.get("barcodes") or product.get("barcode") or "")
             codes = [b.strip() for b in barcodes_str.split(',') if b.strip()]
             barcode = codes[0] if codes else str(product.get("id", ""))
             logger.info(f"    🔖 Barcode: {barcode}")
