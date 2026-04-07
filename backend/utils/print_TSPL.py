@@ -58,13 +58,12 @@ def generate_tspl(
     # ── Printer setup ────────────────────────────────────────────
     logger.info("⚙️  Adding printer setup commands...")
     if is_25x25_4up:
-        # TVS LP 36 Dlite calibrated setup for 25x25 4-up stock
         tspl.append("SIZE 100 mm,25 mm")
-        tspl.append("GAP 2 mm,0 mm")
-        tspl.append("DENSITY 10")
-        tspl.append("SPEED 2")
+        tspl.append("GAP 3 mm,0 mm")
+        tspl.append("DENSITY 8")
+        tspl.append("SPEED 3")
         tspl.append("DIRECTION 1")
-        tspl.append("REFERENCE 8,0")
+        tspl.append("REFERENCE 0,0")
         tspl.append("CLS")
     else:
         width_mm = 80.0
@@ -90,11 +89,11 @@ def generate_tspl(
     logger.info(f"✅ Setup commands added ({len(tspl)} commands)")
 
     # ── Label constants for 25x25 4-up ───────────────────────────
-    # Column X positions calibrated for 203 DPI on 100mm paper
-    COLUMN_X = [8, 208, 408, 608]
-    barcode_height = 50
+    # 100mm @ 203 DPI = 800 dots / 4 columns = 200 dots each
+    COLUMN_X = [0, 200, 400, 600]
+    barcode_height = 40
     barcode_y = 5
-    text_offset_y = barcode_y + barcode_height + 6   # 61
+    text_offset_y = barcode_y + barcode_height + 6   # 51
     line_h = 14
 
     # ── Generate labels ──────────────────────────────────────────
@@ -135,18 +134,12 @@ def generate_tspl(
                 x_offset = COLUMN_X[col]
 
                 tspl.append(
-                    f'BARCODE {x_offset},{barcode_y},"128",{barcode_height},0,0,2,2,"{barcode}"'
+                    f'BARCODE {x_offset},{barcode_y},"128",{barcode_height},0,0,1,1,"{barcode}"'
                 )
                 tspl.append(f'TEXT {x_offset},{text_offset_y},"2",0,1,1,"{product_name}"')
                 tspl.append(f'TEXT {x_offset},{text_offset_y + line_h},"2",0,1,1,"Rs.{int(selling_val)}"')
 
                 label_counter += 1
-
-                # Print only after a full row of 4 labels
-                if label_counter % 4 == 0:
-                    tspl.append("PRINT 1")
-                    tspl.append("CLS")
-                    logger.info(f"    ✅ PRINT 1 after full row (label #{label_counter})")
 
             else:
                 # Standard wide label (80 mm default)
@@ -164,11 +157,12 @@ def generate_tspl(
                 label_counter += 1
                 logger.info(f"    ✅ PRINT 1 (label #{label_counter})")
 
-    # Handle last partial row (fewer than 4 labels)
-    if is_25x25_4up and label_counter % 4 != 0:
-        tspl.append("PRINT 1")
-        logger.info("    ✅ PRINT 1 for final partial row")
-    elif not is_25x25_4up:
+    if is_25x25_4up:
+        # One single PRINT command for all rows — prevents infinite feeding
+        rows = (label_counter + 3) // 4
+        tspl.append(f"PRINT {rows}")
+        logger.info(f"✅ PRINT {rows} (single command for {label_counter} labels)")
+    else:
         tspl.append("FEED 0")
         logger.info("✅ FEED 0 added")
     
