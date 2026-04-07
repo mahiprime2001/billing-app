@@ -59,11 +59,14 @@ def generate_tspl(
 
     # ── Printer setup ─────────────────────────────────────────────
     if is_25x25_4up:
-        # Sheet geometry:
-        # Total width : 103 mm
-        # Left margin : 2 mm  |  Right margin: 2 mm
-        # Usable width: 99 mm  →  4 labels × 24.75 mm each, 0 mm gap between labels
-        # Label height: 25 mm
+        # ── Your confirmed sheet geometry ──────────────────────────
+        # Total sheet width : 103 mm
+        # Left margin       : 2 mm   Right margin: 2 mm
+        # Usable width      : 99 mm  → 4 labels × 24.75 mm
+        # Gap between cols  : 0 mm   (no gap between labels)
+        # Gap between rows  : 3 mm   (confirmed)
+        # Label height      : 25 mm
+
         paper_width_mm    = 103.0
         paper_height_mm   = 25.0
         gap_vertical_mm   = 3.0
@@ -71,7 +74,7 @@ def generate_tspl(
         margin_left_mm    = 2.0
         label_width_mm    = 24.75   # (103 - 2 - 2) / 4
 
-        # Allow profile overrides
+        # Allow label_profile dict to override any value if needed
         if isinstance(label_profile, dict):
             try:
                 paper_width_mm    = float(label_profile.get("paper_width_mm",    paper_width_mm))
@@ -92,14 +95,18 @@ def generate_tspl(
         tspl.append("SET PEEL OFF")
         tspl.append("SET CUTTER OFF")
         tspl.append("SET TEAR ON")
-        tspl.append("CALIBRATE")
+        tspl.append("CALIBRATE")   # forces gap re-detection → stops beeping
 
         logger.info(
-            f"📐 Sheet: {paper_width_mm}mm wide | label={label_width_mm}mm | "
-            f"margin_left={margin_left_mm}mm | gap_h={gap_horizontal_mm}mm | gap_v={gap_vertical_mm}mm"
+            f"📐 Sheet: {paper_width_mm}mm wide | "
+            f"label_w={label_width_mm}mm | "
+            f"margin_left={margin_left_mm}mm | "
+            f"gap_h={gap_horizontal_mm}mm | "
+            f"gap_v={gap_vertical_mm}mm"
         )
 
     else:
+        # ── Standard wide label (default 80×12 mm) ────────────────
         width_mm  = 80.0
         height_mm = 12.0
         if isinstance(label_size, dict):
@@ -111,6 +118,12 @@ def generate_tspl(
             except Exception:
                 pass
 
+        paper_width_mm    = width_mm
+        paper_height_mm   = height_mm
+        gap_horizontal_mm = 0.0
+        margin_left_mm    = 0.0
+        label_width_mm    = width_mm
+
         tspl.append(f"SIZE {_format_mm(width_mm)} mm,{_format_mm(height_mm)} mm")
         tspl.append("GAP 4 mm,0 mm")
         tspl.append("DENSITY 10")
@@ -121,15 +134,9 @@ def generate_tspl(
         tspl.append("SET CUTTER OFF")
         tspl.append("SET TEAR ON")
 
-        label_width_mm    = width_mm
-        paper_height_mm   = height_mm
-        gap_horizontal_mm = 0.0
-        margin_left_mm    = 0.0
-        paper_width_mm    = width_mm
-
     logger.info(f"✅ Setup commands added ({len(tspl)} commands so far)")
 
-    # ── Column geometry ───────────────────────────────────────────
+    # ── Column geometry (dots) ────────────────────────────────────
     label_width_dots    = _mm_to_dots(label_width_mm)
     label_height_dots   = _mm_to_dots(paper_height_mm)
     gap_horizontal_dots = _mm_to_dots(gap_horizontal_mm)
@@ -137,7 +144,7 @@ def generate_tspl(
     paper_width_dots    = _mm_to_dots(paper_width_mm)
 
     slot_pitch  = label_width_dots + gap_horizontal_dots
-    max_columns = 4 if is_25x25_4up else 1
+    max_columns = 1
 
     if is_25x25_4up and slot_pitch > 0:
         possible_cols = max(1, int(
@@ -153,13 +160,16 @@ def generate_tspl(
         f"columns={max_columns} x_offsets={column_x}"
     )
 
-    # ── Y layout (all within 200 dots = 25mm) ─────────────────────
-    #  Y=2    barcode starts  (height 60 dots ≈ 7.5mm)
+    # ── Y layout for 25mm label (200 dots tall) ───────────────────
+    #
+    #  Y=2    barcode starts         (height=60 dots ≈ 7.5mm)
     #  Y=64   barcode number text
     #  Y=78   product name
-    #  Y=91   Rs. PRICE
-    #  Y=104  B: batch number
-    #  Y=200  label bottom  — all content fits
+    #  Y=91   Rs. price              ← was off-label before, now fixed
+    #  Y=104  B: batch number        ← was off-label before, now fixed
+    #         ─────────────────────
+    #  Y=200  label bottom           ✅ all lines fit within 25mm
+    #
     inner_pad_x    = max(4, _mm_to_dots(0.5))
     barcode_y      = 2
     barcode_height = 60
@@ -169,20 +179,20 @@ def generate_tspl(
     text_batch_y   = text_price_y  + 13                # 104
 
     logger.info(
-        f"📐 Y layout — barcode:{barcode_y}-{barcode_y+barcode_height} | "
+        f"📐 Y layout — barcode:{barcode_y}-{barcode_y + barcode_height} | "
         f"code#:{barcode_num_y} | name:{text_name_y} | "
         f"price:{text_price_y} | batch:{text_batch_y} | "
         f"label_h:{label_height_dots}"
     )
 
-    # ── Expand labels (copies per product) ───────────────────────
+    # ── Expand labels (products × copies) ────────────────────────
     expanded_labels = []
     for product in products:
         for _ in range(copies):
             expanded_labels.append(product)
     logger.info(f"📝 Expanded label count: {len(expanded_labels)}")
 
-    # ── Generate TSPL ─────────────────────────────────────────────
+    # ── Generate TSPL commands ────────────────────────────────────
     label_counter = 0
 
     if is_25x25_4up:
@@ -221,12 +231,13 @@ def generate_tspl(
                     f"barcode={barcode} | price=Rs.{int(selling_val)} | batch='{batch_number}'"
                 )
 
-                # Centre barcode in its slot
+                # Centre barcode horizontally in its column slot
                 barcode_w = _estimate_code128_width_dots(barcode, narrow=1)
                 available = label_width_dots - 2 * inner_pad_x
                 barcode_x = x_offset + inner_pad_x + max(0, int((available - barcode_w) / 2))
                 text_x    = x_offset + inner_pad_x
 
+                # TSPL drawing commands
                 tspl.append(
                     f'BARCODE {barcode_x},{barcode_y},"128",{barcode_height},0,0,1,1,"{barcode}"'
                 )
@@ -238,12 +249,18 @@ def generate_tspl(
 
             tspl.append("PRINT 1")
             row_count += 1
-            logger.info(f"  → PRINT 1 (row #{row_count}, labels {row_start+1}–{row_start+len(row_labels)})")
+            logger.info(
+                f"  → PRINT 1 (row #{row_count}, "
+                f"labels {row_start + 1}–{row_start + len(row_labels)})"
+            )
 
-        logger.info(f"✅ 25x25 4-up: {row_count} rows × up to {max_columns} cols = {label_counter} labels")
+        logger.info(
+            f"✅ 25x25 4-up done: {row_count} rows × "
+            f"up to {max_columns} cols = {label_counter} labels"
+        )
 
     else:
-        # Standard wide label
+        # ── Standard wide label ───────────────────────────────────
         for product in expanded_labels:
             barcodes_str = str(product.get("barcodes") or product.get("barcode") or "")
             codes   = [b.strip() for b in barcodes_str.split(',') if b.strip()]
@@ -315,7 +332,10 @@ def send_raw_to_printer(printer_name, raw_data, logger=None):
     )
 
     if not exact_printer_name:
-        error_msg = f"❌ Printer '{printer_name}' not found. Available: {available_printer_names}"
+        error_msg = (
+            f"❌ Printer '{printer_name}' not found. "
+            f"Available: {available_printer_names}"
+        )
         logger.error(error_msg)
         raise ValueError(error_msg)
 
