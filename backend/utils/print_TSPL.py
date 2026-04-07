@@ -136,9 +136,10 @@ def generate_tspl(
         max_columns_25 = min(4, possible_cols)
     column_x_25 = [margin_left_dots_25 + i * slot_pitch_25 for i in range(max_columns_25)]
 
-    barcode_height = 40
+    barcode_height = 34
     barcode_y = 5
-    text_offset_y = barcode_y + barcode_height + 6   # 51
+    barcode_value_y = barcode_y + barcode_height + 2
+    text_offset_y = barcode_value_y + 10
     line_h = 10
 
     # ── Generate labels ──────────────────────────────────────────
@@ -147,12 +148,12 @@ def generate_tspl(
     logger.info(f"Loop structure: {copies} copies × {len(products)} products")
 
     expanded_labels = []
-    for copy_num in range(copies):
-        logger.info(f"\n--- Copy #{copy_num + 1} of {copies} ---")
-
-        for product in products:
+    for product in products:
+        product_name_for_log = str(product.get("name", "Unknown"))
+        logger.info(f"\n--- Product '{product_name_for_log}' ({copies} copies) ---")
+        for copy_num in range(copies):
             expanded_labels.append(product)
-            logger.info(f"  Label #{len(expanded_labels)}: '{product.get('name', 'Unknown')}'")
+            logger.info(f"  Label #{len(expanded_labels)}: '{product_name_for_log}' copy {copy_num + 1}/{copies}")
 
     if is_25x25_4up:
         row_count = 0
@@ -190,6 +191,7 @@ def generate_tspl(
                 tspl.append(
                     f'BARCODE {x_offset},{barcode_y},"128",{barcode_height},0,0,1,1,"{barcode}"'
                 )
+                tspl.append(f'TEXT {x_offset},{barcode_value_y},"1",0,1,1,"{barcode[:18]}"')
                 tspl.append(f'TEXT {x_offset},{text_offset_y},"2",0,1,1,"{product_name}"')
                 tspl.append(f'TEXT {x_offset},{text_offset_y + line_h},"2",0,1,1,"Rs.{int(selling_val)}"')
                 if batch_number.strip():
