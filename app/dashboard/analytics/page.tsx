@@ -639,7 +639,7 @@ const MetricCard = ({ title, value, icon, change }: MetricCardProps) => (
       <div className="rounded-md bg-slate-100 p-1.5 text-slate-700">{icon}</div>
     </CardHeader>
     <CardContent>
-      <div className="text-2xl font-bold tracking-tight">{value}</div>
+      <div className="text-xl font-bold tracking-tight break-all leading-tight">{value}</div>
       {change !== undefined && (
         <p className="mt-1 text-xs text-muted-foreground">
           {change === null && 'No previous period data'}
@@ -2054,7 +2054,7 @@ export default function AnalyticsPage() {
           </DialogContent>
         </Dialog>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
           <MetricCard
             title="Revenue"
             value={formatCurrency(currentSummary.revenue)}
