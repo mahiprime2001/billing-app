@@ -95,18 +95,9 @@ def generate_tspl(
         except Exception:
             profile_gap_h = 0.5
         try:
-            # Feed-direction gap between label rows.
-            profile_gap_v = float(label_profile.get("gap_vertical_mm") or 2)
-        except Exception:
-            profile_gap_v = 2.0
-        try:
             profile_paper_w = float(label_profile.get("paper_width_mm") or 103)
         except Exception:
             profile_paper_w = 103.0
-        try:
-            paper_h = float(label_profile.get("paper_height_mm") or profile_label_w)
-        except Exception:
-            paper_h = profile_label_w
 
         # Optional explicit margins; defaults are 1.5mm on both sides for this stock.
         margin_left_raw = label_profile.get("margin_left_mm")
@@ -129,8 +120,8 @@ def generate_tspl(
         else:
             profile_margin_left = max(0.0, remaining_mm - margin_right_mm)
 
-        tspl.append(f"SIZE {_format_mm(profile_paper_w)} mm,{_format_mm(paper_h)} mm")
-        tspl.append(f"GAP {_format_mm(profile_gap_v)} mm,0 mm")
+        tspl.append("SIZE 103 mm,25 mm")
+        tspl.append("GAP 2 mm,0 mm")
         profile_label_w_dots = _mm_to_dots(profile_label_w)
     else:
         tspl.append(f"SIZE {_format_mm(width_mm)} mm,{_format_mm(height_mm)} mm")
@@ -154,7 +145,7 @@ def generate_tspl(
     for copy_num in range(copies):
         logger.info(f"\n--- Copy #{copy_num + 1} of {copies} ---")
         
-        for product_idx, product in enumerate(products):
+        for product in products:
             label_counter += 1
             
             logger.info(f"  Label #{label_counter}: Product '{product.get('name', 'Unknown')}' (ID: {product.get('id')})")
@@ -172,29 +163,22 @@ def generate_tspl(
                 x_offset = 0
                 y_offset = 0
             
-            # Get barcode
-            barcode = ""
-            barcodes_str = product.get("barcodes")
-            if isinstance(barcodes_str, str) and barcodes_str.strip():
-                # Split by comma and take the first non-empty barcode
-                codes = [b.strip() for b in barcodes_str.split(',') if b.strip()]
-                if codes:
-                    barcode = codes[0]
-            elif product.get("barcode"): # Fallback for old 'barcode' field if it still exists
-                barcode = str(product.get("barcode"))
-            else:
-                barcode = str(product.get("id", "")) # Fallback to product ID
-            
+            # Get barcode (safe)
+            barcodes_str = str(product.get("barcodes", ""))
+            codes = [b.strip() for b in barcodes_str.split(',') if b.strip()]
+            barcode = codes[0] if codes else str(product.get("id", ""))
+
             logger.info(f"    🔖 Barcode: {barcode}")
-            
-            # Selling price (resolve field names)
-            selling = product.get('selling_price')
-            if selling is None or selling == '':
-                selling = product.get('sellingPrice')
-            if selling is None or selling == '':
-                selling = 0
+
+            # Selling price (safe, strips currency symbols)
+            selling = (
+                product.get("selling_price")
+                or product.get("sellingPrice")
+                or product.get("price")
+                or 0
+            )
             try:
-                selling_val = float(selling)
+                selling_val = float(str(selling).replace("₹", "").strip())
             except Exception:
                 selling_val = 0.0
             logger.info(f"    💰 Selling Price: Rs.{int(selling_val)}")
@@ -203,63 +187,27 @@ def generate_tspl(
             batch_number = product.get('batchNumber', '')
 
             if is_25x25_4up:
-                # ── 25 x 25 mm label layout (200 × 200 dots at 203 DPI) ──
-                #
-                # Zone breakdown (dots, top→bottom):
-                #   4        : top margin
-                #   4..84    : barcode bars (height = 80)
-                #   84..104  : gap between barcode and text
-                #   104..120 : product name  (font "1" ≈ 12 dots tall)
-                #   122..138 : price          (font "1")
-                #
-                # human_readable=0  →  no auto-printed number below bars,
-                # which was causing the overlap with the TEXT commands.
+                barcode_height = 50
+                barcode_y = 5
 
-                # ── Vertical zones (dots) ──────────────────────────────
-                # 0..4       top margin
-                # 4..74      barcode bars  (height=70)
-                # 74..90     clear gap     (16 dots — no human_readable number
-                #                           so nothing auto-prints here)
-                # 90..102    batch line    (font "1" ≈ 12 dots tall)  [optional]
-                # 106..118   product name
-                # 122..134   price
-                # ──────────────────────────────────────────────────────────
-                # human_readable=0 is critical: setting it to 1 causes the
-                # printer to auto-print the barcode digits directly below the
-                # bars (~18 dots), which was overlapping with batch/name text.
-
-                barcode_height = 70
-                barcode_y = 4
-
-                # Center barcode horizontally within this column's 200-dot width.
-                barcode_est_w = _estimate_code128_width_dots(barcode, narrow=1)
+                barcode_est_w = _estimate_code128_width_dots(barcode, narrow=2)
                 label_center = x_offset + profile_label_w_dots // 2
-                barcode_x = label_center - barcode_est_w // 2
-                barcode_x = max(x_offset, barcode_x)  # clamp to label left edge
+                barcode_x = max(x_offset, label_center - barcode_est_w // 2)
 
-                # human_readable=0 → no auto-printed number below bars
+                # human_readable=0 → no auto-printed digits below bars (prevents overlap)
                 tspl.append(
-                    f'BARCODE {barcode_x},{barcode_y},"128",{barcode_height},0,0,1,2,"{barcode}"'
+                    f'BARCODE {barcode_x},{barcode_y},"128",{barcode_height},0,0,2,2,"{barcode}"'
                 )
 
-                # Text lines — left-aligned, 16-dot gap below barcode bottom
-                text_x = x_offset + 4
-                line_h = 16  # dots between text baselines
+                text_x = x_offset + 6
+                text_y = barcode_y + barcode_height + 6
+                line_h = 14
 
-                # First text line starts 16 dots below the last bar
-                text_y = barcode_y + barcode_height + 16  # 4+70+16 = 90
-
-                # Batch (optional) — clearly below barcode, no overlap possible
-                if batch_number and batch_number.strip():
-                    tspl.append(f'TEXT {text_x},{text_y},"1",0,1,1,"{batch_number[:13]}"')
-                    text_y += line_h
-
-                # Product name (truncate at 13 chars to fit 25 mm width)
-                product_name = product["name"][:13]
-                tspl.append(f'TEXT {text_x},{text_y},"1",0,1,1,"{product_name}"')
+                product_name = str(product.get("name", "ITEM"))[:10]
+                tspl.append(f'TEXT {text_x},{text_y},"2",0,1,1,"{product_name}"')
 
                 text_y += line_h
-                tspl.append(f'TEXT {text_x},{text_y},"1",0,1,1,"Rs.{int(selling_val)}"')
+                tspl.append(f'TEXT {text_x},{text_y},"2",0,1,1,"Rs.{int(selling_val)}"')
 
             else:
                 # ── Standard wide label layout (80 mm default) ──
