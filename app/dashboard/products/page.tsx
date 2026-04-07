@@ -147,8 +147,9 @@ export default function ProductsPage() {
           ? (p as any).sellingPrice
           : Number((p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).displayPrice ?? (p as any).price ?? 0),
       displayPrice: (p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).displayPrice ?? (p as any).price ?? 0,
-      // ✅ NEW: Normalize createdAt to handle both camelCase and lowercase from database
-      createdAt: p.createdAt || (p as any).createdat || (p as any).created_at,
+      // Use createdat (app-managed, no underscore) first — it is never overwritten on updates.
+      // p.createdAt can come from Supabase's created_at→camelCase conversion which may be wrong.
+      createdAt: (p as any).createdat || (p as any).created_at || p.createdAt,
     }))
     .filter(p => !(p as any)._deleted);
 }, [productsData]);
