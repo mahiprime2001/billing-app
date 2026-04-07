@@ -199,19 +199,36 @@ def _prepare_product_payload_for_cloud(product_id: str, data: Dict, existing_loc
     for k in ("tax", "display_price", "barcodes", "batch_id", "hsn_code"):
         payload.pop(k, None)
 
-    # Timestamp normalization (legacy rows may have mixed key formats).
-    # Keep original creation timestamp on updates; never rewrite it to now
-    # just because the source key variant differs (createdat vs created_at vs createdAt).
-    payload_created_at = _first_timestamp(
+    # Timestamp normalization.
+    # createdat must never be overwritten with the update time.
+    # Strategy: take the EARLIEST non-null timestamp among all known creation
+    # candidates so that an accidental updatedat bleed can never survive.
+    def _parse_ts(value):
+        if not value:
+            return None
+        try:
+            from datetime import datetime as _dt
+            return _dt.fromisoformat(str(value).replace("Z", "+00:00").replace("+00:00", ""))
+        except Exception:
+            return None
+
+    candidates = [
         payload.get("createdat"),
         payload.get("created_at"),
-    )
-    existing_created_at = _first_timestamp(
         existing.get("createdat"),
         existing.get("created_at"),
         existing.get("createdAt"),
-    )
-    payload["createdat"] = payload_created_at or existing_created_at or now_iso
+    ]
+    parsed = [(v, _parse_ts(v)) for v in candidates if _first_timestamp(v)]
+    parsed = [(v, dt) for v, dt in parsed if dt is not None]
+
+    if parsed:
+        # Always use the EARLIEST timestamp — creation time is never later than update time
+        best_createdat = min(parsed, key=lambda x: x[1])[0]
+    else:
+        best_createdat = now_iso
+
+    payload["createdat"] = best_createdat
     payload["updatedat"] = now_iso
 
     # Empty FK values -> NULL
@@ -622,7 +639,33 @@ def get_merged_products() -> Tuple[List[Dict], int]:
         for p in supabase_products:
             pid = p.get("id")
             if pid:
-                merged_by_id[str(pid)] = p
+                pid_str = str(pid)
+                local = merged_by_id.get(pid_str)
+                if local:
+                    # Supabase wins for all fields EXCEPT createdat:
+                    # if Supabase's createdat was corrupted (equals updatedat),
+                    # keep the local createdat which was set at creation time.
+                    supabase_createdat = p.get("createdat") or p.get("createdat")
+                    supabase_updatedat = p.get("updatedat") or p.get("updatedat")
+                    local_createdat = (
+                        local.get("createdat")
+                        or local.get("created_at")
+                        or local.get("createdAt")
+                    )
+                    if (
+                        supabase_createdat
+                        and supabase_updatedat
+                        and supabase_createdat == supabase_updatedat
+                        and local_createdat
+                        and local_createdat != supabase_createdat
+                    ):
+                        merged = dict(p)
+                        merged["createdat"] = local_createdat
+                        merged_by_id[pid_str] = merged
+                    else:
+                        merged_by_id[pid_str] = p
+                else:
+                    merged_by_id[pid_str] = p
             else:
                 merged_without_id.append(p)
 
@@ -840,13 +883,21 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
             logger.warning(
                 f"Supabase update failed for product {product_id}; applying local fallback: {supabase_error}"
             )
+            original_createdat = products[product_index].get('createdat')
             products[product_index].update(update_data)
+            # Never overwrite createdat with update_data values
+            if original_createdat:
+                products[product_index]['createdat'] = original_createdat
             products[product_index]['updatedat'] = datetime.now().isoformat()
             save_products_data(products)
             return True, "Product saved locally (offline fallback)", 202
 
         # Keep local cache aligned after successful cloud write.
+        original_createdat = products[product_index].get('createdat')
         products[product_index].update(update_data)
+        # Never overwrite createdat — it must stay as the original creation time
+        if original_createdat:
+            products[product_index]['createdat'] = original_createdat
         products[product_index]['updatedat'] = datetime.now().isoformat()
         save_products_data(products)
         
