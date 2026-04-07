@@ -61,6 +61,7 @@ def generate_tspl(
         paper_width_mm = 100.0
         paper_height_mm = 25.0
         gap_horizontal_mm = 0.0
+        gap_vertical_mm = 3.0
         margin_left_mm = 0.0
 
         if isinstance(label_profile, dict):
@@ -68,6 +69,7 @@ def generate_tspl(
                 profile_pw = float(label_profile.get("paper_width_mm", paper_width_mm))
                 profile_ph = float(label_profile.get("paper_height_mm", paper_height_mm))
                 profile_gap_h = float(label_profile.get("gap_horizontal_mm", gap_horizontal_mm))
+                profile_gap_v = float(label_profile.get("gap_vertical_mm", gap_vertical_mm))
                 profile_ml = float(label_profile.get("margin_left_mm", margin_left_mm))
                 if profile_pw > 0:
                     paper_width_mm = profile_pw
@@ -75,13 +77,15 @@ def generate_tspl(
                     paper_height_mm = profile_ph
                 if profile_gap_h >= 0:
                     gap_horizontal_mm = profile_gap_h
+                if profile_gap_v >= 0:
+                    gap_vertical_mm = profile_gap_v
                 if profile_ml >= 0:
                     margin_left_mm = profile_ml
             except Exception:
                 pass
 
         tspl.append(f"SIZE {_format_mm(paper_width_mm)} mm,{_format_mm(paper_height_mm)} mm")
-        tspl.append("GAP 3 mm,0 mm")
+        tspl.append(f"GAP {_format_mm(gap_vertical_mm)} mm,0 mm")
         tspl.append("DENSITY 8")
         tspl.append("SPEED 3")
         tspl.append("DIRECTION 1")
@@ -114,18 +118,21 @@ def generate_tspl(
 
     # ── Label constants for 25x25 4-up ───────────────────────────
     label_width_mm_25 = 25.0
+    label_height_mm_25 = 25.0
     gap_horizontal_mm_25 = 0.0
     margin_left_mm_25 = 0.0
     paper_width_mm_25 = 100.0
     if isinstance(label_profile, dict):
         try:
             label_width_mm_25 = float(label_profile.get("label_width_mm", label_width_mm_25))
+            label_height_mm_25 = float(label_profile.get("label_height_mm", label_height_mm_25))
             gap_horizontal_mm_25 = float(label_profile.get("gap_horizontal_mm", gap_horizontal_mm_25))
             margin_left_mm_25 = float(label_profile.get("margin_left_mm", margin_left_mm_25))
             paper_width_mm_25 = float(label_profile.get("paper_width_mm", paper_width_mm_25))
         except Exception:
             pass
     label_width_dots_25 = _mm_to_dots(label_width_mm_25 if label_width_mm_25 > 0 else 25.0)
+    label_height_dots_25 = _mm_to_dots(label_height_mm_25 if label_height_mm_25 > 0 else 25.0)
     gap_horizontal_dots_25 = _mm_to_dots(gap_horizontal_mm_25 if gap_horizontal_mm_25 >= 0 else 0)
     margin_left_dots_25 = _mm_to_dots(margin_left_mm_25 if margin_left_mm_25 >= 0 else 0)
     paper_width_dots_25 = _mm_to_dots(paper_width_mm_25 if paper_width_mm_25 > 0 else 100.0)
@@ -136,11 +143,13 @@ def generate_tspl(
         max_columns_25 = min(4, possible_cols)
     column_x_25 = [margin_left_dots_25 + i * slot_pitch_25 for i in range(max_columns_25)]
 
-    barcode_height = 34
-    barcode_y = 5
-    barcode_value_y = barcode_y + barcode_height + 2
-    text_offset_y = barcode_value_y + 10
-    line_h = 10
+    # 25mm label content box tuning: keep text legible and avoid overlaps.
+    inner_pad_x = max(6, _mm_to_dots(1.0))
+    barcode_height = max(28, min(40, int(label_height_dots_25 * 0.18)))
+    barcode_y = max(12, int(label_height_dots_25 * 0.18))
+    barcode_value_y = barcode_y + barcode_height + 5
+    text_offset_y = barcode_value_y + 14
+    line_h = 14
 
     # ── Generate labels ──────────────────────────────────────────
     label_counter = 0
@@ -188,14 +197,22 @@ def generate_tspl(
                 product_name = str(product.get("name", "ITEM"))[:10]
                 batch_number = str(product.get("batchNumber", "") or "")[:10]
 
-                tspl.append(
-                    f'BARCODE {x_offset},{barcode_y},"128",{barcode_height},0,0,1,1,"{barcode}"'
+                # Center barcode inside each 25mm slot and keep text inset from edges.
+                barcode_w = _estimate_code128_width_dots(barcode, narrow=1)
+                centered_barcode_x = x_offset + max(
+                    inner_pad_x,
+                    int((label_width_dots_25 - barcode_w) / 2)
                 )
-                tspl.append(f'TEXT {x_offset},{barcode_value_y},"1",0,1,1,"{barcode[:18]}"')
-                tspl.append(f'TEXT {x_offset},{text_offset_y},"2",0,1,1,"{product_name}"')
-                tspl.append(f'TEXT {x_offset},{text_offset_y + line_h},"2",0,1,1,"Rs.{int(selling_val)}"')
+                text_x = x_offset + inner_pad_x
+
+                tspl.append(
+                    f'BARCODE {centered_barcode_x},{barcode_y},"128",{barcode_height},0,0,1,1,"{barcode}"'
+                )
+                tspl.append(f'TEXT {text_x},{barcode_value_y},"1",0,1,1,"{barcode[:18]}"')
+                tspl.append(f'TEXT {text_x},{text_offset_y},"1",0,1,1,"{product_name}"')
+                tspl.append(f'TEXT {text_x},{text_offset_y + line_h},"1",0,1,1,"Rs.{int(selling_val)}"')
                 if batch_number.strip():
-                    tspl.append(f'TEXT {x_offset},{text_offset_y + (2 * line_h)},"1",0,1,1,"B:{batch_number}"')
+                    tspl.append(f'TEXT {text_x},{text_offset_y + (2 * line_h)},"1",0,1,1,"B:{batch_number}"')
 
                 logger.info(f"    ✅ PRINT 1 (label #{label_counter})")
 
