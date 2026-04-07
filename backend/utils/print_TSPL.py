@@ -48,7 +48,14 @@ def generate_tspl(
 
     width_mm = 80.0
     height_mm = 12.0
-    is_25x25_4up = isinstance(label_profile, dict) and label_profile.get("type") == "25x25_4up"
+    is_25x25 = (
+        isinstance(label_profile, dict) and label_profile.get("type") == "25x25_4up"
+    ) or (
+        isinstance(label_size, dict)
+        and abs(float(label_size.get("widthMm", 0)) - 25.0) < 0.5
+        and abs(float(label_size.get("heightMm", 0)) - 25.0) < 0.5
+    )
+    is_25x25_4up = is_25x25
     profile_columns = 1
     profile_label_w = 0.0
     profile_paper_w = 0.0
@@ -73,7 +80,6 @@ def generate_tspl(
     
     # Printer setup - ONCE at the start
     logger.info("⚙️  Adding printer setup commands...")
-    tspl.append("GAPDETECT")
     if is_25x25_4up:
         try:
             profile_columns = max(1, int(label_profile.get("columns") or 4))
@@ -181,51 +187,7 @@ def generate_tspl(
             
             logger.info(f"    🔖 Barcode: {barcode}")
             
-            # Barcode
-            if is_25x25_4up:
-                barcode_height = 70
-                barcode_y = 6
-                barcode_width = _estimate_code128_width_dots(barcode, narrow=1)
-                barcode_x = x_offset + max(0, (profile_label_w_dots - barcode_width) // 2)
-                tspl.append(
-                    f'BARCODE {barcode_x},{barcode_y},"128",{barcode_height},1,0,1,1,"{barcode}"'
-                )
-            else:
-                tspl.append(f'BARCODE {40 + x_offset},{0 + y_offset},"128",55,1,0,1,1,"{barcode}"')
-            
-            # Batch Information (if available)
-            batch_number = product.get('batchNumber', '')
-
-            # Text elements - Use font size "2" for batch, name, and price (next biggest from current "1")
-            if is_25x25_4up:
-                text_left = x_offset + 12
-                line_gap = 18
-                base_text_y = 90
-                # Batch (optional)
-                if batch_number and batch_number.strip():
-                    tspl.append(f'TEXT {text_left},{base_text_y},"1",0,1,1,"{batch_number}"')
-                    name_y = base_text_y + line_gap
-                    price_y = name_y + line_gap
-                else:
-                    name_y = base_text_y
-                    price_y = base_text_y + line_gap
-
-                tspl.append(f'TEXT {text_left},{name_y},"1",0,1,1,"{product["name"]}"')
-            else:
-                tspl.append(f'TEXT {240 + x_offset},{30 + y_offset},"1",0,1,1,"{product["name"]}"')
-            
-            if not is_25x25_4up:
-                if batch_number and batch_number.strip():
-                    logger.info(f"    📦 Batch: {batch_number}")
-                    tspl.append(f'TEXT {240 + x_offset},{6 + y_offset},"1",0,1,1,"{batch_number}"')
-                    # Adjust price position down if batch is present
-                    price_y = 54
-                else:
-                    # No batch, price stays at original position
-                    price_y = 44
-            
-            # Price - Use font size "2" for better visibility
-            # Only use selling_price or sellingPrice, never price
+            # Selling price (resolve field names)
             selling = product.get('selling_price')
             if selling is None or selling == '':
                 selling = product.get('sellingPrice')
@@ -235,11 +197,83 @@ def generate_tspl(
                 selling_val = float(selling)
             except Exception:
                 selling_val = 0.0
-            logger.info(f"    💰 Selling Price: Rs.{selling_val:.2f}")
+            logger.info(f"    💰 Selling Price: Rs.{int(selling_val)}")
+
+            # Batch Information (if available)
+            batch_number = product.get('batchNumber', '')
+
             if is_25x25_4up:
-                tspl.append(f'TEXT {text_left},{price_y},"1",0,1,1,"Price: {selling_val:.2f}"')
+                # ── 25 x 25 mm label layout (200 × 200 dots at 203 DPI) ──
+                #
+                # Zone breakdown (dots, top→bottom):
+                #   4        : top margin
+                #   4..84    : barcode bars (height = 80)
+                #   84..104  : gap between barcode and text
+                #   104..120 : product name  (font "1" ≈ 12 dots tall)
+                #   122..138 : price          (font "1")
+                #
+                # human_readable=0  →  no auto-printed number below bars,
+                # which was causing the overlap with the TEXT commands.
+
+                # ── Vertical zones (dots) ──────────────────────────────
+                # 0..4       top margin
+                # 4..74      barcode bars  (height=70)
+                # 74..90     clear gap     (16 dots — no human_readable number
+                #                           so nothing auto-prints here)
+                # 90..102    batch line    (font "1" ≈ 12 dots tall)  [optional]
+                # 106..118   product name
+                # 122..134   price
+                # ──────────────────────────────────────────────────────────
+                # human_readable=0 is critical: setting it to 1 causes the
+                # printer to auto-print the barcode digits directly below the
+                # bars (~18 dots), which was overlapping with batch/name text.
+
+                barcode_height = 70
+                barcode_y = 4
+
+                # Center barcode horizontally within this column's 200-dot width.
+                barcode_est_w = _estimate_code128_width_dots(barcode, narrow=1)
+                label_center = x_offset + profile_label_w_dots // 2
+                barcode_x = label_center - barcode_est_w // 2
+                barcode_x = max(x_offset, barcode_x)  # clamp to label left edge
+
+                # human_readable=0 → no auto-printed number below bars
+                tspl.append(
+                    f'BARCODE {barcode_x},{barcode_y},"128",{barcode_height},0,0,1,2,"{barcode}"'
+                )
+
+                # Text lines — left-aligned, 16-dot gap below barcode bottom
+                text_x = x_offset + 4
+                line_h = 16  # dots between text baselines
+
+                # First text line starts 16 dots below the last bar
+                text_y = barcode_y + barcode_height + 16  # 4+70+16 = 90
+
+                # Batch (optional) — clearly below barcode, no overlap possible
+                if batch_number and batch_number.strip():
+                    tspl.append(f'TEXT {text_x},{text_y},"1",0,1,1,"{batch_number[:13]}"')
+                    text_y += line_h
+
+                # Product name (truncate at 13 chars to fit 25 mm width)
+                product_name = product["name"][:13]
+                tspl.append(f'TEXT {text_x},{text_y},"1",0,1,1,"{product_name}"')
+
+                text_y += line_h
+                tspl.append(f'TEXT {text_x},{text_y},"1",0,1,1,"Rs.{int(selling_val)}"')
+
             else:
-                tspl.append(f'TEXT {240 + x_offset},{60 + y_offset},"2",0,1,1,"MRP.{selling_val:.2f}"')
+                # ── Standard wide label layout (80 mm default) ──
+                tspl.append(f'BARCODE {40 + x_offset},{0 + y_offset},"128",55,1,0,1,2,"{barcode}"')
+
+                if batch_number and batch_number.strip():
+                    logger.info(f"    📦 Batch: {batch_number}")
+                    tspl.append(f'TEXT {240 + x_offset},{6 + y_offset},"1",0,1,1,"{batch_number}"')
+                    price_y = 54
+                else:
+                    price_y = 44
+
+                tspl.append(f'TEXT {240 + x_offset},{30 + y_offset},"1",0,1,1,"{product["name"]}"')
+                tspl.append(f'TEXT {240 + x_offset},{price_y + y_offset},"2",0,1,1,"MRP.{int(selling_val)}"')
             
             # Print ONE label
             if is_25x25_4up:
@@ -255,9 +289,11 @@ def generate_tspl(
             tspl.append("PRINT 1")
             logger.info("    ✅ Added final PRINT 1 command for remaining labels")
 
-    # Feed ONCE at the end
-    tspl.append("FEED 0")
-    logger.info(f"\n✅ Added FEED 0 command")
+    # For 25x25 4-up labels, PRINT 1 already parks the paper at the next label
+    # start. Adding FEED here causes the printer to eject one extra blank row.
+    if not is_25x25_4up:
+        tspl.append("FEED 0")
+        logger.info(f"\n✅ Added FEED 0 command")
     
     total_labels = len(products) * copies
     total_commands = len(tspl)
