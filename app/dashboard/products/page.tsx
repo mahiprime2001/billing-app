@@ -213,6 +213,8 @@ export default function ProductsPage() {
   const [productsToPrint, setProductsToPrint] = useState<Product[]>([]);
   const [isBulkHsnDialogOpen, setIsBulkHsnDialogOpen] = useState(false);
   const [bulkHsnValue, setBulkHsnValue] = useState("");
+  const [associatedBillsDialogOpen, setAssociatedBillsDialogOpen] = useState(false);
+  const [associatedBills, setAssociatedBills] = useState<{ id: string; date: string }[]>([]);
 
   // Calendar and modal state
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -450,6 +452,21 @@ export default function ProductsPage() {
       return;
     }
 
+    if (Number.parseInt(formData.stock) < 0) {
+      alert("Stock quantity cannot be negative");
+      return;
+    }
+
+    if (Number.parseInt(formData.price) <= 0) {
+      alert("Price must be a positive number");
+      return;
+    }
+
+    if (formData.sellingPrice && Number.parseInt(formData.sellingPrice) <= 0) {
+      alert("Selling price must be a positive number");
+      return;
+    }
+
     const validBarcodes = Array.from(new Set(formData.barcodes.map((b) => b.trim()).filter((b) => b !== "")));
     if (validBarcodes.length === 0) {
       alert("Please add at least one barcode.");
@@ -480,9 +497,9 @@ export default function ProductsPage() {
 
     const newProduct: Omit<ProductType, "id" | "createdAt" | "updatedAt"> = {
       name: formData.name,
-      price: Number.parseFloat(formData.price),
+      price: Number.parseInt(formData.price),
       stock: Number.parseInt(formData.stock),
-      sellingPrice: Number.parseFloat(formData.sellingPrice),
+      sellingPrice: Number.parseInt(formData.sellingPrice),
       barcode: validBarcodes.join(","), // Join array into a comma-separated string for 'barcode' field
       batchid: formData.batchid,
       hsnCode: normalizeHsnCode(formData.hsnCode),
@@ -511,6 +528,21 @@ export default function ProductsPage() {
   const handleEditProduct = async () => {
     if (!editingProduct || !formData.name || !formData.price || !formData.stock) {
       alert("Please fill in all required fields");
+      return;
+    }
+
+    if (Number.parseInt(formData.stock) < 0) {
+      alert("Stock quantity cannot be negative");
+      return;
+    }
+
+    if (Number.parseInt(formData.price) <= 0) {
+      alert("Price must be a positive number");
+      return;
+    }
+
+    if (formData.sellingPrice && Number.parseInt(formData.sellingPrice) <= 0) {
+      alert("Selling price must be a positive number");
       return;
     }
 
@@ -545,9 +577,9 @@ export default function ProductsPage() {
 
     const updatedProduct: Partial<ProductType> = {
       name: formData.name,
-      price: Number.parseFloat(formData.price),
+      price: Number.parseInt(formData.price),
       stock: Number.parseInt(formData.stock),
-      sellingPrice: Number.parseFloat(formData.sellingPrice),
+      sellingPrice: Number.parseInt(formData.sellingPrice),
       barcode: validBarcodes.join(","), // Join array into a comma-separated string for 'barcode' field
       batchid: formData.batchid === "" ? undefined : formData.batchid, // Send undefined if batchid is empty
       hsnCode: normalizeHsnCode(formData.hsnCode),
@@ -575,9 +607,6 @@ export default function ProductsPage() {
   };
 
 const handleDeleteProduct = async (productId: string) => {
-  // Optimistic update - remove from UI immediately
-  mutate(productsData.filter((p) => p.id !== productId), false);
-
   try {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`,
@@ -589,16 +618,23 @@ const handleDeleteProduct = async (productId: string) => {
       }
     );
 
+    if (response.status === 409) {
+      const data = await response.json();
+      setAssociatedBills(data.associated_bills ?? []);
+      setAssociatedBillsDialogOpen(true);
+      return;
+    }
+
     if (!response.ok) {
       throw new Error("Failed to delete product");
     }
 
-    // Force revalidation after successful delete
+    // Optimistic update after confirmed success
+    mutate(productsData.filter((p) => p.id !== productId), false);
     await mutate();
   } catch (error) {
     console.error("Error deleting product:", error);
     alert("Failed to delete product.");
-    // Revert optimistic update on error
     mutate();
   }
 };
@@ -1482,11 +1518,11 @@ const handleDeleteProduct = async (productId: string) => {
                       <Input
                         id="price"
                         type="number"
-                        min="0"
-                        step="0.01"
+                        min="1"
+                        step="1"
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        placeholder="0.00"
+                        placeholder="0"
                       />
                     </div>
                     <div className="space-y-2">
@@ -1507,11 +1543,11 @@ const handleDeleteProduct = async (productId: string) => {
                       <Input
                         id="sellingPrice"
                         type="number"
-                        min="0"
-                        step="0.01"
+                        min="1"
+                        step="1"
                         value={formData.sellingPrice}
                         onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                        placeholder="0.00"
+                        placeholder="0"
                       />
                     </div>
                   </div>
@@ -2509,11 +2545,11 @@ return (
                   <Input
                     id="edit-price"
                     type="number"
-                    min="0"
-                    step="0.01"
+                    min="1"
+                    step="1"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="0.00"
+                    placeholder="0"
                   />
                 </div>
                 <div className="space-y-2">
@@ -2534,11 +2570,11 @@ return (
                 <Input
                   id="edit-sellingPrice"
                   type="number"
-                  min="0"
-                  step="0.01"
+                  min="1"
+                  step="1"
                   value={formData.sellingPrice}
                   onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                  placeholder="0.00"
+                  placeholder="0"
                 />
               </div>
               </div>
@@ -2705,6 +2741,35 @@ return (
     </DialogFooter>
   </DialogContent>
 </Dialog>
+
+<Dialog open={associatedBillsDialogOpen} onOpenChange={setAssociatedBillsDialogOpen}>
+  <DialogContent className="sm:max-w-[480px]">
+    <DialogHeader>
+      <DialogTitle>Cannot Delete Product</DialogTitle>
+      <DialogDescription>
+        This product is associated with the following bill(s) and cannot be deleted.
+      </DialogDescription>
+    </DialogHeader>
+    <div className="py-4">
+      <div className="max-h-60 overflow-y-auto rounded-md border bg-muted p-3 space-y-1">
+        {associatedBills.map((bill) => (
+          <div key={bill.id} className="flex items-center justify-between text-sm font-mono px-2 py-1 rounded bg-background border">
+            <span>{bill.id}</span>
+            {bill.date && (
+              <span className="text-muted-foreground font-sans ml-4 whitespace-nowrap">
+                {new Date(bill.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+    <DialogFooter>
+      <Button onClick={() => setAssociatedBillsDialogOpen(false)}>Close</Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
       </div>
     </DashboardLayout>
   )

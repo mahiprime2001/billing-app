@@ -112,6 +112,11 @@ def save_bills_data(bills: List[Dict]) -> bool:
     return _safe_json_dump(Config.BILLS_FILE, bills)
 
 
+def get_bill_items_data() -> List[Dict]:
+    """Get bill items from local JSON"""
+    return _safe_json_load(Config.BILL_ITEMS_FILE, [])
+
+
 # ============================================
 # USERS
 # ============================================

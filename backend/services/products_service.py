@@ -18,6 +18,7 @@ from utils.json_helpers import (
     save_returns_data,
     get_store_inventory_data,
     save_store_inventory_data,
+    get_bill_items_data,
 )
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 from utils.concurrency_guard import extract_base_markers, safe_update_with_conflict_check
@@ -861,10 +862,32 @@ def delete_product(product_id: str) -> Tuple[bool, str, int]:
     Returns (success, message, status_code)
     """
     try:
-        # STEP 1: Delete from local JSON
+        # STEP 1: Check if product is associated with any bills
+        bill_items = get_bill_items_data()
+        seen_bill_ids = set()
+        associated_bill_ids = []
+        for item in bill_items:
+            billid = item.get("billid")
+            if item.get("productid") == product_id and billid and billid not in seen_bill_ids:
+                seen_bill_ids.add(billid)
+                associated_bill_ids.append(billid)
+
+        if associated_bill_ids:
+            bills = get_bills_data()
+            bills_map = {b.get("id"): b for b in bills}
+            associated_bills = [
+                {
+                    "id": billid,
+                    "date": bills_map.get(billid, {}).get("timestamp") or bills_map.get(billid, {}).get("created_at") or ""
+                }
+                for billid in associated_bill_ids
+            ]
+            return False, "Product is associated with existing bills", 409, associated_bills
+
+        # STEP 2: Delete from local JSON
         products = get_products_data()
         product_index = next((i for i, p in enumerate(products) if p.get('id') == product_id), -1)
-        
+
         if product_index == -1:
             return False, "Product not found", 404
         

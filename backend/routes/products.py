@@ -159,8 +159,10 @@ def update_product(product_id):
 def delete_product(product_id):
     """Delete product (hard delete - permanent removal)"""
     try:
-        success, message, status_code = products_service.delete_product(product_id)
-        
+        result = products_service.delete_product(product_id)
+        success, message, status_code = result[0], result[1], result[2]
+        associated_bill_ids = result[3] if len(result) > 3 else None
+
         if success:
             # Log for sync if sync manager is available
             try:
@@ -168,11 +170,14 @@ def delete_product(product_id):
                 log_json_crud_operation('products', 'DELETE', product_id, {'id': product_id})
             except ImportError:
                 logger.warning("Sync manager not available, skipping sync log")
-            
+
             return jsonify({"message": message}), status_code
         else:
-            return jsonify({"error": message}), status_code
-            
+            response = {"error": message}
+            if associated_bill_ids is not None:
+                response["associated_bills"] = associated_bill_ids
+            return jsonify(response), status_code
+
     except Exception as e:
         logger.error(f"Error in delete_product: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
