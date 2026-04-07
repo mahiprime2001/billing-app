@@ -1,6 +1,6 @@
 {
   "name": "Siri-Admin-app",
-  "version": "0.1.194",
+  "version": "0.2.6",
   "private": true,
   "scripts": {
     "build": "next build",
