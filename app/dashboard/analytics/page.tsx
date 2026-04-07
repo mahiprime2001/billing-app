@@ -1329,7 +1329,7 @@ export default function AnalyticsPage() {
     nonSellingCount: row.nonSellingCount,
   }))
 
-  const exportAnalyticsWorkbook = useCallback(() => {
+  const exportAnalyticsWorkbook = useCallback(async () => {
     const timestamp = format(new Date(), 'yyyyMMdd_HHmmss')
     const workbook = XLSX.utils.book_new()
     const rangeLabel = `${format(dateWindows.currentStart, 'dd MMM yyyy')} to ${format(dateWindows.currentEnd, 'dd MMM yyyy')}`
@@ -1340,6 +1340,54 @@ export default function AnalyticsPage() {
       exportStore === 'all'
         ? 'All Stores'
         : stores.find((s) => s.id === exportStore)?.name || 'Unknown Store'
+
+    // ── Fetch store-specific inventory for the selected store ──
+    let expInventoryAnalytics: InventoryAnalytics[] = inventoryAnalytics
+    if (exportStore !== 'all') {
+      try {
+        const invRes = await fetch(`${backendUrl}/api/stores/${exportStore}/assigned-products`)
+        if (invRes.ok) {
+          const invData: Array<{ productId?: string; productid?: string; quantity?: number; products?: { name?: string; price?: number } }> = await invRes.json()
+          const productMap = new Map(products.map((p) => [p.id, p]))
+          expInventoryAnalytics = (Array.isArray(invData) ? invData : [])
+            .filter((row) => Number(row.quantity ?? 0) > 0)
+            .map((row) => {
+              const pid = String(row.productId || row.productid || '')
+              const globalProduct = productMap.get(pid)
+              const productName = row.products?.name || globalProduct?.name || 'Unknown Product'
+              const costPrice = globalProduct?.costPrice ?? Number(row.products?.price ?? 0)
+              const sellingPrice = globalProduct?.sellingPrice ?? costPrice
+              const stock = Number(row.quantity ?? 0)
+              const marginPerUnit = sellingPrice - costPrice
+              const marginPct = costPrice > 0 ? (marginPerUnit / costPrice) * 100 : null
+              return {
+                productId: pid,
+                productName,
+                category: globalProduct?.category ?? 'Uncategorized',
+                stock,
+                costPrice,
+                sellingPrice,
+                marginPerUnit,
+                marginPct,
+                costValue: costPrice * stock,
+                potentialSalesValue: sellingPrice * stock,
+                potentialProfit: marginPerUnit * stock,
+              }
+            })
+            .sort((a, b) => b.potentialProfit - a.potentialProfit)
+        }
+      } catch {
+        // fall back to global inventory analytics on error
+      }
+    }
+
+    const expInventorySummary = {
+      totalCostValue: expInventoryAnalytics.reduce((s, r) => s + r.costValue, 0),
+      totalPotentialSalesValue: expInventoryAnalytics.reduce((s, r) => s + r.potentialSalesValue, 0),
+      totalPotentialProfit: expInventoryAnalytics.reduce((s, r) => s + r.potentialProfit, 0),
+      lowStockCount: expInventoryAnalytics.filter((r) => r.stock > 0 && r.stock < LOW_STOCK_THRESHOLD).length,
+      outOfStockCount: expInventoryAnalytics.filter((r) => r.stock === 0).length,
+    }
 
     const expBillsByStore = bills.filter(
       (bill) => exportStore === 'all' || bill.storeId === exportStore,
@@ -1485,11 +1533,11 @@ export default function AnalyticsPage() {
       { description: 'Unique Customers', value: expSummary.customers },
       { description: 'Average Bill Value', value: Number(expSummary.avgBill.toFixed(2)) },
       { description: '', value: '' },
-      { description: 'Inventory — Total Cost Value', value: Number(inventorySummary.totalCostValue.toFixed(2)) },
-      { description: 'Inventory — Potential Sales Value', value: Number(inventorySummary.totalPotentialSalesValue.toFixed(2)) },
-      { description: 'Inventory — Potential Profit', value: Number(inventorySummary.totalPotentialProfit.toFixed(2)) },
-      { description: 'Low Stock Products', value: inventorySummary.lowStockCount },
-      { description: 'Out of Stock Products', value: inventorySummary.outOfStockCount },
+      { description: 'Inventory — Total Cost Value', value: Number(expInventorySummary.totalCostValue.toFixed(2)) },
+      { description: 'Inventory — Potential Sales Value', value: Number(expInventorySummary.totalPotentialSalesValue.toFixed(2)) },
+      { description: 'Inventory — Potential Profit', value: Number(expInventorySummary.totalPotentialProfit.toFixed(2)) },
+      { description: 'Low Stock Products', value: expInventorySummary.lowStockCount },
+      { description: 'Out of Stock Products', value: expInventorySummary.outOfStockCount },
     ]
     XLSX.utils.book_append_sheet(
       workbook,
@@ -1645,7 +1693,7 @@ export default function AnalyticsPage() {
     // 5. INVENTORY VALUATION & MARGINS
     // ══════════════════════════════════════════
     const inventoryRows = appendTotalRow(
-      inventoryAnalytics.map((row, i) => ({
+      expInventoryAnalytics.map((row, i) => ({
         sl_no: i + 1,
         product_name: row.productName,
         stock: row.stock,
@@ -1664,7 +1712,7 @@ export default function AnalyticsPage() {
       workbook,
       buildSheet(inventoryRows, {
         title: 'Inventory Valuation & Profit Margins',
-        subtitle: `As of ${generatedAt}`,
+        subtitle: `${expStoreName} | As of ${generatedAt}`,
         notes: [
           'Cost Price = Purchase/procurement cost per unit.',
           'Selling Price = Listed retail price per unit.',
@@ -1808,7 +1856,6 @@ export default function AnalyticsPage() {
     returns,
     stores,
     products,
-    inventorySummary,
     inventoryAnalytics,
   ])
 
