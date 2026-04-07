@@ -415,12 +415,6 @@ const HEADER_LABELS: Record<string, string> = {
   // Bills
   bill_id: 'Bill / Invoice No.',
   total_items: 'Total Items',
-  net_sales: 'Net Sales (₹)',
-  gross_sales: 'Gross Sales (₹)',
-  total_discount: 'Discount (₹)',
-  total_bills: 'No. of Bills',
-  total_items_sold: 'Items Sold',
-  average_bill_value: 'Avg. Bill Value (₹)',
 }
 
 interface BuildSheetOpts {
