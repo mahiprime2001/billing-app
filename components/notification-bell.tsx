@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, Check, Clock, User, X, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -186,6 +186,11 @@ const NotificationItem: React.FC<{
   )
 }
 
+// Polling constants
+const BASE_POLL_INTERVAL = 30_000    // 30s normal polling
+const MAX_POLL_INTERVAL = 120_000    // 2min max backoff
+const BACKOFF_MULTIPLIER = 2
+
 export const NotificationBell: React.FC = () => {
   const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -193,10 +198,20 @@ export const NotificationBell: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const loginPendingSnapshotRef = useRef<Set<string>>(new Set())
   const activeNewPendingRef = useRef<Set<string>>(new Set())
   const isSnapshotInitializedRef = useRef(false)
   const lastReminderTsRef = useRef(0)
+
+  // Step 4: inFlight guard + AbortController
+  const inFlightRef = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Step 2: exponential backoff state
+  const pollIntervalRef = useRef(BASE_POLL_INTERVAL)
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const consecutiveErrorsRef = useRef(0)
 
   const getDefaultTitle = (type: string): string => {
     switch (type) {
@@ -308,17 +323,52 @@ export const NotificationBell: React.FC = () => {
     }
   }
   
+  // Schedule next poll with current interval (handles backoff)
+  const scheduleNextPoll = useCallback(() => {
+    if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
+    pollTimerRef.current = setTimeout(() => {
+      // Step 1: skip poll if tab is hidden
+      if (document.visibilityState === "visible") {
+        fetchNotifications()
+      } else {
+        scheduleNextPoll() // re-schedule, don't fetch
+      }
+    }, pollIntervalRef.current)
+  }, [])
+
   // Fetch notifications from API
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async (options?: { includePending?: boolean }) => {
+    // Step 4: prevent overlapping requests
+    if (inFlightRef.current) return
+    inFlightRef.current = true
+
+    // Abort any lingering previous request
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    const signal = controller.signal
+
     try {
       setLoading(true)
       setError(null)
 
-      const [notificationsRes, returnsRes, discountsRes] = await Promise.all([
-        fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/notifications?limit=50", { cache: "no-store" }),
-        fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/returns?t=" + Date.now(), { cache: "no-store" }),
-        fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/discounts?t=" + Date.now(), { cache: "no-store" }),
-      ])
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL
+
+      // Step 3: only fetch returns/discounts for super_admin AND when dropdown is open (or explicitly requested)
+      const shouldFetchPending = isSuperAdmin && (options?.includePending ?? false)
+
+      const fetches: Promise<Response>[] = [
+        fetch(backendUrl + "/api/notifications?limit=50", { cache: "no-store", signal }),
+      ]
+      if (shouldFetchPending) {
+        fetches.push(
+          fetch(backendUrl + "/api/returns?t=" + Date.now(), { cache: "no-store", signal }),
+          fetch(backendUrl + "/api/discounts?t=" + Date.now(), { cache: "no-store", signal }),
+        )
+      }
+
+      const responses = await Promise.all(fetches)
+      const notificationsRes = responses[0]
 
       if (!notificationsRes.ok) {
         throw new Error(`HTTP ${notificationsRes.status}`)
@@ -328,8 +378,9 @@ export const NotificationBell: React.FC = () => {
       const persistedList = Array.isArray(notificationData) ? notificationData : notificationData.notifications || []
       const persistedNotifications = persistedList.map(normalizeNotification)
 
-      const returnsData: ReturnRequest[] = returnsRes.ok ? await returnsRes.json() : []
-      const discountsData: DiscountRequest[] = discountsRes.ok ? await discountsRes.json() : []
+      // Only process pending returns/discounts if we fetched them
+      const returnsData: ReturnRequest[] = shouldFetchPending && responses[1]?.ok ? await responses[1].json() : []
+      const discountsData: DiscountRequest[] = shouldFetchPending && responses[2]?.ok ? await responses[2].json() : []
 
       const existingKeys = new Set(
         persistedNotifications
@@ -403,102 +454,154 @@ export const NotificationBell: React.FC = () => {
 
       setNotifications(normalized)
       setUnreadCount(normalized.filter((item) => !item.isRead).length)
+
+      // Step 2: reset backoff on success
+      consecutiveErrorsRef.current = 0
+      pollIntervalRef.current = BASE_POLL_INTERVAL
     } catch (err) {
+      if (signal.aborted) return // don't treat abort as error
       console.error('Error fetching notifications:', err)
       setError('Failed to load notifications')
-    } finally {
-      setLoading(false)
-    }
-  }
-  
-  // Mark notification as read
-  const markAsRead = async (id: string) => {
-    try {
-      const target = notifications.find((notification) => notification.id === id)
-      if (target?.isVirtual) {
-        setNotifications(prev =>
-          prev.map(notification =>
-            notification.id === id
-              ? { ...notification, isRead: true }
-              : notification
-          )
-        )
-        setUnreadCount((prev) => Math.max(0, prev - 1))
-        return
-      }
 
+      // Step 2: exponential backoff on error
+      consecutiveErrorsRef.current += 1
+      pollIntervalRef.current = Math.min(
+        BASE_POLL_INTERVAL * Math.pow(BACKOFF_MULTIPLIER, consecutiveErrorsRef.current),
+        MAX_POLL_INTERVAL,
+      )
+    } finally {
+      if (!signal.aborted) {
+        setLoading(false)
+        inFlightRef.current = false
+        scheduleNextPoll()
+      }
+    }
+  }, [isSuperAdmin, scheduleNextPoll])
+  
+  // Wrapper for onClick handlers (ignores the MouseEvent arg)
+  const handleRefreshClick = useCallback(() => {
+    fetchNotifications({ includePending: isSuperAdmin })
+  }, [fetchNotifications, isSuperAdmin])
+
+  // Step 5: Mark as read — optimistic local update, no refetch
+  const markAsRead = async (id: string) => {
+    const target = notifications.find((notification) => notification.id === id)
+    if (!target || target.isRead) return
+
+    // Optimistic update immediately
+    setNotifications(prev =>
+      prev.map(notification =>
+        notification.id === id ? { ...notification, isRead: true } : notification
+      )
+    )
+    setUnreadCount((prev) => Math.max(0, prev - 1))
+
+    if (target.isVirtual) return
+
+    try {
       const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/notifications/${id}`, {
         method: 'PUT'
       })
-      
-      if (response.ok) {
-        setNotifications(prev => 
-          prev.map(notification => 
-            notification.id === id 
-              ? { ...notification, isRead: true }
-              : notification
+      if (!response.ok) {
+        // Revert on failure
+        setNotifications(prev =>
+          prev.map(notification =>
+            notification.id === id ? { ...notification, isRead: false } : notification
           )
         )
-        setUnreadCount((prev) => Math.max(0, prev - 1))
+        setUnreadCount((prev) => prev + 1)
       }
     } catch (err) {
       console.error('Error marking notification as read:', err)
+      // Revert on failure
+      setNotifications(prev =>
+        prev.map(notification =>
+          notification.id === id ? { ...notification, isRead: false } : notification
+        )
+      )
+      setUnreadCount((prev) => prev + 1)
     }
   }
-  
-  // Dismiss notification
-  const dismissNotification = async (id: string) => {
-    try {
-      const target = notifications.find((n) => n.id === id)
-      if (target?.isVirtual) {
-        setNotifications(prev => prev.filter(notification => notification.id !== id))
-        setUnreadCount(prev => Math.max(0, prev - 1))
-        return
-      }
 
+  // Step 5: Dismiss — optimistic local update, no refetch
+  const dismissNotification = async (id: string) => {
+    const target = notifications.find((n) => n.id === id)
+    if (!target) return
+
+    // Optimistic update immediately
+    setNotifications(prev => prev.filter(notification => notification.id !== id))
+    if (!target.isRead) {
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    }
+
+    if (target.isVirtual) return
+
+    try {
       const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/notifications/${id}`, {
         method: 'DELETE'
       })
-      
-      if (response.ok) {
-        const dismissedNotification = notifications.find(n => n.id === id)
-        setNotifications(prev => prev.filter(notification => notification.id !== id))
-        
-        if (dismissedNotification && !dismissedNotification.isRead) {
-          setUnreadCount(prev => Math.max(0, prev - 1))
-        }
+      if (!response.ok) {
+        // Revert on failure — add it back
+        setNotifications(prev => [...prev, target].sort((a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        ))
+        if (!target.isRead) setUnreadCount(prev => prev + 1)
       }
     } catch (err) {
       console.error('Error dismissing notification:', err)
+      setNotifications(prev => [...prev, target].sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ))
+      if (!target.isRead) setUnreadCount(prev => prev + 1)
     }
   }
-  
-  // Mark all as read
+
+  // Step 5: Mark all as read — optimistic, no refetch
   const markAllAsRead = async () => {
+    const previousNotifications = notifications
+    const unreadPersistedIds = notifications
+      .filter((notification) => !notification.isRead && !notification.isVirtual)
+      .map((n) => n.id)
+
+    // Optimistic update immediately
+    setNotifications((prev) => {
+      const next = prev.map((notification) =>
+        notification.isVirtual ? notification : { ...notification, isRead: true },
+      )
+      setUnreadCount(next.filter((item) => !item.isRead).length)
+      return next
+    })
+
     try {
-      const unreadPersistedIds = notifications
-        .filter((notification) => !notification.isRead && !notification.isVirtual)
-        .map((n) => n.id)
-      await Promise.all(
+      const results = await Promise.all(
         unreadPersistedIds.map((id) =>
           fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/notifications/${id}`, {
             method: "PUT",
           }),
         ),
       )
-      setNotifications((prev) => {
-        const next = prev.map((notification) =>
-          notification.isVirtual ? notification : { ...notification, isRead: true },
-        )
-        setUnreadCount(next.filter((item) => !item.isRead).length)
-        return next
-      })
+      // If any failed, revert
+      if (results.some(r => !r.ok)) {
+        setNotifications(previousNotifications)
+        setUnreadCount(previousNotifications.filter((item) => !item.isRead).length)
+      }
     } catch (err) {
       console.error('Error marking all as read:', err)
+      setNotifications(previousNotifications)
+      setUnreadCount(previousNotifications.filter((item) => !item.isRead).length)
     }
   }
 
-  // Load notifications on component mount
+  // Step 1: Handle dropdown open — fetch with pending data when bell opens
+  const handleDropdownOpenChange = useCallback((open: boolean) => {
+    setIsDropdownOpen(open)
+    if (open) {
+      // Fetch with pending returns/discounts when bell is opened
+      fetchNotifications({ includePending: isSuperAdmin })
+    }
+  }, [fetchNotifications, isSuperAdmin])
+
+  // Load notifications on component mount + set up smart polling
   useEffect(() => {
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem("adminUser") : null
@@ -510,16 +613,28 @@ export const NotificationBell: React.FC = () => {
       setIsSuperAdmin(false)
     }
 
+    // Initial fetch — lightweight (no pending returns/discounts)
     fetchNotifications()
-    
-    // Continuously poll for pending requests + notifications.
-    const interval = setInterval(fetchNotifications, 10000)
-    
-    return () => clearInterval(interval)
+
+    // Step 1: pause/resume polling on tab visibility change
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        // Tab became visible — fetch immediately, then resume polling
+        fetchNotifications()
+      }
+      // When hidden, scheduleNextPoll will skip fetching automatically
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
+      abortControllerRef.current?.abort()
+    }
   }, [])
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={handleDropdownOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative hover:bg-accent">
           <Bell className="h-5 w-5" />
@@ -553,7 +668,7 @@ export const NotificationBell: React.FC = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={fetchNotifications}
+              onClick={handleRefreshClick}
               className="h-7 w-7"
               disabled={loading}
               title="Refresh notifications"
@@ -585,10 +700,10 @@ export const NotificationBell: React.FC = () => {
             <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm font-medium mb-1">Failed to load</p>
             <p className="text-xs">{error}</p>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={fetchNotifications}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRefreshClick}
               className="mt-2 text-xs"
             >
               Try again

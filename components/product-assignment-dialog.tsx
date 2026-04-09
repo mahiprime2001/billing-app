@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -65,6 +65,21 @@ type AssignmentAutosave = {
   quantityMap: Record<string, number>
   updatedAt: string
 }
+
+const toWholeStock = (value: unknown): number => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return 0
+  return Math.max(0, Math.trunc(num))
+}
+
+const normalizeProductStocks = (product: AssignedProduct): AssignedProduct => ({
+  ...product,
+  stock: toWholeStock(product.stock),
+  availableStock: toWholeStock(product.availableStock),
+  currentStoreStock: toWholeStock(product.currentStoreStock),
+  totalAllocated: toWholeStock(product.totalAllocated),
+  globalStock: toWholeStock(product.globalStock),
+})
 
 export default function ProductAssignmentDialog({ storeId, storeName, trigger, onAssign }: Props) {
   const [open, setOpen] = useState(false)
@@ -247,7 +262,7 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
       const res = await fetch(`${API}/api/stores/${storeId}/available-products`)
       if (res.ok) {
         const data = await res.json()
-        const availableOnly = Array.isArray(data) ? data : []
+        const availableOnly = (Array.isArray(data) ? data : []).map((p) => normalizeProductStocks(p as AssignedProduct))
         setProducts(availableOnly)
         applyAutosave(availableOnly)
 
@@ -255,7 +270,7 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
           const allProductsRes = await fetch(`${API}/api/products`)
           if (allProductsRes.ok) {
             const allProductsData = await allProductsRes.json()
-            setAllProducts(Array.isArray(allProductsData) ? allProductsData : [])
+            setAllProducts((Array.isArray(allProductsData) ? allProductsData : []).map((p) => normalizeProductStocks(p as AssignedProduct)))
           } else {
             setAllProducts([])
           }
@@ -406,16 +421,48 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
     }
   }
 
-  const filteredProducts = products.filter((p) => {
-    const available = Number(p.availableStock || 0)
-    const assigned = Number(p.currentStoreStock || 0)
-    const visible = available > 0 || assigned > 0
-    if (!visible) return false
-    return (
-      p.name?.toLowerCase().includes(search.toLowerCase()) ||
-      p.barcode?.toLowerCase().includes(search.toLowerCase())
-    )
-  })
+  const normalizeStockValue = (value: unknown): number => {
+    return toWholeStock(value)
+  }
+
+  const formatStock = (value: unknown): string => {
+    return String(normalizeStockValue(value))
+  }
+
+  const filteredProducts = useMemo(() => {
+    const searchTerm = search.toLowerCase()
+    const recencyMap = new Map(scanOrder.map((key, index) => [key, index]))
+
+    const list = products.filter((p) => {
+      const available = normalizeStockValue(p.availableStock)
+      const assigned = normalizeStockValue(p.currentStoreStock)
+      const visible = available > 0 || assigned > 0
+      if (!visible) return false
+      return (
+        p.name?.toLowerCase().includes(searchTerm) ||
+        p.barcode?.toLowerCase().includes(searchTerm)
+      )
+    })
+
+    list.sort((a, b) => {
+      const aKey = a.id || a.barcode
+      const bKey = b.id || b.barcode
+      const aSelected = Boolean(selected[aKey])
+      const bSelected = Boolean(selected[bKey])
+
+      if (aSelected !== bSelected) return aSelected ? -1 : 1
+
+      if (aSelected && bSelected) {
+        const aRecency = recencyMap.get(aKey) ?? -1
+        const bRecency = recencyMap.get(bKey) ?? -1
+        if (aRecency !== bRecency) return bRecency - aRecency
+      }
+
+      return (a.name || "").localeCompare(b.name || "")
+    })
+
+    return list
+  }, [products, search, scanOrder, selected])
 
   // Scroll selected list to top when a new product is scanned
   useEffect(() => {
@@ -434,18 +481,6 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
     const key = p.id || p.barcode
     return sum + Number(quantityMap[key] || 0)
   }, 0)
-
-  const normalizeStockValue = (value: unknown): number => {
-    const num = Number(value)
-    if (!Number.isFinite(num)) return 0
-    return num
-  }
-
-  const formatStock = (value: unknown): string => {
-    const num = normalizeStockValue(value)
-    if (Number.isInteger(num)) return String(num)
-    return num.toFixed(2).replace(/\.?0+$/, '')
-  }
 
   const handleBarcodeEnter = () => {
     const term = search.trim().toLowerCase()
@@ -666,6 +701,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                   const key = p.id || p.barcode
                   const qty = quantityMap[key] || 0
                   const availableStock = normalizeStockValue(p.availableStock)
+                  const currentStoreStock = normalizeStockValue(p.currentStoreStock)
                   const isOverStock = qty > availableStock
                   
                   return (
@@ -677,8 +713,8 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                           <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                             <div>
                               Available: <span className="font-semibold">{formatStock(availableStock)}</span>
-                              {p.currentStoreStock && p.currentStoreStock > 0 && (
-                                <> • Already assigned: <span className="font-semibold">{formatStock(p.currentStoreStock)}</span></>
+                              {currentStoreStock > 0 && (
+                                <> • Already assigned: <span className="font-semibold">{formatStock(currentStoreStock)}</span></>
                               )}
                             </div>
                             <div>

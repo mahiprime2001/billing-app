@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -42,6 +42,12 @@ type UserInfo = {
   full_name?: string
 }
 
+// Polling constants
+const PENDING_POLL_INTERVAL = 30_000   // 30s for pending view
+const MAX_POLL_INTERVAL = 120_000      // 2min max backoff
+const BACKOFF_MULTIPLIER = 2
+const USERS_REFRESH_INTERVAL = 300_000 // 5min — users list rarely changes
+
 export default function DiscountsPage() {
   const [requests, setRequests] = useState<DiscountRequest[]>([])
   const [userNameById, setUserNameById] = useState<Record<string, string>>({})
@@ -49,6 +55,26 @@ export default function DiscountsPage() {
   const [error, setError] = useState<string | null>(null)
   const [adminUser, setAdminUser] = useState<{ id?: string; userId?: string; name?: string }>({})
   const [selectedDiscountIds, setSelectedDiscountIds] = useState<string[]>([])
+
+  // Polling refs
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pollIntervalRef = useRef(PENDING_POLL_INTERVAL)
+  const consecutiveErrorsRef = useRef(0)
+  const inFlightRef = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const usersTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Schedule next discount poll
+  const scheduleNextPoll = useCallback(() => {
+    if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
+    pollTimerRef.current = setTimeout(() => {
+      if (document.visibilityState === "visible") {
+        loadDiscounts(false)
+      } else {
+        scheduleNextPoll()
+      }
+    }, pollIntervalRef.current)
+  }, [])
 
   useEffect(() => {
     const storedAdmin = localStorage.getItem("adminUser")
@@ -59,38 +85,77 @@ export default function DiscountsPage() {
         // ignore parse errors and continue without admin context
       }
     }
+
+    // Initial loads
     loadDiscounts()
     loadUsers()
 
-    const intervalId = setInterval(() => {
-      loadDiscounts(false)
-      loadUsers()
-    }, 5000)
+    // Users: refresh every 5min instead of every 5s
+    usersTimerRef.current = setInterval(loadUsers, USERS_REFRESH_INTERVAL)
 
-    return () => clearInterval(intervalId)
+    // Pause/resume polling on tab visibility
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadDiscounts(false)
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
+      if (usersTimerRef.current) clearInterval(usersTimerRef.current)
+      abortControllerRef.current?.abort()
+    }
   }, [])
 
-  const loadDiscounts = async (showLoading = true) => {
+  const loadDiscounts = useCallback(async (showLoading = true) => {
+    // Deduplicate concurrent fetches
+    if (inFlightRef.current) return
+    inFlightRef.current = true
+
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    const signal = controller.signal
+
     if (showLoading) {
       setLoading(true)
     }
     setError(null)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/discounts?t=${Date.now()}`, {
-        cache: "no-store",
-      })
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/discounts?t=${Date.now()}`,
+        { cache: "no-store", signal },
+      )
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       const data: DiscountRequest[] = await response.json()
       setRequests(Array.isArray(data) ? data : [])
+
+      // Reset backoff on success
+      consecutiveErrorsRef.current = 0
+      pollIntervalRef.current = PENDING_POLL_INTERVAL
     } catch (err) {
+      if (signal.aborted) return
       console.error("Error loading discounts:", err)
       setError("Failed to load discounts. Please try again later.")
+
+      // Exponential backoff on error: 30s -> 60s -> 120s
+      consecutiveErrorsRef.current += 1
+      pollIntervalRef.current = Math.min(
+        PENDING_POLL_INTERVAL * Math.pow(BACKOFF_MULTIPLIER, consecutiveErrorsRef.current),
+        MAX_POLL_INTERVAL,
+      )
     } finally {
-      setLoading(false)
+      if (!signal.aborted) {
+        setLoading(false)
+        inFlightRef.current = false
+        scheduleNextPoll()
+      }
     }
-  }
+  }, [scheduleNextPoll])
 
   const loadUsers = async () => {
     try {
