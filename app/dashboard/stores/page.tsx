@@ -29,7 +29,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Plus,
   Edit,
@@ -37,22 +36,13 @@ import {
   Search,
   MapPin,
   Phone,
-  Mail,
   User,
   TrendingUp,
   Receipt,
-  Calendar,
   Building,
   Info,
   RefreshCw,
-  ChevronLeft,
-  ChevronRight,
-  Printer,
 } from "lucide-react"
-import ProductAssignmentDialog, {
-  AssignedProduct,
-} from "@/components/product-assignment-dialog";
-import { unifiedPrint } from "@/app/utils/printUtils";
 
 const API = process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://127.0.0.1:8080"
 
@@ -85,186 +75,7 @@ type StoreLiveInventoryRow = {
 }
 
 
-type DateCard = {
-  date: string
-  count: number
-  totalStock: number
-  totalValue: number
-}
-
-type TransferOrder = {
-  id: string
-  status?: string
-  createdAt?: string
-  created_at?: string
-  assignedQtyTotal?: number
-  itemCount?: number
-}
-
-type TransferOrderItem = {
-  id: string
-  assignedQty?: number
-  assigned_qty?: number
-  verifiedQty?: number
-  verified_qty?: number
-  products?: {
-    name?: string
-    barcode?: string
-    sellingPrice?: number
-    selling_price?: number
-  }
-}
-
-type TransferOrderDetails = {
-  id: string
-  createdAt?: string
-  created_at?: string
-  status?: string
-  items: TransferOrderItem[]
-}
-
-// iOS-style Mini Calendar Component (unchanged)
-function MiniCalendar({
-  dates,
-  selectedDate,
-  onDateSelect,
-  dataLabel = "Has data",
-}: {
-  dates: DateCard[]
-  selectedDate: string | null
-  onDateSelect: (date: string) => void
-  dataLabel?: string
-}) {
-  const [currentMonth, setCurrentMonth] = useState(new Date())
-  
-  const dateDataMap = new Map(dates.map(d => [d.date, d]))
-  const today = new Date()
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  const year = currentMonth.getFullYear()
-  const month = currentMonth.getMonth()
-  
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
-  const daysInMonth = lastDay.getDate()
-  const startingDayOfWeek = firstDay.getDay()
-  
-  const calendarDays = []
-  
-  for (let i = 0; i < startingDayOfWeek; i++) {
-    calendarDays.push(null)
-  }
-  
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const dateData = dateDataMap.get(dateStr);
-    calendarDays.push({
-      day,
-      dateStr,
-      isToday: dateStr === todayStr,
-      hasData: !!dateData,
-      data: dateData,
-    });
-  }
-  
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ]
-  
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-  
-  const goToPrevMonth = () => {
-    setCurrentMonth(new Date(year, month - 1))
-  }
-  
-  const goToNextMonth = () => {
-    setCurrentMonth(new Date(year, month + 1))
-  }
-  
-  return (
-    <div className="bg-white rounded-lg border p-4">
-      <div className="flex items-center justify-between mb-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={goToPrevMonth}
-          className="h-8 w-8 p-0"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <h3 className="text-lg font-semibold">
-          {monthNames[month]} {year}
-        </h3>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={goToNextMonth}
-          className="h-8 w-8 p-0"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-      <div className="grid grid-cols-7 gap-1 mb-2">
-        {dayNames.map(day => (
-          <div key={day} className="text-xs font-medium text-gray-500 text-center p-2">
-            {day}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {calendarDays.map((day, index) => {
-          if (!day) {
-            return <div key={index} className="h-8" />
-          }
-          
-          const isSelected = selectedDate === day.dateStr
-          const isToday = day.isToday
-          const hasData = day.hasData
-          
-          return (
-            <button
-              key={day.dateStr}
-              onClick={() => hasData && onDateSelect(day.dateStr)}
-              disabled={!hasData}
-              className={`
-                h-8 w-8 text-xs rounded-md relative transition-all duration-200
-                ${isSelected && hasData 
-                  ? 'bg-blue-600 text-white font-semibold' 
-                  : hasData 
-                    ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium border border-blue-200' 
-                    : isToday 
-                      ? 'bg-gray-100 text-gray-900 font-medium' 
-                      : 'text-gray-400 hover:bg-gray-50'
-                }
-                ${!hasData ? 'cursor-default' : 'cursor-pointer'}
-              `}
-            >
-              {day.day}
-              {hasData && (
-                <div className={`
-                  absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full
-                  ${isSelected ? 'bg-white' : 'bg-blue-500'}
-                `} />
-              )}
-            </button>
-          )
-        })}
-      </div>
-      <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-500">
-        <div className="flex items-center gap-1">
-          <div className="h-2 w-2 bg-blue-500 rounded-full" />
-          <span>{dataLabel}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="h-2 w-2 bg-gray-300 rounded-full" />
-          <span>No data</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Store Insight Modal Component (unchanged)
+// Store Insight Modal Component
 function StoreInsightModal({
   open,
   onClose,
@@ -274,8 +85,6 @@ function StoreInsightModal({
   onClose: () => void;
   store: StoreType | null;
 }) {
-  const [days] = useState(120);
-  const [activeInsightTab, setActiveInsightTab] = useState<"live-feed" | "all-orders">("live-feed");
   const [hasLoadedLiveFeed, setHasLoadedLiveFeed] = useState(false);
   const [inventoryRows, setInventoryRows] = useState<StoreLiveInventoryRow[]>([]);
   const [liveBills, setLiveBills] = useState<any[]>([]);
@@ -283,16 +92,6 @@ function StoreInsightModal({
   const [selectedLiveBillTab, setSelectedLiveBillTab] = useState("");
   const [isLoadingLiveFeed, setIsLoadingLiveFeed] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>("");
-  const [dates, setDates] = useState<DateCard[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [orders, setOrders] = useState<TransferOrder[]>([]);
-  const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | "pending" | "completed">("all");
-  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
-  const [selectedOrder, setSelectedOrder] = useState<TransferOrder | null>(null);
-  const [orderDetails, setOrderDetails] = useState<TransferOrderDetails | null>(null);
-  const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
-  const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
-  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
 
   const getDateKey = (value?: string) => {
     if (!value) return "";
@@ -316,44 +115,6 @@ function StoreInsightModal({
     });
   };
 
-  const getAssignedQty = (item: TransferOrderItem) => Number(item.assignedQty ?? item.assigned_qty ?? 0);
-  const getVerifiedQty = (item: TransferOrderItem) => Number(item.verifiedQty ?? item.verified_qty ?? 0);
-  const getItemPrice = (item: TransferOrderItem) =>
-    Number(item.products?.sellingPrice ?? item.products?.selling_price ?? 0);
-  const getItemName = (item: TransferOrderItem) => item.products?.name || "Unknown Product";
-  const getItemBarcode = (item: TransferOrderItem) => item.products?.barcode || "-";
-  const getItemBatch = (item: TransferOrderItem) => (item.products as any)?.batchNumber || (item.products as any)?.batch_number || "-";
-  const getOrderStatus = (order: TransferOrder) => String(order.status || "pending").toLowerCase();
-
-  const isPendingOrder = (order: TransferOrder) => {
-    const status = getOrderStatus(order);
-    return status === "pending" || status === "in_progress" || status === "in-progress";
-  };
-
-  const isCompletedOrder = (order: TransferOrder) => {
-    const status = getOrderStatus(order);
-    return status === "completed" || status === "closed_with_issues" || status === "closed-with-issues";
-  };
-
-  const getStatusMeta = (item: TransferOrderItem) => {
-    const assigned = getAssignedQty(item);
-    const verified = getVerifiedQty(item);
-    if (verified <= 0) return { label: "Pending", variant: "secondary" as const, verified, unverified: assigned };
-    if (verified >= assigned) return { label: "Verified", variant: "default" as const, verified, unverified: 0 };
-    return {
-      label: "Partial Verified",
-      variant: "outline" as const,
-      verified,
-      unverified: Math.max(0, assigned - verified),
-    };
-  };
-
-  const orderTotals = useMemo(() => {
-    if (!orderDetails?.items?.length) return { totalProducts: 0, totalAmount: 0, totalLines: 0 };
-    const totalProducts = orderDetails.items.reduce((sum, item) => sum + getAssignedQty(item), 0);
-    const totalAmount = orderDetails.items.reduce((sum, item) => sum + getAssignedQty(item) * getItemPrice(item), 0);
-    return { totalProducts, totalAmount, totalLines: orderDetails.items.length };
-  }, [orderDetails]);
 
   const fetchLiveData = async (showLoader = false) => {
     if (!store) return;
@@ -390,96 +151,22 @@ function StoreInsightModal({
   };
 
   useEffect(() => {
-    if (!open || !store || activeInsightTab !== "live-feed") return;
+    if (!open || !store) return;
     fetchLiveData(!hasLoadedLiveFeed);
     setHasLoadedLiveFeed(true);
     const timer = setInterval(() => fetchLiveData(false), 30000);
     return () => clearInterval(timer);
-  }, [open, store?.id, activeInsightTab, hasLoadedLiveFeed]);
+  }, [open, store?.id, hasLoadedLiveFeed]);
 
   useEffect(() => {
     if (!open || !store) return;
-    setActiveInsightTab("live-feed");
     setHasLoadedLiveFeed(false);
     setInventoryRows([]);
     setLiveBills([]);
     setLiveProductSearch("");
     setSelectedLiveBillTab("");
     setLastUpdated("");
-    setOrders([]);
-    setDates([]);
-    setSelectedDate(null);
-    setOrderStatusFilter("all");
   }, [open, store?.id]);
-
-  useEffect(() => {
-    if (!open || !store || activeInsightTab !== "all-orders") return;
-
-    setIsLoadingCalendar(true);
-    setOrders([]);
-    setDates([]);
-    setSelectedDate(null);
-
-    const normalizedStoreId = normalizeStoreId(store.id) || store.id;
-    fetch(`${API}/api/stores/${normalizedStoreId}/transfer-orders`)
-      .then((r) => r.json())
-      .then((payload) => {
-        const list = Array.isArray(payload) ? payload : [];
-        console.log("Transfer orders fetched:", list.length, "orders");
-        const normalized: TransferOrder[] = list.map((order: any) => ({
-          ...order,
-          createdAt: order.createdAt || order.created_at,
-        }));
-        setOrders(normalized);
-
-        const recentDaysCutoff = new Date();
-        recentDaysCutoff.setDate(recentDaysCutoff.getDate() - days);
-
-        const grouped = new Map<string, number>();
-        normalized.forEach((order) => {
-          const createdAt = order.createdAt || order.created_at;
-          const dateKey = getDateKey(createdAt);
-          if (!dateKey) return;
-          const asDate = new Date(`${dateKey}T00:00:00`);
-          if (asDate < recentDaysCutoff) return;
-          grouped.set(dateKey, (grouped.get(dateKey) || 0) + 1);
-        });
-
-        const dateCards: DateCard[] = Array.from(grouped.entries())
-          .map(([date, count]) => ({ date, count, totalStock: 0, totalValue: 0 }))
-          .sort((a, b) => b.date.localeCompare(a.date));
-        setDates(dateCards);
-        console.log("Calendar dates populated:", dateCards.length, "dates");
-      })
-      .catch((err) => {
-        console.error("Error fetching transfer orders:", err);
-        setOrders([]);
-        setDates([]);
-      })
-      .finally(() => setIsLoadingCalendar(false));
-  }, [open, store, days, activeInsightTab]);
-
-  const filteredOrders = useMemo(() => {
-    let list = [...orders];
-
-    if (selectedDate) {
-      list = list.filter((order) => getDateKey(order.createdAt || order.created_at) === selectedDate);
-    }
-
-    if (orderStatusFilter === "pending") {
-      list = list.filter(isPendingOrder);
-    } else if (orderStatusFilter === "completed") {
-      list = list.filter(isCompletedOrder);
-    }
-
-    list.sort((a, b) => {
-      const aTs = new Date(a.createdAt || a.created_at || "").getTime();
-      const bTs = new Date(b.createdAt || b.created_at || "").getTime();
-      return bTs - aTs;
-    });
-
-    return list;
-  }, [orders, selectedDate, orderStatusFilter]);
 
   const filteredInventoryRows = useMemo(() => {
     const search = liveProductSearch.trim().toLowerCase();
@@ -564,204 +251,6 @@ function StoreInsightModal({
     return activeTab?.bills || [];
   }, [liveBillTabs, selectedLiveBillTab]);
 
-  useEffect(() => {
-    if (!open) {
-      setIsOrderDialogOpen(false);
-      setSelectedOrder(null);
-      setOrderDetails(null);
-    }
-  }, [open]);
-
-  const openOrderDetails = async (order: TransferOrder) => {
-    try {
-      setIsLoadingOrderDetails(true);
-      setSelectedOrder(order);
-      setOrderDetails(null);
-      setIsOrderDialogOpen(true);
-
-      const maxAttempts = 3;
-      let response: Response | null = null;
-      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        response = await fetch(`${API}/api/transfer-orders/${order.id}`);
-        if (response.ok) break;
-        if (attempt < maxAttempts - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
-        }
-      }
-
-      if (!response || !response.ok) {
-        setOrderDetails({
-          id: order.id,
-          createdAt: order.createdAt || order.created_at,
-          status: order.status || "pending",
-          items: [],
-        });
-        return;
-      }
-
-      const payload = await response.json();
-      setOrderDetails({
-        id: payload?.id || order.id,
-        createdAt: payload?.createdAt || payload?.created_at || order.createdAt || order.created_at,
-        status: payload?.status || order.status || "pending",
-        items: Array.isArray(payload?.items) ? payload.items : [],
-      });
-    } catch (error) {
-      console.warn("Error loading transfer order details, using fallback payload.");
-      setOrderDetails({
-        id: order.id,
-        createdAt: order.createdAt || order.created_at,
-        status: order.status || "pending",
-        items: [],
-      });
-    } finally {
-      setIsLoadingOrderDetails(false);
-    }
-  };
-
-  const handleDeleteOrder = async (order: TransferOrder) => {
-    if (!store) return;
-    const confirmed = window.confirm(`Delete order ${order.id}? This will remove it from local cache and Supabase.`);
-    if (!confirmed) return;
-
-    try {
-      setDeletingOrderId(order.id);
-      const response = await fetch(`${API}/api/transfer-orders/${order.id}`, { method: "DELETE" });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        const message = payload?.error || "Failed to delete order";
-        throw new Error(message);
-      }
-
-      setOrders((prev) => {
-        const next = prev.filter((row) => row.id !== order.id);
-        const recentDaysCutoff = new Date();
-        recentDaysCutoff.setDate(recentDaysCutoff.getDate() - days);
-        const grouped = new Map<string, number>();
-        next.forEach((row) => {
-          const dateKey = getDateKey(row.createdAt || row.created_at);
-          if (!dateKey) return;
-          const asDate = new Date(`${dateKey}T00:00:00`);
-          if (asDate < recentDaysCutoff) return;
-          grouped.set(dateKey, (grouped.get(dateKey) || 0) + 1);
-        });
-        const dateCards: DateCard[] = Array.from(grouped.entries())
-          .map(([date, count]) => ({ date, count, totalStock: 0, totalValue: 0 }))
-          .sort((a, b) => b.date.localeCompare(a.date));
-        setDates(dateCards);
-        if (selectedDate && !dateCards.some((d) => d.date === selectedDate)) {
-          setSelectedDate(null);
-        }
-        return next;
-      });
-
-      if (selectedOrder?.id === order.id) {
-        setIsOrderDialogOpen(false);
-        setSelectedOrder(null);
-        setOrderDetails(null);
-      }
-    } catch (error: any) {
-      alert(error?.message || "Unable to delete order right now");
-    } finally {
-      setDeletingOrderId(null);
-    }
-  };
-
-  const escapeHtml = (value: string | number) =>
-    String(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-
-  const handleOrderPrint = async () => {
-    if (!orderDetails || !store) return;
-    const orderDateLabel = formatDateTime(orderDetails.createdAt || orderDetails.created_at);
-    const rows = (orderDetails.items || [])
-      .map((item, idx) => {
-        const qty = getAssignedQty(item);
-        const price = getItemPrice(item);
-        const amount = qty * price;
-        return `
-          <tr>
-            <td>${idx + 1}</td>
-            <td>${escapeHtml(getItemBarcode(item))}</td>
-            <td>${escapeHtml(getItemName(item))}</td>
-            <td>${escapeHtml(getItemBatch(item))}</td>
-            <td style="text-align:right">${qty}</td>
-            <td style="text-align:right">₹${amount.toFixed(2)}</td>
-          </tr>
-        `;
-      })
-      .join("");
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Transfer Order ${escapeHtml(orderDetails.id)}</title>
-          <style>
-            @media print {
-              @page { margin: 12mm; }
-              body { font-family: ui-sans-serif, system-ui, Arial, sans-serif; font-size: 10px; line-height: 1.3; color: #111; }
-              h1 { font-size: 14px; margin: 0 0 8px 0; }
-              .meta { font-size: 10px; margin-bottom: 8px; border: 1px solid #ddd; padding: 6px; }
-              .meta-row { margin: 2px 0; }
-              table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-              th, td { border: 1px solid #ddd; padding: 6px; font-size: 10px; text-align: left; }
-              th { background: #f3f4f6; }
-              tfoot { display: table-footer-group; font-weight: bold; }
-            }
-            body { font-family: ui-sans-serif, system-ui, Arial, sans-serif; padding: 16px; color: #111; }
-            .meta { font-size: 11px; margin-bottom: 10px; border: 1px solid #ddd; padding: 8px; }
-            .meta-row { margin: 3px 0; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th, td { border: 1px solid #ddd; padding: 6px; font-size: 11px; text-align: left; }
-            th { background: #f3f4f6; }
-            .right { text-align: right; }
-          </style>
-        </head>
-        <body>
-          <h1>Transfer Order - ${escapeHtml(store.name)}</h1>
-          <div class="meta">
-            <div class="meta-row"><strong>Order ID:</strong> ${escapeHtml(orderDetails.id)}</div>
-            <div class="meta-row"><strong>Date:</strong> ${escapeHtml(orderDateLabel)}</div>
-            <div class="meta-row"><strong>Printed At:</strong> ${escapeHtml(new Date().toLocaleString())}</div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>Product Barcode</th>
-                <th>Product Name</th>
-                <th>Batch</th>
-                <th class="right">Quantity</th>
-                <th class="right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-            <tfoot>
-              <tr>
-                <td colspan="4">Total</td>
-                <td class="right">${orderTotals.totalProducts}</td>
-                <td class="right">₹${orderTotals.totalAmount.toFixed(2)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </body>
-      </html>
-    `;
-
-    await unifiedPrint({
-      htmlContent,
-      isThermalPrinter: false,
-      useBackendPrint: true,
-      storeName: store.name,
-    });
-  };
-
   if (!open || !store) return null;
 
   const totalStock = inventoryRows.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
@@ -784,255 +273,135 @@ function StoreInsightModal({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <Tabs
-            value={activeInsightTab}
-            onValueChange={(v) => setActiveInsightTab(v as "live-feed" | "all-orders")}
-            className="flex flex-col h-full"
-          >
-            {/* Tabs Navigation */}
-            <div className="px-8 pt-6 pb-4 border-b bg-white">
-              <TabsList className="grid w-full max-w-md grid-cols-2 bg-gray-100 p-1.5 rounded-2xl">
-                <TabsTrigger value="live-feed" className="rounded-xl py-3 data-[state=active]:shadow-sm">
-                  Live Feed
-                </TabsTrigger>
-                <TabsTrigger value="all-orders" className="rounded-xl py-3 data-[state=active]:shadow-sm">
-                  Transfer Orders
-                </TabsTrigger>
-              </TabsList>
+        <div className="flex-1 overflow-auto p-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-2xl font-semibold">Live Activity</h3>
+              <p className="text-muted-foreground">Current inventory and recent sales</p>
             </div>
+            <Button onClick={() => fetchLiveData(true)} disabled={isLoadingLiveFeed} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${isLoadingLiveFeed ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
 
-            {/* ===================== LIVE FEED TAB ===================== */}
-            <TabsContent value="live-feed" className="flex-1 p-8 overflow-auto">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-2xl font-semibold">Live Activity</h3>
-                  <p className="text-muted-foreground">Current inventory and recent sales</p>
-                </div>
-                <Button onClick={() => fetchLiveData(true)} disabled={isLoadingLiveFeed} className="gap-2">
-                  <RefreshCw className={`h-4 w-4 ${isLoadingLiveFeed ? "animate-spin" : ""}`} />
-                  Refresh
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                {/* Products Section */}
-                <Card className="shadow-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle>Products in Store</CardTitle>
-                    <CardDescription>
-                      {filteredInventoryRows.length} / {inventoryRows.length} items • Total stock: {totalStock}
-                    </CardDescription>
-                    <Input
-                      placeholder="Search barcode or product name..."
-                      value={liveProductSearch}
-                      onChange={(e) => setLiveProductSearch(e.target.value)}
-                      className="mt-2"
-                    />
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="max-h-[calc(100vh-280px)] overflow-auto">
-                      <Table>
-                        <TableHeader className="bg-gray-50 sticky top-0">
-                          <TableRow>
-                            <TableHead>Barcode</TableHead>
-                            <TableHead>Product</TableHead>
-                            <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Price</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredInventoryRows.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
-                                {liveProductSearch ? "No products match your search" : "No assigned products"}
-                              </TableCell>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            {/* Products Section */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle>Products in Store</CardTitle>
+                <CardDescription>
+                  {filteredInventoryRows.length} / {inventoryRows.length} items &bull; Total stock: {totalStock}
+                </CardDescription>
+                <Input
+                  placeholder="Search barcode or product name..."
+                  value={liveProductSearch}
+                  onChange={(e) => setLiveProductSearch(e.target.value)}
+                  className="mt-2"
+                />
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="max-h-[calc(100vh-280px)] overflow-auto">
+                  <Table>
+                    <TableHeader className="bg-gray-50 sticky top-0">
+                      <TableRow>
+                        <TableHead>Barcode</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Quantity</TableHead>
+                        <TableHead className="text-right">Price</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredInventoryRows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                            {liveProductSearch ? "No products match your search" : "No assigned products"}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredInventoryRows.map((row, idx) => {
+                          const p = row.products || {};
+                          return (
+                            <TableRow key={idx} className="hover:bg-blue-50/50">
+                              <TableCell className="font-mono">{p.barcode || row.barcode || "-"}</TableCell>
+                              <TableCell className="font-medium">{p.name || row.name || "Unknown"}</TableCell>
+                              <TableCell className="text-right font-semibold">{row.quantity || 0}</TableCell>
+                              <TableCell className="text-right">₹{(p.price || row.price || 0).toFixed(2)}</TableCell>
                             </TableRow>
-                          ) : (
-                            filteredInventoryRows.map((row, idx) => {
-                              const p = row.products || {};
-                              return (
-                                <TableRow key={idx} className="hover:bg-blue-50/50">
-                                  <TableCell className="font-mono">{p.barcode || row.barcode || "-"}</TableCell>
-                                  <TableCell className="font-medium">{p.name || row.name || "Unknown"}</TableCell>
-                                  <TableCell className="text-right font-semibold">{row.quantity || 0}</TableCell>
-                                  <TableCell className="text-right">₹{(p.price || row.price || 0).toFixed(2)}</TableCell>
-                                </TableRow>
-                              );
-                            })
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Bills Section */}
-                <Card className="shadow-sm">
-                  <CardHeader>
-                    <CardTitle>Recent Bills</CardTitle>
-                    <div className="mt-2 overflow-x-auto">
-                      <div className="flex gap-2 min-w-max pb-1">
-                        {liveBillTabs.map((tab) => (
-                        <Button
-                          key={tab.key}
-                          size="sm"
-                          variant={selectedLiveBillTab === tab.key ? "default" : "outline"}
-                          onClick={() => setSelectedLiveBillTab(tab.key)}
-                          className="shrink-0"
-                        >
-                          {tab.label}
-                        </Button>
-                        ))}
-                      </div>
-                    </div>
-                    <CardDescription>
-                      {activeLiveBills.length} bills • ₹{activeTabBillAmount.toFixed(2)} 
-                      <span className="text-muted-foreground"> (Total: ₹{totalBillAmount.toFixed(2)})</span>
-                      {lastUpdated && <div className="text-xs text-muted-foreground mt-1">Updated {lastUpdated}</div>}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="max-h-[calc(100vh-280px)] overflow-auto">
-                      <Table>
-                        <TableHeader className="bg-gray-50 sticky top-0">
-                          <TableRow>
-                            <TableHead>Bill ID</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                            <TableHead>Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {activeLiveBills.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
-                                No bills in selected period
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            activeLiveBills.map((bill) => (
-                              <TableRow key={bill.id} className="hover:bg-gray-50">
-                                <TableCell className="font-mono text-sm">{bill.id}</TableCell>
-                                <TableCell>{formatDateTime(getBillDate(bill))}</TableCell>
-                                <TableCell className="text-right font-semibold text-emerald-600">
-                                  ₹{Number(bill.total || 0).toFixed(2)}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="capitalize">
-                                    {bill.status || "completed"}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            {/* ===================== ALL ORDERS TAB ===================== */}
-            <TabsContent value="all-orders" className="flex-1 p-8 overflow-hidden">
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 h-full min-h-0">
-                {/* Calendar */}
-                <div className="xl:sticky xl:top-0 self-start">
-                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <Calendar className="h-5 w-5" /> Transfer Calendar
-                  </h3>
-                  {isLoadingCalendar ? (
-                    <div className="h-96 flex items-center justify-center border rounded-3xl bg-gray-50">
-                      Loading calendar...
-                    </div>
-                  ) : (
-                    <MiniCalendar
-                      dates={dates}
-                      selectedDate={selectedDate}
-                      onDateSelect={setSelectedDate}
-                      dataLabel="Has transfer orders"
-                    />
-                  )}
-                </div>
-
-                {/* Orders List */}
-                <div className="flex flex-col min-h-0">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-semibold">
-                      {selectedDate ? `Orders • ${selectedDate}` : "All Transfer Orders"}
-                    </h3>
-                    <div className="flex gap-2">
-                      {["all", "pending", "completed"].map((f) => (
-                        <Button
-                          key={f}
-                          variant={orderStatusFilter === f ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setOrderStatusFilter(f as any)}
-                        >
-                          {f.charAt(0).toUpperCase() + f.slice(1)}
-                        </Button>
-                      ))}
-                      {selectedDate && (
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedDate(null)}>
-                          Clear Date
-                        </Button>
+                          );
+                        })
                       )}
-                    </div>
-                  </div>
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
 
-                  <div className="flex-1 overflow-y-auto space-y-3 pr-2 pb-24 min-h-0">
-                    {filteredOrders.length > 0 ? (
-                      filteredOrders.map((order) => (
-                        <div
-                          key={order.id}
-                          className="border rounded-2xl p-6 hover:border-blue-200 hover:shadow transition-all group"
-                        >
-                          <div className="flex justify-between items-start">
-                            <button
-                              onClick={() => openOrderDetails(order)}
-                              className="text-left flex-1"
-                            >
-                              <p className="font-semibold text-lg group-hover:text-blue-600 transition-colors">
-                                {order.id}
-                              </p>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {formatDateTime(order.createdAt || order.created_at)}
-                              </p>
-                            </button>
-
-                            <div className="text-right">
-                              <Badge variant={isPendingOrder(order) ? "secondary" : "default"}>
-                                {String(order.status || "pending").replace(/_/g, " ")}
-                              </Badge>
-                              <p className="text-xs text-muted-foreground mt-2">
-                                {order.itemCount || 0} items • {order.assignedQtyTotal || 0} qty
-                              </p>
-                            </div>
-
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-red-500 hover:bg-red-50 ml-4"
-                              onClick={() => handleDeleteOrder(order)}
-                              disabled={deletingOrderId === order.id}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="h-80 flex flex-col items-center justify-center text-center border rounded-3xl bg-gray-50">
-                        <Calendar className="h-14 w-14 text-gray-300 mb-4" />
-                        <p className="text-muted-foreground">No orders found for the selected filter</p>
-                      </div>
-                    )}
+            {/* Bills Section */}
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>Recent Bills</CardTitle>
+                <div className="mt-2 overflow-x-auto">
+                  <div className="flex gap-2 min-w-max pb-1">
+                    {liveBillTabs.map((tab) => (
+                    <Button
+                      key={tab.key}
+                      size="sm"
+                      variant={selectedLiveBillTab === tab.key ? "default" : "outline"}
+                      onClick={() => setSelectedLiveBillTab(tab.key)}
+                      className="shrink-0"
+                    >
+                      {tab.label}
+                    </Button>
+                    ))}
                   </div>
                 </div>
-              </div>
-            </TabsContent>
-          </Tabs>
+                <CardDescription>
+                  {activeLiveBills.length} bills &bull; ₹{activeTabBillAmount.toFixed(2)}
+                  <span className="text-muted-foreground"> (Total: ₹{totalBillAmount.toFixed(2)})</span>
+                  {lastUpdated && <div className="text-xs text-muted-foreground mt-1">Updated {lastUpdated}</div>}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="max-h-[calc(100vh-280px)] overflow-auto">
+                  <Table>
+                    <TableHeader className="bg-gray-50 sticky top-0">
+                      <TableRow>
+                        <TableHead>Bill ID</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {activeLiveBills.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
+                            No bills in selected period
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        activeLiveBills.map((bill) => (
+                          <TableRow key={bill.id} className="hover:bg-gray-50">
+                            <TableCell className="font-mono text-sm">{bill.id}</TableCell>
+                            <TableCell>{formatDateTime(getBillDate(bill))}</TableCell>
+                            <TableCell className="text-right font-semibold text-emerald-600">
+                              ₹{Number(bill.total || 0).toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {bill.status || "completed"}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <DialogFooter className="border-t px-8 py-6 bg-white">
@@ -1040,121 +409,6 @@ function StoreInsightModal({
             Close
           </Button>
         </DialogFooter>
-
-        {/* ===================== ORDER DETAILS DIALOG ===================== */}
-        <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
-          <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
-            <DialogHeader className="px-8 py-6 border-b">
-              <DialogTitle className="text-2xl">Transfer Order Details</DialogTitle>
-              {selectedOrder && (
-                <DialogDescription className="text-base">
-                  Order ID: <span className="font-mono font-medium">{selectedOrder.id}</span>
-                </DialogDescription>
-              )}
-            </DialogHeader>
-
-            <div className="flex-1 overflow-auto p-8">
-              {isLoadingOrderDetails ? (
-                <div className="flex items-center justify-center h-64">Loading order details...</div>
-              ) : orderDetails ? (
-                <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card>
-                      <CardContent className="pt-6">
-                        <p className="text-xs text-muted-foreground">Order ID</p>
-                        <p className="font-mono text-lg font-semibold mt-1">{orderDetails.id}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <p className="text-xs text-muted-foreground">Store</p>
-                        <p className="font-semibold mt-1">{store.name}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <p className="text-xs text-muted-foreground">Date</p>
-                        <p className="font-semibold mt-1">{formatDateTime(orderDetails.createdAt)}</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <Card>
-                    <CardHeader>
-                      <div className="flex justify-between items-center">
-                        <CardTitle>Order Items</CardTitle>
-                        <Badge variant="outline">{orderTotals.totalLines} items</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>S.No</TableHead>
-                            <TableHead>Barcode</TableHead>
-                            <TableHead>Product Name</TableHead>
-                            <TableHead>Batch</TableHead>
-                            <TableHead className="text-right">Qty</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {orderDetails.items.map((item, idx) => {
-                            const qty = getAssignedQty(item);
-                            const amount = qty * getItemPrice(item);
-                            const statusMeta = getStatusMeta(item);
-
-                            return (
-                              <TableRow key={idx}>
-                                <TableCell>{idx + 1}</TableCell>
-                                <TableCell className="font-mono">{getItemBarcode(item)}</TableCell>
-                                <TableCell>{getItemName(item)}</TableCell>
-                                <TableCell className="font-mono">{getItemBatch(item)}</TableCell>
-                                <TableCell className="text-right font-medium">{qty}</TableCell>
-                                <TableCell>
-                                  <Badge variant={statusMeta.variant}>
-                                    {statusMeta.label}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right font-medium">
-                                  ₹{amount.toFixed(2)}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                        <TableFooter>
-                          <TableRow>
-                            <TableCell colSpan={3} className="font-semibold">Total</TableCell>
-                            <TableCell></TableCell>
-                            <TableCell className="text-right font-semibold">{orderTotals.totalProducts}</TableCell>
-                            <TableCell></TableCell>
-                            <TableCell className="text-right font-semibold text-lg">
-                              ₹{orderTotals.totalAmount.toFixed(2)}
-                            </TableCell>
-                          </TableRow>
-                        </TableFooter>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </div>
-              ) : (
-                <div className="text-center py-20 text-muted-foreground">Could not load order details.</div>
-              )}
-            </div>
-
-            <DialogFooter className="px-8 py-6 border-t">
-              <Button variant="outline" onClick={() => setIsOrderDialogOpen(false)}>
-                Close
-              </Button>
-              <Button onClick={handleOrderPrint} disabled={!orderDetails}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print Order
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </DialogContent>
     </Dialog>
   );
@@ -1249,29 +503,6 @@ export default function StoresPage() {
     return { totalRevenue, totalBills, lastBillDate }
   }
 
-  const refreshStoreStats = async (storeId: string) => {
-    try {
-      const response = await fetch(`${API}/api/stores/${storeId}/stats`);
-      if (!response.ok) return;
-
-      const stats = await response.json();
-      setStores((prev) =>
-        prev.map((store) =>
-          store.id === storeId
-            ? {
-                ...store,
-                productCount: stats.productCount ?? store.productCount,
-                totalStock: stats.totalStock ?? store.totalStock,
-                totalRevenue: stats.totalRevenue ?? store.totalRevenue,
-                totalBills: stats.totalBills ?? store.totalBills,
-              }
-            : store
-        )
-      );
-    } catch (error) {
-      console.error("Error refreshing store stats:", error);
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -1354,15 +585,6 @@ export default function StoresPage() {
     }
   }
 
-  // ✅ UPDATED: Enhanced product assignment handler
-  const handleProductAssignment = async (storeId: string, products: AssignedProduct[]) => {
-    console.log('✅ Products assigned to store:', storeId, products);
-    
-    // Refresh only this store stats instead of reloading all stores and bills
-    await refreshStoreStats(storeId);
-  }
-
-  
   const toggleStoreStatus = async (id: string) => {
     const store = stores.find((s) => s.id === id)
     if (!store) return
@@ -1686,23 +908,6 @@ export default function StoresPage() {
                             >
                               <Info className="h-4 w-4" />
                             </Button>
-                            {/* ✅ UPDATED: Product assignment with available stock */}
-                            <ProductAssignmentDialog
-                              storeId={store.id}
-                              storeName={store.name}
-                              trigger={
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="bg-green-50 hover:bg-green-100 border-green-200"
-                                  title="Assign products (shows available stock)"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                              }
-                              onAssign={handleProductAssignment}
-                            />
                             <Button
                               variant="outline"
                               size="sm"

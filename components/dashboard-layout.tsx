@@ -45,6 +45,7 @@ import {
   RefreshCcw,
   Undo2, // Added for Returns icon
   Percent,
+  ClipboardList,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { NotificationBell } from "@/components/notification-bell"
@@ -74,6 +75,7 @@ const menuItems: MenuItem[] = [
   { title: "Products", url: "/dashboard/products", icon: Package },
   { title: "Users", url: "/dashboard/users", icon: Users },
   { title: "Stores", url: "/dashboard/stores", icon: Store },
+  { title: "Orders", url: "/dashboard/orders", icon: ClipboardList },
   { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3 },
   { title: "Billing", url: "/dashboard/billing", icon: Receipt },
   { title: "Damaged Stock", url: "/dashboard/damaged-products", icon: Undo2 },

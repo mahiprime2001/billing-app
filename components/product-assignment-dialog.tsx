@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -78,6 +78,7 @@ export default function ProductAssignmentDialog({ storeId, storeName, trigger, o
   const [search, setSearch] = useState('')
   const [pendingOrders, setPendingOrders] = useState<PendingDraftOrder[]>([])
   const [activeDraftId, setActiveDraftId] = useState<string>("")
+  const selectedListRef = useRef<HTMLDivElement>(null)
   const storageKey = `store-assignment-pending-orders:${storeId}`
   const autosaveKey = `store-assignment-autosave:${storeId}`
 
@@ -416,6 +417,13 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
     )
   })
 
+  // Scroll selected list to top when a new product is scanned
+  useEffect(() => {
+    if (selectedListRef.current) {
+      selectedListRef.current.scrollTop = 0
+    }
+  }, [scanOrder])
+
   const selectedCount = Object.values(selected).filter(Boolean).length
   // Last scanned on top: reverse scan order, then map to products
   const selectedProductsList = [...scanOrder]
@@ -653,7 +661,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                 </div>
               </div>
             ) : (
-              <div className="flex-1 overflow-auto space-y-3 pr-1">
+              <div ref={selectedListRef} className="flex-1 overflow-auto space-y-3 pr-1">
                 {selectedProductsList.map(p => {
                   const key = p.id || p.barcode
                   const qty = quantityMap[key] || 0
