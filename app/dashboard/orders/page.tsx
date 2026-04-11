@@ -1263,16 +1263,18 @@ export default function OrdersPage() {
             <DialogHeader className="px-8 py-6 border-b bg-gradient-to-r from-slate-50 to-white">
               <DialogTitle className="text-2xl">Transfer Order Details</DialogTitle>
               {selectedOrder && (
-                <DialogDescription className="text-base">
-                  Order ID: <span className="font-mono font-medium">{selectedOrder.id}</span>
-                  {selectedStoreId === "all" && (
-                    <span className="ml-3">
-                      <Badge variant="outline">
-                        <Building className="h-3 w-3 mr-1" />
-                        {getStoreName(selectedOrder)}
-                      </Badge>
-                    </span>
-                  )}
+                <DialogDescription asChild>
+                  <div className="text-base text-muted-foreground">
+                    Order ID: <span className="font-mono font-medium">{selectedOrder.id}</span>
+                    {selectedStoreId === "all" && (
+                      <span className="ml-3">
+                        <Badge variant="outline">
+                          <Building className="h-3 w-3 mr-1" />
+                          {getStoreName(selectedOrder)}
+                        </Badge>
+                      </span>
+                    )}
+                  </div>
                 </DialogDescription>
               )}
             </DialogHeader>
