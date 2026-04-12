@@ -241,7 +241,23 @@ def _generate_standard_tspl(labels, width_mm, height_mm):
 #       y=54  -> price with batch      ends ~y=76   (barcode+readable ~y=75)
 
 def _generate_standard_zpl(labels, width_mm, height_mm):
-    """ZPL version of the 80x12 layout (works for any single-cell size)."""
+    """ZPL version of the 80x12 layout — cleaned up for ZD230.
+
+    Changes from the earlier draft that caused red-blink errors:
+      - Removed ~SD and ^PR from inside the label block. These are control
+        commands and don't belong between ^XA and ^XZ. Set darkness/speed
+        once in Zebra Setup Utilities instead.
+      - ^BY narrow module is now 2 (was 1 — too thin at 203 dpi) and the
+        wide-to-narrow ratio is 3 (was 2 — must be 2.0-3.0, integer 2 is
+        rejected by some firmware).
+      - ^BC human-readable flag is N (was Y). On a 12mm label the bars +
+        readable text exceeded the 96-dot height and some firmware errors
+        out rather than clipping. The text block on the right already
+        shows the barcode number.
+      - Barcode y moved from 0 to 8 to stay clear of the top dead zone.
+      - Font sizes bumped to >= 18 dots high (was 14) — below that, ZPL
+        font 0 becomes unreadable and some firmware rejects it.
+    """
     pw = _mm(width_mm)     # 640 for 80mm
     ll = _mm(height_mm)    # 96 for 12mm
 
@@ -250,31 +266,26 @@ def _generate_standard_zpl(labels, width_mm, height_mm):
         barcode, name, price, batch = _extract_product(product)
 
         zpl.append("^XA")
-        zpl.append(f"^PW{pw}")          # print width in dots
-        zpl.append(f"^LL{ll}")          # label length in dots
-        zpl.append("^LH0,0")            # home origin
-        zpl.append("^CI28")             # UTF-8 (needed for ₹ and accented names)
-        zpl.append("~SD15")             # darkness (matches TSPL DENSITY 10 roughly)
-        zpl.append("^PR2")              # speed (matches TSPL SPEED 2)
+        zpl.append(f"^PW{pw}")
+        zpl.append(f"^LL{ll}")
+        zpl.append("^LH0,0")
+        zpl.append("^CI28")             # UTF-8
 
-        # Barcode at (40, 0) — narrow module = 1 dot, height = 55 dots,
-        # show human-readable line (Y), placed below (N = not above).
-        zpl.append("^BY1,2,55")
-        zpl.append(f"^FO40,0^BCN,55,Y,N,N^FD{barcode}^FS")
+        zpl.append("^BY2,3,55")         # narrow=2, ratio=3, default height=55
+        zpl.append(f"^FO40,8^BCN,55,N,N,N^FD{barcode}^FS")
 
-        # Text block at x=240 — fonts chosen to roughly match TSPL "1" and "2".
         if batch:
-            zpl.append(f"^FO240,6^A0N,14,10^FD{batch}^FS")
+            zpl.append(f"^FO240,4^A0N,18,14^FD{batch}^FS")
             py = 54
         else:
             py = 44
-        zpl.append(f"^FO240,30^A0N,14,10^FD{name}^FS")
-        zpl.append(f"^FO240,{py}^A0N,22,16^FDMRP.{price}^FS")
+        zpl.append(f"^FO240,28^A0N,20,16^FD{name}^FS")
+        zpl.append(f"^FO240,{py}^A0N,26,18^FDMRP.{price}^FS")
 
         zpl.append("^PQ1")
         zpl.append("^XZ")
 
-    return "\n".join(zpl) + "\n"
+    return "\r\n".join(zpl) + "\r\n"
 
 
 # ==============================================================
@@ -441,6 +452,15 @@ def generate_80x12(products, copies=1, printer_name="", logger=None):
 def print_80x12(printer_name, products, copies=1, logger=None):
     """Detect language, generate commands, and print in one call."""
     commands = generate_80x12(products, copies, printer_name=printer_name, logger=logger)
+
+    # DEBUG: dump the exact payload sent to the printer so we can inspect it
+    # after a red-blink failure. Safe to leave enabled; rewrites each run.
+    try:
+        with open("last_label_payload.txt", "w", encoding="utf-8", newline="") as f:
+            f.write(commands)
+    except Exception:
+        pass
+
     send_raw_to_printer(printer_name, commands, logger)
     return commands
 
