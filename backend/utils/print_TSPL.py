@@ -100,7 +100,7 @@ def _generate_25x25(tspl, labels, label_profile, logger):
     # Printer setup
     tspl.append(f"SIZE {_format_mm(cfg['paper_width_mm'])} mm,{_format_mm(cfg['paper_height_mm'])} mm")
     tspl.append(f"GAP {_format_mm(cfg['gap_vertical_mm'])} mm,0 mm")
-    for cmd in ("DENSITY 8", "SPEED 3", "DIRECTION 1", "REFERENCE 0,0",
+    for cmd in ("DENSITY 8", "SPEED 3", "DIRECTION 1", "SHIFT 0", "REFERENCE 0,0",
                 "SET PEEL OFF", "SET CUTTER OFF", "SET TEAR ON", "CALIBRATE"):
         tspl.append(cmd)
 
@@ -165,7 +165,7 @@ def _generate_standard(tspl, labels, label_size, logger):
 
     tspl.append(f"SIZE {_format_mm(width_mm)} mm,{_format_mm(height_mm)} mm")
     tspl.append("GAP 4 mm,0 mm")
-    for cmd in ("DENSITY 10", "SPEED 2", "DIRECTION 1", "REFERENCE 0,0",
+    for cmd in ("DENSITY 10", "SPEED 2", "DIRECTION 1", "SHIFT 0", "REFERENCE 0,0",
                 "SET PEEL OFF", "SET CUTTER OFF", "SET TEAR ON"):
         tspl.append(cmd)
 
@@ -202,7 +202,7 @@ def generate_80x12(products, copies=1, logger=None):
     tspl = []
     tspl.append("SIZE 80 mm,12 mm")
     tspl.append("GAP 4 mm,0 mm")
-    for cmd in ("DENSITY 10", "SPEED 2", "DIRECTION 1", "REFERENCE 0,0",
+    for cmd in ("DENSITY 10", "SPEED 2", "DIRECTION 1", "SHIFT 0", "REFERENCE 0,0",
                 "SET PEEL OFF", "SET CUTTER OFF", "SET TEAR ON"):
         tspl.append(cmd)
 
