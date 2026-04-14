@@ -362,7 +362,7 @@ def get_available_products_for_assignment(store_id: str) -> List[Dict]:
         client = db.client
         
         products_response = execute_with_retry(
-            lambda: client.table("products").select("*"),
+            lambda: client.table("products").select("*, batch(id, batch_number)"),
             "products for available-products",
         )
         if not products_response or not products_response.data:

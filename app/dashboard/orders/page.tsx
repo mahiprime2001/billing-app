@@ -73,6 +73,8 @@ type TransferOrder = {
   assignedQtyTotal?: number
   itemCount?: number
   totalValue?: number
+  missingItemCount?: number
+  missingStockTotal?: number
 }
 
 type TransferOrderItem = {
@@ -147,10 +149,17 @@ const enrichOrdersWithValue = async (orderList: TransferOrder[]): Promise<Transf
           const totalValue = items.reduce((sum, item) => {
             return sum + getAssignedQty(item) * getItemPrice(item)
           }, 0)
-          return { ...order, totalValue }
+          const missingItemCount = items.reduce((count, item) => {
+            const missing = Math.max(0, getAssignedQty(item) - getVerifiedQty(item))
+            return count + (missing > 0 ? 1 : 0)
+          }, 0)
+          const missingStockTotal = items.reduce((sum, item) => {
+            return sum + Math.max(0, getAssignedQty(item) - getVerifiedQty(item))
+          }, 0)
+          return { ...order, totalValue, missingItemCount, missingStockTotal }
         }
       } catch {}
-      return { ...order, totalValue: 0 }
+      return { ...order, totalValue: 0, missingItemCount: 0, missingStockTotal: 0 }
     })
   )
 }
@@ -945,6 +954,7 @@ export default function OrdersPage() {
                     filteredOrders.map((order) => {
                       const statusStr = getOrderStatus(order)
                       const isPending = isPendingOrder(order)
+                      const isInProgress = statusStr === "in_progress" || statusStr === "in-progress"
                       return (
                         <div
                           key={order.id}
@@ -988,6 +998,11 @@ export default function OrdersPage() {
                                 <p className="text-xs text-muted-foreground mt-2">
                                   {order.itemCount || 0} items &middot; {order.assignedQtyTotal || 0} qty
                                 </p>
+                                {isInProgress && (
+                                  <p className="text-xs text-amber-700 mt-1 font-medium">
+                                    missing: {order.missingItemCount || 0} item + {order.missingStockTotal || 0}  stock
+                                  </p>
+                                )}
                                 <p className="text-sm font-semibold mt-1">
                                   {"\u20B9"}{(order.totalValue || 0).toFixed(2)}
                                 </p>

@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Package, Plus, Minus, X, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -34,6 +35,9 @@ export type AssignedProduct = {
   price: number
   sellingprice: number
   stock?: number
+  batchNumber?: string
+  batch_number?: string
+  batch?: string
   availableStock?: number // Available stock for assignment (global - total allocated)
   currentStoreStock?: number // Current stock assigned to this store
   totalAllocated?: number // Total allocated across all stores
@@ -80,6 +84,31 @@ const normalizeProductStocks = (product: AssignedProduct): AssignedProduct => ({
   totalAllocated: toWholeStock(product.totalAllocated),
   globalStock: toWholeStock(product.globalStock),
 })
+
+const getProductBatch = (product: AssignedProduct) => {
+  if (typeof product.batchNumber === "string" && product.batchNumber.trim() !== "") {
+    return product.batchNumber
+  }
+  if (typeof product.batch_number === "string" && product.batch_number.trim() !== "") {
+    return product.batch_number
+  }
+  if (typeof product.batch === "string" && product.batch.trim() !== "") {
+    return product.batch
+  }
+  if (product.batch && typeof product.batch === "object") {
+    const batchObj = product.batch as any
+    if (typeof batchObj.batchNumber === "string" && batchObj.batchNumber.trim() !== "") {
+      return batchObj.batchNumber
+    }
+    if (typeof batchObj.batch_number === "string" && batchObj.batch_number.trim() !== "") {
+      return batchObj.batch_number
+    }
+    if (typeof batchObj.batch === "string" && batchObj.batch.trim() !== "") {
+      return batchObj.batch
+    }
+  }
+  return "-"
+}
 
 export default function ProductAssignmentDialog({ storeId, storeName, trigger, onAssign }: Props) {
   const [open, setOpen] = useState(false)
@@ -440,7 +469,8 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
       if (!visible) return false
       return (
         p.name?.toLowerCase().includes(searchTerm) ||
-        p.barcode?.toLowerCase().includes(searchTerm)
+        p.barcode?.toLowerCase().includes(searchTerm) ||
+        getProductBatch(p).toLowerCase().includes(searchTerm)
       )
     })
 
@@ -464,6 +494,61 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
     return list
   }, [products, search, scanOrder, selected])
 
+  const filteredProductKeys = filteredProducts.map((p) => p.id || p.barcode)
+  const areAllFilteredSelected = filteredProductKeys.length > 0 && filteredProductKeys.every((key) => Boolean(selected[key]))
+
+  const handleToggleSelectAll = () => {
+    if (filteredProductKeys.length === 0) return
+
+    if (areAllFilteredSelected) {
+      setSelected((prev) => {
+        const next = { ...prev }
+        filteredProductKeys.forEach((key) => {
+          delete next[key]
+        })
+        return next
+      })
+      setQuantityMap((prev) => {
+        const next = { ...prev }
+        filteredProductKeys.forEach((key) => {
+          delete next[key]
+        })
+        return next
+      })
+      setScanOrder((prev) => prev.filter((key) => !filteredProductKeys.includes(key)))
+      return
+    }
+
+    setSelected((prev) => {
+      const next = { ...prev }
+      filteredProductKeys.forEach((key) => {
+        const product = products.find((p) => (p.id || p.barcode) === key)
+        if (product && (product.availableStock || 0) > 0) {
+          next[key] = true
+        }
+      })
+      return next
+    })
+
+    setQuantityMap((prev) => {
+      const next = { ...prev }
+      filteredProductKeys.forEach((key) => {
+        const product = products.find((p) => (p.id || p.barcode) === key)
+        const available = normalizeStockValue(product?.availableStock)
+        if (available > 0) {
+          next[key] = available
+        }
+      })
+      return next
+    })
+
+    setScanOrder((prev) => {
+      const next = prev.filter((key) => !filteredProductKeys.includes(key))
+      filteredProductKeys.forEach((key) => next.push(key))
+      return next
+    })
+  }
+
   // Scroll selected list to top when a new product is scanned
   useEffect(() => {
     if (selectedListRef.current) {
@@ -479,7 +564,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
     .filter(Boolean) as AssignedProduct[]
   const totalSelectedStock = selectedProductsList.reduce((sum, p) => {
     const key = p.id || p.barcode
-    return sum + Number(quantityMap[key] || 0)
+    return sum + toWholeStock(quantityMap[key])
   }, 0)
 
   const handleBarcodeEnter = () => {
@@ -546,20 +631,30 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
         <div className="flex-1 overflow-hidden flex gap-6">
           {/* Left Side - Product List */}
           <div className="flex-1 flex flex-col gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or barcode..."
-                value={search}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    handleBarcodeEnter()
-                  }
-                }}
-                className="pl-9"
-              />
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or barcode..."
+                  value={search}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      handleBarcodeEnter()
+                    }
+                  }}
+                  className="pl-9"
+                />
+              </div>
+
+              <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  checked={areAllFilteredSelected}
+                  onCheckedChange={handleToggleSelectAll}
+                />
+                Select all
+              </label>
             </div>
 
             <div className="flex-1 border rounded-xl overflow-hidden bg-muted/10">
@@ -570,6 +665,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                       <TableHead className="w-12">#</TableHead>
                       <TableHead>Barcode</TableHead>
                       <TableHead>Product</TableHead>
+                      <TableHead>Batch</TableHead>
                       <TableHead className="text-right">Price</TableHead>
                       <TableHead className="text-center">Available</TableHead>
                     </TableRow>
@@ -618,6 +714,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                             </TableCell>
                             <TableCell className="font-mono text-xs text-muted-foreground">{p.barcode}</TableCell>
                             <TableCell className="font-medium">{p.name}</TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">{getProductBatch(p)}</TableCell>
                             <TableCell className="text-right font-semibold">
                               ₹{Number((p as any).sellingprice ?? (p as any).sellingPrice ?? (p as any).selling_price ?? p.price ?? 0).toFixed(2)}
                             </TableCell>
@@ -711,6 +808,9 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                           <div className="font-medium truncate">{p.name}</div>
                           <div className="text-xs text-muted-foreground font-mono mt-0.5">{p.barcode}</div>
                           <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                            <div>
+                              Batch: <span className="font-semibold">{getProductBatch(p)}</span>
+                            </div>
                             <div>
                               Available: <span className="font-semibold">{formatStock(availableStock)}</span>
                               {currentStoreStock > 0 && (
