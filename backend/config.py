@@ -73,6 +73,11 @@ class Config:
     SESSIONS_FILE = os.path.join(JSON_DIR, "user_sessions.json")
     USERSTORES_FILE = os.path.join(JSON_DIR, "userstores.json")
     STOREINVENTORY_FILE = os.path.join(JSON_DIR, "storeinventory.json")
+    ORDERS_FILE = os.path.join(JSON_DIR, "orders.json")
+    INVENTORY_TRANSFER_ORDERS_FILE = os.path.join(JSON_DIR, "inventory_transfer_orders.json")
+    INVENTORY_TRANSFER_ITEMS_FILE = os.path.join(JSON_DIR, "inventory_transfer_items.json")
+    INVENTORY_TRANSFER_VERIFICATIONS_FILE = os.path.join(JSON_DIR, "inventory_transfer_verifications.json")
+    INVENTORY_TRANSFER_SCANS_FILE = os.path.join(JSON_DIR, "inventory_transfer_scans.json")
     HSN_CODES_FILE = os.path.join(JSON_DIR, "hsn_codes.json")
     BILL_ITEMS_FILE = os.path.join(JSON_DIR, "billitems.json")
 

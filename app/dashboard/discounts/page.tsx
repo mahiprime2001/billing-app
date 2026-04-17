@@ -47,6 +47,7 @@ const PENDING_POLL_INTERVAL = 30_000   // 30s for pending view
 const MAX_POLL_INTERVAL = 120_000      // 2min max backoff
 const BACKOFF_MULTIPLIER = 2
 const USERS_REFRESH_INTERVAL = 300_000 // 5min — users list rarely changes
+const DISCOUNTS_FETCH_LIMIT = 500
 
 export default function DiscountsPage() {
   const [requests, setRequests] = useState<DiscountRequest[]>([])
@@ -124,10 +125,12 @@ export default function DiscountsPage() {
     }
     setError(null)
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/discounts?t=${Date.now()}`,
-        { cache: "no-store", signal },
-      )
+      const mergedUrl = `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/discounts?mode=merged&limit=${DISCOUNTS_FETCH_LIMIT}&t=${Date.now()}`
+      let response = await fetch(mergedUrl, { cache: "no-store", signal })
+      if (!response.ok) {
+        const localUrl = `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/discounts/local?limit=${DISCOUNTS_FETCH_LIMIT}&t=${Date.now()}`
+        response = await fetch(localUrl, { cache: "no-store", signal })
+      }
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }

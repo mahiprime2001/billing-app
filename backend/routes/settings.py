@@ -21,6 +21,16 @@ settings_bp = Blueprint('settings', __name__, url_prefix='/api')
 def get_settings():
     """Get all settings"""
     try:
+        mode = (request.args.get("mode") or "merged").strip().lower()
+        if mode == "local":
+            local_settings = settings_service.get_local_settings()
+            return jsonify(local_settings), 200
+        if mode == "online":
+            online_settings = settings_service.get_supabase_settings()
+            if online_settings:
+                return jsonify(online_settings), 200
+            return jsonify({"error": "Online settings unavailable"}), 503
+
         settings, status_code = settings_service.get_merged_settings()
         
         if status_code == 200:
@@ -34,6 +44,29 @@ def get_settings():
     except Exception as e:
         logger.error(f"Error in get_settings: {e}", exc_info=True)
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
+
+
+@settings_bp.route('/settings/local', methods=['GET'])
+def get_settings_local():
+    """Get settings from local JSON only."""
+    try:
+        return jsonify(settings_service.get_local_settings()), 200
+    except Exception as e:
+        logger.error(f"Error in get_settings_local: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@settings_bp.route('/settings/online', methods=['GET'])
+def get_settings_online():
+    """Get settings from Supabase only."""
+    try:
+        online_settings = settings_service.get_supabase_settings()
+        if online_settings:
+            return jsonify(online_settings), 200
+        return jsonify({"error": "Online settings unavailable"}), 503
+    except Exception as e:
+        logger.error(f"Error in get_settings_online: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 
 @settings_bp.route('/settings', methods=['POST'])

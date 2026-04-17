@@ -18,6 +18,7 @@ from .analytics import analytics_bp
 from .sync import sync_bp
 from .admin import admin_bp
 from .hsn_codes import hsn_codes_bp
+from .orders import orders_bp
 
 __all__ = [
     'products_bp',
@@ -35,5 +36,6 @@ __all__ = [
     'analytics_bp',
     'sync_bp',
     'admin_bp',
-    'hsn_codes_bp'
+    'hsn_codes_bp',
+    'orders_bp'
 ]

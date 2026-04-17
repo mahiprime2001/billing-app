@@ -12,6 +12,18 @@ logger = logging.getLogger(__name__)
 discounts_bp = Blueprint("discounts", __name__, url_prefix="/api")
 
 
+def _parse_limit(value: str | None) -> int | None:
+    if value is None:
+        return None
+    try:
+        parsed = int(value)
+        if parsed <= 0:
+            return None
+        return min(parsed, 1000)
+    except (TypeError, ValueError):
+        return None
+
+
 # ============================================
 # DISCOUNTS ENDPOINTS
 # ============================================
@@ -20,13 +32,57 @@ discounts_bp = Blueprint("discounts", __name__, url_prefix="/api")
 def get_discounts():
     """Get all discounts"""
     try:
-        discounts, status_code = discounts_service.get_merged_discounts()
+        mode = (request.args.get("mode") or "merged").strip().lower()
+        status = request.args.get("status")
+        limit = _parse_limit(request.args.get("limit"))
+
+        if mode == "local":
+            return jsonify(discounts_service.get_local_discounts(status=status, limit=limit)), 200
+
+        if mode == "online":
+            online = discounts_service.get_supabase_discounts(
+                status=status,
+                limit=limit,
+                fallback_to_local=False,
+            )
+            return jsonify(online), 200
+
+        discounts, status_code = discounts_service.get_merged_discounts(status=status, limit=limit)
         if status_code == 200:
             return jsonify(discounts), 200
         return jsonify({"error": "Internal server error"}), status_code
     except Exception as e:
         logger.error(f"Error in get_discounts: {e}", exc_info=True)
         return jsonify({"error": "Internal server error", "details": str(e)}), 500
+
+
+@discounts_bp.route("/discounts/local", methods=["GET"])
+def get_discounts_local():
+    """Get discounts from local JSON only."""
+    try:
+        status = request.args.get("status")
+        limit = _parse_limit(request.args.get("limit"))
+        return jsonify(discounts_service.get_local_discounts(status=status, limit=limit)), 200
+    except Exception as e:
+        logger.error(f"Error in get_discounts_local: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@discounts_bp.route("/discounts/online", methods=["GET"])
+def get_discounts_online():
+    """Get discounts from Supabase only."""
+    try:
+        status = request.args.get("status")
+        limit = _parse_limit(request.args.get("limit"))
+        online = discounts_service.get_supabase_discounts(
+            status=status,
+            limit=limit,
+            fallback_to_local=False,
+        )
+        return jsonify(online), 200
+    except Exception as e:
+        logger.error(f"Error in get_discounts_online: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 
 @discounts_bp.route("/discounts", methods=["POST"])

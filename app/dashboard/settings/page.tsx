@@ -228,12 +228,6 @@ export default function SettingsPage() {
     fetchSuperAdmins()
   }, [router])
 
-  useEffect(() => {
-    if (settings.companyName) { // Only log if settings have been loaded, to avoid initial empty state log
-      console.log("Current settings state in component:", JSON.stringify(settings, null, 2));
-    }
-  }, [settings]); // Depend on settings to log when it changes
-
   const fetchAdminUsers = async () => {
     try {
       const response = await fetchWithBackendRetry("/api/admin-users")
@@ -279,32 +273,42 @@ export default function SettingsPage() {
   }
 
   const loadSettings = async () => {
+    const mapToSystemSettings = (payload: any): SystemSettings => {
+      const fetchedSystemSettings = payload?.systemSettings || payload || {}
+      return {
+        gstin: fetchedSystemSettings.gstin || defaultSystemSettings.gstin,
+        companyName: fetchedSystemSettings.companyName || fetchedSystemSettings.companyname || defaultSystemSettings.companyName,
+        companyAddress: fetchedSystemSettings.companyAddress || fetchedSystemSettings.companyaddress || defaultSystemSettings.companyAddress,
+        companyPhone: fetchedSystemSettings.companyPhone || fetchedSystemSettings.companyphone || defaultSystemSettings.companyPhone,
+        companyEmail: fetchedSystemSettings.companyEmail || fetchedSystemSettings.companyemail || defaultSystemSettings.companyEmail,
+        id: fetchedSystemSettings.id,
+        last_sync_id: fetchedSystemSettings.last_sync_id,
+        last_sync_time: fetchedSystemSettings.last_sync_time,
+      }
+    }
+
     try {
       const response = await fetchWithBackendRetry("/api/settings")
       if (response.ok) {
-        const fullData = await response.json();
-        console.log("Incoming settings data to frontend:", JSON.stringify(fullData, null, 2)); // Debug log
-        
-        const fetchedSystemSettings = fullData.systemSettings || {};
-        setSettings({
-          gstin: fetchedSystemSettings.gstin || defaultSystemSettings.gstin,
-          companyName: fetchedSystemSettings.companyName || fetchedSystemSettings.companyname || defaultSystemSettings.companyName,
-          companyAddress: fetchedSystemSettings.companyAddress || fetchedSystemSettings.companyaddress || defaultSystemSettings.companyAddress,
-          companyPhone: fetchedSystemSettings.companyPhone || fetchedSystemSettings.companyphone || defaultSystemSettings.companyPhone,
-          companyEmail: fetchedSystemSettings.companyEmail || fetchedSystemSettings.companyemail || defaultSystemSettings.companyEmail,
-          id: fetchedSystemSettings.id,
-          last_sync_id: fetchedSystemSettings.last_sync_id,
-          last_sync_time: fetchedSystemSettings.last_sync_time,
-        });
+        const fullData = await response.json()
+        setSettings(mapToSystemSettings(fullData))
+        return
+      }
+
+      // If merged endpoint fails, attempt local-only settings endpoint.
+      const localResponse = await fetchWithBackendRetry("/api/settings/local")
+      if (localResponse.ok) {
+        const localData = await localResponse.json()
+        setSettings(mapToSystemSettings(localData))
       } else {
         // Fallback to default settings if API call fails
-        setSettings(defaultSystemSettings);
-        console.error("Failed to load settings from API, falling back to defaults:", response.statusText);
+        setSettings(defaultSystemSettings)
+        console.error("Failed to load settings from API, falling back to defaults:", response.statusText)
       }
     } catch (error) {
       // Fallback to default settings if API call fails
-      setSettings(defaultSystemSettings);
-      console.error("Failed to load settings:", error);
+      setSettings(defaultSystemSettings)
+      console.error("Failed to load settings:", error)
     }
   }
 

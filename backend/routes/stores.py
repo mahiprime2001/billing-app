@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 import logging
 import threading
 import time
-from services import stores_service
+from services import stores_service, orders_service
 import utils.supabase_circuit as supabase_circuit
 
 logger = logging.getLogger(__name__)
@@ -19,8 +19,14 @@ _TRANSFER_ORDERS_CACHE: dict[str, dict] = {}
 _TRANSFER_ORDERS_INFLIGHT: dict[str, threading.Event] = {}
 
 
-def _transfer_orders_cache_key(store_id: str, status: str | None) -> str:
-    return f"{store_id}:{status or 'all'}"
+def _transfer_orders_cache_key(
+    store_id: str,
+    status: str | None,
+    from_date: str | None = None,
+    to_date: str | None = None,
+    limit: int | None = None,
+) -> str:
+    return f"{store_id}:{status or 'all'}:{from_date or '-'}:{to_date or '-'}:{limit or '-'}"
 
 
 def _get_transfer_orders_cache(key: str, allow_stale: bool = False):
@@ -376,7 +382,20 @@ def get_inventory_by_date(store_id, date_str):
 def get_store_transfer_orders(store_id):
     """Get transfer orders for a store."""
     status = request.args.get('status')
-    cache_key = _transfer_orders_cache_key(store_id, status)
+    from_date = request.args.get("from")
+    to_date = request.args.get("to")
+    limit_raw = request.args.get("limit")
+    try:
+        limit = int(limit_raw) if limit_raw else None
+    except (TypeError, ValueError):
+        limit = None
+    if isinstance(limit, int):
+        if limit <= 0:
+            limit = None
+        else:
+            limit = min(limit, 1000)
+
+    cache_key = _transfer_orders_cache_key(store_id, status, from_date, to_date, limit)
     wait_event = None
     is_leader = False
     try:
@@ -410,7 +429,13 @@ def get_store_transfer_orders(store_id):
                 return jsonify(cached_stale), 200
             return jsonify([]), 200
 
-        orders, status_code = stores_service.get_store_transfer_orders(store_id, status)
+        orders, status_code = orders_service.get_store_transfer_orders(
+            store_id=store_id,
+            status=status,
+            from_date=from_date,
+            to_date=to_date,
+            limit=limit,
+        )
         if status_code == 200:
             _set_transfer_orders_cache(cache_key, orders)
             return jsonify(orders), 200
@@ -438,7 +463,7 @@ def get_store_transfer_orders(store_id):
 def get_transfer_order_details(order_id):
     """Get transfer order details with computed progress."""
     try:
-        order, status_code = stores_service.get_transfer_order_details(order_id)
+        order, status_code = orders_service.get_transfer_order_details(order_id)
         if status_code == 200:
             return jsonify(order), 200
         if status_code == 404:
@@ -454,7 +479,7 @@ def get_transfer_order_details(order_id):
 def delete_transfer_order(order_id):
     """Delete a transfer order from Supabase and local cache."""
     try:
-        success, message, status_code, store_id = stores_service.delete_transfer_order(order_id)
+        success, message, status_code, store_id = orders_service.delete_transfer_order(order_id)
         if success:
             _invalidate_transfer_orders_cache(store_id)
             return jsonify({'message': message, 'id': order_id}), status_code

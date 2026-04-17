@@ -4,6 +4,8 @@ Handles discount request business logic and database operations
 """
 
 import logging
+import threading
+import time
 import uuid
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
@@ -18,6 +20,42 @@ from utils.json_helpers import get_discounts_data, save_discounts_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
 logger = logging.getLogger(__name__)
+
+_DISCOUNTS_CACHE_TTL_SECONDS = 30
+_DISCOUNTS_CACHE_LOCK = threading.Lock()
+_DISCOUNTS_CACHE: Dict[str, Dict[str, object]] = {}
+
+
+def _discount_cache_key(status: Optional[str], limit: Optional[int]) -> str:
+    return f"{(status or 'all').lower()}:{limit if isinstance(limit, int) and limit > 0 else 'all'}"
+
+
+def _get_discounts_cache(status: Optional[str], limit: Optional[int]) -> Optional[List[Dict]]:
+    key = _discount_cache_key(status, limit)
+    now = time.time()
+    with _DISCOUNTS_CACHE_LOCK:
+        entry = _DISCOUNTS_CACHE.get(key)
+    if not entry:
+        return None
+    if now <= float(entry.get("expires_at") or 0):
+        data = entry.get("data")
+        if isinstance(data, list):
+            return data
+    return None
+
+
+def _set_discounts_cache(status: Optional[str], limit: Optional[int], data: List[Dict]) -> None:
+    key = _discount_cache_key(status, limit)
+    with _DISCOUNTS_CACHE_LOCK:
+        _DISCOUNTS_CACHE[key] = {
+            "data": data,
+            "expires_at": time.time() + _DISCOUNTS_CACHE_TTL_SECONDS,
+        }
+
+
+def _invalidate_discounts_cache() -> None:
+    with _DISCOUNTS_CACHE_LOCK:
+        _DISCOUNTS_CACHE.clear()
 
 
 def _create_discount_notification(discount_data: Dict) -> None:
@@ -60,11 +98,29 @@ def _create_discount_notification(discount_data: Dict) -> None:
 # LOCAL JSON OPERATIONS
 # ============================================
 
-def get_local_discounts() -> List[Dict]:
+def _apply_discounts_filters(
+    rows: List[Dict], status: Optional[str] = None, limit: Optional[int] = None
+) -> List[Dict]:
+    filtered = rows
+    if status:
+        status_normalized = str(status).strip().lower()
+        filtered = [
+            item for item in filtered if str(item.get("status") or "").strip().lower() == status_normalized
+        ]
+    filtered.sort(
+        key=lambda x: x.get("createdAt") or x.get("created_at", ""), reverse=True
+    )
+    if isinstance(limit, int) and limit > 0:
+        return filtered[:limit]
+    return filtered
+
+
+def get_local_discounts(status: Optional[str] = None, limit: Optional[int] = None) -> List[Dict]:
     """Get discounts from local JSON storage"""
     try:
         discounts = get_discounts_data()
         transformed = [convert_snake_to_camel(item) for item in discounts]
+        transformed = _apply_discounts_filters(transformed, status=status, limit=limit)
         logger.debug(f"Returning {len(transformed)} discounts from local JSON.")
         return transformed
     except Exception as e:
@@ -76,13 +132,23 @@ def get_local_discounts() -> List[Dict]:
 # SUPABASE OPERATIONS
 # ============================================
 
-def get_supabase_discounts() -> List[Dict]:
+def get_supabase_discounts(
+    status: Optional[str] = None,
+    limit: Optional[int] = None,
+    fallback_to_local: bool = True,
+) -> List[Dict]:
     """Get discounts directly from Supabase"""
     try:
         client = db.client
+        query = client.table("discounts").select("*").order("created_at", desc=True)
+        if status:
+            query = query.eq("status", str(status).strip().lower())
+        if isinstance(limit, int) and limit > 0:
+            query = query.limit(limit)
         response = execute_with_retry(
-            lambda: client.table("discounts").select("*"),
+            lambda: query,
             "discounts",
+            retries=1,
         )
         discounts = response.data or []
 
@@ -136,21 +202,31 @@ def get_supabase_discounts() -> List[Dict]:
             logger.warning(f"Error getting Supabase discounts (falling back to local): {e}")
         else:
             logger.error(f"Error getting Supabase discounts: {e}", exc_info=True)
-        return get_local_discounts()
+        if fallback_to_local:
+            return get_local_discounts(status=status, limit=limit)
+        return []
 
 
 # ============================================
 # MERGED OPERATIONS
 # ============================================
 
-def get_merged_discounts() -> Tuple[List[Dict], int]:
+def get_merged_discounts(status: Optional[str] = None, limit: Optional[int] = None) -> Tuple[List[Dict], int]:
     """
     Get discounts by merging local and Supabase (Supabase takes precedence).
     Returns (discounts_list, status_code)
     """
     try:
-        supabase_discounts = get_supabase_discounts()
-        local_discounts = get_local_discounts()
+        cached = _get_discounts_cache(status=status, limit=limit)
+        if cached is not None:
+            return cached, 200
+
+        supabase_discounts = get_supabase_discounts(
+            status=status,
+            limit=limit,
+            fallback_to_local=False,
+        )
+        local_discounts = get_local_discounts(status=status, limit=limit)
 
         discounts_map: Dict[str, Dict] = {}
 
@@ -165,11 +241,10 @@ def get_merged_discounts() -> Tuple[List[Dict], int]:
                 discounts_map[discount_id] = item
 
         final_discounts = list(discounts_map.values())
-        final_discounts.sort(
-            key=lambda x: x.get("createdAt") or x.get("created_at", ""), reverse=True
-        )
+        final_discounts = _apply_discounts_filters(final_discounts, status=status, limit=limit)
 
         logger.debug(f"Returning {len(final_discounts)} merged discounts")
+        _set_discounts_cache(status=status, limit=limit, data=final_discounts)
         return final_discounts, 200
     except Exception as e:
         logger.error(f"Error getting merged discounts: {e}", exc_info=True)
@@ -212,6 +287,7 @@ def create_discount_request(discount_data: dict) -> Tuple[Optional[str], str, in
         else:
             discounts.append(discount_data)
         save_discounts_data(discounts)
+        _invalidate_discounts_cache()
 
         try:
             client = db.client
@@ -261,6 +337,7 @@ def update_discount_status(discount_id: str, status: str, approved_by: Optional[
             # normalize key in case older entries used camelCase id key
             discounts[discount_index]["discount_id"] = discount_id
             save_discounts_data(discounts)
+            _invalidate_discounts_cache()
             local_updated = True
 
         supabase_updated = False
@@ -284,6 +361,7 @@ def update_discount_status(discount_id: str, status: str, approved_by: Optional[
             # keep local JSON aligned even if entry was missing locally
             discounts.append({"discount_id": discount_id, **update_data})
             save_discounts_data(discounts)
+            _invalidate_discounts_cache()
             local_updated = True
 
         if not local_updated and not supabase_updated:
@@ -313,6 +391,7 @@ def delete_discounts(discount_ids: List[str]) -> Tuple[bool, str, int]:
             return False, "No matching discounts found", 404
 
         save_discounts_data(remaining)
+        _invalidate_discounts_cache()
 
         # Remove from Supabase (best-effort)
         try:

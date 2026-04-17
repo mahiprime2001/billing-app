@@ -75,6 +75,7 @@ type TransferOrder = {
   totalValue?: number
   missingItemCount?: number
   missingStockTotal?: number
+  productList?: Array<{ name?: string; barcode?: string; batch?: string }>
 }
 
 type TransferOrderItem = {
@@ -139,29 +140,12 @@ const getItemBatch = (item: TransferOrderItem) =>
   item.products?.batchNumber || item.products?.batch_number || "-"
 
 const enrichOrdersWithValue = async (orderList: TransferOrder[]): Promise<TransferOrder[]> => {
-  return Promise.all(
-    orderList.map(async (order) => {
-      try {
-        const res = await fetch(`${API}/api/transfer-orders/${order.id}`)
-        if (res.ok) {
-          const detail = await res.json()
-          const items: TransferOrderItem[] = Array.isArray(detail?.items) ? detail.items : []
-          const totalValue = items.reduce((sum, item) => {
-            return sum + getAssignedQty(item) * getItemPrice(item)
-          }, 0)
-          const missingItemCount = items.reduce((count, item) => {
-            const missing = Math.max(0, getAssignedQty(item) - getVerifiedQty(item))
-            return count + (missing > 0 ? 1 : 0)
-          }, 0)
-          const missingStockTotal = items.reduce((sum, item) => {
-            return sum + Math.max(0, getAssignedQty(item) - getVerifiedQty(item))
-          }, 0)
-          return { ...order, totalValue, missingItemCount, missingStockTotal }
-        }
-      } catch {}
-      return { ...order, totalValue: 0, missingItemCount: 0, missingStockTotal: 0 }
-    })
-  )
+  return orderList.map((order: any) => ({
+    ...order,
+    totalValue: Number(order.totalValue ?? order.total_value ?? 0),
+    missingItemCount: Number(order.missingItemCount ?? order.missing_item_count ?? 0),
+    missingStockTotal: Number(order.missingStockTotal ?? order.missing_stock_total ?? order.missingQtyTotal ?? order.missing_qty_total ?? 0),
+  }))
 }
 
 const getOrderStatus = (order: TransferOrder) => String(order.status || "pending").toLowerCase()
@@ -380,26 +364,12 @@ export default function OrdersPage() {
     setSelectedDate(null)
 
     try {
-      const allOrders: TransferOrder[] = []
-      await Promise.all(
-        stores.map(async (store) => {
-          try {
-            const normalizedId = normalizeStoreId(store.id) || store.id
-            const res = await fetch(`${API}/api/stores/${normalizedId}/transfer-orders`)
-            if (res.ok) {
-              const payload = await res.json()
-              const list = Array.isArray(payload) ? payload : []
-              list.forEach((order: any) => {
-                allOrders.push({
-                  ...order,
-                  storeId: store.id,
-                  createdAt: order.createdAt || order.created_at,
-                })
-              })
-            }
-          } catch {}
-        })
-      )
+      const res = await fetch(`${API}/api/orders?storeId=all&limit=1000`)
+      const payload = res.ok ? await res.json() : []
+      const allOrders: TransferOrder[] = (Array.isArray(payload) ? payload : []).map((order: any) => ({
+        ...order,
+        createdAt: order.createdAt || order.created_at,
+      }))
       const enriched = await enrichOrdersWithValue(allOrders)
       processOrders(enriched)
     } catch (e) {
@@ -417,7 +387,7 @@ export default function OrdersPage() {
 
     try {
       const normalizedId = normalizeStoreId(storeId) || storeId
-      const res = await fetch(`${API}/api/stores/${normalizedId}/transfer-orders`)
+      const res = await fetch(`${API}/api/orders?storeId=${encodeURIComponent(normalizedId)}&limit=1000`)
       if (res.ok) {
         const payload = await res.json()
         const list = Array.isArray(payload) ? payload : []
@@ -464,7 +434,16 @@ export default function OrdersPage() {
 
     if (orderSearch.trim()) {
       const term = orderSearch.trim().toLowerCase()
-      list = list.filter((o) => o.id.toLowerCase().includes(term))
+      list = list.filter((o) => {
+        if (o.id.toLowerCase().includes(term)) return true
+        const products = o.productList || []
+        return products.some(
+          (p) =>
+            (p.name || "").toLowerCase().includes(term) ||
+            (p.barcode || "").toLowerCase().includes(term) ||
+            (p.batch || "").toLowerCase().includes(term),
+        )
+      })
     }
 
     list.sort((a, b) => {
@@ -500,7 +479,7 @@ export default function OrdersPage() {
 
       let response: Response | null = null
       for (let attempt = 0; attempt < 3; attempt++) {
-        response = await fetch(`${API}/api/transfer-orders/${order.id}`)
+        response = await fetch(`${API}/api/orders/${order.id}`)
         if (response.ok) break
         if (attempt < 2) await new Promise((r) => setTimeout(r, 350 * (attempt + 1)))
       }
@@ -530,7 +509,7 @@ export default function OrdersPage() {
 
     try {
       setDeletingOrderId(order.id)
-      const response = await fetch(`${API}/api/transfer-orders/${order.id}`, { method: "DELETE" })
+      const response = await fetch(`${API}/api/orders/${order.id}`, { method: "DELETE" })
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}))
         throw new Error(payload?.error || "Failed to delete order")
@@ -633,7 +612,15 @@ export default function OrdersPage() {
 
     try {
       const normalizedId = normalizeStoreId(summaryStoreId) || summaryStoreId
-      const res = await fetch(`${API}/api/stores/${normalizedId}/transfer-orders`)
+      const fromIso = `${summaryFrom}T00:00:00`
+      const toIso = `${summaryTo}T23:59:59`
+      const params = new URLSearchParams({
+        storeId: normalizedId,
+        from: fromIso,
+        to: toIso,
+        limit: "1000",
+      })
+      const res = await fetch(`${API}/api/orders?${params.toString()}`)
       if (!res.ok) { setIsLoadingSummary(false); return }
 
       const payload = await res.json()
@@ -641,6 +628,7 @@ export default function OrdersPage() {
         ...o,
         storeId: summaryStoreId,
         createdAt: o.createdAt || o.created_at,
+        totalValue: Number(o.totalValue ?? o.total_value ?? 0),
       }))
 
       // Filter by selected date
@@ -648,26 +636,10 @@ export default function OrdersPage() {
         const dk = getDateKey(o.createdAt || o.created_at)
         return dk >= summaryFrom && dk <= summaryTo
       })
-
-      // Fetch details for each order to get total value
-      const enriched = await Promise.all(
-        dayOrders.map(async (order) => {
-          try {
-            const detailRes = await fetch(`${API}/api/transfer-orders/${order.id}`)
-            if (detailRes.ok) {
-              const detail = await detailRes.json()
-              const items: TransferOrderItem[] = Array.isArray(detail?.items) ? detail.items : []
-              const totalValue = items.reduce((sum, item) => {
-                const qty = getAssignedQty(item)
-                const price = getItemPrice(item)
-                return sum + qty * price
-              }, 0)
-              return { ...order, totalValue }
-            }
-          } catch {}
-          return { ...order, totalValue: 0 }
-        })
-      )
+      const enriched = dayOrders.map((order) => ({
+        ...order,
+        totalValue: Number((order as any).totalValue ?? (order as any).total_value ?? 0),
+      }))
 
       enriched.sort((a, b) => {
         const aTs = new Date(a.createdAt || a.created_at || "").getTime()
@@ -914,7 +886,7 @@ export default function OrdersPage() {
                   <div className="relative flex-1 w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search by order ID..."
+                      placeholder="Search by order ID, product name, barcode, or batch..."
                       value={orderSearch}
                       onChange={(e) => setOrderSearch(e.target.value)}
                       className="pl-9"

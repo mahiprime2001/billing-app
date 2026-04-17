@@ -1023,26 +1023,67 @@ def _derive_item_state(item: Dict[str, Any]) -> str:
     return "in_progress"
 
 
-def get_store_transfer_orders(store_id: str, status: Optional[str] = None) -> Tuple[List[Dict], int]:
+def _fetch_transfer_orders_for_store(
+    client: Any,
+    store_id: str,
+    status: Optional[str],
+    from_date: Optional[str],
+    to_date: Optional[str],
+    limit: Optional[int],
+) -> List[Dict]:
+    """
+    Fetch transfer orders using DB-side filtering. Supports schema variants for store id:
+    store_id / storeid / storeId.
+    """
+    id_columns = ["store_id", "storeid", "storeId"]
+    status_value = str(status).strip().lower() if status else None
+    for id_col in id_columns:
+        try:
+            query = (
+                client.table("inventory_transfer_orders")
+                .select("*")
+                .eq(id_col, store_id)
+                .order("created_at", desc=True)
+            )
+            if status_value:
+                query = query.eq("status", status_value)
+            if from_date:
+                query = query.gte("created_at", from_date)
+            if to_date:
+                query = query.lte("created_at", to_date)
+            if isinstance(limit, int) and limit > 0:
+                query = query.limit(limit)
+            response = execute_with_retry(
+                lambda: query,
+                f"transfer orders for store {store_id} ({id_col})",
+            )
+            rows = response.data or []
+            if rows:
+                return rows
+        except Exception:
+            # Try next id column variant.
+            continue
+    return []
+
+
+def get_store_transfer_orders(
+    store_id: str,
+    status: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    limit: Optional[int] = None,
+) -> Tuple[List[Dict], int]:
     """Fetch transfer orders for a store with computed progress and missing qty."""
     try:
         client = db.client
-        # Pull rows and filter in Python to tolerate schema variants:
-        # store_id / storeid / storeId.
-        response = execute_with_retry(
-            lambda: client.table("inventory_transfer_orders").select("*").order("created_at", desc=True),
-            f"transfer orders for store {store_id}",
+        orders = _fetch_transfer_orders_for_store(
+            client=client,
+            store_id=store_id,
+            status=status,
+            from_date=from_date,
+            to_date=to_date,
+            limit=limit,
         )
-        all_orders = response.data or []
-        orders = []
-        for row in all_orders:
-            row_store_id = row.get("store_id") or row.get("storeid") or row.get("storeId")
-            if str(row_store_id) != str(store_id):
-                continue
-            row_status = str(row.get("status") or "").lower()
-            if status and row_status != str(status).lower():
-                continue
-            orders.append(row)
         if not orders:
             return [], 200
 
@@ -1052,6 +1093,30 @@ def get_store_transfer_orders(store_id: str, status: Optional[str] = None) -> Tu
             f"transfer order items for store {store_id}",
         )
         items = items_response.data or []
+
+        product_ids = list(
+            {
+                str(item.get("product_id") or "").strip()
+                for item in items
+                if str(item.get("product_id") or "").strip()
+            }
+        )
+        product_price_map: Dict[str, float] = {}
+        if product_ids:
+            try:
+                products_response = execute_with_retry(
+                    lambda: client.table("products").select("id, selling_price, price").in_("id", product_ids),
+                    f"transfer order prices for store {store_id}",
+                )
+                for prod in products_response.data or []:
+                    pid = str(prod.get("id") or "").strip()
+                    if not pid:
+                        continue
+                    product_price_map[pid] = float(
+                        prod.get("selling_price") or prod.get("sellingPrice") or prod.get("price") or 0
+                    )
+            except Exception as product_err:
+                logger.warning("Failed to prefetch product prices for transfer orders (%s): %s", store_id, product_err)
 
         items_by_order: Dict[str, List[Dict]] = defaultdict(list)
         for item in items:
@@ -1067,6 +1132,20 @@ def get_store_transfer_orders(store_id: str, status: Optional[str] = None) -> Tu
             damaged = sum(int(i.get("damaged_qty") or 0) for i in order_items)
             wrong_store = sum(int(i.get("wrong_store_qty") or 0) for i in order_items)
             missing = max(0, assigned - verified - damaged - wrong_store)
+            missing_item_count = 0
+            total_value = 0.0
+            for item in order_items:
+                item_assigned = int(item.get("assigned_qty") or 0)
+                item_verified = int(item.get("verified_qty") or 0)
+                item_damaged = int(item.get("damaged_qty") or 0)
+                item_wrong_store = int(item.get("wrong_store_qty") or 0)
+                item_missing = max(0, item_assigned - item_verified - item_damaged - item_wrong_store)
+                if item_missing > 0:
+                    missing_item_count += 1
+                pid = str(item.get("product_id") or "").strip()
+                unit_price = product_price_map.get(pid, 0.0)
+                total_value += item_assigned * unit_price
+
             computed_status = order.get("status")
             if computed_status in TRANSFER_ACTIVE_STATUSES and assigned > 0:
                 if missing == 0:
@@ -1084,7 +1163,10 @@ def get_store_transfer_orders(store_id: str, status: Optional[str] = None) -> Tu
                         "damaged_qty_total": damaged,
                         "wrong_store_qty_total": wrong_store,
                         "missing_qty_total": missing,
+                        "missing_item_count": missing_item_count,
+                        "missing_stock_total": missing,
                         "item_count": len(order_items),
+                        "total_value": round(total_value, 2),
                     }
                 )
             )

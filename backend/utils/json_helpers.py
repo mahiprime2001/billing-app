@@ -25,7 +25,8 @@ def _safe_json_load(path: str, default: Any) -> Any:
         return default
     
     try:
-        with open(path, 'r', encoding='utf-8') as f:
+        # utf-8-sig tolerates BOM-prefixed files (common when edited by Windows tools)
+        with open(path, 'r', encoding='utf-8-sig') as f:
             data = json.load(f)
         
         # Ensure top-level dictionary keys are strings to prevent TypeError with jsonify
@@ -269,6 +270,64 @@ def get_store_inventory_data() -> List[Dict]:
 def save_store_inventory_data(inventory: List[Dict]) -> bool:
     """Save store inventory to local JSON"""
     return _safe_json_dump(Config.STOREINVENTORY_FILE, inventory)
+
+
+# ============================================
+# ORDERS (TRANSFER ORDERS LIST CACHE)
+# ============================================
+
+def get_orders_data() -> List[Dict]:
+    """Get transfer orders from local JSON"""
+    return _safe_json_load(Config.ORDERS_FILE, [])
+
+
+def save_orders_data(orders: List[Dict]) -> bool:
+    """Save transfer orders to local JSON"""
+    return _safe_json_dump(Config.ORDERS_FILE, orders)
+
+
+# ============================================
+# INVENTORY TRANSFER (OPTIONAL OFFLINE FILES)
+# ============================================
+
+def get_inventory_transfer_orders_data() -> List[Dict]:
+    """Get inventory transfer orders from local JSON"""
+    return _safe_json_load(Config.INVENTORY_TRANSFER_ORDERS_FILE, [])
+
+
+def save_inventory_transfer_orders_data(rows: List[Dict]) -> bool:
+    """Save inventory transfer orders to local JSON"""
+    return _safe_json_dump(Config.INVENTORY_TRANSFER_ORDERS_FILE, rows)
+
+
+def get_inventory_transfer_items_data() -> List[Dict]:
+    """Get inventory transfer items from local JSON"""
+    return _safe_json_load(Config.INVENTORY_TRANSFER_ITEMS_FILE, [])
+
+
+def save_inventory_transfer_items_data(rows: List[Dict]) -> bool:
+    """Save inventory transfer items to local JSON"""
+    return _safe_json_dump(Config.INVENTORY_TRANSFER_ITEMS_FILE, rows)
+
+
+def get_inventory_transfer_verifications_data() -> List[Dict]:
+    """Get inventory transfer verifications from local JSON"""
+    return _safe_json_load(Config.INVENTORY_TRANSFER_VERIFICATIONS_FILE, [])
+
+
+def save_inventory_transfer_verifications_data(rows: List[Dict]) -> bool:
+    """Save inventory transfer verifications to local JSON"""
+    return _safe_json_dump(Config.INVENTORY_TRANSFER_VERIFICATIONS_FILE, rows)
+
+
+def get_inventory_transfer_scans_data() -> List[Dict]:
+    """Get inventory transfer scans from local JSON"""
+    return _safe_json_load(Config.INVENTORY_TRANSFER_SCANS_FILE, [])
+
+
+def save_inventory_transfer_scans_data(rows: List[Dict]) -> bool:
+    """Save inventory transfer scans to local JSON"""
+    return _safe_json_dump(Config.INVENTORY_TRANSFER_SCANS_FILE, rows)
 
 
 # ============================================

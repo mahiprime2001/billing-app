@@ -5,14 +5,47 @@ Handles all settings-related business logic and database operations
 
 import json
 import logging
+import threading
+import time
 from datetime import datetime
 from typing import Dict, Optional, Tuple
 from utils.supabase_db import db
 from utils.json_helpers import get_settings_data, save_settings_data
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 from utils.concurrency_guard import extract_base_markers, safe_update_with_conflict_check
+from utils.supabase_resilience import (
+    execute_with_retry,
+    is_circuit_open_error,
+    is_transient_supabase_error,
+)
 
 logger = logging.getLogger(__name__)
+
+_SETTINGS_CACHE_TTL_SECONDS = 45
+_SETTINGS_CACHE_LOCK = threading.Lock()
+_SETTINGS_CACHE: dict = {"data": None, "expires_at": 0.0}
+
+
+def _get_cached_settings_response() -> Optional[Dict]:
+    now = time.time()
+    with _SETTINGS_CACHE_LOCK:
+        if now <= float(_SETTINGS_CACHE.get("expires_at") or 0):
+            cached = _SETTINGS_CACHE.get("data")
+            if isinstance(cached, dict):
+                return cached
+    return None
+
+
+def _set_cached_settings_response(data: Dict) -> None:
+    with _SETTINGS_CACHE_LOCK:
+        _SETTINGS_CACHE["data"] = data
+        _SETTINGS_CACHE["expires_at"] = time.time() + _SETTINGS_CACHE_TTL_SECONDS
+
+
+def _invalidate_settings_cache() -> None:
+    with _SETTINGS_CACHE_LOCK:
+        _SETTINGS_CACHE["data"] = None
+        _SETTINGS_CACHE["expires_at"] = 0.0
 
 # ============================================
 # CUSTOM CONVERSION FOR SYSTEMSETTINGS TABLE
@@ -90,7 +123,11 @@ def get_supabase_settings() -> Dict:
     """Get settings directly from Supabase"""
     try:
         client = db.client
-        response = client.table("systemsettings").select("*").limit(1).execute()
+        response = execute_with_retry(
+            lambda: client.table("systemsettings").select("*").order("updated_at", desc=True).limit(1),
+            "systemsettings",
+            retries=1,
+        )
         
         if response.data and len(response.data) > 0:
             settings_row = response.data[0]
@@ -102,8 +139,56 @@ def get_supabase_settings() -> Dict:
             logger.warning("No settings found in Supabase systemsettings table")
             return {}
     except Exception as e:
-        logger.error(f"Error getting Supabase settings: {e}", exc_info=True)
+        if is_circuit_open_error(e):
+            logger.info("Supabase circuit open while fetching settings; using local fallback.")
+        elif is_transient_supabase_error(e):
+            logger.warning(f"Transient Supabase error while fetching settings; using local fallback: {e}")
+        else:
+            logger.error(f"Error getting Supabase settings: {e}", exc_info=True)
         return {}
+
+
+def _compose_settings_response(local_settings: Dict, supabase_settings: Dict) -> Dict:
+    # Extract systemSettings from local (which has nested structure)
+    local_system = local_settings.get('systemSettings', {})
+    local_bill_formats = local_settings.get('billFormats', {})
+    local_store_formats = local_settings.get('storeFormats', {})
+
+    # Merge: Start with local, overlay with Supabase
+    system_settings = {}
+    system_settings.update(local_system)
+    system_settings.update(supabase_settings)  # Supabase takes precedence
+    # Tax percentage is deprecated in settings and should not be exposed.
+    system_settings.pop("taxpercentage", None)
+    system_settings.pop("taxPercentage", None)
+
+    # Extract bill_formats and store_formats from Supabase if they exist
+    bill_formats = local_bill_formats.copy()
+    store_formats = local_store_formats.copy()
+
+    if 'billFormats' in supabase_settings:
+        try:
+            bf = supabase_settings['billFormats']
+            if isinstance(bf, str):
+                bf = json.loads(bf)
+            bill_formats.update(bf)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    if 'storeFormats' in supabase_settings:
+        try:
+            sf = supabase_settings['storeFormats']
+            if isinstance(sf, str):
+                sf = json.loads(sf)
+            store_formats.update(sf)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return {
+        "systemSettings": system_settings,
+        "billFormats": bill_formats,
+        "storeFormats": store_formats
+    }
 
 # ============================================
 # MERGED OPERATIONS
@@ -115,6 +200,10 @@ def get_merged_settings() -> Tuple[Dict, int]:
     Returns (settings_dict, status_code)
     """
     try:
+        cached = _get_cached_settings_response()
+        if cached is not None:
+            return cached, 200
+
         # Fetch from Supabase first (source of truth)
         supabase_settings = get_supabase_settings()
         local_settings = get_local_settings()
@@ -130,50 +219,10 @@ def get_merged_settings() -> Tuple[Dict, int]:
                 )
             except Exception as cache_err:
                 logger.warning(f"Failed to refresh local settings cache: {cache_err}")
-        
-        # Extract systemSettings from local (which has nested structure)
-        local_system = local_settings.get('systemSettings', {})
-        local_bill_formats = local_settings.get('billFormats', {})
-        local_store_formats = local_settings.get('storeFormats', {})
-        
-        # Merge: Start with local, overlay with Supabase
-        system_settings = {}
-        system_settings.update(local_system)
-        system_settings.update(supabase_settings)  # Supabase takes precedence
-        # Tax percentage is deprecated in settings and should not be exposed.
-        system_settings.pop("taxpercentage", None)
-        system_settings.pop("taxPercentage", None)
-        
-        # Extract bill_formats and store_formats from Supabase if they exist
-        bill_formats = local_bill_formats.copy()
-        store_formats = local_store_formats.copy()
-        
-        if 'billFormats' in supabase_settings:
-            try:
-                bf = supabase_settings['billFormats']
-                if isinstance(bf, str):
-                    bf = json.loads(bf)
-                bill_formats.update(bf)
-            except (json.JSONDecodeError, TypeError):
-                pass
-        
-        if 'storeFormats' in supabase_settings:
-            try:
-                sf = supabase_settings['storeFormats']
-                if isinstance(sf, str):
-                    sf = json.loads(sf)
-                store_formats.update(sf)
-            except (json.JSONDecodeError, TypeError):
-                pass
-        
-        # Combine all into a single response structure expected by frontend
-        final_response = {
-            "systemSettings": system_settings,
-            "billFormats": bill_formats,
-            "storeFormats": store_formats
-        }
+        final_response = _compose_settings_response(local_settings, supabase_settings)
         
         logger.debug(f"Returning merged settings: {final_response}")
+        _set_cached_settings_response(final_response)
         return final_response, 200
         
     except Exception as e:
@@ -221,6 +270,7 @@ def update_settings(settings_data: dict) -> Tuple[bool, str, int]:
         
         # Save to local JSON
         save_settings_data(local_json_data)
+        _invalidate_settings_cache()
         
         # Update in Supabase
         client = db.client
