@@ -52,6 +52,7 @@ interface StoreType {
   address: string
   phone: string
   manager: string
+  storecode?: string
   status: "active" | "inactive"
   createdAt: string
   totalRevenue: number
@@ -426,6 +427,7 @@ export default function StoresPage() {
     address: "",
     phone: "",
     manager: "",
+    storecode: "",
     status: "active" as "active" | "inactive",
   })
 
@@ -516,6 +518,7 @@ export default function StoresPage() {
       address: formData.address,
       phone: formData.phone,
       manager: formData.manager,
+      storecode: formData.storecode.trim().toUpperCase(),
       status: formData.status,
     }
 
@@ -556,6 +559,7 @@ export default function StoresPage() {
       address: store.address,
       phone: store.phone,
       manager: store.manager,
+      storecode: store.storecode || "",
       status: store.status,
     })
     setIsDialogOpen(true)
@@ -615,6 +619,7 @@ export default function StoresPage() {
       address: "",
       phone: "",
       manager: "",
+      storecode: "",
       status: "active",
     })
     setEditingStore(null)
@@ -702,6 +707,18 @@ export default function StoresPage() {
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         placeholder="Enter phone number"
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="storecode">Store Code *</Label>
+                      <Input
+                        id="storecode"
+                        value={formData.storecode}
+                        onChange={(e) => setFormData({ ...formData, storecode: e.target.value.toUpperCase() })}
+                        placeholder="e.g. NLR, MPD, KNL"
+                        maxLength={10}
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">Short code used in invoice numbers (e.g. INV-NLR-190420260001)</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -850,6 +867,11 @@ export default function StoresPage() {
                               <div className="text-sm flex items-center">
                                 <User className="h-3 w-3 mr-1 text-gray-400" />
                                 {store.manager}
+                              </div>
+                            )}
+                            {store.storecode && (
+                              <div className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded w-fit">
+                                {store.storecode}
                               </div>
                             )}
                           </div>

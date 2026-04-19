@@ -514,7 +514,7 @@ def update_store(store_id: str, update_data: dict) -> Tuple[bool, str, int]:
         update_data = convert_camel_to_snake(update_data)
         base_version, base_updated_at = extract_base_markers(update_data)
 
-        allowed_columns = {"name", "address", "phone", "status"}
+        allowed_columns = {"name", "address", "phone", "status", "storecode"}
         filtered_update_data = {k: v for k, v in update_data.items() if k in allowed_columns}
         if not filtered_update_data:
             return False, "No valid store fields provided for update", 400

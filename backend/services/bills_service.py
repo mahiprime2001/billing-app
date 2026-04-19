@@ -28,12 +28,13 @@ from utils.json_helpers import (
     save_products_data,
     get_store_inventory_data,
     save_store_inventory_data,
+    get_stores_data,
     get_users_data,
 )
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 
 logger = logging.getLogger(__name__)
-INVOICE_ID_REGEX = re.compile(r"^INV-(\d{8})(\d{4})$")
+INVOICE_ID_REGEX = re.compile(r"^INV-([A-Z0-9]+)-(\d{8})(\d{4})$")
 IST_ZONE = ZoneInfo("Asia/Kolkata")
 
 
@@ -107,8 +108,8 @@ def _enrich_local_bills_with_local_items(bills: List[Dict[str, Any]]) -> List[Di
         return bills
 
 
-def _get_today_invoice_prefix() -> str:
-    return f"INV-{datetime.now(IST_ZONE).strftime('%d%m%Y')}"
+def _get_today_invoice_prefix(store_code: str) -> str:
+    return f"INV-{store_code}-{datetime.now(IST_ZONE).strftime('%d%m%Y')}"
 
 
 def _extract_serial_for_prefix(invoice_id: Optional[str], prefix: str) -> int:
@@ -118,27 +119,59 @@ def _extract_serial_for_prefix(invoice_id: Optional[str], prefix: str) -> int:
     if not match:
         return 0
     try:
-        return int(match.group(2))
+        return int(match.group(3))
     except (TypeError, ValueError):
         return 0
 
 
-def _generate_daily_invoice_id() -> str:
-    prefix = _get_today_invoice_prefix()
+def _get_store_code(store_id: str) -> str:
+    """Get store code from local JSON first, fall back to Supabase."""
+    try:
+        for store in get_stores_data():
+            if store.get("id") == store_id:
+                code = str(store.get("storecode") or "").strip().upper()
+                if code:
+                    return code
+    except Exception as local_error:
+        logger.warning(f"Failed to get store code from local JSON: {local_error}")
+
+    try:
+        client = db.client
+        response = execute_with_retry(
+            lambda: client.table("stores").select("storecode").eq("id", store_id).limit(1),
+            "store code lookup",
+            retries=1,
+        )
+        if response.data:
+            code = str(response.data[0].get("storecode") or "").strip().upper()
+            if code:
+                return code
+    except Exception as cloud_error:
+        logger.warning(f"Failed to get store code from Supabase: {cloud_error}")
+
+    return "STR"
+
+
+def _generate_daily_invoice_id(store_id: str) -> str:
+    store_code = _get_store_code(store_id)
+    prefix = _get_today_invoice_prefix(store_code)
     max_serial = 0
 
-    # Local JSON first (offline-first storage)
+    # Local JSON first (offline-first storage), filtered by store
     try:
         for bill in get_bills_data():
+            bill_store = str(bill.get("storeid") or bill.get("storeId") or "")
+            if bill_store != store_id:
+                continue
             max_serial = max(max_serial, _extract_serial_for_prefix(str(bill.get("id") or ""), prefix))
     except Exception as local_error:
         logger.warning(f"Failed reading local bills for invoice serial: {local_error}")
 
-    # Supabase best-effort (helps avoid collisions across instances)
+    # Supabase best-effort (helps avoid collisions across instances), filtered by store
     try:
         client = db.client
         response = execute_with_retry(
-            lambda: client.table("bills").select("id").like("id", f"{prefix}%"),
+            lambda: client.table("bills").select("id").like("id", f"{prefix}%").eq("storeid", store_id),
             "invoice id lookup",
         )
         for row in (response.data or []):
@@ -945,13 +978,13 @@ def create_bill(bill_data: dict) -> Tuple[Optional[str], str, int]:
         print(f"📝 Creating new bill...")
 
         # Required schema fields
-        bill_id = _generate_daily_invoice_id()
+        store_id = bill_data.get("storeId") or bill_data.get("storeid")
+        bill_id = _generate_daily_invoice_id(store_id or "")
         customer_id = (
             bill_data.get("customerId")
             or bill_data.get("customerid")
             or "CUST-1754821420265"
         )
-        store_id = bill_data.get("storeId") or bill_data.get("storeid")
         user_id = bill_data.get("userId") or bill_data.get("userid")
         payment_method = bill_data.get("paymentMethod") or "cash"
         timestamp = bill_data.get("timestamp") or datetime.now().isoformat()
