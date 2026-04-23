@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"http://127.0.0.1:8080/api/bills?page=1&pageSize=2&paginate=1&details=1\")",
+      "Bash(git stash *)",
+      "Bash(git pull *)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

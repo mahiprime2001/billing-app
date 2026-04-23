@@ -93,6 +93,8 @@ function StoreInsightModal({
   const [selectedLiveBillTab, setSelectedLiveBillTab] = useState("");
   const [isLoadingLiveFeed, setIsLoadingLiveFeed] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [selectedBill, setSelectedBill] = useState<any | null>(null);
+  const [creatorNameById, setCreatorNameById] = useState<Record<string, string>>({});
 
   const getDateKey = (value?: string) => {
     if (!value) return "";
@@ -117,47 +119,143 @@ function StoreInsightModal({
   };
 
 
-  const fetchLiveData = async (showLoader = false) => {
+  const BILLS_PAGE_SIZE = 200;
+  const [isLoadingMoreBills, setIsLoadingMoreBills] = useState(false);
+  const [billsLoadProgress, setBillsLoadProgress] = useState<{ loaded: number; total: number } | null>(null);
+
+  const fetchInventory = async () => {
     if (!store) return;
     const normalizedStoreId = normalizeStoreId(store.id) || store.id;
+    try {
+      const res = await fetch(`${API}/api/stores/${normalizedStoreId}/assigned-products`);
+      if (!res.ok) return;
+      const invData = await res.json();
+      const rows = Array.isArray(invData) ? invData : [];
+      setInventoryRows(rows.filter((row: StoreLiveInventoryRow) => Number(row?.quantity || 0) > 0));
+    } catch (error) {
+      console.error("Error loading store inventory:", error);
+    }
+  };
+
+  const fetchBillsPage = async (page: number) => {
+    if (!store) return null;
+    const normalizedStoreId = normalizeStoreId(store.id) || store.id;
+    const url = `${API}/api/bills?storeId=${encodeURIComponent(normalizedStoreId)}&page=${page}&pageSize=${BILLS_PAGE_SIZE}&paginate=1&details=1`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Bills page ${page} failed: ${res.status}`);
+    const payload = await res.json();
+    const list = Array.isArray(payload) ? payload : payload?.data || [];
+    const items = (Array.isArray(list) ? list : []).filter(
+      (bill) => getBillStoreId(bill) === normalizeStoreId(store.id),
+    );
+    return {
+      items,
+      hasMore: Boolean(payload?.hasMore),
+      total: typeof payload?.total === "number" ? payload.total : null,
+    };
+  };
+
+  const sortBillsDesc = (rows: any[]) =>
+    [...rows].sort((a, b) => new Date(getBillDate(b)).getTime() - new Date(getBillDate(a)).getTime());
+
+  const loadAllBills = async (showLoader = false) => {
+    if (!store) return;
     if (showLoader) setIsLoadingLiveFeed(true);
     try {
-      const [inventoryRes, billsRes] = await Promise.all([
-        fetch(`${API}/api/stores/${normalizedStoreId}/assigned-products`),
-        fetch(`${API}/api/bills?storeId=${encodeURIComponent(normalizedStoreId)}&page=1&pageSize=200&paginate=1&details=0`),
-      ]);
+      const first = await fetchBillsPage(1);
+      if (!first) return;
+      setLiveBills(sortBillsDesc(first.items));
+      setBillsLoadProgress(
+        first.total != null ? { loaded: first.items.length, total: first.total } : null,
+      );
 
-      if (inventoryRes.ok) {
-        const invData = await inventoryRes.json();
-        const rows = Array.isArray(invData) ? invData : [];
-        const inStockOnly = rows.filter((row: StoreLiveInventoryRow) => Number(row?.quantity || 0) > 0);
-        setInventoryRows(inStockOnly);
+      if (!first.hasMore) {
+        setBillsLoadProgress(null);
+        return;
       }
 
-      if (billsRes.ok) {
-        const billsData = await billsRes.json();
-        const list = Array.isArray(billsData) ? billsData : billsData?.data || [];
-        const filtered = (Array.isArray(list) ? list : [])
-          .filter((bill) => getBillStoreId(bill) === normalizeStoreId(store.id))
-          .sort((a, b) => new Date(getBillDate(b)).getTime() - new Date(getBillDate(a)).getTime());
-        setLiveBills(filtered.slice(0, 100));
+      setIsLoadingMoreBills(true);
+      let page = 2;
+      let collected = [...first.items];
+      // Hard safety cap to avoid infinite loops if backend misreports hasMore.
+      const MAX_PAGES = 50;
+      while (page <= MAX_PAGES) {
+        try {
+          const next = await fetchBillsPage(page);
+          if (!next) break;
+          collected = collected.concat(next.items);
+          setLiveBills(sortBillsDesc(collected));
+          setBillsLoadProgress(
+            next.total != null ? { loaded: collected.length, total: next.total } : null,
+          );
+          if (!next.hasMore) break;
+          page += 1;
+        } catch (err) {
+          console.error("Failed to load additional bills page", page, err);
+          break;
+        }
       }
+    } catch (error) {
+      console.error("Error loading store bills:", error);
+    } finally {
+      setLastUpdated(new Date().toLocaleTimeString());
+      setIsLoadingMoreBills(false);
+      setBillsLoadProgress(null);
+      if (showLoader) setIsLoadingLiveFeed(false);
+    }
+  };
 
+  const refreshFirstBillsPage = async () => {
+    try {
+      const first = await fetchBillsPage(1);
+      if (!first) return;
+      setLiveBills((prev) => {
+        const seen = new Set(first.items.map((b: any) => b.id));
+        const older = prev.filter((b: any) => !seen.has(b.id));
+        return sortBillsDesc([...first.items, ...older]);
+      });
       setLastUpdated(new Date().toLocaleTimeString());
     } catch (error) {
-      console.error("Error loading store live feed:", error);
-    } finally {
-      if (showLoader) setIsLoadingLiveFeed(false);
+      console.error("Error refreshing latest bills:", error);
     }
   };
 
   useEffect(() => {
     if (!open || !store) return;
-    fetchLiveData(!hasLoadedLiveFeed);
-    setHasLoadedLiveFeed(true);
-    const timer = setInterval(() => fetchLiveData(false), 30000);
+    if (!hasLoadedLiveFeed) {
+      fetchInventory();
+      loadAllBills(true);
+      setHasLoadedLiveFeed(true);
+    }
+    const timer = setInterval(() => {
+      fetchInventory();
+      refreshFirstBillsPage();
+    }, 30000);
     return () => clearInterval(timer);
   }, [open, store?.id, hasLoadedLiveFeed]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API}/api/users`);
+        if (!res.ok) return;
+        const payload = await res.json();
+        const rows = Array.isArray(payload) ? payload : payload?.data || [];
+        const map = rows.reduce((acc: Record<string, string>, row: any) => {
+          const id = String(row?.id || row?.userId || row?.user_id || "").trim();
+          const name = String(row?.name || row?.fullName || row?.full_name || "").trim();
+          if (id && name) acc[id] = name;
+          return acc;
+        }, {});
+        if (!cancelled) setCreatorNameById(map);
+      } catch (error) {
+        console.warn("Failed to load users for bill creator mapping", error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
 
   useEffect(() => {
     if (!open || !store) return;
@@ -167,6 +265,9 @@ function StoreInsightModal({
     setLiveProductSearch("");
     setSelectedLiveBillTab("");
     setLastUpdated("");
+    setSelectedBill(null);
+    setIsLoadingMoreBills(false);
+    setBillsLoadProgress(null);
   }, [open, store?.id]);
 
   const filteredInventoryRows = useMemo(() => {
@@ -258,76 +359,150 @@ function StoreInsightModal({
   const totalBillAmount = liveBills.reduce((sum, bill) => sum + Number(bill?.total || 0), 0);
   const activeTabBillAmount = activeLiveBills.reduce((sum, bill) => sum + Number(bill?.total || 0), 0);
 
+  const storeStatus = String(store.status || "active").toLowerCase();
+  const statusTone =
+    storeStatus === "active"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : "bg-slate-50 text-slate-600 border-slate-200";
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl h-[94vh] flex flex-col p-0 overflow-hidden border-0 shadow-2xl">
+      <DialogContent className="max-w-7xl h-[94vh] flex flex-col p-0 overflow-hidden">
         {/* Header */}
-        <DialogHeader className="border-b px-8 py-6 bg-gradient-to-r from-slate-50 to-white">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
-              <Building className="h-6 w-6 text-blue-600" />
+        <DialogHeader className="border-b px-6 py-4 bg-white">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                <Building className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DialogTitle className="text-lg font-semibold truncate">{store.name}</DialogTitle>
+                  <span className={`inline-block px-2 py-0.5 text-[11px] rounded border capitalize ${statusTone}`}>
+                    {storeStatus}
+                  </span>
+                  {store.storecode && (
+                    <span className="text-xs text-muted-foreground font-mono">{store.storecode}</span>
+                  )}
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+                  {store.address && (
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      <span className="truncate max-w-[280px]">{store.address}</span>
+                    </span>
+                  )}
+                  {store.phone && (
+                    <span className="inline-flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      {store.phone}
+                    </span>
+                  )}
+                  {store.manager && (
+                    <span className="inline-flex items-center gap-1">
+                      <User className="h-3 w-3" />
+                      {store.manager}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-            <div>
-              <DialogTitle className="text-2xl font-semibold tracking-tight">{store.name}</DialogTitle>
-              <p className="text-sm text-muted-foreground">Store Insights • Real-time Overview</p>
+            <div className="flex items-center gap-2 shrink-0">
+              {lastUpdated && (
+                <span className="text-xs text-muted-foreground hidden sm:inline">
+                  Updated {lastUpdated}
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  fetchInventory();
+                  loadAllBills(true);
+                }}
+                disabled={isLoadingLiveFeed}
+                className="h-8 gap-1.5"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoadingLiveFeed ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-auto p-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h3 className="text-2xl font-semibold">Live Activity</h3>
-              <p className="text-muted-foreground">Current inventory and recent sales</p>
-            </div>
-            <Button onClick={() => fetchLiveData(true)} disabled={isLoadingLiveFeed} className="gap-2">
-              <RefreshCw className={`h-4 w-4 ${isLoadingLiveFeed ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
+        {/* Stats strip */}
+        <div className="border-b px-6 py-3 bg-muted/30 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Products</div>
+            <div className="text-lg font-semibold tabular-nums">{inventoryRows.length}</div>
           </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Total stock</div>
+            <div className="text-lg font-semibold tabular-nums">{totalStock}</div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Bills (period)</div>
+            <div className="text-lg font-semibold tabular-nums">{activeLiveBills.length}</div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Revenue (period)</div>
+            <div className="text-lg font-semibold tabular-nums">₹{activeTabBillAmount.toFixed(2)}</div>
+          </div>
+        </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div className="flex-1 overflow-auto p-6">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Products Section */}
-            <Card className="shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle>Products in Store</CardTitle>
-                <CardDescription>
-                  {filteredInventoryRows.length} / {inventoryRows.length} items &bull; Total stock: {totalStock}
-                </CardDescription>
-                <Input
-                  placeholder="Search barcode or product name..."
-                  value={liveProductSearch}
-                  onChange={(e) => setLiveProductSearch(e.target.value)}
-                  className="mt-2"
-                />
+            <Card className="border shadow-none">
+              <CardHeader className="pb-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-sm font-medium">Products in store</CardTitle>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {filteredInventoryRows.length}/{inventoryRows.length}
+                  </span>
+                </div>
+                <div className="relative">
+                  <Search className="h-4 w-4 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <Input
+                    placeholder="Search barcode or name…"
+                    value={liveProductSearch}
+                    onChange={(e) => setLiveProductSearch(e.target.value)}
+                    className="pl-8 h-9"
+                  />
+                </div>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="max-h-[calc(100vh-280px)] overflow-auto">
+                <div className="max-h-[calc(100vh-340px)] overflow-auto">
                   <Table>
-                    <TableHeader className="bg-gray-50 sticky top-0">
+                    <TableHeader className="bg-muted/40 sticky top-0 z-10">
                       <TableRow>
-                        <TableHead>Barcode</TableHead>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Quantity</TableHead>
-                        <TableHead className="text-right">Price</TableHead>
+                        <TableHead className="h-9">Barcode</TableHead>
+                        <TableHead className="h-9">Product</TableHead>
+                        <TableHead className="h-9 text-right">Qty</TableHead>
+                        <TableHead className="h-9 text-right">Price</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredInventoryRows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                          <TableCell colSpan={4} className="text-center py-10 text-muted-foreground text-sm">
                             {liveProductSearch ? "No products match your search" : "No assigned products"}
                           </TableCell>
                         </TableRow>
                       ) : (
                         filteredInventoryRows.map((row, idx) => {
                           const p = row.products || {};
+                          const qty = Number(row.quantity || 0);
                           return (
-                            <TableRow key={idx} className="hover:bg-blue-50/50">
-                              <TableCell className="font-mono">{p.barcode || row.barcode || "-"}</TableCell>
-                              <TableCell className="font-medium">{p.name || row.name || "Unknown"}</TableCell>
-                              <TableCell className="text-right font-semibold">{row.quantity || 0}</TableCell>
-                              <TableCell className="text-right">₹{(p.price || row.price || 0).toFixed(2)}</TableCell>
+                            <TableRow key={idx} className="hover:bg-muted/30">
+                              <TableCell className="font-mono text-xs">{p.barcode || row.barcode || "—"}</TableCell>
+                              <TableCell className="text-sm font-medium">{p.name || row.name || "Unknown"}</TableCell>
+                              <TableCell className={`text-right tabular-nums text-sm ${qty === 0 ? "text-rose-600" : ""}`}>
+                                {qty}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-sm">
+                                ₹{(p.price || row.price || 0).toFixed(2)}
+                              </TableCell>
                             </TableRow>
                           );
                         })
@@ -339,63 +514,94 @@ function StoreInsightModal({
             </Card>
 
             {/* Bills Section */}
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>Recent Bills</CardTitle>
-                <div className="mt-2 overflow-x-auto">
-                  <div className="flex gap-2 min-w-max pb-1">
-                    {liveBillTabs.map((tab) => (
-                    <Button
-                      key={tab.key}
-                      size="sm"
-                      variant={selectedLiveBillTab === tab.key ? "default" : "outline"}
-                      onClick={() => setSelectedLiveBillTab(tab.key)}
-                      className="shrink-0"
-                    >
-                      {tab.label}
-                    </Button>
-                    ))}
-                  </div>
+            <Card className="border shadow-none">
+              <CardHeader className="pb-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-sm font-medium">Recent bills</CardTitle>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    Total ₹{totalBillAmount.toFixed(2)}
+                  </span>
                 </div>
-                <CardDescription>
-                  {activeLiveBills.length} bills &bull; ₹{activeTabBillAmount.toFixed(2)}
-                  <span className="text-muted-foreground"> (Total: ₹{totalBillAmount.toFixed(2)})</span>
-                  {lastUpdated && <div className="text-xs text-muted-foreground mt-1">Updated {lastUpdated}</div>}
-                </CardDescription>
+
+                {liveBillTabs.length > 0 && (
+                  <div className="overflow-x-auto -mx-1">
+                    <div className="flex gap-1 min-w-max px-1 pb-0.5">
+                      {liveBillTabs.map((tab) => (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={() => setSelectedLiveBillTab(tab.key)}
+                          className={`shrink-0 px-2.5 py-1 rounded-md text-xs transition-colors ${
+                            selectedLiveBillTab === tab.key
+                              ? "bg-blue-600 text-white"
+                              : "bg-muted text-muted-foreground hover:bg-muted/70"
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {isLoadingMoreBills && (
+                  <div className="flex items-center gap-1.5 text-xs text-blue-600">
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                    Loading more bills
+                    {billsLoadProgress && ` (${billsLoadProgress.loaded}/${billsLoadProgress.total})`}
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="p-0">
-                <div className="max-h-[calc(100vh-280px)] overflow-auto">
+                <div className="max-h-[calc(100vh-340px)] overflow-auto">
                   <Table>
-                    <TableHeader className="bg-gray-50 sticky top-0">
+                    <TableHeader className="bg-muted/40 sticky top-0 z-10">
                       <TableRow>
-                        <TableHead>Bill ID</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead className="h-9">Bill</TableHead>
+                        <TableHead className="h-9">Date</TableHead>
+                        <TableHead className="h-9 text-right">Amount</TableHead>
+                        <TableHead className="h-9">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {activeLiveBills.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
+                          <TableCell colSpan={4} className="py-10 text-center text-muted-foreground text-sm">
                             No bills in selected period
                           </TableCell>
                         </TableRow>
                       ) : (
-                        activeLiveBills.map((bill) => (
-                          <TableRow key={bill.id} className="hover:bg-gray-50">
-                            <TableCell className="font-mono text-sm">{bill.id}</TableCell>
-                            <TableCell>{formatDateTime(getBillDate(bill))}</TableCell>
-                            <TableCell className="text-right font-semibold text-emerald-600">
-                              ₹{Number(bill.total || 0).toFixed(2)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="capitalize">
-                                {bill.status || "completed"}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))
+                        activeLiveBills.map((bill) => {
+                          const status = String(bill.status || "completed").toLowerCase();
+                          const statusToneBill =
+                            status === "completed"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : status === "pending"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : status === "cancelled" || status === "canceled"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : "bg-slate-50 text-slate-700 border-slate-200";
+                          return (
+                            <TableRow
+                              key={bill.id}
+                              className="hover:bg-muted/30 cursor-pointer"
+                              onClick={() => setSelectedBill(bill)}
+                            >
+                              <TableCell className="font-mono text-xs">{bill.id}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                                {formatDateTime(getBillDate(bill))}
+                              </TableCell>
+                              <TableCell className="text-right font-semibold tabular-nums text-sm">
+                                ₹{Number(bill.total || 0).toFixed(2)}
+                              </TableCell>
+                              <TableCell>
+                                <span className={`inline-block px-2 py-0.5 text-[11px] rounded border capitalize ${statusToneBill}`}>
+                                  {status}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       )}
                     </TableBody>
                   </Table>
@@ -405,8 +611,224 @@ function StoreInsightModal({
           </div>
         </div>
 
-        <DialogFooter className="border-t px-8 py-6 bg-white">
-          <Button variant="outline" onClick={onClose} className="px-10">
+        <DialogFooter className="border-t px-6 py-3 bg-white">
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
+
+        <BillDetailsDialog
+          bill={selectedBill}
+          onClose={() => setSelectedBill(null)}
+          creatorNameById={creatorNameById}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BillDetailsDialog({
+  bill,
+  onClose,
+  creatorNameById = {},
+}: {
+  bill: any | null;
+  onClose: () => void;
+  creatorNameById?: Record<string, string>;
+}) {
+  const isLikelyUserId = (value: string): boolean => {
+    if (!value) return false;
+    const v = value.trim();
+    if (!v) return false;
+    return /^USR[-_]/i.test(v) || /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(v);
+  };
+  const resolveCreator = (b: any): string => {
+    const explicitName =
+      b?.createdByName || b?.created_by_name || b?.billedByName || b?.billed_by_name;
+    if (explicitName) return String(explicitName);
+    const raw = String(
+      b?.createdBy || b?.created_by || b?.createdby || b?.billedBy || b?.billed_by || b?.userid || b?.user_id || "",
+    ).trim();
+    if (!raw) return "N/A";
+    if (creatorNameById[raw]) return creatorNameById[raw];
+    if (isLikelyUserId(raw)) return "N/A";
+    return raw;
+  };
+  const toNumber = (value: unknown): number => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const formatDateTime = (value?: string) => {
+    if (!value) return "N/A";
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return value;
+    return dt.toLocaleString();
+  };
+
+  const billTaxPercentage = toNumber(bill?.taxPercentage ?? bill?.tax_percentage);
+  const items = useMemo(() => {
+    if (!bill) return [] as any[];
+    const raw = Array.isArray(bill.items) ? bill.items : [];
+    return raw.map((item: any) => {
+      const isReplacementItem = Boolean(item.isReplacementItem || item.is_replacement_item);
+      const quantity = toNumber(item.quantity);
+      const price = toNumber(
+        item.sellingPrice ?? item.selling_price ?? item.displayPrice ?? item.price,
+      );
+      const baseTotal = toNumber(item.total || quantity * price);
+      const finalAmount = toNumber(item.finalAmount || item.final_amount || baseTotal);
+      const displayTotal =
+        bill.isReplacement || isReplacementItem
+          ? finalAmount > 0
+            ? finalAmount
+            : baseTotal
+          : baseTotal;
+      const itemTaxPercentage = toNumber(
+        item.taxPercentage ?? item.tax_percentage ?? item.tax ?? item.gst ?? billTaxPercentage,
+      );
+      return {
+        productName: item.productName || item.product_name || item.productname || "Unknown Product",
+        quantity,
+        price,
+        finalAmount,
+        displayTotal,
+        itemTaxPercentage,
+        isReplacementItem,
+        replacedProductName: item.replacedProductName || item.replaced_product_name || "",
+      };
+    });
+  }, [bill, billTaxPercentage]);
+
+  if (!bill) return null;
+
+  const subtotalValue =
+    toNumber(bill.subtotal) > 0
+      ? toNumber(bill.subtotal)
+      : items.reduce((sum: number, item: any) => sum + toNumber(item?.displayTotal), 0);
+  const discountAmount = toNumber(bill.discountAmount ?? bill.discount_amount);
+  const discountPercentage = toNumber(bill.discountPercentage ?? bill.discount_percentage);
+  const computedTaxValue = items.reduce((sum: number, item: any) => {
+    const taxable = Math.max(0, item.displayTotal - (item.displayTotal * discountPercentage) / 100);
+    return sum + (taxable * item.itemTaxPercentage) / 100;
+  }, 0);
+  const savedTaxValue = toNumber(bill.taxAmount ?? bill.tax_amount ?? bill.tax);
+  const taxValue = computedTaxValue > 0 ? computedTaxValue : savedTaxValue;
+  const taxRatesUsed = Array.from(
+    new Set(items.map((item: any) => Number(item.itemTaxPercentage)).filter((rate: number) => rate > 0)),
+  ) as number[];
+  const taxLabelSuffix =
+    taxRatesUsed.length === 1 ? `(${taxRatesUsed[0]}%)` : taxRatesUsed.length > 1 ? "(mixed)" : "";
+  const totalValue = toNumber(bill.total) || Math.max(0, subtotalValue - discountAmount) + taxValue;
+  const billDate = bill.date || bill.timestamp || bill.createdAt || bill.created_at;
+  const createdByName = resolveCreator(bill);
+
+  const customerName = bill.customerName || bill.customer_name || "Walk-in Customer";
+  const customerPhone = bill.customerPhone || bill.customer_phone || "";
+  const status = String(bill.status || "completed").toLowerCase();
+  const statusTone =
+    status === "completed"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : status === "pending"
+      ? "bg-amber-50 text-amber-700 border-amber-200"
+      : status === "cancelled" || status === "canceled"
+      ? "bg-rose-50 text-rose-700 border-rose-200"
+      : "bg-slate-50 text-slate-700 border-slate-200";
+
+  return (
+    <Dialog open={!!bill} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <DialogTitle className="font-mono text-base">{bill.id}</DialogTitle>
+              <DialogDescription className="mt-1 text-xs">
+                {formatDateTime(billDate)}
+              </DialogDescription>
+            </div>
+            <div className="text-right">
+              <div className="text-xl font-semibold">₹{totalValue.toFixed(2)}</div>
+              <span className={`inline-block mt-1 px-2 py-0.5 text-[11px] rounded border capitalize ${statusTone}`}>
+                {status}
+              </span>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="px-6 py-5 space-y-5 text-sm">
+          {/* Compact key/value summary */}
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+            <dt className="text-muted-foreground">Customer</dt>
+            <dd>{customerName}{customerPhone && <span className="text-muted-foreground"> · {customerPhone}</span>}</dd>
+
+            <dt className="text-muted-foreground">Created by</dt>
+            <dd>{createdByName}</dd>
+
+            {bill.isReplacement && (
+              <>
+                <dt className="text-muted-foreground">Type</dt>
+                <dd>
+                  Replacement
+                  {bill.replacementOriginalBillId && (
+                    <span className="text-muted-foreground"> · of {bill.replacementOriginalBillId}</span>
+                  )}
+                </dd>
+              </>
+            )}
+          </dl>
+
+          {/* Items — clean, no table chrome */}
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Items</div>
+            {items.length === 0 ? (
+              <div className="text-muted-foreground py-3">No items</div>
+            ) : (
+              <ul className="divide-y">
+                {items.map((item: any, index: number) => (
+                  <li key={index} className="py-2 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate">{item.productName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.quantity} × ₹{item.price.toFixed(2)}
+                        {item.isReplacementItem && item.replacedProductName && (
+                          <span> · replaced {item.replacedProductName}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="font-medium tabular-nums">₹{item.displayTotal.toFixed(2)}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Totals — minimal, only show non-zero rows */}
+          <div className="border-t pt-3 space-y-1 text-sm">
+            <div className="flex justify-between text-muted-foreground">
+              <span>Subtotal</span>
+              <span className="tabular-nums">₹{subtotalValue.toFixed(2)}</span>
+            </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-rose-600">
+                <span>Discount{discountPercentage > 0 ? ` (${discountPercentage.toFixed(1)}%)` : ""}</span>
+                <span className="tabular-nums">−₹{discountAmount.toFixed(2)}</span>
+              </div>
+            )}
+            {taxValue > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Tax {taxLabelSuffix}</span>
+                <span className="tabular-nums">₹{taxValue.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between pt-2 text-base font-semibold">
+              <span>Total</span>
+              <span className="tabular-nums">₹{totalValue.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="px-6 py-4 border-t">
+          <Button variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>
         </DialogFooter>
