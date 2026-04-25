@@ -36,6 +36,40 @@ logger = logging.getLogger(__name__)
 TRANSFER_ACTIVE_STATUSES = ["pending", "in_progress"]
 TRANSFER_CLOSED_STATUSES = ["completed", "closed_with_issues", "cancelled"]
 
+# Keep PostgREST in_() filters under the upstream nginx URI limit (~8KB).
+# UUIDs are 36 chars + delimiters, so 120 ids per request stays well under.
+_IN_FILTER_CHUNK = 120
+
+
+def _chunked(values: List[str], size: int = _IN_FILTER_CHUNK) -> List[List[str]]:
+    return [values[i : i + size] for i in range(0, len(values), size)]
+
+
+def _fetch_all_rows(client: Any, table_name: str, select_expr: str, label: str, page_size: int = 1000) -> List[Dict]:
+    """
+    PostgREST caps each request at ~1000 rows by default. For tables that may
+    exceed that (products, storeinventory), paginate via .range() until exhausted.
+    """
+    rows: List[Dict] = []
+    start = 0
+    while True:
+        end = start + page_size - 1
+        response = execute_with_retry(
+            lambda s=start, e=end: client.table(table_name).select(select_expr).range(s, e),
+            f"{label} page {start // page_size + 1}",
+        )
+        page = response.data if response and response.data is not None else []
+        if not page:
+            break
+        rows.extend(page)
+        if len(page) < page_size:
+            break
+        start += page_size
+        if start > 100000:  # safety cap — 100k rows
+            logger.warning("Pagination safety cap hit for %s", label)
+            break
+    return rows
+
 # ============================================
 # LOCAL JSON OPERATIONS
 # ============================================
@@ -263,15 +297,26 @@ def _get_reserved_pending_transfer_qty(client: Any, product_ids: Optional[List[s
     reserved = assigned_qty - verified_qty - damaged_qty - wrong_store_qty
     """
     reserved_by_product: Dict[str, int] = defaultdict(int)
+    select_expr = (
+        "product_id, assigned_qty, verified_qty, damaged_qty, wrong_store_qty, "
+        "inventory_transfer_orders(status)"
+    )
     try:
-        query = client.table("inventory_transfer_items").select(
-            "product_id, assigned_qty, verified_qty, damaged_qty, wrong_store_qty, "
-            "inventory_transfer_orders(status)"
-        )
+        rows: List[Dict] = []
         if product_ids:
-            query = query.in_("product_id", product_ids)
-        response = query.execute()
-        for row in response.data or []:
+            for chunk in _chunked(product_ids):
+                chunk_response = (
+                    client.table("inventory_transfer_items")
+                    .select(select_expr)
+                    .in_("product_id", chunk)
+                    .execute()
+                )
+                rows.extend(chunk_response.data or [])
+        else:
+            response = client.table("inventory_transfer_items").select(select_expr).execute()
+            rows = response.data or []
+
+        for row in rows:
             order_ref = row.get("inventory_transfer_orders") or {}
             order_status = order_ref.get("status")
             if order_status not in TRANSFER_ACTIVE_STATUSES:
@@ -360,21 +405,25 @@ def get_available_products_for_assignment(store_id: str) -> List[Dict]:
     """Get products with available stock (global - verified allocations - pending reserved transfers)."""
     try:
         client = db.client
-        
-        products_response = execute_with_retry(
-            lambda: client.table("products").select("*, batch(id, batch_number)"),
+
+        # Paginate both queries — PostgREST caps each request at 1000 rows and
+        # catalogs can easily exceed that, which was silently hiding newer products.
+        products_rows = _fetch_all_rows(
+            client,
+            "products",
+            "*, batch(id, batch_number)",
             "products for available-products",
         )
-        if not products_response or not products_response.data:
+        if not products_rows:
             return []
 
-        # Use select("*") to support deployments that may expose either
-        # storeid/productid or storeId/productId keys.
-        inventory_response = execute_with_retry(
-            lambda: client.table("storeinventory").select("*"),
+        # select("*") so we support both storeid/productid and storeId/productId deployments.
+        inventory_rows = _fetch_all_rows(
+            client,
+            "storeinventory",
+            "*",
             "storeinventory for available-products",
         )
-        inventory_rows = inventory_response.data or []
 
         total_allocated_by_product: Dict[str, int] = defaultdict(int)
         current_store_qty_by_product: Dict[str, int] = defaultdict(int)
@@ -391,7 +440,7 @@ def get_available_products_for_assignment(store_id: str) -> List[Dict]:
 
         reserved_pending_by_product = _get_reserved_pending_transfer_qty(client)
         result = []
-        for product in products_response.data:
+        for product in products_rows:
             product_id = product.get("id")
             if not product_id:
                 continue
@@ -778,8 +827,10 @@ def assign_products_to_store(
             requested_qty_by_product[product_id] += quantity
 
         product_ids = list(requested_qty_by_product.keys())
-        products_response = client.table("products").select("id, stock, name").in_("id", product_ids).execute()
-        product_rows = products_response.data or []
+        product_rows: List[Dict] = []
+        for chunk in _chunked(product_ids):
+            chunk_response = client.table("products").select("id, stock, name").in_("id", chunk).execute()
+            product_rows.extend(chunk_response.data or [])
         product_map = {row.get("id"): row for row in product_rows if row.get("id")}
 
         for product_id in product_ids:
@@ -1211,16 +1262,77 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
         product_map: Dict[str, Dict[str, Any]] = {}
         if product_ids:
             try:
-                products_response = execute_with_retry(
-                    lambda: client.table("products").select("id, name, barcode, selling_price, batchid, batch(id, batch_number)").in_("id", product_ids),
-                    f"transfer order products {order_id}",
-                )
-                for prod in products_response.data or []:
-                    pid = str(prod.get("id") or "").strip()
-                    if pid:
-                        product_map[pid] = prod
+                for chunk in _chunked(product_ids):
+                    products_response = execute_with_retry(
+                        lambda chunk=chunk: client.table("products")
+                        .select("id, name, barcode, selling_price, price, batchid, batch(batch_number)")
+                        .in_("id", chunk),
+                        f"transfer order products {order_id}",
+                    )
+                    for prod in products_response.data or []:
+                        pid = str(prod.get("id") or "").strip()
+                        if not pid:
+                            continue
+                        batch_ref = prod.get("batch")
+                        batch_number = ""
+                        if isinstance(batch_ref, list):
+                            batch_ref = batch_ref[0] if batch_ref else {}
+                        if isinstance(batch_ref, dict):
+                            batch_number = str(batch_ref.get("batch_number") or "")
+                        product_map[pid] = {
+                            "name": prod.get("name"),
+                            "barcode": prod.get("barcode"),
+                            "selling_price": prod.get("selling_price") or prod.get("sellingPrice") or prod.get("price"),
+                            "batch_number": batch_number,
+                        }
             except Exception as product_error:
-                logger.warning("Failed to enrich transfer-order products for %s: %s", order_id, product_error)
+                logger.warning(
+                    "Primary transfer-order product enrichment failed for %s, retrying fallback: %s",
+                    order_id,
+                    product_error,
+                )
+                try:
+                    batch_id_by_product: Dict[str, str] = {}
+                    batch_ids: set[str] = set()
+                    for chunk in _chunked(product_ids):
+                        products_response = execute_with_retry(
+                            lambda chunk=chunk: client.table("products")
+                            .select("id, name, barcode, selling_price, price, batchid")
+                            .in_("id", chunk),
+                            f"transfer order products fallback {order_id}",
+                        )
+                        for prod in products_response.data or []:
+                            pid = str(prod.get("id") or "").strip()
+                            if not pid:
+                                continue
+                            bid = str(prod.get("batchid") or "").strip()
+                            if bid:
+                                batch_id_by_product[pid] = bid
+                                batch_ids.add(bid)
+                            product_map[pid] = {
+                                "name": prod.get("name"),
+                                "barcode": prod.get("barcode"),
+                                "selling_price": prod.get("selling_price") or prod.get("sellingPrice") or prod.get("price"),
+                                "batch_number": "",
+                            }
+
+                    batch_number_by_id: Dict[str, str] = {}
+                    if batch_ids:
+                        for chunk in _chunked(list(batch_ids)):
+                            batch_response = execute_with_retry(
+                                lambda chunk=chunk: client.table("batch").select("id, batch_number").in_("id", chunk),
+                                f"transfer order batch fallback {order_id}",
+                            )
+                            for batch_row in batch_response.data or []:
+                                bid = str(batch_row.get("id") or "").strip()
+                                if bid:
+                                    batch_number_by_id[bid] = str(batch_row.get("batch_number") or "")
+
+                    for pid, bid in batch_id_by_product.items():
+                        if pid in product_map:
+                            product_map[pid]["batch_number"] = batch_number_by_id.get(bid, "")
+                except Exception as fallback_error:
+                    logger.warning("Failed fallback transfer-order products enrichment for %s: %s", order_id, fallback_error)
 
         normalized_items = []
         for item in items:
@@ -1231,15 +1343,7 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
             missing = max(0, assigned - verified - damaged - wrong_store)
             product_id = str(item.get("product_id") or "").strip()
             product_meta = product_map.get(product_id, {})
-            
-            # Extract batch information
-            batch_ref = product_meta.get("batch")
-            batch_number = ""
-            if batch_ref:
-                if isinstance(batch_ref, list):
-                    batch_ref = batch_ref[0] if batch_ref else {}
-                if isinstance(batch_ref, dict):
-                    batch_number = batch_ref.get("batch_number", "")
+            batch_number = str(product_meta.get("batch_number") or "")
             
             normalized_items.append(
                 convert_snake_to_camel(

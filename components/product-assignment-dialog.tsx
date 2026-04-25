@@ -76,6 +76,26 @@ const toWholeStock = (value: unknown): number => {
   return Math.max(0, Math.trunc(num))
 }
 
+// Products store multiple barcodes comma-separated in `barcode` and/or `barcodes`.
+// Return every barcode lowercased for scan/search matching.
+const getBarcodeList = (product: any): string[] => {
+  const collect = (value: unknown): string[] => {
+    if (Array.isArray(value)) return value.map((v) => String(v || "").trim().toLowerCase()).filter(Boolean)
+    if (typeof value === "string") return value.split(",").map((v) => v.trim().toLowerCase()).filter(Boolean)
+    return []
+  }
+  const set = new Set<string>([...collect(product?.barcode), ...collect(product?.barcodes)])
+  return Array.from(set)
+}
+
+const matchesProductTerm = (product: any, termLower: string): boolean => {
+  if (!termLower) return false
+  const id = String(product?.id || "").toLowerCase()
+  if (id === termLower) return true
+  const codes = getBarcodeList(product)
+  return codes.includes(termLower)
+}
+
 const normalizeProductStocks = (product: AssignedProduct): AssignedProduct => ({
   ...product,
   stock: toWholeStock(product.stock),
@@ -467,10 +487,14 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
       const assigned = normalizeStockValue(p.currentStoreStock)
       const visible = available > 0 || assigned > 0
       if (!visible) return false
+      if (!searchTerm) return true
+      const name = p.name?.toLowerCase() || ""
+      const batch = getProductBatch(p).toLowerCase()
+      const codes = getBarcodeList(p)
       return (
-        p.name?.toLowerCase().includes(searchTerm) ||
-        p.barcode?.toLowerCase().includes(searchTerm) ||
-        getProductBatch(p).toLowerCase().includes(searchTerm)
+        name.includes(searchTerm) ||
+        batch.includes(searchTerm) ||
+        codes.some((code) => code.includes(searchTerm))
       )
     })
 
@@ -571,17 +595,8 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
     const term = search.trim().toLowerCase()
     if (!term) return
 
-    const exactAvailable = products.find((p) => {
-      const barcode = String(p.barcode || "").toLowerCase()
-      const id = String(p.id || "").toLowerCase()
-      return barcode === term || id === term
-    })
-
-    const exactInDatabase = allProducts.find((p) => {
-      const barcode = String(p.barcode || "").toLowerCase()
-      const id = String(p.id || "").toLowerCase()
-      return barcode === term || id === term
-    })
+    const exactAvailable = products.find((p) => matchesProductTerm(p, term))
+    const exactInDatabase = allProducts.find((p) => matchesProductTerm(p, term))
 
     const candidate =
       exactAvailable ||

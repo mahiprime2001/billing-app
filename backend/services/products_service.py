@@ -374,12 +374,28 @@ def get_supabase_products() -> List[Dict]:
     """Get products directly from Supabase"""
     try:
         client = db.client
-        response = execute_with_retry(
-            lambda: client.table("products").select("*"),
-            "products",
-            retries=2,
-        )
-        products = response.data or []
+        # PostgREST caps .select("*") at ~1000 rows by default; paginate so we return
+        # the full catalog instead of silently truncating it for large product sets.
+        products: List[Dict] = []
+        page_size = 1000
+        start = 0
+        while True:
+            end = start + page_size - 1
+            page_resp = execute_with_retry(
+                lambda s=start, e=end: client.table("products").select("*").range(s, e),
+                f"products page {start // page_size + 1}",
+                retries=2,
+            )
+            page = page_resp.data if page_resp and page_resp.data is not None else []
+            if not page:
+                break
+            products.extend(page)
+            if len(page) < page_size:
+                break
+            start += page_size
+            if start > 100000:
+                logger.warning("Pagination safety cap hit for products")
+                break
         
         transformed_products = []
         hsn_tax_map = _get_hsn_tax_map()
@@ -431,19 +447,32 @@ def get_supabase_products_for_billing() -> List[Dict]:
     """
     try:
         client = db.client
-        products_response = execute_with_retry(
-            lambda: client.table("products").select("*"),
-            "products for billing",
-            retries=2,
-        )
-        products = products_response.data or []
 
-        inventory_response = execute_with_retry(
-            lambda: client.table("storeinventory").select("productid, quantity"),
-            "storeinventory for billing products",
-            retries=2,
-        )
-        inventory_rows = inventory_response.data or []
+        def _paginate(table: str, select_expr: str, label: str) -> List[Dict]:
+            out: List[Dict] = []
+            start = 0
+            page_size = 1000
+            while True:
+                end = start + page_size - 1
+                resp = execute_with_retry(
+                    lambda s=start, e=end: client.table(table).select(select_expr).range(s, e),
+                    f"{label} page {start // page_size + 1}",
+                    retries=2,
+                )
+                page = resp.data if resp and resp.data is not None else []
+                if not page:
+                    break
+                out.extend(page)
+                if len(page) < page_size:
+                    break
+                start += page_size
+                if start > 100000:
+                    logger.warning("Pagination safety cap hit for %s", label)
+                    break
+            return out
+
+        products = _paginate("products", "*", "products for billing")
+        inventory_rows = _paginate("storeinventory", "productid, quantity", "storeinventory for billing products")
 
         allocated_by_product: Dict[str, int] = {}
         for row in inventory_rows:
@@ -679,12 +708,25 @@ def get_merged_products() -> Tuple[List[Dict], int]:
 
         try:
             client = db.client
-            inventory_response = execute_with_retry(
-                lambda: client.table("storeinventory").select("productid, quantity"),
-                "storeinventory for merged products",
-                retries=2,
-            )
-            inventory_rows = inventory_response.data or []
+            inventory_rows: List[Dict] = []
+            start = 0
+            page_size = 1000
+            while True:
+                end = start + page_size - 1
+                inv_resp = execute_with_retry(
+                    lambda s=start, e=end: client.table("storeinventory").select("productid, quantity").range(s, e),
+                    f"storeinventory for merged products page {start // page_size + 1}",
+                    retries=2,
+                )
+                page = inv_resp.data if inv_resp and inv_resp.data is not None else []
+                if not page:
+                    break
+                inventory_rows.extend(page)
+                if len(page) < page_size:
+                    break
+                start += page_size
+                if start > 100000:
+                    break
         except Exception as inv_err:
             logger.warning("Storeinventory fetch failed in get_merged_products; using local fallback: %s", inv_err)
             inventory_rows = get_store_inventory_data() or []

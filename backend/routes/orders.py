@@ -74,3 +74,17 @@ def delete_order(order_id):
     except Exception as e:
         logger.error(f"Error in delete_order: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
+
+@orders_bp.route("/orders/<order_id>", methods=["PATCH"])
+def update_order(order_id):
+    """Update transfer-order fields (store move and/or item edits)."""
+    try:
+        payload = request.json or {}
+        success, message, status_code, data = orders_service.update_transfer_order(order_id, payload)
+        if success:
+            return jsonify({"message": message, **(data or {})}), status_code
+        return jsonify({"error": message}), status_code
+    except Exception as e:
+        logger.error(f"Error in update_order: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500

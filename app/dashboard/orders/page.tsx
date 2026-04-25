@@ -23,6 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
   Plus,
   Search,
@@ -41,6 +42,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Filter,
+  MoreVertical,
 } from "lucide-react"
 
 const API = process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://127.0.0.1:8080"
@@ -80,10 +82,16 @@ type TransferOrder = {
 
 type TransferOrderItem = {
   id: string
+  productId?: string
+  product_id?: string
   assignedQty?: number
   assigned_qty?: number
   verifiedQty?: number
   verified_qty?: number
+  damagedQty?: number
+  damaged_qty?: number
+  wrongStoreQty?: number
+  wrong_store_qty?: number
   products?: {
     name?: string
     barcode?: string
@@ -100,6 +108,20 @@ type TransferOrderDetails = {
   created_at?: string
   status?: string
   items: TransferOrderItem[]
+}
+
+type EditOrderItem = {
+  id?: string
+  productId: string
+  name: string
+  barcode: string
+  batch: string
+  assignedQty: number
+  verifiedQty: number
+  damagedQty: number
+  wrongStoreQty: number
+  processedQty: number
+  isLocked: boolean
 }
 
 // --- Helper functions ---
@@ -132,6 +154,10 @@ const formatDateTime = (value?: string) => {
 
 const getAssignedQty = (item: TransferOrderItem) => Number(item.assignedQty ?? item.assigned_qty ?? 0)
 const getVerifiedQty = (item: TransferOrderItem) => Number(item.verifiedQty ?? item.verified_qty ?? 0)
+const getDamagedQty = (item: TransferOrderItem) => Number(item.damagedQty ?? item.damaged_qty ?? 0)
+const getWrongStoreQty = (item: TransferOrderItem) => Number(item.wrongStoreQty ?? item.wrong_store_qty ?? 0)
+const getProcessedQty = (item: TransferOrderItem) => getVerifiedQty(item) + getDamagedQty(item) + getWrongStoreQty(item)
+const getProductId = (item: TransferOrderItem) => String(item.productId ?? item.product_id ?? "")
 const getItemPrice = (item: TransferOrderItem) =>
   Number(item.products?.sellingPrice ?? item.products?.selling_price ?? 0)
 const getItemName = (item: TransferOrderItem) => item.products?.name || "Unknown Product"
@@ -159,6 +185,8 @@ const isCompletedOrder = (order: TransferOrder) => {
   const status = getOrderStatus(order)
   return status === "completed" || status === "closed_with_issues" || status === "closed-with-issues"
 }
+
+const canTransferOrder = (order: TransferOrder) => getOrderStatus(order) === "pending"
 
 const getStatusMeta = (item: TransferOrderItem) => {
   const assigned = getAssignedQty(item)
@@ -289,6 +317,17 @@ export default function OrdersPage() {
   const [orderSearch, setOrderSearch] = useState("")
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null)
+  const [movingOrderId, setMovingOrderId] = useState<string | null>(null)
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false)
+  const [moveTargetStoreId, setMoveTargetStoreId] = useState<string>("")
+  const [moveOrder, setMoveOrder] = useState<TransferOrder | null>(null)
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editOrder, setEditOrder] = useState<TransferOrder | null>(null)
+  const [editItems, setEditItems] = useState<EditOrderItem[]>([])
+  const [editAvailableProducts, setEditAvailableProducts] = useState<AssignedProduct[]>([])
+  const [editProductSearch, setEditProductSearch] = useState("")
+  const [editSaving, setEditSaving] = useState(false)
 
   // Order details dialog
   const [selectedOrder, setSelectedOrder] = useState<TransferOrder | null>(null)
@@ -504,6 +543,10 @@ export default function OrdersPage() {
   }
 
   const handleDeleteOrder = async (order: TransferOrder) => {
+    if (isCompletedOrder(order)) {
+      alert("Completed orders cannot be deleted from Orders page.")
+      return
+    }
     const confirmed = window.confirm(`Delete order ${order.id}? This action cannot be undone.`)
     if (!confirmed) return
 
@@ -530,6 +573,208 @@ export default function OrdersPage() {
       alert(error?.message || "Unable to delete order right now")
     } finally {
       setDeletingOrderId(null)
+    }
+  }
+
+  const openMoveOrderDialog = (order: TransferOrder) => {
+    if (!canTransferOrder(order)) {
+      alert("Only pending orders can be transferred.")
+      return
+    }
+    const currentStoreId = String(order.storeId || order.store_id || "")
+    const candidate = stores.find((s) => s.id !== currentStoreId)
+    setMoveOrder(order)
+    setMoveTargetStoreId(candidate?.id || "")
+    setMoveDialogOpen(true)
+  }
+
+  const handleMoveOrder = async () => {
+    if (!moveOrder) return
+    if (!moveTargetStoreId) {
+      alert("Select a destination store")
+      return
+    }
+    try {
+      setMovingOrderId(moveOrder.id)
+      const response = await fetch(`${API}/api/orders/${moveOrder.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeId: moveTargetStoreId }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload?.error || "Failed to move order")
+      }
+
+      setMoveDialogOpen(false)
+      setMoveOrder(null)
+      setMoveTargetStoreId("")
+
+      if (selectedStoreId === "all") await fetchAllTransferOrders()
+      else await fetchTransferOrders(selectedStoreId)
+    } catch (error: any) {
+      alert(error?.message || "Unable to move order right now")
+    } finally {
+      setMovingOrderId(null)
+    }
+  }
+
+  const openEditOrderDialog = async (order: TransferOrder) => {
+    if (!isPendingOrder(order)) {
+      alert("Completed orders cannot be edited.")
+      return
+    }
+    try {
+      setEditingOrderId(order.id)
+      const detailsRes = await fetch(`${API}/api/orders/${order.id}`)
+      if (!detailsRes.ok) {
+        const payload = await detailsRes.json().catch(() => ({}))
+        throw new Error(payload?.error || "Failed to load order details")
+      }
+      const details = await detailsRes.json()
+      const detailItems: TransferOrderItem[] = Array.isArray(details?.items) ? details.items : []
+
+      const normalized: EditOrderItem[] = detailItems.map((item) => {
+        const assignedQty = getAssignedQty(item)
+        const verifiedQty = getVerifiedQty(item)
+        const damagedQty = getDamagedQty(item)
+        const wrongStoreQty = getWrongStoreQty(item)
+        const processedQty = verifiedQty + damagedQty + wrongStoreQty
+        return {
+          id: item.id,
+          productId: getProductId(item),
+          name: getItemName(item),
+          barcode: getItemBarcode(item),
+          batch: getItemBatch(item),
+          assignedQty,
+          verifiedQty,
+          damagedQty,
+          wrongStoreQty,
+          processedQty,
+          isLocked: processedQty >= assignedQty && assignedQty > 0,
+        }
+      })
+
+      const storeId = String(order.storeId || order.store_id || "")
+      let availableProducts: AssignedProduct[] = []
+      if (storeId) {
+        const availableRes = await fetch(`${API}/api/stores/${storeId}/available-products`)
+        if (availableRes.ok) {
+          const payload = await availableRes.json()
+          availableProducts = Array.isArray(payload) ? payload : []
+        }
+      }
+
+      setEditOrder(order)
+      setEditItems(normalized)
+      setEditAvailableProducts(availableProducts)
+      setEditProductSearch("")
+      setEditDialogOpen(true)
+    } catch (error: any) {
+      alert(error?.message || "Unable to open edit dialog")
+    } finally {
+      setEditingOrderId(null)
+    }
+  }
+
+  const updateEditItemQty = (rowKey: string, value: number) => {
+    const next = Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0
+    setEditItems((prev) =>
+      prev.map((row) => {
+        const currentKey = row.id || `new:${row.productId}`
+        if (currentKey !== rowKey) return row
+        if (row.isLocked) return row
+        const minQty = row.processedQty > 0 ? row.processedQty : 0
+        return { ...row, assignedQty: Math.max(minQty, next) }
+      }),
+    )
+  }
+
+  const removeEditItem = (rowKey: string) => {
+    setEditItems((prev) =>
+      prev.filter((row) => {
+        const currentKey = row.id || `new:${row.productId}`
+        if (currentKey !== rowKey) return true
+        if (row.isLocked) return true
+        if (row.processedQty > 0) return true
+        return false
+      }),
+    )
+  }
+
+  const editableProductCandidates = useMemo(() => {
+    const existingIds = new Set(editItems.map((i) => i.productId))
+    const term = editProductSearch.trim().toLowerCase()
+    return editAvailableProducts
+      .filter((p) => p.id && !existingIds.has(p.id))
+      .filter((p) => {
+        if (!term) return true
+        const name = String(p.name || "").toLowerCase()
+        const barcode = String(p.barcode || "").toLowerCase()
+        const batch = String(p.batchNumber || p.batch_number || p.batch || "").toLowerCase()
+        return name.includes(term) || barcode.includes(term) || batch.includes(term)
+      })
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
+  }, [editAvailableProducts, editItems, editProductSearch])
+
+  const addProductToEdit = (product: AssignedProduct) => {
+    if (!product.id) return
+    setEditItems((prev) => [
+      ...prev,
+      {
+        productId: product.id,
+        name: String(product.name || "Unknown Product"),
+        barcode: String(product.barcode || "-"),
+        batch: String(product.batchNumber || product.batch_number || product.batch || "-"),
+        assignedQty: 1,
+        verifiedQty: 0,
+        damagedQty: 0,
+        wrongStoreQty: 0,
+        processedQty: 0,
+        isLocked: false,
+      },
+    ])
+  }
+
+  const handleSaveOrderEdit = async () => {
+    if (!editOrder) return
+    const payloadItems = editItems
+      .filter((row) => row.assignedQty > 0)
+      .map((row) => ({
+        ...(row.id ? { id: row.id } : {}),
+        productId: row.productId,
+        assignedQty: row.assignedQty,
+      }))
+
+    if (payloadItems.length === 0) {
+      alert("Order cannot be empty")
+      return
+    }
+
+    try {
+      setEditSaving(true)
+      const response = await fetch(`${API}/api/orders/${editOrder.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: payloadItems }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload?.error || "Failed to save order")
+      }
+
+      setEditDialogOpen(false)
+      setEditOrder(null)
+      setEditItems([])
+      setEditAvailableProducts([])
+      setEditProductSearch("")
+
+      if (selectedStoreId === "all") await fetchAllTransferOrders()
+      else await fetchTransferOrders(selectedStoreId)
+    } catch (error: any) {
+      alert(error?.message || "Unable to save order changes")
+    } finally {
+      setEditSaving(false)
     }
   }
 
@@ -565,12 +810,15 @@ export default function OrdersPage() {
         const qty = getAssignedQty(item)
         const price = getItemPrice(item)
         const amount = qty * price
+        const statusMeta = getStatusMeta(item)
+        const progress = `${statusMeta.verified}/${qty} scanned${statusMeta.unverified > 0 ? `, ${statusMeta.unverified} left` : ""}`
         return `<tr>
           <td>${idx + 1}</td>
           <td>${escapeHtml(getItemBarcode(item))}</td>
           <td>${escapeHtml(getItemName(item))}</td>
           <td>${escapeHtml(getItemBatch(item))}</td>
           <td style="text-align:right">${qty}</td>
+          <td><strong>${escapeHtml(statusMeta.label)}</strong><div style="font-size:9px;color:#555;margin-top:2px">${escapeHtml(progress)}</div></td>
           <td style="text-align:right">${escapeHtml("\u20B9")}${amount.toFixed(2)}</td>
         </tr>`
       })
@@ -588,9 +836,9 @@ export default function OrdersPage() {
     <div class="meta-row"><strong>Date:</strong> ${escapeHtml(orderDateLabel)}</div>
     <div class="meta-row"><strong>Printed At:</strong> ${escapeHtml(new Date().toLocaleString())}</div>
   </div>
-  <table><thead><tr><th>S.No</th><th>Product Barcode</th><th>Product Name</th><th>Batch</th><th class="right">Quantity</th><th class="right">Amount</th></tr></thead>
+  <table><thead><tr><th>S.No</th><th>Product Barcode</th><th>Product Name</th><th>Batch</th><th class="right">Quantity</th><th>Status</th><th class="right">Amount</th></tr></thead>
   <tbody>${rows}
-  <tr class="total-row"><td colspan="4"><strong>Total</strong></td><td class="right">${orderTotals.totalProducts}</td><td class="right">${escapeHtml("\u20B9")}${orderTotals.totalAmount.toFixed(2)}</td></tr></tbody></table>
+  <tr class="total-row"><td colspan="4"><strong>Total</strong></td><td class="right">${orderTotals.totalProducts}</td><td></td><td class="right">${escapeHtml("\u20B9")}${orderTotals.totalAmount.toFixed(2)}</td></tr></tbody></table>
 </body></html>`
 
     await unifiedPrint({ htmlContent, isThermalPrinter: false, useBackendPrint: true, storeName })
@@ -979,15 +1227,44 @@ export default function OrdersPage() {
                                   {"\u20B9"}{(order.totalValue || 0).toFixed(2)}
                                 </p>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-red-400 hover:text-red-600 hover:bg-red-50"
-                                onClick={() => handleDeleteOrder(order)}
-                                disabled={deletingOrderId === order.id}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              {!isCompletedOrder(order) && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-muted-foreground hover:text-foreground"
+                                      aria-label="Order actions"
+                                    >
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-44">
+                                    <DropdownMenuItem
+                                      disabled={!canTransferOrder(order) || movingOrderId === order.id}
+                                      onSelect={() => openMoveOrderDialog(order)}
+                                    >
+                                      <ArrowRightLeft className="h-4 w-4" />
+                                      Transfer Order
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      disabled={!isPending || editingOrderId === order.id}
+                                      onSelect={() => openEditOrderDialog(order)}
+                                    >
+                                      <Package className="h-4 w-4" />
+                                      Edit Order
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-red-600 focus:text-red-700"
+                                      disabled={deletingOrderId === order.id}
+                                      onSelect={() => handleDeleteOrder(order)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      Delete Order
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1244,6 +1521,320 @@ export default function OrdersPage() {
           </TabsContent>
         </Tabs>
 
+        <Dialog
+          open={editDialogOpen}
+          onOpenChange={(open) => {
+            setEditDialogOpen(open)
+            if (!open) {
+              setEditOrder(null)
+              setEditItems([])
+              setEditAvailableProducts([])
+              setEditProductSearch("")
+            }
+          }}
+        >
+          <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
+            <DialogHeader className="px-8 py-6 border-b bg-gradient-to-r from-slate-50 to-white">
+              <DialogTitle className="text-2xl flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                Edit Transfer Order
+              </DialogTitle>
+              {editOrder ? (
+                <DialogDescription asChild>
+                  <div className="text-base text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+                    <span>Order ID: <span className="font-mono font-medium text-foreground">{editOrder.id}</span></span>
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {formatDateTime(editOrder.createdAt || editOrder.created_at)}
+                    </span>
+                    <Badge variant="outline">
+                      <Building className="h-3 w-3 mr-1" />
+                      {getStoreName(editOrder)}
+                    </Badge>
+                    <Badge variant="secondary">
+                      {String(editOrder.status || "pending").replace(/_/g, " ")}
+                    </Badge>
+                  </div>
+                </DialogDescription>
+              ) : (
+                <DialogDescription>Update items in this order.</DialogDescription>
+              )}
+            </DialogHeader>
+
+            {(() => {
+              const editStats = {
+                lines: editItems.length,
+                totalQty: editItems.reduce((s, i) => s + (Number(i.assignedQty) || 0), 0),
+                processed: editItems.reduce((s, i) => s + (Number(i.processedQty) || 0), 0),
+                locked: editItems.filter((i) => i.isLocked).length,
+              }
+              return (
+                <div className="flex-1 overflow-auto px-8 py-6 space-y-6 bg-slate-50/40">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <Card>
+                      <CardContent className="pt-5 pb-4">
+                        <p className="text-xs text-muted-foreground">Lines</p>
+                        <p className="font-semibold text-lg mt-1">{editStats.lines}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-5 pb-4">
+                        <p className="text-xs text-muted-foreground">Total Qty</p>
+                        <p className="font-semibold text-lg mt-1">{editStats.totalQty}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-5 pb-4">
+                        <p className="text-xs text-muted-foreground">Processed</p>
+                        <p className="font-semibold text-lg mt-1 text-emerald-600">{editStats.processed}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-5 pb-4">
+                        <p className="text-xs text-muted-foreground">Locked</p>
+                        <p className="font-semibold text-lg mt-1">{editStats.locked}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                            Order Items
+                          </CardTitle>
+                          <CardDescription className="mt-1">
+                            Completed items are locked. Partial items cannot go below processed quantity.
+                          </CardDescription>
+                        </div>
+                        <Badge variant="outline">{editItems.length} items</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-gray-50">
+                            <TableHead className="w-14">S.No</TableHead>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Barcode</TableHead>
+                            <TableHead>Batch</TableHead>
+                            <TableHead className="text-right">Processed</TableHead>
+                            <TableHead className="text-center w-44">Assigned Qty</TableHead>
+                            <TableHead className="w-20 text-right">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {editItems.map((row, idx) => {
+                            const rowKey = row.id || `new:${row.productId}`
+                            const minQty = row.processedQty > 0 ? row.processedQty : 0
+                            const remaining = Math.max(0, Number(row.assignedQty || 0) - Number(row.processedQty || 0))
+                            const statusLabel = row.isLocked
+                              ? "Completed"
+                              : row.processedQty > 0
+                              ? "Partial"
+                              : "Pending"
+                            const statusVariant: "default" | "secondary" | "outline" = row.isLocked
+                              ? "outline"
+                              : row.processedQty > 0
+                              ? "outline"
+                              : "secondary"
+                            return (
+                              <TableRow key={rowKey} className={row.isLocked ? "bg-gray-50/50" : ""}>
+                                <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                                <TableCell>
+                                  <div className="flex flex-col gap-1">
+                                    <span className="font-medium">{row.name}</span>
+                                    <Badge variant={statusVariant} className="w-fit">{statusLabel}</Badge>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-mono text-sm">{row.barcode}</TableCell>
+                                <TableCell className="font-mono text-sm">{row.batch}</TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex flex-col items-end">
+                                    <span className="font-semibold">{row.processedQty}</span>
+                                    {!row.isLocked && row.processedQty > 0 && (
+                                      <span className="text-xs text-muted-foreground">{remaining} left</span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      disabled={row.isLocked || Number(row.assignedQty) <= minQty}
+                                      onClick={() => updateEditItemQty(rowKey, Number(row.assignedQty) - 1)}
+                                    >
+                                      -
+                                    </Button>
+                                    <Input
+                                      type="number"
+                                      min={minQty}
+                                      value={row.assignedQty}
+                                      onChange={(e) => updateEditItemQty(rowKey, Number(e.target.value))}
+                                      disabled={row.isLocked}
+                                      className="w-20 text-center"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      disabled={row.isLocked}
+                                      onClick={() => updateEditItemQty(rowKey, Number(row.assignedQty) + 1)}
+                                    >
+                                      +
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    disabled={row.isLocked || row.processedQty > 0}
+                                    onClick={() => removeEditItem(rowKey)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                          {editItems.length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                                <Package className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                                No editable items
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <PackagePlus className="h-4 w-4 text-muted-foreground" />
+                        Add New Items
+                      </CardTitle>
+                      <CardDescription>
+                        Only products with available stock are shown.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search by name, barcode, or batch"
+                          value={editProductSearch}
+                          onChange={(e) => setEditProductSearch(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                      <div className="max-h-56 overflow-auto border rounded-md bg-white">
+                        {editableProductCandidates.length > 0 ? (
+                          editableProductCandidates.slice(0, 100).map((product) => (
+                            <div
+                              key={product.id}
+                              className="flex items-center justify-between px-3 py-2.5 border-b last:border-b-0 hover:bg-slate-50"
+                            >
+                              <div className="min-w-0 pr-3">
+                                <p className="text-sm font-medium truncate">{product.name}</p>
+                                <p className="text-xs text-muted-foreground truncate font-mono">
+                                  {product.barcode || "-"}
+                                  <span className="ml-2 text-muted-foreground/70">
+                                    Available: <span className="font-semibold text-foreground/80">{Number(product.availableStock || 0)}</span>
+                                  </span>
+                                </p>
+                              </div>
+                              <Button size="sm" variant="outline" onClick={() => addProductToEdit(product)} className="gap-1 shrink-0">
+                                <Plus className="h-3.5 w-3.5" />
+                                Add
+                              </Button>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center text-sm text-muted-foreground p-6">
+                            <PackagePlus className="h-7 w-7 mx-auto mb-2 text-gray-300" />
+                            No products available to add.
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
+            })()}
+
+            <DialogFooter className="px-8 py-5 border-t bg-gray-50/50 flex sm:justify-between items-center gap-2">
+              <p className="text-xs text-muted-foreground">
+                {editItems.length} items · {editItems.reduce((s, i) => s + (Number(i.assignedQty) || 0), 0)} total qty
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditDialogOpen(false)
+                    setEditOrder(null)
+                    setEditItems([])
+                    setEditAvailableProducts([])
+                    setEditProductSearch("")
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveOrderEdit} disabled={editSaving} className="gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {editSaving ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Transfer Order To Another Store</DialogTitle>
+              <DialogDescription>
+                {moveOrder ? `Move ${moveOrder.id} to another store.` : "Select destination store."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Destination store</p>
+              <Select value={moveTargetStoreId} onValueChange={setMoveTargetStoreId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a store" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stores
+                    .filter((store) => store.id !== String(moveOrder?.storeId || moveOrder?.store_id || ""))
+                    .map((store) => (
+                      <SelectItem key={store.id} value={store.id}>
+                        {store.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMoveDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleMoveOrder} disabled={!moveTargetStoreId || !!movingOrderId}>
+                {movingOrderId ? "Moving..." : "Move Order"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* ==================== ORDER DETAILS DIALOG ==================== */}
         <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
           <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
@@ -1341,7 +1932,14 @@ export default function OrdersPage() {
                                 <TableCell className="font-medium">{getItemName(item)}</TableCell>
                                 <TableCell className="font-mono text-sm">{getItemBatch(item)}</TableCell>
                                 <TableCell className="text-right font-semibold">{qty}</TableCell>
-                                <TableCell><Badge variant={statusMeta.variant}>{statusMeta.label}</Badge></TableCell>
+                                <TableCell>
+                                  <div className="flex flex-col gap-1">
+                                    <Badge variant={statusMeta.variant} className="w-fit">{statusMeta.label}</Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      {statusMeta.verified}/{qty} scanned{statusMeta.unverified > 0 ? `, ${statusMeta.unverified} left` : ""}
+                                    </span>
+                                  </div>
+                                </TableCell>
                                 <TableCell className="text-right font-medium">{"\u20B9"}{amount.toFixed(2)}</TableCell>
                               </TableRow>
                             )

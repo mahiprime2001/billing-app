@@ -6,7 +6,9 @@ Dedicated transfer-order business logic (online + local fallback).
 import json
 import logging
 import os
+import uuid
 from collections import defaultdict
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from config import Config
@@ -657,16 +659,77 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
         product_map: Dict[str, Dict[str, Any]] = {}
         if product_ids:
             try:
-                products_response = execute_with_retry(
-                    lambda: client.table("products").select("id, name, barcode, selling_price, batchid, batch(id, batch_number)").in_("id", product_ids),
-                    f"transfer order products {order_id}",
-                )
-                for prod in products_response.data or []:
-                    pid = str(prod.get("id") or "").strip()
-                    if pid:
-                        product_map[pid] = prod
+                for chunk in _chunked(product_ids, 120):
+                    products_response = execute_with_retry(
+                        lambda chunk=chunk: client.table("products")
+                        .select("id, name, barcode, selling_price, price, batchid, batch(batch_number)")
+                        .in_("id", chunk),
+                        f"transfer order products {order_id}",
+                    )
+                    for prod in products_response.data or []:
+                        pid = str(prod.get("id") or "").strip()
+                        if not pid:
+                            continue
+                        batch_ref = prod.get("batch")
+                        batch_number = ""
+                        if isinstance(batch_ref, list):
+                            batch_ref = batch_ref[0] if batch_ref else {}
+                        if isinstance(batch_ref, dict):
+                            batch_number = str(batch_ref.get("batch_number") or "")
+                        product_map[pid] = {
+                            "name": prod.get("name"),
+                            "barcode": prod.get("barcode"),
+                            "selling_price": prod.get("selling_price") or prod.get("sellingPrice") or prod.get("price"),
+                            "batch_number": batch_number,
+                        }
             except Exception as product_error:
-                logger.warning("Failed to enrich transfer-order products for %s: %s", order_id, product_error)
+                logger.warning(
+                    "Primary transfer-order product enrichment failed for %s, retrying fallback: %s",
+                    order_id,
+                    product_error,
+                )
+                try:
+                    batch_id_by_product: Dict[str, str] = {}
+                    batch_ids: set[str] = set()
+                    for chunk in _chunked(product_ids, 120):
+                        products_response = execute_with_retry(
+                            lambda chunk=chunk: client.table("products")
+                            .select("id, name, barcode, selling_price, price, batchid")
+                            .in_("id", chunk),
+                            f"transfer order products fallback {order_id}",
+                        )
+                        for prod in products_response.data or []:
+                            pid = str(prod.get("id") or "").strip()
+                            if not pid:
+                                continue
+                            bid = str(prod.get("batchid") or "").strip()
+                            if bid:
+                                batch_id_by_product[pid] = bid
+                                batch_ids.add(bid)
+                            product_map[pid] = {
+                                "name": prod.get("name"),
+                                "barcode": prod.get("barcode"),
+                                "selling_price": prod.get("selling_price") or prod.get("sellingPrice") or prod.get("price"),
+                                "batch_number": "",
+                            }
+
+                    batch_number_by_id: Dict[str, str] = {}
+                    if batch_ids:
+                        for chunk in _chunked(list(batch_ids), 120):
+                            batch_response = execute_with_retry(
+                                lambda chunk=chunk: client.table("batch").select("id, batch_number").in_("id", chunk),
+                                f"transfer order batch fallback {order_id}",
+                            )
+                            for batch_row in batch_response.data or []:
+                                bid = str(batch_row.get("id") or "").strip()
+                                if bid:
+                                    batch_number_by_id[bid] = str(batch_row.get("batch_number") or "")
+
+                    for pid, bid in batch_id_by_product.items():
+                        if pid in product_map:
+                            product_map[pid]["batch_number"] = batch_number_by_id.get(bid, "")
+                except Exception as fallback_error:
+                    logger.warning("Failed fallback transfer-order products enrichment for %s: %s", order_id, fallback_error)
 
         normalized_items = []
         for item in items:
@@ -677,14 +740,7 @@ def get_transfer_order_details(order_id: str) -> Tuple[Optional[Dict], int]:
             missing = max(0, assigned - verified - damaged - wrong_store)
             product_id = str(item.get("product_id") or "").strip()
             product_meta = product_map.get(product_id, {})
-
-            batch_ref = product_meta.get("batch")
-            batch_number = ""
-            if batch_ref:
-                if isinstance(batch_ref, list):
-                    batch_ref = batch_ref[0] if batch_ref else {}
-                if isinstance(batch_ref, dict):
-                    batch_number = batch_ref.get("batch_number", "")
+            batch_number = str(product_meta.get("batch_number") or "")
 
             normalized_items.append(
                 convert_snake_to_camel(
@@ -753,6 +809,409 @@ def _remove_transfer_order_from_local_cache(order_id: str, transfer_item_ids: Li
                 json.dump(filtered, fh, indent=2, ensure_ascii=False)
         except Exception as cache_err:
             logger.warning(f"Failed local transfer-order cache cleanup for {filename}: {cache_err}")
+
+
+def _update_transfer_order_store_in_local_cache(order_id: str, new_store_id: str, updated_at: str) -> None:
+    """Best-effort local cache update when transfer-order destination changes."""
+    try:
+        existing_orders = get_orders_data()
+        changed = False
+        for row in existing_orders:
+            if str(row.get("id")) != str(order_id):
+                continue
+            row["storeId"] = new_store_id
+            row["store_id"] = new_store_id
+            row["updatedAt"] = updated_at
+            row["updated_at"] = updated_at
+            changed = True
+        if changed:
+            save_orders_data(existing_orders)
+    except Exception as cache_err:
+        logger.warning(f"Failed local orders.json update for moved order {order_id}: {cache_err}")
+
+    path = os.path.join(Config.JSON_DIR, "inventory_transfer_orders.json")
+    if not os.path.exists(path):
+        return
+
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            rows = json.load(fh)
+        if not isinstance(rows, list):
+            return
+        changed = False
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            if str(row.get("id")) != str(order_id):
+                continue
+            row["store_id"] = new_store_id
+            row["updated_at"] = updated_at
+            changed = True
+        if changed:
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(rows, fh, indent=2, ensure_ascii=False)
+    except Exception as cache_err:
+        logger.warning(f"Failed inventory_transfer_orders.json update for moved order {order_id}: {cache_err}")
+
+
+def _to_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _processed_qty(item: Dict[str, Any]) -> int:
+    return _to_int(item.get("verified_qty")) + _to_int(item.get("damaged_qty")) + _to_int(item.get("wrong_store_qty"))
+
+
+def update_transfer_order(order_id: str, payload: Dict[str, Any]) -> Tuple[bool, str, int, Dict[str, Any]]:
+    """
+    Update a transfer order.
+    Supported updates:
+    - move destination store (`storeId`)
+    - edit item quantities / remove pending items / add new items (`items`)
+    """
+    try:
+        target_store_id = str(payload.get("storeId") or payload.get("store_id") or "").strip()
+        has_store_update = bool(target_store_id)
+        has_items_update = "items" in payload
+        if not has_store_update and not has_items_update:
+            return False, "No update payload provided", 400, {}
+
+        client = db.client
+        order_resp = execute_with_retry(
+            lambda: client.table("inventory_transfer_orders")
+            .select("id, store_id, status")
+            .eq("id", order_id)
+            .limit(1),
+            f"lookup transfer order {order_id}",
+        )
+        order_rows = order_resp.data or []
+        if not order_rows:
+            return False, "Transfer order not found", 404, {}
+
+        order_row = order_rows[0]
+        current_store_id = str(order_row.get("store_id") or "").strip()
+        status = str(order_row.get("status") or "pending").strip().lower()
+        if status not in TRANSFER_ACTIVE_STATUSES:
+            return False, "Completed orders cannot be edited", 400, {}
+
+        items_resp = execute_with_retry(
+            lambda: client.table("inventory_transfer_items")
+            .select("*")
+            .eq("transfer_order_id", order_id),
+            f"lookup transfer item progress {order_id}",
+        )
+        existing_items = items_resp.data or []
+        existing_by_id: Dict[str, Dict[str, Any]] = {
+            str(row.get("id")): row for row in existing_items if row.get("id")
+        }
+
+        effective_store_id = target_store_id or current_store_id
+        if has_store_update:
+            if current_store_id == target_store_id:
+                has_store_update = False
+            else:
+                store_resp = execute_with_retry(
+                    lambda: client.table("stores").select("id, status").eq("id", target_store_id).limit(1),
+                    f"lookup target store {target_store_id}",
+                )
+                store_rows = store_resp.data or []
+                if not store_rows:
+                    return False, "Target store not found", 404, {}
+                store_status = str(store_rows[0].get("status") or "active").strip().lower()
+                if store_status != "active":
+                    return False, "Target store is not active", 400, {}
+                processed_qty = 0
+                for item in existing_items:
+                    processed_qty += _processed_qty(item)
+                if processed_qty > 0:
+                    return False, "Transfer is not allowed after partial verification has started", 400, {}
+
+        desired_existing_qty: Dict[str, int] = {}
+        new_items: List[Dict[str, Any]] = []
+        delete_item_ids: List[str] = []
+
+        if has_items_update:
+            raw_items = payload.get("items")
+            if not isinstance(raw_items, list):
+                return False, "Items must be an array", 400, {}
+
+            mentioned_existing_ids: set[str] = set()
+            for raw in raw_items:
+                if not isinstance(raw, dict):
+                    return False, "Invalid item payload", 400, {}
+                item_id = str(raw.get("id") or "").strip()
+                product_id = str(raw.get("productId") or raw.get("product_id") or "").strip()
+                assigned_qty = _to_int(raw.get("assignedQty") or raw.get("assigned_qty"))
+                if assigned_qty < 0:
+                    return False, "Assigned quantity cannot be negative", 400, {}
+
+                if item_id:
+                    existing = existing_by_id.get(item_id)
+                    if not existing:
+                        return False, f"Invalid item id: {item_id}", 400, {}
+                    existing_product_id = str(existing.get("product_id") or "").strip()
+                    if product_id and product_id != existing_product_id:
+                        return False, "Changing item product is not allowed", 400, {}
+
+                    current_assigned = _to_int(existing.get("assigned_qty"))
+                    processed = _processed_qty(existing)
+                    mentioned_existing_ids.add(item_id)
+
+                    if processed >= current_assigned:
+                        if assigned_qty != current_assigned:
+                            return False, "Completed items cannot be edited", 400, {}
+                        desired_existing_qty[item_id] = current_assigned
+                        continue
+
+                    if processed > 0 and assigned_qty < processed:
+                        return (
+                            False,
+                            f"Item {item_id}: quantity cannot be below already processed quantity ({processed})",
+                            400,
+                            {},
+                        )
+
+                    if assigned_qty <= 0:
+                        if processed > 0:
+                            return False, "Partially processed items cannot be removed", 400, {}
+                        delete_item_ids.append(item_id)
+                    else:
+                        desired_existing_qty[item_id] = assigned_qty
+                    continue
+
+                if not product_id:
+                    return False, "New items require productId", 400, {}
+                if assigned_qty <= 0:
+                    return False, "New item quantity must be greater than 0", 400, {}
+                new_items.append({"product_id": product_id, "assigned_qty": assigned_qty})
+
+            for existing_id, existing in existing_by_id.items():
+                if existing_id in mentioned_existing_ids:
+                    continue
+                current_assigned = _to_int(existing.get("assigned_qty"))
+                processed = _processed_qty(existing)
+                if processed >= current_assigned:
+                    desired_existing_qty[existing_id] = current_assigned
+                    continue
+                if processed > 0:
+                    desired_existing_qty[existing_id] = current_assigned
+                else:
+                    delete_item_ids.append(existing_id)
+
+            requested_by_product: Dict[str, int] = defaultdict(int)
+            for item_id, qty in desired_existing_qty.items():
+                if qty <= 0:
+                    continue
+                pid = str(existing_by_id[item_id].get("product_id") or "").strip()
+                if pid:
+                    requested_by_product[pid] += qty
+            for row in new_items:
+                requested_by_product[str(row["product_id"])] += int(row["assigned_qty"])
+
+            if not requested_by_product:
+                return False, "Order cannot be empty. Delete the order instead.", 400, {}
+
+            product_ids = list(requested_by_product.keys())
+            product_rows: List[Dict[str, Any]] = []
+            for chunk in _chunked(product_ids, 120):
+                prod_resp = execute_with_retry(
+                    lambda chunk=chunk: client.table("products").select("id, stock, name").in_("id", chunk),
+                    f"lookup products for order edit {order_id}",
+                )
+                product_rows.extend(prod_resp.data or [])
+            product_map: Dict[str, Dict[str, Any]] = {
+                str(row.get("id")): row for row in product_rows if row.get("id")
+            }
+            for product_id in product_ids:
+                if product_id not in product_map:
+                    return False, f"Product not found: {product_id}", 404, {}
+
+            allocations_response = execute_with_retry(
+                lambda: client.table("storeinventory").select("*"),
+                f"storeinventory for order edit {order_id}",
+            )
+            allocation_rows = allocations_response.data or []
+            total_allocated_by_product: Dict[str, int] = defaultdict(int)
+            for row in allocation_rows:
+                pid = row.get("productid") or row.get("productId")
+                if pid and pid in requested_by_product:
+                    total_allocated_by_product[str(pid)] += _to_int(row.get("quantity"))
+
+            reserved_rows: List[Dict[str, Any]] = []
+            select_expr = (
+                "transfer_order_id, product_id, assigned_qty, verified_qty, damaged_qty, wrong_store_qty, "
+                "inventory_transfer_orders(status)"
+            )
+            for chunk in _chunked(product_ids, 120):
+                reserved_resp = execute_with_retry(
+                    lambda chunk=chunk: client.table("inventory_transfer_items").select(select_expr).in_("product_id", chunk),
+                    f"pending transfer reservations for order edit {order_id}",
+                )
+                reserved_rows.extend(reserved_resp.data or [])
+
+            reserved_excluding_order: Dict[str, int] = defaultdict(int)
+            for row in reserved_rows:
+                pid = str(row.get("product_id") or "").strip()
+                if not pid:
+                    continue
+                if str(row.get("transfer_order_id") or "") == str(order_id):
+                    continue
+                order_ref = row.get("inventory_transfer_orders") or {}
+                order_status = str(order_ref.get("status") or "").strip().lower()
+                if order_status not in TRANSFER_ACTIVE_STATUSES:
+                    continue
+                reserved_qty = max(
+                    0,
+                    _to_int(row.get("assigned_qty"))
+                    - _to_int(row.get("verified_qty"))
+                    - _to_int(row.get("damaged_qty"))
+                    - _to_int(row.get("wrong_store_qty")),
+                )
+                reserved_excluding_order[pid] += reserved_qty
+
+            for product_id, requested_qty in requested_by_product.items():
+                product = product_map[product_id]
+                global_stock = _to_int(product.get("stock"))
+                total_allocated = total_allocated_by_product.get(product_id, 0)
+                reserved = reserved_excluding_order.get(product_id, 0)
+                available = global_stock - total_allocated - reserved
+                if requested_qty > available:
+                    pname = product.get("name") or "Unknown"
+                    return (
+                        False,
+                        (
+                            f"Insufficient stock '{pname}'. Global: {global_stock}, "
+                            f"Allocated: {total_allocated}, Pending Reserved: {reserved}, "
+                            f"Available: {available}, Requested: {requested_qty}"
+                        ),
+                        400,
+                        {},
+                    )
+
+        now_iso = datetime.now().isoformat()
+        order_update: Dict[str, Any] = {"updated_at": now_iso}
+        if has_store_update:
+            order_update["store_id"] = effective_store_id
+
+        final_items_preview: List[Dict[str, Any]] = []
+        if has_items_update:
+            for existing_id, existing in existing_by_id.items():
+                if existing_id in delete_item_ids:
+                    continue
+                next_row = dict(existing)
+                if existing_id in desired_existing_qty:
+                    next_row["assigned_qty"] = desired_existing_qty[existing_id]
+                final_items_preview.append(next_row)
+            for row in new_items:
+                final_items_preview.append(
+                    {
+                        "product_id": row["product_id"],
+                        "assigned_qty": row["assigned_qty"],
+                        "verified_qty": 0,
+                        "damaged_qty": 0,
+                        "wrong_store_qty": 0,
+                    }
+                )
+
+            total_assigned = sum(_to_int(i.get("assigned_qty")) for i in final_items_preview)
+            total_verified = sum(_to_int(i.get("verified_qty")) for i in final_items_preview)
+            total_damaged = sum(_to_int(i.get("damaged_qty")) for i in final_items_preview)
+            total_wrong_store = sum(_to_int(i.get("wrong_store_qty")) for i in final_items_preview)
+            missing_total = max(0, total_assigned - total_verified - total_damaged - total_wrong_store)
+
+            next_status = "pending"
+            if total_verified > 0 or total_damaged > 0 or total_wrong_store > 0:
+                next_status = "in_progress"
+            if total_assigned > 0 and missing_total == 0:
+                next_status = "closed_with_issues" if (total_damaged > 0 or total_wrong_store > 0) else "completed"
+            order_update["status"] = next_status
+
+        if order_update:
+            execute_with_retry(
+                lambda: client.table("inventory_transfer_orders").update(order_update).eq("id", order_id),
+                f"update transfer order {order_id}",
+            )
+
+        if has_items_update:
+            for item_id in delete_item_ids:
+                execute_with_retry(
+                    lambda item_id=item_id: client.table("inventory_transfer_items").delete().eq("id", item_id),
+                    f"delete transfer item {item_id}",
+                )
+
+            for item_id, next_qty in desired_existing_qty.items():
+                current_qty = _to_int(existing_by_id[item_id].get("assigned_qty"))
+                if next_qty == current_qty:
+                    continue
+                row = existing_by_id[item_id]
+                processed = _processed_qty(row)
+                item_status = "pending"
+                if processed > 0:
+                    item_status = "in_progress"
+                if next_qty > 0 and processed >= next_qty:
+                    item_status = "closed_with_issues" if (_to_int(row.get("damaged_qty")) > 0 or _to_int(row.get("wrong_store_qty")) > 0) else "completed"
+                execute_with_retry(
+                    lambda item_id=item_id, next_qty=next_qty, item_status=item_status: client.table("inventory_transfer_items")
+                    .update({"assigned_qty": next_qty, "status": item_status, "updated_at": now_iso})
+                    .eq("id", item_id),
+                    f"update transfer item {item_id}",
+                )
+
+            if new_items:
+                inserts = [
+                    {
+                        "id": str(uuid.uuid4()),
+                        "transfer_order_id": order_id,
+                        "product_id": row["product_id"],
+                        "assigned_qty": row["assigned_qty"],
+                        "verified_qty": 0,
+                        "damaged_qty": 0,
+                        "wrong_store_qty": 0,
+                        "applied_verified_qty": 0,
+                        "status": "pending",
+                        "created_at": now_iso,
+                        "updated_at": now_iso,
+                    }
+                    for row in new_items
+                ]
+                execute_with_retry(
+                    lambda: client.table("inventory_transfer_items").insert(inserts),
+                    f"insert new transfer items for order {order_id}",
+                )
+
+        latest_order_resp = execute_with_retry(
+            lambda: client.table("inventory_transfer_orders").select("*").eq("id", order_id).limit(1),
+            f"reload transfer order {order_id}",
+        )
+        latest_item_resp = execute_with_retry(
+            lambda: client.table("inventory_transfer_items").select("*").eq("transfer_order_id", order_id),
+            f"reload transfer items {order_id}",
+        )
+        latest_order_rows = latest_order_resp.data or []
+        latest_items = latest_item_resp.data or []
+        if latest_order_rows:
+            _upsert_inventory_transfer_local_cache([latest_order_rows[0]], latest_items)
+            if has_store_update:
+                _update_transfer_order_store_in_local_cache(
+                    order_id,
+                    effective_store_id,
+                    str(latest_order_rows[0].get("updated_at") or now_iso),
+                )
+
+        data = {
+            "id": order_id,
+            "storeId": effective_store_id,
+            "itemCount": len(latest_items),
+        }
+        return True, "Transfer order updated successfully", 200, data
+    except Exception as e:
+        if is_transient_supabase_error(e):
+            return False, "Supabase temporarily unavailable. Please try again in a moment.", 503, {}
+        logger.error(f"Error updating transfer order {order_id}: {e}", exc_info=True)
+        return False, str(e), 500, {}
 
 
 def delete_transfer_order(order_id: str) -> Tuple[bool, str, int, Optional[str]]:
