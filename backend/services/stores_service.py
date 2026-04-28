@@ -168,15 +168,29 @@ def get_store_bill_stats(store_id: str) -> Tuple[float, int]:
     """Get bill statistics for a store from Supabase"""
     try:
         client = db.client
-        response = execute_with_retry(
-            lambda: client.table("bills").select("*").eq('storeid', store_id),
-            f"bills for store {store_id}",
-        )
-        
-        if not response or not response.data:
+        bills: List[Dict] = []
+        page_size = 1000
+        start = 0
+        while True:
+            end = start + page_size - 1
+            response = execute_with_retry(
+                lambda s=start, e=end: client.table("bills").select("total").eq('storeid', store_id).range(s, e),
+                f"bills for store {store_id} page {start // page_size + 1}",
+            )
+            page = response.data if response and response.data is not None else []
+            if not page:
+                break
+            bills.extend(page)
+            if len(page) < page_size:
+                break
+            start += page_size
+            if start >= 200000:
+                logger.warning("bills pagination safety cap hit for store %s", store_id)
+                break
+
+        if not bills:
             return 0.0, 0
-        
-        bills = response.data
+
         bill_count = len(bills)
         total_revenue = sum(float(bill.get('total', 0)) for bill in bills)
         
@@ -209,11 +223,12 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
         inventory_rows_data = []
         bill_rows_data = []
         try:
-            inventory_rows = execute_with_retry(
-                lambda: client.table("storeinventory").select("storeid,productid,quantity").limit(10000),
+            inventory_rows_data = _fetch_all_rows(
+                client,
+                "storeinventory",
+                "storeid,productid,quantity",
                 "storeinventory (all stores)",
             )
-            inventory_rows_data = inventory_rows.data or []
         except Exception as inventory_error:
             if is_circuit_open_error(inventory_error):
                 logger.info(
@@ -226,11 +241,12 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
                 )
 
         try:
-            bill_rows = execute_with_retry(
-                lambda: client.table("bills").select("storeid,total").limit(10000),
+            bill_rows_data = _fetch_all_rows(
+                client,
+                "bills",
+                "storeid,total",
                 "bills (all stores)",
             )
-            bill_rows_data = bill_rows.data or []
         except Exception as bills_error:
             if is_circuit_open_error(bills_error):
                 logger.info(

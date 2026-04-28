@@ -38,6 +38,44 @@ INVOICE_ID_REGEX = re.compile(r"^INV-([A-Z0-9]+)-(\d{8})(\d{4})$")
 IST_ZONE = ZoneInfo("Asia/Kolkata")
 
 
+def _fetch_all_bills_rows(
+    client,
+    select_expr: str = "*",
+    order_col: str = "created_at",
+    order_desc: bool = True,
+    page_size: int = 1000,
+    safety_cap: int = 200000,
+) -> List[Dict]:
+    """
+    PostgREST caps each request at ~1000 rows. Paginate through bills
+    via .range() so callers see the full dataset, not just the first page.
+    """
+    rows: List[Dict] = []
+    start = 0
+    while True:
+        end = start + page_size - 1
+        response = execute_with_retry(
+            lambda s=start, e=end: (
+                client.table("bills")
+                .select(select_expr)
+                .order(order_col, desc=order_desc)
+                .range(s, e)
+            ),
+            f"bills page {start // page_size + 1}",
+        )
+        page = response.data if response and response.data is not None else []
+        if not page:
+            break
+        rows.extend(page)
+        if len(page) < page_size:
+            break
+        start += page_size
+        if start >= safety_cap:
+            logger.warning("bills pagination safety cap (%s) hit", safety_cap)
+            break
+    return rows
+
+
 def _load_local_billitems() -> List[Dict[str, Any]]:
     path = os.path.join(Config.JSON_DIR, "billitems.json")
     if not os.path.exists(path):
@@ -348,11 +386,7 @@ def get_supabase_bills() -> List[Dict]:
             logger.info("Supabase circuit open; skipping cloud bills read and using fallback flow.")
             return []
         client = db.client
-        response = execute_with_retry(
-            lambda: client.table("bills").select("*").order("created_at", desc=True).limit(500),
-            "bills",
-        )
-        bills = response.data or []
+        bills = _fetch_all_bills_rows(client)
         transformed_bills = [convert_snake_to_camel(bill) for bill in bills]
         logger.debug(f"Returning {len(transformed_bills)} bills from Supabase.")
         return transformed_bills
@@ -902,11 +936,7 @@ def get_supabase_bills_with_details() -> List[Dict]:
             logger.info("Supabase circuit open; skipping detailed cloud bills read.")
             return []
         client = db.client
-        bills_response = execute_with_retry(
-            lambda: client.table("bills").select("*").order("created_at", desc=True).limit(500),
-            "bills (with details)",
-        )
-        bills = bills_response.data or []
+        bills = _fetch_all_bills_rows(client)
         if not bills:
             return []
 

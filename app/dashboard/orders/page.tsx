@@ -702,6 +702,23 @@ export default function OrdersPage() {
     )
   }
 
+  const sortedEditItems = useMemo(() => {
+    const getRank = (row: EditOrderItem) => {
+      if (row.isLocked) return 2
+      if (row.processedQty > 0) return 1
+      return 0
+    }
+    return editItems
+      .map((row, idx) => ({ row, idx }))
+      .sort((a, b) => {
+        const ra = getRank(a.row)
+        const rb = getRank(b.row)
+        if (ra !== rb) return ra - rb
+        return a.idx - b.idx
+      })
+      .map((entry) => entry.row)
+  }, [editItems])
+
   const editableProductCandidates = useMemo(() => {
     const existingIds = new Set(editItems.map((i) => i.productId))
     const term = editProductSearch.trim().toLowerCase()
@@ -1626,7 +1643,7 @@ export default function OrdersPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {editItems.map((row, idx) => {
+                          {sortedEditItems.map((row, idx) => {
                             const rowKey = row.id || `new:${row.productId}`
                             const minQty = row.processedQty > 0 ? row.processedQty : 0
                             const remaining = Math.max(0, Number(row.assignedQty || 0) - Number(row.processedQty || 0))

@@ -1072,20 +1072,29 @@ def update_transfer_order(order_id: str, payload: Dict[str, Any]) -> Tuple[bool,
                 )
                 reserved_excluding_order[pid] += reserved_qty
 
+            current_qty_by_product: Dict[str, int] = defaultdict(int)
+            for existing in existing_items:
+                pid = str(existing.get("product_id") or "").strip()
+                if pid:
+                    current_qty_by_product[pid] += _to_int(existing.get("assigned_qty"))
+
             for product_id, requested_qty in requested_by_product.items():
+                delta = requested_qty - current_qty_by_product.get(product_id, 0)
+                if delta <= 0:
+                    continue
                 product = product_map[product_id]
                 global_stock = _to_int(product.get("stock"))
                 total_allocated = total_allocated_by_product.get(product_id, 0)
                 reserved = reserved_excluding_order.get(product_id, 0)
                 available = global_stock - total_allocated - reserved
-                if requested_qty > available:
+                if delta > available:
                     pname = product.get("name") or "Unknown"
                     return (
                         False,
                         (
                             f"Insufficient stock '{pname}'. Global: {global_stock}, "
                             f"Allocated: {total_allocated}, Pending Reserved: {reserved}, "
-                            f"Available: {available}, Requested: {requested_qty}"
+                            f"Available: {available}, Requested additional: {delta}"
                         ),
                         400,
                         {},

@@ -51,7 +51,17 @@
       "Bash(node -e \"const fs=require\\('fs'\\); const d=JSON.parse\\(fs.readFileSync\\('C:/Users/Dell/AppData/Local/Temp/orders.json','utf8'\\)\\); const rows=Array.isArray\\(d\\)?d:\\(d.data||[]\\); console.log\\('total:', rows.length\\); console.log\\('first order keys:', Object.keys\\(rows[0]||{}\\)\\); console.log\\('sample order:', JSON.stringify\\(rows[0], null, 2\\).slice\\(0, 800\\)\\);\")",
       "Bash(node -e \"const fs=require\\('fs'\\); const d=JSON.parse\\(fs.readFileSync\\('C:/Users/Dell/AppData/Local/Temp/orders.json','utf8'\\)\\); const rows=Array.isArray\\(d\\)?d:\\(d.data||[]\\); const active=rows.filter\\(o=>['pending','in_progress'].includes\\(o.status\\)\\); console.log\\('active orders:', active.length\\); const hits=active.filter\\(o=>{ const pl=JSON.stringify\\(o.productList||o.pendingProducts||[]\\); return pl.includes\\('2026030827650'\\)||pl.includes\\('NP SHORT CHAIN'\\)||pl.includes\\('ee2cee96'\\);}\\); console.log\\('hits:', hits.length\\); hits.forEach\\(o=>console.log\\(JSON.stringify\\({id:o.id, status:o.status, storeId:o.storeId, assigned:o.assignedQtyTotal, verified:o.verifiedQtyTotal, productList:o.productList, pendingProducts:o.pendingProducts}, null, 2\\)\\)\\);\")",
       "Bash(python -m py_compile backend/services/stores_service.py)",
-      "Bash(backend/.venv/Scripts/python.exe -m py_compile backend/services/stores_service.py)"
+      "Bash(backend/.venv/Scripts/python.exe -m py_compile backend/services/stores_service.py)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('backend/services/bills_service.py'\\).read\\(\\)\\); ast.parse\\(open\\('backend/services/stores_service.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(where python *)",
+      "Bash(where py *)",
+      "Bash(ls /c/Python*)",
+      "Read(//c/Users/Dell/AppData/Local/Programs/Python/**)",
+      "Bash(/c/Users/Dell/AppData/Local/Programs/Python/Python312/python.exe -c \"import ast; ast.parse\\(open\\('d:/Siri-apps/billing-app/backend/services/bills_service.py'\\).read\\(\\)\\); ast.parse\\(open\\('d:/Siri-apps/billing-app/backend/services/stores_service.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(command -v python3)",
+      "Bash(command -v py)",
+      "Bash(ls \"/c/Python\"*)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }
