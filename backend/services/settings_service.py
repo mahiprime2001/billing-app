@@ -280,8 +280,8 @@ def update_settings(settings_data: dict) -> Tuple[bool, str, int]:
         record_id = update_fields.pop('id', None)
 
         # Keep DB updates strict to known columns only.
+        # gstin moved to gst_registrations (per-store); systemsettings stops owning it.
         allowed_systemsettings_columns = {
-            "gstin",
             "companyname",
             "companyaddress",
             "companyphone",

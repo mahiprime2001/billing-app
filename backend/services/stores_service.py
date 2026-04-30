@@ -89,16 +89,26 @@ def get_local_stores() -> List[Dict]:
 # SUPABASE OPERATIONS
 # ============================================
 
+def _flatten_gst_join(store: Dict) -> Dict:
+    """Lift the embedded gst_registrations row to flat gstin / gst_state keys."""
+    gst = store.pop("gst_registrations", None) or {}
+    if isinstance(gst, dict):
+        store["gstin"] = gst.get("gst_number")
+        store["gst_state"] = gst.get("state")
+    return store
+
+
 def get_supabase_stores() -> List[Dict]:
-    """Get stores directly from Supabase"""
+    """Get stores directly from Supabase, with the GST registration joined in."""
     try:
         client = db.client
         response = execute_with_retry(
-            lambda: client.table("stores").select("*"),
+            lambda: client.table("stores").select("*, gst_registrations(gst_number, state)"),
             "stores",
         )
         stores = response.data or []
-        transformed_stores = [convert_snake_to_camel(store) for store in stores]
+        flat = [_flatten_gst_join(dict(store)) for store in stores]
+        transformed_stores = [convert_snake_to_camel(store) for store in flat]
         logger.debug(f"Returning {len(transformed_stores)} stores from Supabase.")
         return transformed_stores
     except Exception as e:
@@ -538,14 +548,29 @@ def create_store(store_data: dict) -> Tuple[Optional[str], str, int]:
         store_data = convert_camel_to_snake(store_data)
         if 'id' not in store_data:
             store_data['id'] = str(uuid.uuid4())
-        
+
         now_naive = datetime.now().isoformat()
         if 'createdat' not in store_data:
             store_data['createdat'] = now_naive
         store_data['updatedat'] = now_naive
-        
+
         store_data.pop('email', None)
         store_data.pop('manager', None)
+        # Drop the embedded GST join if the frontend echoed it back.
+        store_data.pop('gst_registrations', None)
+        store_data.pop('gstin', None)
+        store_data.pop('gst_state', None)
+
+        gst_registration_id = (store_data.get('gst_registration_id') or '').strip() if isinstance(store_data.get('gst_registration_id'), str) else store_data.get('gst_registration_id')
+        if not gst_registration_id:
+            return None, "gst_registration_id is required", 400
+        try:
+            ref_resp = db.client.table("gst_registrations").select("id").eq("id", gst_registration_id).limit(1).execute()
+            if not ref_resp.data:
+                return None, f"GST registration '{gst_registration_id}' does not exist", 400
+        except Exception as ref_err:
+            logger.warning(f"Could not verify GST registration {gst_registration_id} remotely: {ref_err}")
+        store_data['gst_registration_id'] = gst_registration_id
         
         stores = get_stores_data()
         existing_idx = next((i for i, s in enumerate(stores) if s.get("id") == store_data["id"]), -1)
@@ -579,7 +604,7 @@ def update_store(store_id: str, update_data: dict) -> Tuple[bool, str, int]:
         update_data = convert_camel_to_snake(update_data)
         base_version, base_updated_at = extract_base_markers(update_data)
 
-        allowed_columns = {"name", "address", "phone", "status", "storecode"}
+        allowed_columns = {"name", "address", "phone", "status", "storecode", "gst_registration_id"}
         filtered_update_data = {k: v for k, v in update_data.items() if k in allowed_columns}
         if not filtered_update_data:
             return False, "No valid store fields provided for update", 400

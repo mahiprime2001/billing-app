@@ -66,7 +66,6 @@ interface BillFormat {
 }
 
 interface SystemSettings {
-  gstin: string;
   taxPercentage: number;
   companyName: string;
   companyAddress: string;
@@ -326,7 +325,6 @@ export default function BillingPage() {
   const [lastScanValue, setLastScanValue] = useState("");
 
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
-    gstin: "",
     taxPercentage: 0,
     companyName: "",
     companyAddress: "",
@@ -359,7 +357,6 @@ export default function BillingPage() {
         if (data.systemSettings) {
           const settings = data.systemSettings;
           const normalizedSettings = {
-            gstin: settings.gstin || "",
             taxPercentage: settings.taxPercentage || settings.tax_percentage || 0,
             companyName: settings.companyName || settings.company_name || settings.companyname || "",
             companyAddress: settings.companyAddress || settings.company_address || settings.companyaddress || "",
@@ -1425,7 +1422,6 @@ export default function BillingPage() {
         companyAddress: systemSettings.companyAddress,
         companyPhone: systemSettings.companyPhone,
         companyEmail: systemSettings.companyEmail,
-        gstin: systemSettings.gstin,
         billFormat: selectedBillFormat,
         createdBy: createdBy || undefined,
       };
@@ -1660,7 +1656,7 @@ export default function BillingPage() {
       bill.companyPhone || bill.storePhone || systemSettings.companyPhone || settingsAny.company_phone || settingsAny.companyphone || "";
     const companyEmail =
       bill.companyEmail || systemSettings.companyEmail || settingsAny.company_email || settingsAny.companyemail || "";
-    const gstin = bill.gstin || systemSettings.gstin || settingsAny.gstin || "";
+    const gstin = bill.gstin || "";
 
     const items = (Array.isArray(bill.items) ? bill.items : []).map((item: any) => {
       const quantity = toNumber(item.quantity);
@@ -1735,7 +1731,7 @@ export default function BillingPage() {
       bill.companyPhone || bill.storePhone || systemSettings.companyPhone || settingsAny.company_phone || settingsAny.companyphone || "";
     const companyEmail =
       bill.companyEmail || systemSettings.companyEmail || settingsAny.company_email || settingsAny.companyemail || "";
-    const gstin = bill.gstin || systemSettings.gstin || settingsAny.gstin || "";
+    const gstin = bill.gstin || "";
     const taxPercentage = toNumber(bill.taxPercentage || systemSettings.taxPercentage || settingsAny.tax_percentage || 0);
     const isThermal = format.width === 80;
     const pageSize = isThermal

@@ -32,6 +32,7 @@ from routes.admin import admin_bp
 from routes.hsn_codes import hsn_codes_bp
 from routes.twofa import twofa_bp
 from routes.orders import orders_bp
+from routes.gst_registrations import gst_registrations_bp
 
 # Import export script
 from scripts.export_data import export_all_data_from_supabase
@@ -111,6 +112,7 @@ def create_app(config_name='default'):
     app.register_blueprint(hsn_codes_bp)
     app.register_blueprint(twofa_bp)
     app.register_blueprint(orders_bp)
+    app.register_blueprint(gst_registrations_bp)
     
     # Register middleware
     @app.before_request

@@ -29,6 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Plus,
   Edit,
@@ -60,6 +61,15 @@ interface StoreType {
   lastBillDate: string
   productCount?: number;
   totalStock?: number;
+  gstRegistrationId?: string
+  gstin?: string
+  gstState?: string
+}
+
+interface GstRegistration {
+  id: string
+  gst_number: string
+  state: string
 }
 
 type StoreLiveInventoryRow = {
@@ -841,6 +851,7 @@ export default function StoresPage() {
   const router = useRouter()
   const [stores, setStores] = useState<StoreType[]>([])
   const [bills, setBills] = useState<any[]>([])
+  const [gstRegistrations, setGstRegistrations] = useState<GstRegistration[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingStore, setEditingStore] = useState<StoreType | null>(null)
@@ -851,6 +862,7 @@ export default function StoresPage() {
     manager: "",
     storecode: "",
     status: "active" as "active" | "inactive",
+    gstRegistrationId: "",
   })
 
   // Store insight modal state
@@ -913,6 +925,15 @@ export default function StoresPage() {
         setBills(billsData);
       })
       .catch((error) => console.error("Error loading bills:", error));
+
+    // GST registrations populate the dropdown in the store form.
+    fetch(`${API}/api/gst-registrations`)
+      .then(async (response) => {
+        if (!response.ok) return;
+        const data = await response.json();
+        setGstRegistrations(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => console.error("Error loading GST registrations:", error));
   }
 
   
@@ -934,6 +955,10 @@ export default function StoresPage() {
       alert("Please fill in all required fields")
       return
     }
+    if (!formData.gstRegistrationId) {
+      alert("Please select a GST registration for this store")
+      return
+    }
 
     const storeData = {
       name: formData.name,
@@ -942,6 +967,7 @@ export default function StoresPage() {
       manager: formData.manager,
       storecode: formData.storecode.trim().toUpperCase(),
       status: formData.status,
+      gstRegistrationId: formData.gstRegistrationId,
     }
 
     try {
@@ -983,6 +1009,7 @@ export default function StoresPage() {
       manager: store.manager,
       storecode: store.storecode || "",
       status: store.status,
+      gstRegistrationId: store.gstRegistrationId || "",
     })
     setIsDialogOpen(true)
   }
@@ -1043,6 +1070,7 @@ export default function StoresPage() {
       manager: "",
       storecode: "",
       status: "active",
+      gstRegistrationId: "",
     })
     setEditingStore(null)
   }
@@ -1142,6 +1170,35 @@ export default function StoresPage() {
                       />
                       <p className="text-xs text-muted-foreground">Short code used in invoice numbers (e.g. INV-NLR-190420260001)</p>
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gstRegistration">GST Registration *</Label>
+                    <Select
+                      value={formData.gstRegistrationId}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, gstRegistrationId: value })
+                      }
+                    >
+                      <SelectTrigger id="gstRegistration">
+                        <SelectValue
+                          placeholder={
+                            gstRegistrations.length === 0
+                              ? "No GST registrations — add one in Settings first"
+                              : "Select a GST registration"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {gstRegistrations.map((reg) => (
+                          <SelectItem key={reg.id} value={reg.id}>
+                            {reg.gst_number} — {reg.state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      The GST printed on this store&apos;s invoices.
+                    </p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -1294,6 +1351,12 @@ export default function StoresPage() {
                             {store.storecode && (
                               <div className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded w-fit">
                                 {store.storecode}
+                              </div>
+                            )}
+                            {store.gstin && (
+                              <div className="text-xs font-mono text-gray-700">
+                                GST: {store.gstin}
+                                {store.gstState ? ` (${store.gstState})` : ""}
                               </div>
                             )}
                           </div>

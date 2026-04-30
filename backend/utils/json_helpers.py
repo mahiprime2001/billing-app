@@ -259,6 +259,20 @@ def save_user_stores_data(userstores: List[Dict]) -> bool:
 
 
 # ============================================
+# GST REGISTRATIONS
+# ============================================
+
+def get_gst_registrations_data() -> List[Dict]:
+    """Get GST registrations from local JSON (PRIMARY source)"""
+    return _safe_json_load(Config.GST_REGISTRATIONS_FILE, [])
+
+
+def save_gst_registrations_data(rows: List[Dict]) -> bool:
+    """Save GST registrations to local JSON (PRIMARY storage)"""
+    return _safe_json_dump(Config.GST_REGISTRATIONS_FILE, rows)
+
+
+# ============================================
 # STORE INVENTORY
 # ============================================
 

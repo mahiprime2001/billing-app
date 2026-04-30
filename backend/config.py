@@ -80,6 +80,7 @@ class Config:
     INVENTORY_TRANSFER_SCANS_FILE = os.path.join(JSON_DIR, "inventory_transfer_scans.json")
     HSN_CODES_FILE = os.path.join(JSON_DIR, "hsn_codes.json")
     BILL_ITEMS_FILE = os.path.join(JSON_DIR, "billitems.json")
+    GST_REGISTRATIONS_FILE = os.path.join(JSON_DIR, "gst_registrations.json")
 
     # Tauri settings
     TAURI_BASE = os.environ.get("TAURI_HTTP_BASE", "http://127.0.0.1:5050")

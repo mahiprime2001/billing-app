@@ -38,7 +38,6 @@ import {
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 interface SystemSettings {
-  gstin: string
   companyName: string
   companyAddress: string
   companyPhone: string
@@ -46,6 +45,14 @@ interface SystemSettings {
   id?: number
   last_sync_id?: number
   last_sync_time?: string
+}
+
+interface GstRegistration {
+  id: string
+  gst_number: string
+  state: string
+  created_at?: string
+  updated_at?: string
 }
 
 interface AdminUser {
@@ -168,7 +175,6 @@ export default function SettingsPage() {
   const router = useRouter()
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null)
   const [settings, setSettings] = useState<SystemSettings>({
-    gstin: "",
     companyName: "",
     companyAddress: "",
     companyPhone: "",
@@ -177,6 +183,12 @@ export default function SettingsPage() {
     last_sync_id: undefined,
     last_sync_time: undefined,
   })
+  const [gstRegistrations, setGstRegistrations] = useState<GstRegistration[]>([])
+  const [newGstNumber, setNewGstNumber] = useState("")
+  const [newGstState, setNewGstState] = useState("")
+  const [isAddingGst, setIsAddingGst] = useState(false)
+  const [editingGstId, setEditingGstId] = useState<string | null>(null)
+  const [editingGstDraft, setEditingGstDraft] = useState<{ gst_number: string; state: string }>({ gst_number: "", state: "" })
   const [isLoading, setIsLoading] = useState(false)
   const [selectedFlushCategory, setSelectedFlushCategory] = useState<"products" | "stores" | "users" | "bills" | "">("")
   const [isFirstConfirmOpen, setIsFirstConfirmOpen] = useState(false)
@@ -194,7 +206,6 @@ export default function SettingsPage() {
   const [isTwofaDialogOpen, setIsTwofaDialogOpen] = useState(false)
 
   const defaultSystemSettings: SystemSettings = {
-    gstin: "XX-XXXXX-XXXXX-X",
     companyName: "Your Company Name Pvt Ltd",
     companyAddress: "123 Main St, City, State, ZIP",
     companyPhone: "+91 98765 43210",
@@ -226,6 +237,7 @@ export default function SettingsPage() {
     loadSettings()
     fetchAdminUsers()
     fetchSuperAdmins()
+    fetchGstRegistrations()
   }, [router])
 
   const fetchAdminUsers = async () => {
@@ -276,7 +288,6 @@ export default function SettingsPage() {
     const mapToSystemSettings = (payload: any): SystemSettings => {
       const fetchedSystemSettings = payload?.systemSettings || payload || {}
       return {
-        gstin: fetchedSystemSettings.gstin || defaultSystemSettings.gstin,
         companyName: fetchedSystemSettings.companyName || fetchedSystemSettings.companyname || defaultSystemSettings.companyName,
         companyAddress: fetchedSystemSettings.companyAddress || fetchedSystemSettings.companyaddress || defaultSystemSettings.companyAddress,
         companyPhone: fetchedSystemSettings.companyPhone || fetchedSystemSettings.companyphone || defaultSystemSettings.companyPhone,
@@ -571,6 +582,121 @@ export default function SettingsPage() {
     }))
   }
 
+  const fetchGstRegistrations = async () => {
+    try {
+      const response = await fetchWithBackendRetry("/api/gst-registrations")
+      if (!response.ok) throw new Error(response.statusText)
+      const data = await response.json()
+      setGstRegistrations(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error("Failed to load GST registrations:", error)
+      toast({
+        title: "Error",
+        description: toNetworkErrorMessage(error, "/api/gst-registrations"),
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleAddGstRegistration = async () => {
+    const gstNumber = newGstNumber.trim()
+    const state = newGstState.trim()
+    if (!gstNumber || !state) {
+      toast({
+        title: "Missing Fields",
+        description: "Both GST number and state are required.",
+        variant: "destructive",
+      })
+      return
+    }
+    setIsAddingGst(true)
+    try {
+      const response = await fetchWithBackendRetry("/api/gst-registrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gst_number: gstNumber, state }),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err?.error || "Failed to add GST registration")
+      }
+      setNewGstNumber("")
+      setNewGstState("")
+      await fetchGstRegistrations()
+      toast({
+        title: "GST Added",
+        description: `${gstNumber} (${state}) has been added.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add GST registration",
+        variant: "destructive",
+      })
+    } finally {
+      setIsAddingGst(false)
+    }
+  }
+
+  const startEditGst = (row: GstRegistration) => {
+    setEditingGstId(row.id)
+    setEditingGstDraft({ gst_number: row.gst_number, state: row.state })
+  }
+
+  const cancelEditGst = () => {
+    setEditingGstId(null)
+    setEditingGstDraft({ gst_number: "", state: "" })
+  }
+
+  const saveEditGst = async (id: string) => {
+    const gstNumber = editingGstDraft.gst_number.trim()
+    const state = editingGstDraft.state.trim()
+    if (!gstNumber || !state) {
+      toast({ title: "Missing Fields", description: "Both fields are required.", variant: "destructive" })
+      return
+    }
+    try {
+      const response = await fetchWithBackendRetry(`/api/gst-registrations/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gst_number: gstNumber, state }),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err?.error || "Failed to update GST registration")
+      }
+      cancelEditGst()
+      await fetchGstRegistrations()
+      toast({ title: "GST Updated", description: "Changes saved." })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const deleteGstRegistration = async (id: string) => {
+    try {
+      const response = await fetchWithBackendRetry(`/api/gst-registrations/${id}`, {
+        method: "DELETE",
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err?.error || "Failed to delete GST registration")
+      }
+      await fetchGstRegistrations()
+      toast({ title: "GST Deleted", description: "The registration has been removed." })
+    } catch (error) {
+      toast({
+        title: "Cannot Delete",
+        description: error instanceof Error ? error.message : "Failed to delete",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleFlushData = async () => {
     if (!selectedFlushCategory) {
       toast({
@@ -838,16 +964,132 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="gstin">GSTIN Number</Label>
-                  <Input
-                    id="gstin"
-                    value={settings.gstin}
-                    onChange={(e) => handleInputChange("gstin", e.target.value)}
-                    placeholder="Enter GSTIN number"
-                    className="font-mono"
-                  />
-                  <p className="text-sm text-gray-500">Goods and Services Tax Identification Number</p>
+                <div className="space-y-3 border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base">GST Registrations</Label>
+                    <p className="text-sm text-gray-500">One per state. Stores pick from these.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                    <div className="space-y-1">
+                      <Label htmlFor="newGstNumber" className="text-xs">GST Number</Label>
+                      <Input
+                        id="newGstNumber"
+                        value={newGstNumber}
+                        onChange={(e) => setNewGstNumber(e.target.value)}
+                        placeholder="29ABCDE1234F1Z5"
+                        className="font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="newGstState" className="text-xs">State</Label>
+                      <Input
+                        id="newGstState"
+                        value={newGstState}
+                        onChange={(e) => setNewGstState(e.target.value)}
+                        placeholder="Karnataka"
+                      />
+                    </div>
+                    <Button
+                      onClick={handleAddGstRegistration}
+                      disabled={isAddingGst || !newGstNumber.trim() || !newGstState.trim()}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {isAddingGst ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Hash className="h-4 w-4 mr-2" />}
+                      Add GST
+                    </Button>
+                  </div>
+
+                  {gstRegistrations.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic">No GST registrations yet. Add one above.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>GST Number</TableHead>
+                          <TableHead>State</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {gstRegistrations.map((row) => {
+                          const isEditing = editingGstId === row.id
+                          return (
+                            <TableRow key={row.id}>
+                              <TableCell className="font-mono">
+                                {isEditing ? (
+                                  <Input
+                                    value={editingGstDraft.gst_number}
+                                    onChange={(e) =>
+                                      setEditingGstDraft((prev) => ({ ...prev, gst_number: e.target.value }))
+                                    }
+                                    className="font-mono"
+                                  />
+                                ) : (
+                                  row.gst_number
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {isEditing ? (
+                                  <Input
+                                    value={editingGstDraft.state}
+                                    onChange={(e) =>
+                                      setEditingGstDraft((prev) => ({ ...prev, state: e.target.value }))
+                                    }
+                                  />
+                                ) : (
+                                  row.state
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right space-x-2">
+                                {isEditing ? (
+                                  <>
+                                    <Button size="sm" onClick={() => saveEditGst(row.id)}>
+                                      Save
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={cancelEditGst}>
+                                      Cancel
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button size="sm" variant="outline" onClick={() => startEditGst(row)}>
+                                      Edit
+                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button size="sm" variant="destructive">
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Delete GST registration?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            {row.gst_number} ({row.state}) will be removed. Stores already
+                                            assigned to this GST must be reassigned first.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => deleteGstRegistration(row.id)}
+                                            className="bg-red-600 hover:bg-red-700"
+                                          >
+                                            Delete
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
                 </div>
 
                 <div className="pt-2">
