@@ -62,7 +62,8 @@
       "Bash(command -v py)",
       "Bash(ls \"/c/Python\"*)",
       "Bash(python3 -c ' *)",
-      "Bash(grep -E \"^name = \\\\\"\\(tauri|tauri-build\\)\\\\\"$\" -A 1 d:/Siri-apps/billing-app/src-tauri/Cargo.lock)"
+      "Bash(grep -E \"^name = \\\\\"\\(tauri|tauri-build\\)\\\\\"$\" -A 1 d:/Siri-apps/billing-app/src-tauri/Cargo.lock)",
+      "Bash(npm view *)"
     ]
   }
 }
