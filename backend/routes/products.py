@@ -84,6 +84,37 @@ def get_supabase_products_for_billing():
 # MERGED PRODUCTS ENDPOINT
 # ============================================
 
+@products_bp.route('/products/page', methods=['GET'])
+def get_products_page():
+    """Return a single page of products for the progressive loader.
+
+    Query params: ?page=N (default 1), ?page_size=200 (default 200, max 1000).
+    Response: {data, page, pageSize, total, hasMore}.
+    """
+    try:
+        try:
+            page = int(request.args.get('page', 1))
+        except (TypeError, ValueError):
+            page = 1
+        try:
+            page_size = int(request.args.get('page_size', products_service.PRODUCTS_PAGE_SIZE))
+        except (TypeError, ValueError):
+            page_size = products_service.PRODUCTS_PAGE_SIZE
+
+        payload = products_service.get_supabase_products_page(page=page, page_size=page_size)
+        return jsonify(payload), 200
+    except Exception as e:
+        logger.error(f"Error in get_products_page: {e}", exc_info=True)
+        return jsonify({
+            "data": [],
+            "page": 1,
+            "pageSize": products_service.PRODUCTS_PAGE_SIZE,
+            "total": 0,
+            "hasMore": False,
+            "error": str(e),
+        }), 500
+
+
 @products_bp.route('/products', methods=['GET'])
 @products_bp.route('/products/', methods=['GET'])
 def get_products():

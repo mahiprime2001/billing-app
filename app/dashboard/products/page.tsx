@@ -5,6 +5,8 @@ import { getBarcode } from "@/app/utils/getBarcode";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import type { Product as ProductType, Batch } from "@/lib/types";
+import { useIncrementalProducts } from "@/hooks/useIncrementalProducts";
+import { ProductLoadingBar } from "@/components/ProductLoadingBar";
 import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -99,16 +101,18 @@ export default function ProductsPage() {
   interface Product extends ProductType {
     barcodes: string[];
   }
-  const { data: productsData = [], error: productsError, isLoading: productsLoading, mutate } = useSWR<ProductType[]>(
-    "/api/products",
-    fetcher,
-    {
-      revalidateOnFocus: false,    // Don't revalidate when window gains focus
-      revalidateOnReconnect: false, // Don't revalidate on reconnect  
-      dedupingInterval: 5000,       // Dedupe requests within 5 seconds
-      refreshInterval: 0,           // Disable auto-refresh
-    }
-  );
+  // Products load progressively in 200-row pages so the table starts populating
+  // within the first page round-trip instead of waiting for the entire catalog.
+  const {
+    data: productsData = [],
+    error: productsError,
+    isLoading: productsLoading,
+    isStreaming: productsStreaming,
+    progress: productsProgress,
+    loadedPages: productsLoadedPages,
+    totalCount: productsTotalCount,
+    mutate,
+  } = useIncrementalProducts(200);
   const { data: batches = [], error: batchesError, isLoading: batchesLoading, mutate: mutateBatches } = useSWR<Batch[]>(
     "/api/batches",
     fetcher,
@@ -154,32 +158,13 @@ export default function ProductsPage() {
     .filter(p => !(p as any)._deleted);
 }, [productsData]);
 
-  // Debugging logs for SWR data
-    // Debugging logs for SWR data
+  // Surface fetch errors without flooding the console — the previous version
+  // stringified the entire batches array on every change, which was expensive
+  // for large catalogs and re-fired the effect frequently.
   useEffect(() => {
-    console.log("=== SWR Data Debug ===");
-    console.log("Products Data:", products);
-    console.log("Products Count:", products.length);
-    if (productsError) {
-      console.error("SWR Products Error:", productsError);
-    }
-    console.log("Batches Data:", batches);
-    console.log("Batches Count:", batches.length);
-    console.log("Batches:", JSON.stringify(batches, null, 2));
-    if (batchesError) {
-      console.error("SWR Batches Error:", batchesError);
-    }
-    
-    // Test batch lookup
-    if (products.length > 0 && batches.length > 0) {
-      const firstProduct = products[0];
-      console.log("First Product:", firstProduct);
-      console.log("First Product batchid:", firstProduct.batchid);
-      const foundBatch = batches.find(batch => batch.id === firstProduct.batchid);
-      console.log("Found Batch for first product:", foundBatch);
-    }
-    console.log("======================");
-  }, [products, productsError, batches, batchesError]);
+    if (productsError) console.error("Products fetch error:", productsError);
+    if (batchesError) console.error("Batches fetch error:", batchesError);
+  }, [productsError, batchesError]);
 
   const scrollableDivRef = useRef<HTMLDivElement>(null);
   const productTableTopScrollRef = useRef<HTMLDivElement>(null);
@@ -187,6 +172,13 @@ export default function ProductsPage() {
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [assignedStores, setAssignedStores] = useState<SystemStore[]>([])
   const [searchTerm, setSearchTerm] = useState("")
+  // Debounce the search input so the filter pipeline doesn't rerun on every
+  // keystroke when there are thousands of products in memory.
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  useEffect(() => {
+    const handle = window.setTimeout(() => setDebouncedSearchTerm(searchTerm), 180);
+    return () => window.clearTimeout(handle);
+  }, [searchTerm]);
   const [searchScope, setSearchScope] = useState("all")
   const [stockFilter, setStockFilter] = useState("all")
   // NEW: Advanced filters state
@@ -480,9 +472,7 @@ export default function ProductsPage() {
         return;
       }
       const barcodeKey = barcode.trim().toLowerCase();
-      const existingBarcode = products.find((p) =>
-        (p.barcodes || []).some((b) => String(b).trim().toLowerCase() === barcodeKey)
-      );
+      const existingBarcode = barcodeIndex.get(barcodeKey);
       if (existingBarcode) {
         focusBarcodeInList(barcode);
         alert(`Barcode already exists: ${barcode} (Product: ${existingBarcode.name}). Filters were cleared and search was set to this barcode.`);
@@ -517,7 +507,30 @@ export default function ProductsPage() {
         throw new Error("Failed to add product");
       }
 
-      mutate();
+      // Inject the new product into local state immediately. No catalog refetch
+      // — that's what made Add feel slow before.
+      let createdId: string | undefined;
+      try {
+        const body = await response.clone().json();
+        createdId = body?.id;
+      } catch {
+        // ignore — backend may not include body in all cases
+      }
+      const nowIso = new Date().toISOString();
+      const optimisticProduct: ProductType = {
+        ...newProduct,
+        id: createdId || `local-${Date.now()}`,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      } as ProductType;
+      await mutate(
+        (prev) => {
+          const next = Array.isArray(prev) ? [optimisticProduct, ...prev] : [optimisticProduct];
+          return next;
+        },
+        { revalidate: false },
+      );
+
       resetForm();
       setIsAddDialogOpen(false);
     } catch (error) {
@@ -558,16 +571,14 @@ export default function ProductsPage() {
         alert(`Please enter a valid barcode (1-80 characters) for: ${barcode}`);
         return;
       }
-      const otherProducts = products.filter((p) => p.id !== editingProduct.id);
       const barcodeKey = barcode.trim().toLowerCase();
-      const existingBarcode = otherProducts.find((p) =>
-        (p.barcodes || []).some((b) => String(b).trim().toLowerCase() === barcodeKey)
-      );
-      if (existingBarcode) {
+      const existingBarcode = barcodeIndex.get(barcodeKey);
+      // Allow keeping a barcode that already belongs to the product being edited.
+      if (existingBarcode && existingBarcode.id !== editingProduct.id) {
         focusBarcodeInList(barcode);
         alert(`Barcode already exists: ${barcode} (Product: ${existingBarcode.name}). Filters were cleared and search was set to this barcode.`);
         return;
-        }
+      }
     }
 
     const normalizeHsnCode = (value: unknown) => {
@@ -597,7 +608,20 @@ export default function ProductsPage() {
         throw new Error("Failed to update product");
       }
 
-      mutate();
+      const editingId = editingProduct.id;
+      const nowIso = new Date().toISOString();
+      await mutate(
+        (prev) => {
+          if (!Array.isArray(prev)) return prev;
+          return prev.map((p) =>
+            p.id === editingId
+              ? ({ ...p, ...updatedProduct, updatedAt: nowIso } as ProductType)
+              : p,
+          );
+        },
+        { revalidate: false },
+      );
+
       resetForm();
       setEditingProduct(null);
       setIsEditDialogOpen(false);
@@ -630,13 +654,16 @@ const handleDeleteProduct = async (productId: string) => {
       throw new Error("Failed to delete product");
     }
 
-    // Optimistic update after confirmed success
-    mutate(productsData.filter((p) => p.id !== productId), false);
-    await mutate();
+    // Optimistically drop the row — skip the full refetch entirely.
+    await mutate(
+      (prev) => (Array.isArray(prev) ? prev.filter((p) => p.id !== productId) : prev),
+      { revalidate: false },
+    );
   } catch (error) {
     console.error("Error deleting product:", error);
     alert("Failed to delete product.");
-    mutate();
+    // On error, force a refetch so the UI reflects the real DB state.
+    await mutate();
   }
 };
 
@@ -655,7 +682,10 @@ const handleDeleteProduct = async (productId: string) => {
     }
 
     const selectedSet = new Set(productIdsToDelete);
-    mutate(productsData.filter((p) => !selectedSet.has(p.id)), false);
+    await mutate(
+      (prev) => (Array.isArray(prev) ? prev.filter((p) => !selectedSet.has(p.id)) : prev),
+      { revalidate: false },
+    );
     setSelectedProducts([]);
 
     try {
@@ -678,12 +708,11 @@ const handleDeleteProduct = async (productId: string) => {
         throw new Error(`Failed to delete ${failedDeletes.length} product(s)`);
       }
 
-      await mutate();
       alert(`Successfully deleted ${productIdsToDelete.length} product(s)`);
     } catch (error) {
       console.error("Error deleting products in bulk:", error);
       alert("Failed to delete some products. Please try again.");
-      mutate();
+      await mutate();
     }
   };
 
@@ -720,8 +749,21 @@ const handleDeleteProduct = async (productId: string) => {
         }
         throw new Error(message);
       }
-      
-      mutate();
+
+      // Apply the HSN change in place so the list updates instantly.
+      const updatedIds = new Set(selectedProducts);
+      const nowIso = new Date().toISOString();
+      await mutate(
+        (prev) => {
+          if (!Array.isArray(prev)) return prev;
+          return prev.map((p) =>
+            updatedIds.has(p.id)
+              ? ({ ...p, hsnCode: hsnValue as any, updatedAt: nowIso } as ProductType)
+              : p,
+          );
+        },
+        { revalidate: false },
+      );
       setSelectedProducts([]);
       setBulkHsnValue("");
       setIsBulkHsnDialogOpen(false);
@@ -868,6 +910,20 @@ const handleDeleteProduct = async (productId: string) => {
     [batches]
   );
 
+  // Index every barcode → product so dedupe checks during Add/Edit become an
+  // O(1) Map lookup instead of an O(n × m) nested scan across the catalog.
+  const barcodeIndex = useMemo(() => {
+    const map = new Map<string, Product>();
+    for (const product of products) {
+      const list = product.barcodes || [];
+      for (const code of list) {
+        const key = String(code || "").trim().toLowerCase();
+        if (key) map.set(key, product);
+      }
+    }
+    return map;
+  }, [products]);
+
   useEffect(() => {
     const topScroll = productTableTopScrollRef.current;
     const bottomScroll = scrollableDivRef.current;
@@ -923,10 +979,9 @@ const handleDeleteProduct = async (productId: string) => {
 
   // Extended filtered products logic
   const filteredProducts = useMemo(() => {
-    // console.log("Filtering products. Current products array:", products);
     const typedProducts: Product[] = products;
     const filtered = typedProducts.filter((product) => {
-      const q = searchTerm.toLowerCase();
+      const q = debouncedSearchTerm.toLowerCase();
       const batch = product.batchid ? batchMap.get(product.batchid) : undefined;
       const batchText = `${batch?.batchNumber ?? ""} ${batch?.place ?? ""}`.toLowerCase();
       const barcodeText = (getBarcode(product) || "").toLowerCase();
@@ -1054,7 +1109,7 @@ const handleDeleteProduct = async (productId: string) => {
   return sortedFilteredProducts;
 }, [
   products,
-  searchTerm,
+  debouncedSearchTerm,
   searchScope,
   stockFilter,
   priceRange,
@@ -1820,6 +1875,15 @@ const handleDeleteProduct = async (productId: string) => {
               </div>
             )}
 
+            {/* Progressive load indicator (plain static bar — no animation) */}
+            <ProductLoadingBar
+              isStreaming={productsStreaming}
+              progress={productsProgress}
+              loaded={productsData.length}
+              total={productsTotalCount}
+              loadedPages={productsLoadedPages}
+            />
+
             {/* Products Table */}
             <div ref={productTableTopScrollRef} className="overflow-x-auto overflow-y-hidden mb-2">
               <div className="h-px" />
@@ -1852,8 +1916,9 @@ const handleDeleteProduct = async (productId: string) => {
                   {filteredProducts.map((product) => {
                     const stockStatus = getStockStatus(product.stock)
                     const StatusIcon = stockStatus.icon
-                    const productBatch = batches.find(batch => batch.id === product.batchid);
-                    // console.log(`Product: ${product.name}, batchid: ${product.batchid}, ProductBatch:`, productBatch); // Debugging line
+                    // Use the precomputed batchMap (O(1) lookup) instead of a
+                    // linear .find() across the entire batches array per row.
+                    const productBatch = product.batchid ? batchMap.get(product.batchid) : undefined;
                     return (
                       <tr key={product.id} className="border-b hover:bg-gray-50">
                         <td className="p-4">
@@ -1897,14 +1962,11 @@ const handleDeleteProduct = async (productId: string) => {
                           <span className="font-medium">
                           {(() => {
                                   const hsnCodeId = getProductHsnCodeId(product);
-                                  if (!hsnCodeId || hsnCodeId === "null" || hsnCodeId === null) {
+                                  if (!hsnCodeId || hsnCodeId === "null") {
                                     return <span className="font-medium text-gray-400">N/A</span>;
                                   }
-                                  
-                                  const hsnCode = hsnCodes.find(h => 
-                                    String(h.id) === String(hsnCodeId)
-                                  );
-                                  
+                                  // O(1) map lookup instead of hsnCodes.find() per row.
+                                  const hsnCode = hsnCodeMap.get(String(hsnCodeId));
                                   return hsnCode ? (
                                     <span className="font-medium">{hsnCode.hsnCode}</span>
                                   ) : (
@@ -1914,7 +1976,27 @@ const handleDeleteProduct = async (productId: string) => {
                           </span>
                         </td>
                         <td className="p-4">
-                          <span className="font-medium">{product.globalStock ?? product.stock}</span>
+                          {(() => {
+                            const sold = Number((product as any).soldStock ?? 0);
+                            const inStores = Number(
+                              (product as any).inStoresStock ?? (product as any).allocatedStock ?? 0,
+                            );
+                            const lifetime = Number(
+                              (product as any).lifetimeStock ??
+                                (Number(product.globalStock ?? product.stock ?? 0) + sold),
+                            );
+                            return (
+                              <div className="leading-tight">
+                                <div className="font-semibold text-base">{lifetime}</div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  Sold: <span className="tabular-nums">{sold}</span>
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  In stores: <span className="tabular-nums">{inStores}</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="p-4">
                           <span className="font-medium">{product.availableStock ?? product.stock}</span>

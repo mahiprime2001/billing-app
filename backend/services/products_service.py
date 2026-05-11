@@ -4,6 +4,8 @@ Handles all product-related business logic and database operations
 """
 
 import logging
+import time
+import threading
 import uuid
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
@@ -85,37 +87,366 @@ def _parse_tax_value(value) -> float:
     except (TypeError, ValueError):
         return 0.0
 
-def _get_hsn_tax_map() -> Dict[str, float]:
-    """Return HSN tax map keyed by HSN id from local JSON and Supabase."""
-    tax_map: Dict[str, float] = {}
+_HSN_TAX_CACHE: Dict[str, object] = {"map": None, "ts": 0.0}
+_HSN_TAX_CACHE_TTL = 60.0  # seconds
+_HSN_TAX_LOCK = threading.Lock()
 
-    # Local JSON (fallback)
-    try:
-        for code in get_hsn_codes_data():
-            code_id = code.get("id")
-            if code_id is None:
-                continue
-            tax_map[str(code_id)] = _parse_tax_value(code.get("tax"))
-    except Exception as e:
-        logger.warning(f"Failed to load HSN taxes from local JSON: {e}")
+_INVENTORY_ALLOC_CACHE: Dict[str, object] = {"map": None, "ts": 0.0}
+_INVENTORY_ALLOC_TTL = 30.0  # seconds
+_INVENTORY_ALLOC_LOCK = threading.Lock()
 
-    # Supabase (preferred)
+_SOLD_QTY_CACHE: Dict[str, object] = {"map": None, "ts": 0.0}
+_SOLD_QTY_TTL = 60.0  # seconds — bills come from the POS, not this service
+_SOLD_QTY_LOCK = threading.Lock()
+
+# Page size used when streaming the full catalog out of Supabase to the
+# frontend. Smaller pages trade extra round-trips for a faster time-to-first
+# -row in the UI's progressive loader.
+PRODUCTS_PAGE_SIZE = 200
+
+# Larger page size used internally for cache builds (aggregating storeinventory,
+# billitems, etc). These never go to the UI directly, so bigger chunks = fewer
+# round trips = faster cache warm-up.
+_AGG_PAGE_SIZE = 1000
+
+
+def _safe_int(value) -> int:
     try:
-        client = db.client
-        response = execute_with_retry(
-            lambda: client.table("hsn_codes").select("id,tax"),
-            "hsn_codes (tax map)",
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _paginate_table(table: str, select_expr: str, label: str) -> List[Dict]:
+    """Paginate a Supabase select using the larger internal page size. Only
+    used by cache builders — never serves rows directly to the UI."""
+    client = db.client
+    rows: List[Dict] = []
+    start = 0
+    while True:
+        end = start + _AGG_PAGE_SIZE - 1
+        resp = execute_with_retry(
+            lambda s=start, e=end: client.table(table).select(select_expr).range(s, e),
+            f"{label} agg page {start // _AGG_PAGE_SIZE + 1}",
             retries=2,
         )
-        for code in response.data or []:
-            code_id = code.get("id")
-            if code_id is None:
-                continue
-            tax_map[str(code_id)] = _parse_tax_value(code.get("tax"))
-    except Exception as e:
-        logger.warning(f"Failed to load HSN taxes from Supabase: {e}")
+        page = resp.data if resp and resp.data is not None else []
+        if not page:
+            break
+        rows.extend(page)
+        if len(page) < _AGG_PAGE_SIZE:
+            break
+        start += _AGG_PAGE_SIZE
+        if start > 1_000_000:
+            logger.warning("Aggregation page cap hit for %s", label)
+            break
+    return rows
 
-    return tax_map
+
+def _get_hsn_tax_map(force_refresh: bool = False) -> Dict[str, float]:
+    """Return HSN tax map keyed by HSN id from local JSON and Supabase.
+
+    Cached in-process for `_HSN_TAX_CACHE_TTL` seconds to avoid hitting
+    Supabase for every product fetch — HSN data rarely changes.
+    """
+    now = time.time()
+    cached = _HSN_TAX_CACHE.get("map")
+    cached_ts = float(_HSN_TAX_CACHE.get("ts") or 0)
+    if not force_refresh and cached is not None and (now - cached_ts) < _HSN_TAX_CACHE_TTL:
+        return cached  # type: ignore[return-value]
+
+    with _HSN_TAX_LOCK:
+        cached = _HSN_TAX_CACHE.get("map")
+        cached_ts = float(_HSN_TAX_CACHE.get("ts") or 0)
+        if not force_refresh and cached is not None and (time.time() - cached_ts) < _HSN_TAX_CACHE_TTL:
+            return cached  # type: ignore[return-value]
+
+        tax_map: Dict[str, float] = {}
+
+        # Local JSON (fallback)
+        try:
+            for code in get_hsn_codes_data():
+                code_id = code.get("id")
+                if code_id is None:
+                    continue
+                tax_map[str(code_id)] = _parse_tax_value(code.get("tax"))
+        except Exception as e:
+            logger.warning(f"Failed to load HSN taxes from local JSON: {e}")
+
+        # Supabase (preferred)
+        try:
+            client = db.client
+            response = execute_with_retry(
+                lambda: client.table("hsn_codes").select("id,tax"),
+                "hsn_codes (tax map)",
+                retries=2,
+            )
+            for code in response.data or []:
+                code_id = code.get("id")
+                if code_id is None:
+                    continue
+                tax_map[str(code_id)] = _parse_tax_value(code.get("tax"))
+        except Exception as e:
+            logger.warning(f"Failed to load HSN taxes from Supabase: {e}")
+
+        _HSN_TAX_CACHE["map"] = tax_map
+        _HSN_TAX_CACHE["ts"] = time.time()
+        return tax_map
+
+
+def _get_inventory_allocation_map(force_refresh: bool = False) -> Dict[str, int]:
+    """Return total allocated stock per product across all stores.
+
+    Cached for `_INVENTORY_ALLOC_TTL` seconds. Heavy to compute because it has
+    to walk the entire storeinventory table, so caching is essential.
+    """
+    now = time.time()
+    cached = _INVENTORY_ALLOC_CACHE.get("map")
+    cached_ts = float(_INVENTORY_ALLOC_CACHE.get("ts") or 0)
+    if not force_refresh and cached is not None and (now - cached_ts) < _INVENTORY_ALLOC_TTL:
+        return cached  # type: ignore[return-value]
+
+    with _INVENTORY_ALLOC_LOCK:
+        cached = _INVENTORY_ALLOC_CACHE.get("map")
+        cached_ts = float(_INVENTORY_ALLOC_CACHE.get("ts") or 0)
+        if not force_refresh and cached is not None and (time.time() - cached_ts) < _INVENTORY_ALLOC_TTL:
+            return cached  # type: ignore[return-value]
+
+        allocated_by_product: Dict[str, int] = {}
+        try:
+            for row in _paginate_table("storeinventory", "productid, quantity", "storeinventory"):
+                pid = row.get("productid")
+                if not pid:
+                    continue
+                allocated_by_product[str(pid)] = (
+                    allocated_by_product.get(str(pid), 0) + _safe_int(row.get("quantity"))
+                )
+        except Exception as e:
+            logger.warning(
+                "Inventory allocation refresh failed; falling back to local cache: %s", e
+            )
+            try:
+                for row in get_store_inventory_data() or []:
+                    pid = row.get("productid") or row.get("productId")
+                    if not pid:
+                        continue
+                    allocated_by_product[str(pid)] = (
+                        allocated_by_product.get(str(pid), 0) + _safe_int(row.get("quantity"))
+                    )
+            except Exception:
+                pass
+
+        _INVENTORY_ALLOC_CACHE["map"] = allocated_by_product
+        _INVENTORY_ALLOC_CACHE["ts"] = time.time()
+        return allocated_by_product
+
+
+def _get_sold_quantity_map(force_refresh: bool = False) -> Dict[str, int]:
+    """Return net sold quantity per product = billitems (non-cancelled bills)
+    minus approved returns minus replacements (the replaced product was sent
+    back to inventory)."""
+    now = time.time()
+    cached = _SOLD_QTY_CACHE.get("map")
+    cached_ts = float(_SOLD_QTY_CACHE.get("ts") or 0)
+    if not force_refresh and cached is not None and (now - cached_ts) < _SOLD_QTY_TTL:
+        return cached  # type: ignore[return-value]
+
+    with _SOLD_QTY_LOCK:
+        cached = _SOLD_QTY_CACHE.get("map")
+        cached_ts = float(_SOLD_QTY_CACHE.get("ts") or 0)
+        if not force_refresh and cached is not None and (time.time() - cached_ts) < _SOLD_QTY_TTL:
+            return cached  # type: ignore[return-value]
+
+        sold_by_product: Dict[str, int] = {}
+
+        # 1) Build the set of bills that shouldn't count as a sale.
+        cancelled_or_voided: set = set()
+        try:
+            for row in _paginate_table("bills", "id, status", "bills status"):
+                bill_id = row.get("id")
+                if not bill_id:
+                    continue
+                status = str(row.get("status") or "").strip().lower()
+                if status and status not in ("completed", "paid"):
+                    cancelled_or_voided.add(str(bill_id))
+        except Exception as e:
+            logger.warning("Bills status lookup failed; treating all bills as completed: %s", e)
+
+        # 2) Sum billitems.quantity per product, skipping cancelled bills.
+        try:
+            for row in _paginate_table("billitems", "billid, productid, quantity", "billitems"):
+                bill_id = row.get("billid")
+                if bill_id and str(bill_id) in cancelled_or_voided:
+                    continue
+                pid = row.get("productid")
+                if not pid:
+                    continue
+                sold_by_product[str(pid)] = sold_by_product.get(str(pid), 0) + _safe_int(row.get("quantity"))
+        except Exception as e:
+            logger.warning("billitems aggregation failed; falling back to local cache: %s", e)
+            try:
+                for row in get_bill_items_data() or []:
+                    pid = row.get("productid") or row.get("product_id") or row.get("productId")
+                    if not pid:
+                        continue
+                    sold_by_product[str(pid)] = sold_by_product.get(str(pid), 0) + _safe_int(row.get("quantity"))
+            except Exception:
+                pass
+
+        # 3) Subtract approved returns.
+        try:
+            for row in _paginate_table("returns", "product_id, return_quantity, status", "returns"):
+                pid = row.get("product_id")
+                if not pid:
+                    continue
+                status = str(row.get("status") or "").strip().lower()
+                if status and status != "approved":
+                    continue
+                qty = _safe_int(row.get("return_quantity"))
+                if qty <= 0:
+                    continue
+                key = str(pid)
+                sold_by_product[key] = max(0, sold_by_product.get(key, 0) - qty)
+        except Exception as e:
+            logger.warning("Returns subtraction failed (ignoring): %s", e)
+
+        # 4) Subtract replacements (the replaced product went back to stock).
+        try:
+            for row in _paginate_table("replacements", "replaced_product_id, quantity", "replacements"):
+                pid = row.get("replaced_product_id")
+                if not pid:
+                    continue
+                qty = _safe_int(row.get("quantity"))
+                if qty <= 0:
+                    continue
+                key = str(pid)
+                sold_by_product[key] = max(0, sold_by_product.get(key, 0) - qty)
+        except Exception as e:
+            logger.warning("Replacements subtraction failed (ignoring): %s", e)
+
+        _SOLD_QTY_CACHE["map"] = sold_by_product
+        _SOLD_QTY_CACHE["ts"] = time.time()
+        return sold_by_product
+
+
+def invalidate_products_caches() -> None:
+    """Drop cached HSN + inventory + sold maps. Call after a write that
+    could have changed any of these (create/update/delete product, etc.)."""
+    _HSN_TAX_CACHE["map"] = None
+    _HSN_TAX_CACHE["ts"] = 0.0
+    _INVENTORY_ALLOC_CACHE["map"] = None
+    _INVENTORY_ALLOC_CACHE["ts"] = 0.0
+    _SOLD_QTY_CACHE["map"] = None
+    _SOLD_QTY_CACHE["ts"] = 0.0
+
+
+def _transform_product_row(
+    product: Dict,
+    hsn_tax_map: Dict[str, float],
+    allocated_by_product: Optional[Dict[str, int]] = None,
+    sold_by_product: Optional[Dict[str, int]] = None,
+) -> Dict:
+    """Shape a raw Supabase products row into the response format used by the
+    products page (camelCase, derived hsnCode/tax, parsed barcodes list,
+    optional availableStock + soldStock + lifetimeStock).
+    """
+    converted_product = convert_snake_to_camel(product)
+
+    if 'hsnCodeId' in converted_product:
+        converted_product['hsnCode'] = converted_product.pop('hsnCodeId')
+
+    hsn_code_id = converted_product.get("hsnCode")
+    if hsn_code_id is not None and str(hsn_code_id).strip() != "":
+        converted_product["tax"] = hsn_tax_map.get(str(hsn_code_id), 0.0)
+    else:
+        converted_product["tax"] = 0.0
+
+    if 'sellingPrice' in converted_product and converted_product['sellingPrice']:
+        converted_product['displayPrice'] = converted_product['sellingPrice']
+    elif 'price' in converted_product:
+        converted_product['displayPrice'] = converted_product['price']
+
+    barcode_str = converted_product.get('barcode')
+    if isinstance(barcode_str, str) and barcode_str.strip():
+        converted_product['barcodes'] = [b.strip() for b in barcode_str.split(',') if b.strip()]
+    else:
+        converted_product['barcodes'] = []
+
+    if 'batchid' in converted_product and converted_product['batchid']:
+        converted_product['batchId'] = converted_product['batchid']
+    elif 'batchId' not in converted_product:
+        converted_product['batchId'] = None
+
+    product_id = str(converted_product.get("id") or "")
+    global_stock = int(converted_product.get("stock") or 0)
+
+    if allocated_by_product is not None:
+        allocated = int(allocated_by_product.get(product_id, 0))
+        converted_product["globalStock"] = global_stock
+        converted_product["allocatedStock"] = allocated
+        converted_product["inStoresStock"] = allocated
+        converted_product["availableStock"] = max(0, global_stock - allocated)
+
+    if sold_by_product is not None:
+        sold_qty = int(sold_by_product.get(product_id, 0))
+        converted_product["soldStock"] = sold_qty
+        # "Lifetime stock" — currently owned + already sold.
+        converted_product["lifetimeStock"] = global_stock + sold_qty
+
+    return converted_product
+
+
+def get_supabase_products_page(page: int, page_size: int = PRODUCTS_PAGE_SIZE) -> Dict:
+    """Fetch a single page of products directly from Supabase with cached
+    HSN tax + inventory allocation + sold-quantity lookups. Newest first.
+    Returns {data, page, pageSize, total, hasMore}."""
+    if page < 1:
+        page = 1
+    if page_size < 1:
+        page_size = PRODUCTS_PAGE_SIZE
+    if page_size > 1000:
+        page_size = 1000
+
+    client = db.client
+    start = (page - 1) * page_size
+    end = start + page_size - 1
+
+    try:
+        resp = execute_with_retry(
+            lambda: client.table("products")
+            .select("*", count="exact")
+            .order("createdat", desc=True, nullsfirst=False)
+            .range(start, end),
+            f"products paginated page {page}",
+            retries=2,
+        )
+        rows = resp.data if resp and resp.data is not None else []
+        total = resp.count if resp and resp.count is not None else None
+    except Exception as e:
+        logger.warning("Paginated products fetch failed page=%s: %s", page, e)
+        rows = []
+        total = None
+
+    hsn_tax_map = _get_hsn_tax_map()
+    allocated_by_product = _get_inventory_allocation_map()
+    sold_by_product = _get_sold_quantity_map()
+
+    transformed = [
+        _transform_product_row(row, hsn_tax_map, allocated_by_product, sold_by_product)
+        for row in rows
+    ]
+
+    has_more = bool(rows) and len(rows) >= page_size
+    if total is not None:
+        has_more = (start + page_size) < total
+
+    return {
+        "data": transformed,
+        "page": page,
+        "pageSize": page_size,
+        "total": total if total is not None else len(transformed),
+        "hasMore": has_more,
+    }
 
 
 def _normalize_hsn_code_id(raw_value) -> Optional[int]:
@@ -376,8 +707,10 @@ def get_supabase_products() -> List[Dict]:
         client = db.client
         # PostgREST caps .select("*") at ~1000 rows by default; paginate so we return
         # the full catalog instead of silently truncating it for large product sets.
+        # Page size kept small so the progressive loader on the frontend gets its
+        # first page back fast.
         products: List[Dict] = []
-        page_size = 1000
+        page_size = PRODUCTS_PAGE_SIZE
         start = 0
         while True:
             end = start + page_size - 1
@@ -451,7 +784,7 @@ def get_supabase_products_for_billing() -> List[Dict]:
         def _paginate(table: str, select_expr: str, label: str) -> List[Dict]:
             out: List[Dict] = []
             start = 0
-            page_size = 1000
+            page_size = PRODUCTS_PAGE_SIZE
             while True:
                 end = start + page_size - 1
                 resp = execute_with_retry(
@@ -710,7 +1043,7 @@ def get_merged_products() -> Tuple[List[Dict], int]:
             client = db.client
             inventory_rows: List[Dict] = []
             start = 0
-            page_size = 1000
+            page_size = PRODUCTS_PAGE_SIZE
             while True:
                 end = start + page_size - 1
                 inv_resp = execute_with_retry(
@@ -815,12 +1148,13 @@ def create_product(product_data: dict) -> Tuple[Optional[str], str, int]:
 
         # STEP 2: Best-effort sync to Supabase now (queue will retry on failure)
         supabase_result = insert_product_to_supabase(product_data)
+        invalidate_products_caches()
         if not supabase_result:
             logger.warning(
                 f"Product {product_data['id']} saved locally; Supabase sync deferred"
             )
             return product_data["id"], "Product saved locally and queued for sync", 201
-        
+
         logger.info(f"Product created {product_data['id']} (Supabase + local JSON)")
         return product_data['id'], "Product created", 201
     except Exception as e:
@@ -942,7 +1276,8 @@ def update_product(product_id: str, update_data: dict) -> Tuple[bool, str, int]:
             products[product_index]['createdat'] = original_createdat
         products[product_index]['updatedat'] = datetime.now().isoformat()
         save_products_data(products)
-        
+
+        invalidate_products_caches()
         logger.info(f"Product updated {product_id}")
         return True, "Product updated", 200
     except Exception as e:
@@ -1011,7 +1346,8 @@ def delete_product(product_id: str) -> Tuple[bool, str, int]:
         supabase_deleted = delete_product_from_supabase(product_id)
         if not supabase_deleted:
             logger.warning(f"Failed to delete product {product_id} from Supabase, but local deletion successful")
-        
+
+        invalidate_products_caches()
         return True, "Product deleted successfully", 200
     except Exception as e:
         logger.error(f"Error deleting product: {e}", exc_info=True)
