@@ -179,6 +179,13 @@ export default function ProductsPage() {
     const handle = window.setTimeout(() => setDebouncedSearchTerm(searchTerm), 180);
     return () => window.clearTimeout(handle);
   }, [searchTerm]);
+  // Cap on how many filtered rows we render to the DOM at once. Beyond a
+  // few hundred rows the browser layout pass becomes the bottleneck, so we
+  // show the first N matches and let the user click "Show more" to expand.
+  const DEFAULT_ROW_CAP = 100;
+  const [renderRowCap, setRenderRowCap] = useState(DEFAULT_ROW_CAP);
+  // Reset the cap whenever the search / filter changes — a fresh query
+  // should always start with the cheap top-N view.
   const [searchScope, setSearchScope] = useState("all")
   const [stockFilter, setStockFilter] = useState("all")
   // NEW: Advanced filters state
@@ -979,111 +986,143 @@ const handleDeleteProduct = async (productId: string) => {
 
   // Extended filtered products logic
   const filteredProducts = useMemo(() => {
-    const typedProducts: Product[] = products;
-    const filtered = typedProducts.filter((product) => {
-      const q = debouncedSearchTerm.toLowerCase();
-      const batch = product.batchid ? batchMap.get(product.batchid) : undefined;
-      const batchText = `${batch?.batchNumber ?? ""} ${batch?.place ?? ""}`.toLowerCase();
-      const barcodeText = (getBarcode(product) || "").toLowerCase();
-      const hsnCodeId = getProductHsnCodeId(product);
-      const hsnCodeText = (hsnCodeMap.get(hsnCodeId)?.hsnCode || hsnCodeId).toLowerCase();
+    // ── Hoist invariant work OUT of the per-product loop ──
+    // These values depend only on the filters, not on the product being
+    // tested. Computing them once instead of N times shaves hundreds of
+    // string ops + parseFloat calls per re-filter when the catalog is big.
+    const q = debouncedSearchTerm.trim().toLowerCase();
+    const hasQuery = q.length > 0;
+    const scope = searchScope;
 
-      const matchesSearchByScope = (scope: string) => {
-        if (!q) return true;
-        if (scope === "name") return product.name.toLowerCase().includes(q);
-        if (scope === "barcode") return barcodeText.includes(q);
-        if (scope === "batch") return batchText.includes(q);
-        if (scope === "hsn") return hsnCodeText.includes(q);
-        return (
-          product.name.toLowerCase().includes(q) ||
-          barcodeText.includes(q) ||
-          batchText.includes(q) ||
-          hsnCodeText.includes(q)
-        );
-      };
-      const matchesSearch = matchesSearchByScope(searchScope);
+    const priceMin = priceRange.min !== "" ? parseFloat(priceRange.min) : -Infinity;
+    const priceMax = priceRange.max !== "" ? parseFloat(priceRange.max) : Infinity;
+    const sellingPriceMin = sellingPriceRange.min !== "" ? parseFloat(sellingPriceRange.min) : -Infinity;
+    const sellingPriceMax = sellingPriceRange.max !== "" ? parseFloat(sellingPriceRange.max) : Infinity;
+    const taxMin = taxRange.min ? parseFloat(taxRange.min) : 0;
+    const taxMax = taxRange.max ? parseFloat(taxRange.max) : Infinity;
+    const batchFilterStr = String(batchFilter);
+    const fromDateObj = dateAddedFilter.from
+      ? new Date(`${dateAddedFilter.from}T00:00:00.000`)
+      : null;
+    const toDateObj = dateAddedFilter.to
+      ? new Date(`${dateAddedFilter.to}T23:59:59.999`)
+      : null;
+    const hasDateFilter = !!(fromDateObj || toDateObj);
+    const hasStockFilter = stockFilter !== "all";
+    const hasBatchAssignFilter = batchAssignmentFilter !== "all";
+    const hasBatchFilter = batchFilter !== "all";
+    const hasHsnFilter = hsnFilter !== "all";
+    const hasTaxFilter = taxRange.min !== "" || taxRange.max !== "";
+    const hasPriceFilter = priceRange.min !== "" || priceRange.max !== "";
+    const hasSellingPriceFilter = sellingPriceRange.min !== "" || sellingPriceRange.max !== "";
 
-      const stock = Number(product.stock ?? 0);
-      const matchesStock =
-        stockFilter === "all" ||
-        (stockFilter === "low" && stock > 0 && stock <= 5) ||
-        (stockFilter === "out" && stock === 0) ||
-        (stockFilter === "available" && stock > 5);
+    const filtered = products.filter((product) => {
+      // Cheap, almost-always-true filters first — short-circuit early.
+      if (hasStockFilter) {
+        const stock = Number(product.stock ?? 0);
+        if (stockFilter === "low" && !(stock > 0 && stock <= 5)) return false;
+        if (stockFilter === "out" && stock !== 0) return false;
+        if (stockFilter === "available" && !(stock > 5)) return false;
+      }
 
-      const productPrice = Number(product.price) || 0;
-      const priceMin = priceRange.min !== "" ? parseFloat(priceRange.min) : -Infinity;
-      const priceMax = priceRange.max !== "" ? parseFloat(priceRange.max) : Infinity;
-      const matchesPrice = productPrice >= priceMin && productPrice <= priceMax;
+      if (hasPriceFilter) {
+        const productPrice = Number(product.price) || 0;
+        if (productPrice < priceMin || productPrice > priceMax) return false;
+      }
 
-      const productBatchId = product.batchid !== undefined && product.batchid !== null ? String(product.batchid) : "";
-      const matchesBatch = batchFilter === "all" || productBatchId === String(batchFilter);
+      if (hasBatchFilter) {
+        const productBatchId =
+          product.batchid !== undefined && product.batchid !== null
+            ? String(product.batchid)
+            : "";
+        if (productBatchId !== batchFilterStr) return false;
+      }
 
-      const hasBatch = Boolean(product.batchid);
-      const matchesBatchAssignment =
-        batchAssignmentFilter === "all" ||
-        (batchAssignmentFilter === "with-batch" && hasBatch) ||
-        (batchAssignmentFilter === "without-batch" && !hasBatch);
+      if (hasBatchAssignFilter) {
+        const hasBatch = Boolean(product.batchid);
+        if (batchAssignmentFilter === "with-batch" && !hasBatch) return false;
+        if (batchAssignmentFilter === "without-batch" && hasBatch) return false;
+      }
 
-      const sellingPriceMin = sellingPriceRange.min !== "" ? parseFloat(sellingPriceRange.min) : -Infinity;
-      const sellingPriceMax = sellingPriceRange.max !== "" ? parseFloat(sellingPriceRange.max) : Infinity;
-      const productSellingPrice = Number(
-        (product as any).sellingPrice ??
-          (product as any).selling_price ??
-          (product as any).displayPrice ??
-          product.price ??
-          0,
-      ) || 0;
-      const matchesSellingPrice = productSellingPrice >= sellingPriceMin && productSellingPrice <= sellingPriceMax;
+      if (hasSellingPriceFilter) {
+        const productSellingPrice =
+          Number(
+            (product as any).sellingPrice ??
+              (product as any).selling_price ??
+              (product as any).displayPrice ??
+              product.price ??
+              0,
+          ) || 0;
+        if (productSellingPrice < sellingPriceMin || productSellingPrice > sellingPriceMax) {
+          return false;
+        }
+      }
 
-      let matchesDate = true;
-      if (dateAddedFilter.from || dateAddedFilter.to) {
+      if (hasDateFilter) {
         const createdAtRaw =
           (product as any).createdAt ??
           (product as any).createdat ??
           (product as any).created_at ??
           null;
+        const createdAt = createdAtRaw === null
+          ? null
+          : new Date(typeof createdAtRaw === "number" ? createdAtRaw : String(createdAtRaw));
+        if (!createdAt || isNaN(createdAt.getTime())) return false;
+        if (fromDateObj && createdAt < fromDateObj) return false;
+        if (toDateObj && createdAt > toDateObj) return false;
+      }
 
-        const createdAt =
-          createdAtRaw === null
-            ? null
-            : new Date(typeof createdAtRaw === "number" ? createdAtRaw : String(createdAtRaw));
+      // Look up HSN once per product even if the filter doesn't need it —
+      // we still need it for tax/hsn checks below.
+      let hsnCodeId: string | null = null;
+      const getHsnId = () => {
+        if (hsnCodeId === null) hsnCodeId = getProductHsnCodeId(product);
+        return hsnCodeId;
+      };
 
-        if (createdAt && !isNaN(createdAt.getTime())) {
-          const fromDate = dateAddedFilter.from
-            ? new Date(`${dateAddedFilter.from}T00:00:00.000`)
-            : null;
-          const toDate = dateAddedFilter.to
-            ? new Date(`${dateAddedFilter.to}T23:59:59.999`)
-            : null;
-
-          if (fromDate) matchesDate = matchesDate && createdAt >= fromDate;
-          if (toDate) matchesDate = matchesDate && createdAt <= toDate;
-        } else {
-          matchesDate = false;
+      if (hasHsnFilter) {
+        const id = getHsnId();
+        if (hsnFilter === "none") {
+          if (id.trim() !== "") return false;
+        } else if (id !== hsnFilter) {
+          return false;
         }
       }
 
-      const matchesHsn =
-        hsnFilter === "all" ||
-        (hsnFilter === "none" && hsnCodeId.trim() === "") ||
-        hsnCodeId === hsnFilter;
+      if (hasTaxFilter) {
+        const productTax = Number(hsnCodeMap.get(getHsnId())?.tax ?? (product as any).tax ?? 0);
+        if (productTax < taxMin || productTax > taxMax) return false;
+      }
 
-      const productTax = Number(hsnCodeMap.get(hsnCodeId)?.tax ?? (product as any).tax ?? 0);
-      const taxMin = taxRange.min ? parseFloat(taxRange.min) : 0;
-      const taxMax = taxRange.max ? parseFloat(taxRange.max) : Infinity;
-      const matchesTax = productTax >= taxMin && productTax <= taxMax;
+      // Search query last — it's the most expensive per-product check.
+      if (hasQuery) {
+        if (scope === "name") {
+          if (!product.name.toLowerCase().includes(q)) return false;
+        } else if (scope === "barcode") {
+          if (!(getBarcode(product) || "").toLowerCase().includes(q)) return false;
+        } else if (scope === "batch") {
+          const batch = product.batchid ? batchMap.get(product.batchid) : undefined;
+          const batchText = `${batch?.batchNumber ?? ""} ${batch?.place ?? ""}`.toLowerCase();
+          if (!batchText.includes(q)) return false;
+        } else if (scope === "hsn") {
+          const id = getHsnId();
+          const hsnText = (hsnCodeMap.get(id)?.hsnCode || id).toLowerCase();
+          if (!hsnText.includes(q)) return false;
+        } else {
+          // scope === "all" — short-circuit on the first hit.
+          if (product.name.toLowerCase().includes(q)) return true;
+          if ((getBarcode(product) || "").toLowerCase().includes(q)) return true;
+          const batch = product.batchid ? batchMap.get(product.batchid) : undefined;
+          const batchText = `${batch?.batchNumber ?? ""} ${batch?.place ?? ""}`.toLowerCase();
+          if (batchText.includes(q)) return true;
+          const id = getHsnId();
+          const hsnText = (hsnCodeMap.get(id)?.hsnCode || id).toLowerCase();
+          if (hsnText.includes(q)) return true;
+          return false;
+        }
+      }
 
-      return (
-        matchesSearch &&
-        matchesStock &&
-        matchesPrice &&
-        matchesBatch &&
-        matchesBatchAssignment &&
-        matchesSellingPrice &&
-        matchesDate &&
-        matchesHsn &&
-        matchesTax
-      );
+      return true;
     });
 
     const sortedFilteredProducts = [...filtered].sort((a, b) => {
@@ -1123,6 +1162,32 @@ const handleDeleteProduct = async (productId: string) => {
   hsnCodeMap,
   batchMap,
 ]);
+
+  // Reset the row-render cap whenever filters change so a fresh query
+  // doesn't carry over an expanded view from the previous one.
+  useEffect(() => {
+    setRenderRowCap(DEFAULT_ROW_CAP);
+  }, [
+    debouncedSearchTerm,
+    searchScope,
+    stockFilter,
+    priceRange,
+    batchFilter,
+    batchAssignmentFilter,
+    sellingPriceRange,
+    dateAddedFilter,
+    hsnFilter,
+    taxRange,
+    sortBy,
+  ]);
+
+  // The slice actually rendered into the DOM. Keeping this small is the
+  // biggest single perf win on a big catalog because the browser layout
+  // pass scales with row count.
+  const visibleProducts = useMemo(
+    () => filteredProducts.slice(0, renderRowCap),
+    [filteredProducts, renderRowCap],
+  );
 
   // Memoized total inventory value calculation (based on selling price)
   const totalSellingValue = useMemo(() => {
@@ -1913,7 +1978,7 @@ const handleDeleteProduct = async (productId: string) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.map((product) => {
+                  {visibleProducts.map((product) => {
                     const stockStatus = getStockStatus(product.stock)
                     const StatusIcon = stockStatus.icon
                     // Use the precomputed batchMap (O(1) lookup) instead of a
@@ -2095,6 +2160,32 @@ const handleDeleteProduct = async (productId: string) => {
                 </div>
               )}
             </div>
+            {filteredProducts.length > renderRowCap && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-3 text-sm">
+                <div className="text-muted-foreground">
+                  Showing <span className="font-semibold">{visibleProducts.length.toLocaleString()}</span>
+                  {" "}of{" "}
+                  <span className="font-semibold">{filteredProducts.length.toLocaleString()}</span> matches.
+                  Use search or filters to narrow down further.
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRenderRowCap((c) => c + 200)}
+                  >
+                    Show 200 more
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRenderRowCap(filteredProducts.length)}
+                  >
+                    Show all
+                  </Button>
+                </div>
+              </div>
+            )}
             {filteredProducts.length > 15 && (
               <div className="flex justify-between mt-4">
                 <ScrollToTopButton onClick={() => scrollableDivRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} />

@@ -94,10 +94,40 @@ interface BillItem {
   total: number;
   taxPercentage?: number;
   hsnCode?: string;
+  barcode?: string;
   damageReason?: string;
   isReplacementItem?: boolean;
   replacedProductId?: string;
   replacedProductName?: string;
+  replacedProductBarcode?: string;
+  originalBillId?: string;
+  finalAmount?: number;
+}
+
+interface ReplacementRow {
+  id?: string;
+  replacedProductId?: string;
+  replacedProductName?: string;
+  replacedProductBarcode?: string;
+  newProductId?: string;
+  newProductName?: string;
+  newProductBarcode?: string;
+  quantity?: number;
+  price?: number;
+  // Effective diff the customer paid for this swap — backend recomputes
+  // from (newUnitPrice − originalUnitPrice) × qty whenever the original
+  // price can be looked up from the source bill, else falls back to the
+  // stored final_amount.
+  finalAmount?: number;
+  // Raw stored value from the replacements row (kept for audit).
+  storedFinalAmount?: number;
+  // Per-line credit (original price × qty) and new-side amount (new price ×
+  // qty) — let the UI show "− credit / + new = diff" clearly.
+  creditAmount?: number;
+  newAmount?: number;
+  originalUnitPrice?: number;
+  damageReason?: string | null;
+  originalBillId?: string | null;
 }
 
 interface Bill {
@@ -129,6 +159,7 @@ interface Bill {
   isReplacement?: boolean;
   replacementFinalAmount?: number;
   replacementOriginalBillId?: string;
+  replacementItems?: ReplacementRow[];
   paymentMethod?: string;
   createdBy?: string;
   timestamp?: string;
@@ -582,6 +613,32 @@ export default function BillingPage() {
         );
         const replacementOriginalBillId =
           bill.replacementOriginalBillId ?? bill.replacement_original_bill_id ?? "";
+        const replacementItemsRaw: any[] =
+          (Array.isArray(bill.replacementItems) && bill.replacementItems) ||
+          (Array.isArray(bill.replacement_items) && bill.replacement_items) ||
+          [];
+        const replacementItems: ReplacementRow[] = replacementItemsRaw.map((row: any) => ({
+          id: row.id,
+          replacedProductId: row.replaced_product_id ?? row.replacedProductId ?? "",
+          replacedProductName: row.replaced_product_name ?? row.replacedProductName ?? "",
+          replacedProductBarcode: String(
+            row.replaced_product_barcode ?? row.replacedProductBarcode ?? "",
+          ).split(",")[0].trim(),
+          newProductId: row.new_product_id ?? row.newProductId ?? "",
+          newProductName: row.new_product_name ?? row.newProductName ?? "",
+          newProductBarcode: String(
+            row.new_product_barcode ?? row.newProductBarcode ?? "",
+          ).split(",")[0].trim(),
+          quantity: Number(row.quantity ?? 0),
+          price: Number(row.price ?? 0),
+          finalAmount: Number(row.final_amount ?? row.finalAmount ?? 0),
+          storedFinalAmount: Number(row.stored_final_amount ?? row.storedFinalAmount ?? 0),
+          creditAmount: Number(row.credit_amount ?? row.creditAmount ?? 0),
+          newAmount: Number(row.new_amount ?? row.newAmount ?? 0),
+          originalUnitPrice: Number(row.original_unit_price ?? row.originalUnitPrice ?? 0),
+          damageReason: row.damage_reason ?? row.damageReason ?? null,
+          originalBillId: row.original_bill_id ?? row.originalBillId ?? null,
+        }));
         const paymentMethod = bill.paymentMethod ?? bill.paymentmethod ?? "";
         const createdBy =
           bill.createdBy ||
@@ -602,6 +659,7 @@ export default function BillingPage() {
           isReplacement,
           replacementFinalAmount,
           replacementOriginalBillId,
+          replacementItems,
           paymentMethod,
           createdBy,
         };
@@ -897,11 +955,17 @@ export default function BillingPage() {
         total,
         taxPercentage: parseNumber(item.taxPercentage ?? item.tax_percentage ?? item.tax ?? item.gst),
         hsnCode: item.hsnCode || item.hsn || item.hsn_code || item.hsnCodeId || item.hsn_code_id || "-",
+        barcode: String(item.barcode ?? item.barcodes ?? item.bar_code ?? "").split(",")[0].trim(),
         isReplacementItem: Boolean(item.isReplacementItem ?? item.is_replacement_item),
         replacedProductId:
           item.replacedProductId || item.replaced_product_id || item.replacedproductid || "",
         replacedProductName:
           item.replacedProductName || item.replaced_product_name || item.replacedproductname || "",
+        replacedProductBarcode: String(
+          item.replacedProductBarcode ?? item.replaced_product_barcode ?? "",
+        ).split(",")[0].trim(),
+        damageReason: item.damageReason ?? item.damage_reason ?? "",
+        finalAmount: parseNumber(item.finalAmount ?? item.final_amount),
       };
     });
   };
@@ -992,6 +1056,9 @@ export default function BillingPage() {
         total,
         taxPercentage: parseNumber(item.taxPercentage ?? item.tax_percentage ?? item.tax ?? item.gst),
         hsnCode: item.hsnCode || item.hsn || item.hsn_code || item.hsnCodeId || item.hsn_code_id || "-",
+        barcode: String(
+          item.new_product_barcode ?? item.newProductBarcode ?? item.barcode ?? item.barcodes ?? "",
+        ).split(",")[0].trim(),
         isReplacementItem: true,
         replacedProductId,
         replacedProductName:
@@ -1000,14 +1067,48 @@ export default function BillingPage() {
           resolveProductNameById(String(replacedProductId)) ||
           item.productName ||
           "",
+        replacedProductBarcode: String(
+          item.replaced_product_barcode ?? item.replacedProductBarcode ?? "",
+        ).split(",")[0].trim(),
+        damageReason: item.damage_reason ?? item.damageReason ?? "",
+        originalBillId: item.original_bill_id ?? item.originalBillId ?? "",
+        finalAmount: parseNumber(item.final_amount ?? item.finalAmount),
       };
     });
+    // Prefer the already-merged item list from the backend (it now contains
+    // both sale items and replacement items with full metadata). Fall back
+    // to itemsFromReplacement only if the bill ships with no items array at
+    // all — that happens for legacy/offline rows where bill_items wasn't
+    // synced yet but the replacements table has the swap detail.
     const items =
-      isReplacement && itemsFromReplacement.length > 0
-        ? itemsFromReplacement
-        : itemsFromBill.length > 0
+      itemsFromBill.length > 0
         ? itemsFromBill
         : itemsFromReplacement;
+    // Expose the detailed replacement rows separately so the dialog can
+    // render a dedicated "Replacement details" panel without re-deriving
+    // from items.
+    const replacementItems: ReplacementRow[] = replacementRows.map((row: any) => ({
+      id: row.id,
+      replacedProductId: row.replaced_product_id ?? row.replacedProductId ?? "",
+      replacedProductName: row.replaced_product_name ?? row.replacedProductName ?? "",
+      replacedProductBarcode: String(
+        row.replaced_product_barcode ?? row.replacedProductBarcode ?? "",
+      ).split(",")[0].trim(),
+      newProductId: row.new_product_id ?? row.newProductId ?? "",
+      newProductName: row.new_product_name ?? row.newProductName ?? "",
+      newProductBarcode: String(
+        row.new_product_barcode ?? row.newProductBarcode ?? "",
+      ).split(",")[0].trim(),
+      quantity: Number(row.quantity ?? 0),
+      price: Number(row.price ?? 0),
+      finalAmount: Number(row.final_amount ?? row.finalAmount ?? 0),
+      storedFinalAmount: Number(row.stored_final_amount ?? row.storedFinalAmount ?? 0),
+      creditAmount: Number(row.credit_amount ?? row.creditAmount ?? 0),
+      newAmount: Number(row.new_amount ?? row.newAmount ?? 0),
+      originalUnitPrice: Number(row.original_unit_price ?? row.originalUnitPrice ?? 0),
+      damageReason: row.damage_reason ?? row.damageReason ?? null,
+      originalBillId: row.original_bill_id ?? row.originalBillId ?? null,
+    }));
     const subtotalFromBill = parseNumber(rawBill.subtotal ?? rawBill.sub_total);
     const fallbackSubtotal = items.reduce((sum, item) => sum + parseNumber(item.total), 0);
     const subtotal = subtotalFromBill > 0 ? subtotalFromBill : fallbackSubtotal;
@@ -1023,22 +1124,32 @@ export default function BillingPage() {
     );
     const tax = parseNumber(rawBill.tax ?? rawBill.taxAmount ?? rawBill.tax_amount ?? rawBill.taxamount);
 
-    const replacementFinalAmountFromApi = parseNumber(
-      rawBill.replacementFinalAmount ?? rawBill.replacement_final_amount
-    );
+    // Prefer the API's explicit replacementFinalAmount even when it's 0 —
+    // a same-price swap legitimately sums to 0 and we must not silently
+    // overwrite that with item totals. Only fall back to the item sum when
+    // the API didn't return the field at all (legacy/offline rows).
+    const apiReplKey =
+      rawBill.replacementFinalAmount ?? rawBill.replacement_final_amount;
     const replacementAmountFromItems = itemsFromReplacement.reduce(
-      (sum, item) => sum + parseNumber(item.total),
+      // Each replacement row's `final_amount` is the per-swap diff.
+      (sum, item) => sum + parseNumber((item as any).finalAmount ?? (item as any).final_amount ?? item.total),
       0
     );
     const replacementFinalAmount =
-      replacementFinalAmountFromApi > 0 ? replacementFinalAmountFromApi : replacementAmountFromItems;
+      apiReplKey !== undefined && apiReplKey !== null && apiReplKey !== ""
+        ? parseNumber(apiReplKey)
+        : replacementAmountFromItems;
 
     const rawTotal = parseNumber(rawBill.total);
     const computedTotal = Math.max(0, subtotal - discountAmount) + tax;
-    const total = rawTotal > 0
-      ? rawTotal
-      : isReplacement && replacementFinalAmount > 0
+    // For replacement bills the customer-paid amount is the sum of swap
+    // diffs (replacementFinalAmount). Trust that over the bill.total field
+    // since bill.total can hold the pre-credit amount when the POS didn't
+    // properly offset tax on credit lines.
+    const total = isReplacement
       ? replacementFinalAmount
+      : rawTotal > 0
+      ? rawTotal
       : computedTotal;
 
     const customerId = rawBill.customerId || rawBill.customer_id || rawBill.customerid || "";
@@ -1076,6 +1187,7 @@ export default function BillingPage() {
       replacementFinalAmount,
       replacementOriginalBillId:
         rawBill.replacementOriginalBillId || rawBill.replacement_original_bill_id || "",
+      replacementItems,
       paymentMethod: rawBill.paymentMethod || rawBill.paymentmethod || "",
       createdBy,
     };
@@ -1882,23 +1994,30 @@ export default function BillingPage() {
         <div>Customer: ${bill.customerName || "Walk-in Customer"}</div>
         ${bill.customerPhone ? `<div>Phone: ${bill.customerPhone}</div>` : ""}
         <div>Type: ${isReplacement ? "REPLACEMENT" : "STANDARD"}</div>
+        ${isReplacement && (bill as any).replacementOriginalBillId ? `<div>Of bill: ${(bill as any).replacementOriginalBillId}</div>` : ""}
       </div>
 
       <div class="line"></div>
 
       <div style="font-size:12px;margin-bottom:7px;">
         ${safeItems
-          .map((item) => `
+          .map((item: any) => {
+            const barcode = String(item.barcode || "").split(",")[0].trim();
+            const replacedBarcode = String(item.replacedProductBarcode || "").split(",")[0].trim();
+            return `
           <div style="margin-bottom:3px;">
             <div style="display:flex;justify-content:space-between;margin-bottom:1px;">
               <span style="flex:1;">${item.productName}</span>
               <span style="margin-left:5px;">${item.quantity}×₹${formatNumber(item.sellingPrice)}</span>
               <span style="margin-left:5px;min-width:64px;text-align:right;">₹${formatNumber(item.total)}</span>
             </div>
-            ${item.isReplacementItem && item.replacedProductName ? `<div style="font-size:10px;font-weight:bold;">Replaced: ${item.replacedProductName}</div>` : ""}
+            ${barcode ? `<div style="font-size:10px;">Barcode: ${barcode}</div>` : ""}
+            ${item.isReplacementItem && item.replacedProductName ? `<div style="font-size:10px;font-weight:bold;">Replaced: ${item.replacedProductName}${replacedBarcode ? ` (${replacedBarcode})` : ""}</div>` : ""}
+            ${item.isReplacementItem && item.damageReason ? `<div style="font-size:10px;">Reason: ${item.damageReason}</div>` : ""}
             ${item.isReplacementItem ? `<div style="font-size:10px;">Replacement amount: ₹${formatNumber(item.finalAmount)}</div>` : ""}
           </div>
-        `)
+        `;
+          })
           .join("")}
       </div>
 
@@ -2085,10 +2204,16 @@ export default function BillingPage() {
     });
 
     const getEffectiveBillAmount = (bill: Bill): number => {
-      if (bill.isReplacement && (bill.replacementFinalAmount || 0) > 0) {
-        return bill.replacementFinalAmount || 0;
+      // For replacement bills the actual customer-paid figure is the sum of
+      // per-swap diffs (replacementFinalAmount). bill.total can carry the
+      // pre-credit amount when the POS didn't properly offset tax on credit
+      // lines — so we don't trust it on replacement bills. For non-
+      // replacement bills, bill.total is the source of truth.
+      if (bill.isReplacement) {
+        const replAmount = Number(bill.replacementFinalAmount);
+        if (Number.isFinite(replAmount)) return Math.max(0, replAmount);
       }
-      return bill.total || 0;
+      return Number(bill.total || 0);
     };
 
     const getComparableValue = (bill: Bill) => {
@@ -2141,10 +2266,16 @@ export default function BillingPage() {
   });
 
   const getEffectiveBillAmount = (bill: Bill): number => {
-    if (bill.isReplacement && (bill.replacementFinalAmount || 0) > 0) {
-      return bill.replacementFinalAmount || 0;
+    // For replacement bills the actual customer-paid figure is the sum of
+    // per-swap diffs (replacementFinalAmount). bill.total can carry the
+    // pre-credit amount when the POS didn't properly offset tax on credit
+    // lines — so we don't trust it on replacement bills. For non-
+    // replacement bills, bill.total is the source of truth.
+    if (bill.isReplacement) {
+      const replAmount = Number(bill.replacementFinalAmount);
+      if (Number.isFinite(replAmount)) return Math.max(0, replAmount);
     }
-    return bill.total || 0;
+    return Number(bill.total || 0);
   };
 
   const billingStats = useMemo(() => {
@@ -2157,8 +2288,14 @@ export default function BillingPage() {
     let totalRevenue = 0;
     source.forEach((bill: any) => {
       const isRepl = Boolean(bill.isReplacement ?? bill.is_replacement);
-      const replAmt = Number(bill.replacementFinalAmount ?? bill.replacement_final_amount ?? 0);
-      const amount = isRepl && replAmt > 0 ? replAmt : Number(bill.total || 0);
+      const replAmt = Number(bill.replacementFinalAmount ?? bill.replacement_final_amount);
+      // For replacement bills, use the recomputed swap-diff sum even when
+      // it's 0 (a same-price swap legitimately contributes ₹0 to revenue).
+      // Only fall back to bill.total when the replacement figure isn't a
+      // valid number (legacy/offline rows).
+      const amount = isRepl && Number.isFinite(replAmt)
+        ? Math.max(0, replAmt)
+        : Number(bill.total || 0);
       totalRevenue += amount;
       const rawDate = bill.date || bill.timestamp || bill.created_at || bill.createdAt || "";
       const dateStr = rawDate ? String(rawDate).slice(0, 10) : "";
@@ -2185,8 +2322,10 @@ export default function BillingPage() {
       const customerId = bill.customerId || bill.customerid || bill.customer_id;
       if (!customerId) return;
       const isRepl = Boolean(bill.isReplacement ?? bill.is_replacement);
-      const replAmt = Number(bill.replacementFinalAmount ?? bill.replacement_final_amount ?? 0);
-      const amount = isRepl && replAmt > 0 ? replAmt : Number(bill.total || 0);
+      const replAmt = Number(bill.replacementFinalAmount ?? bill.replacement_final_amount);
+      const amount = isRepl && Number.isFinite(replAmt)
+        ? Math.max(0, replAmt)
+        : Number(bill.total || 0);
       const prev = map.get(customerId) || { count: 0, total: 0 };
       map.set(customerId, { count: prev.count + 1, total: prev.total + amount });
     });
@@ -3145,11 +3284,13 @@ export default function BillingPage() {
                   item.sellingPrice ?? item.selling_price ?? item.displayPrice ?? item.price,
                 );
                 const baseTotal = toNumber(item.total || quantity * price);
-                const finalAmount = toNumber(item.finalAmount || item.final_amount || baseTotal);
-                const displayTotal =
-                  selectedBill.isReplacement || isReplacementItem
-                    ? (finalAmount > 0 ? finalAmount : baseTotal)
-                    : baseTotal;
+                // For replacement items, surface the "final amount" (the diff
+                // the customer actually paid for the swap), not the full new
+                // product price. This is the "reduced amount" the user wants.
+                const finalAmountRaw = toNumber(item.finalAmount ?? item.final_amount);
+                const displayTotal = isReplacementItem
+                  ? (Number.isFinite(finalAmountRaw) ? finalAmountRaw : baseTotal)
+                  : baseTotal;
                 const itemTaxPercentage = toNumber(
                   item.taxPercentage ?? item.tax_percentage ?? item.tax ?? item.gst ?? billTaxPercentage,
                 );
@@ -3157,17 +3298,37 @@ export default function BillingPage() {
                   productName: item.productName || item.product_name || item.productname || "Unknown Product",
                   quantity,
                   price,
-                  finalAmount,
+                  finalAmount: finalAmountRaw,
+                  baseTotal,
                   displayTotal,
                   itemTaxPercentage,
                   isReplacementItem,
-                  replacedProductName: item.replacedProductName || item.replaced_product_name || "",
+                  barcode: String(item.barcode ?? item.barcodes ?? item.bar_code ?? "").split(",")[0].trim(),
+                  replacedProductName:
+                    item.replacedProductName || item.replaced_product_name || "",
+                  replacedProductBarcode: String(
+                    item.replacedProductBarcode ?? item.replaced_product_barcode ?? "",
+                  ).split(",")[0].trim(),
+                  damageReason: item.damageReason ?? item.damage_reason ?? "",
                 };
               });
-              const subtotalValue =
-                toNumber(selectedBill.subtotal) > 0
-                  ? toNumber(selectedBill.subtotal)
-                  : selectedBillItems.reduce((sum: number, item: any) => sum + toNumber(item?.displayTotal), 0);
+              const replacementRows: ReplacementRow[] = Array.isArray(selectedBill.replacementItems)
+                ? selectedBill.replacementItems
+                : [];
+              // For replacement bills, sum the per-line displayTotal (which is
+              // already the customer-paid diff for replacement lines and the
+              // base amount for regular sale lines). That sum is the real
+              // customer-paid total — `bill.subtotal` from the POS can be
+              // stale/wrong on replacement bills, so we prefer the derived sum.
+              const derivedSubtotal = selectedBillItems.reduce(
+                (sum: number, item: any) => sum + toNumber(item?.displayTotal),
+                0,
+              );
+              const subtotalValue = selectedBill.isReplacement
+                ? derivedSubtotal
+                : (toNumber(selectedBill.subtotal) > 0
+                    ? toNumber(selectedBill.subtotal)
+                    : derivedSubtotal);
               const createdByName =
                 selectedBill.createdBy ||
                 (selectedBill as any).created_by ||
@@ -3206,7 +3367,13 @@ export default function BillingPage() {
                   : status === "cancelled" || status === "canceled"
                   ? "bg-rose-50 text-rose-700 border-rose-200"
                   : "bg-slate-50 text-slate-700 border-slate-200";
-              const totalValue = getEffectiveBillAmount(selectedBill);
+              // For replacement bills the on-bill total can be wrong (the POS
+              // sometimes saves the pre-credit amount). The customer-paid
+              // value is the sum of per-line displayTotal, with discount
+              // re-applied — that's what we surface in the dialog.
+              const totalValue = selectedBill.isReplacement
+                ? Math.max(0, derivedSubtotal - toNumber(selectedBill.discountAmount))
+                : getEffectiveBillAmount(selectedBill);
               const discountAmount = toNumber(selectedBill.discountAmount);
               const replacementReason = (() => {
                 if (!selectedBill.isReplacement) return "";
@@ -3256,7 +3423,29 @@ export default function BillingPage() {
                           <dd>
                             Replacement
                             {selectedBill.replacementOriginalBillId && (
-                              <span className="text-muted-foreground"> · of {selectedBill.replacementOriginalBillId}</span>
+                              <>
+                                <span className="text-muted-foreground"> · of </span>
+                                <button
+                                  type="button"
+                                  className="text-blue-600 underline-offset-2 hover:underline"
+                                  onClick={() => {
+                                    const originalId = selectedBill.replacementOriginalBillId;
+                                    if (!originalId) return;
+                                    const target = currentBills.find((b) => b.id === originalId);
+                                    if (target) {
+                                      setSelectedBill(target);
+                                      setIsViewDialogOpen(true);
+                                    } else {
+                                      // Bill might be on a later paginated page —
+                                      // surface the id even if we can't navigate yet.
+                                      setBillSearchTerm(originalId);
+                                      setIsViewDialogOpen(false);
+                                    }
+                                  }}
+                                >
+                                  {selectedBill.replacementOriginalBillId}
+                                </button>
+                              </>
                             )}
                           </dd>
                           {replacementReason && (
@@ -3278,20 +3467,168 @@ export default function BillingPage() {
                           {selectedBillItems.map((item: any, index: number) => (
                             <li key={index} className="py-2 flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <div className="truncate">{item.productName}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {item.quantity} × ₹{item.price.toFixed(2)}
-                                  {item.isReplacementItem && item.replacedProductName && (
-                                    <span> · replaced {item.replacedProductName}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="truncate">{item.productName}</span>
+                                  {item.isReplacementItem && (
+                                    <Badge variant="secondary" className="text-[10px]">
+                                      Replacement
+                                    </Badge>
                                   )}
                                 </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {item.quantity} × ₹{item.price.toFixed(2)}
+                                  {item.isReplacementItem && item.baseTotal > 0 && (
+                                    <span className="ml-1">
+                                      · new total ₹{item.baseTotal.toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
+                                {item.barcode && (
+                                  <div className="text-[11px] text-muted-foreground">
+                                    Barcode: <code className="font-mono">{item.barcode}</code>
+                                  </div>
+                                )}
+                                {item.isReplacementItem && item.replacedProductName && (
+                                  <div className="text-[11px] text-muted-foreground">
+                                    Returned:
+                                    <span className="ml-1">{item.replacedProductName}</span>
+                                    {item.replacedProductBarcode && (
+                                      <span className="ml-1">
+                                        (<code className="font-mono">{item.replacedProductBarcode}</code>)
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {item.isReplacementItem && item.damageReason && (
+                                  <div className="text-[11px] text-muted-foreground">
+                                    Reason: {item.damageReason}
+                                  </div>
+                                )}
                               </div>
-                              <div className="font-medium tabular-nums">₹{item.displayTotal.toFixed(2)}</div>
+                              <div className="text-right">
+                                <div className={`font-medium tabular-nums ${item.isReplacementItem && item.displayTotal < 0 ? "text-rose-600" : ""}`}>
+                                  ₹{item.displayTotal.toFixed(2)}
+                                </div>
+                                {item.isReplacementItem && (
+                                  <div className="text-[10px] text-muted-foreground">
+                                    {item.displayTotal >= 0 ? "extra paid" : "refund owed"}
+                                  </div>
+                                )}
+                              </div>
                             </li>
                           ))}
                         </ul>
                       )}
                     </div>
+
+                    {/* Dedicated panel for replacement swaps — shows each
+                        returned ↔ new product pair with its quantity,
+                        barcode, reason and the difference charged. */}
+                    {replacementRows.length > 0 && (
+                      <div className="rounded-md border border-dashed bg-amber-50/40 p-3 space-y-2">
+                        <div className="text-xs uppercase tracking-wide text-amber-700 font-semibold">
+                          Replacement details
+                        </div>
+                        <ul className="space-y-3">
+                          {replacementRows.map((row, idx) => {
+                            const qty = Number(row.quantity || 0);
+                            const newUnit = Number(row.price || 0);
+                            const newAmount = Number(row.newAmount || newUnit * qty);
+                            const creditAmount = Number(row.creditAmount || 0);
+                            const finalAmount = Number(row.finalAmount || 0);
+                            const hasOriginalPrice = Number(row.originalUnitPrice || 0) > 0;
+                            const balanceMath = Math.round((newAmount - creditAmount) * 100) / 100;
+                            // If the stored diff differs from (new − credit)
+                            // by more than ₹0.5, surface a note so the admin
+                            // sees the data quality issue rather than a
+                            // confusing "6000 − 6000 = ₹174" on screen.
+                            const mathMismatch =
+                              hasOriginalPrice &&
+                              Math.abs(balanceMath - finalAmount) > 0.5;
+                            const replacedName = row.replacedProductName || "Unknown product";
+                            const newName = row.newProductName || "Unknown product";
+                            return (
+                              <li key={row.id || idx} className="text-xs space-y-1">
+                                <div className="font-medium text-sm">#{idx + 1} · Qty {qty}</div>
+                                <div className="text-muted-foreground">
+                                  Returned: {replacedName}
+                                  {row.replacedProductBarcode && (
+                                    <span className="ml-1">
+                                      (<code className="font-mono">{row.replacedProductBarcode}</code>)
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-muted-foreground">
+                                  Given: {newName}
+                                  {row.newProductBarcode && (
+                                    <span className="ml-1">
+                                      (<code className="font-mono">{row.newProductBarcode}</code>)
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] pt-1 border-t">
+                                  <div>New product ({qty} × ₹{newUnit.toFixed(2)})</div>
+                                  <div className="text-right tabular-nums">₹{newAmount.toFixed(2)}</div>
+                                  {hasOriginalPrice && (
+                                    <>
+                                      <div>
+                                        Return credit ({qty} × ₹{Number(row.originalUnitPrice || 0).toFixed(2)})
+                                      </div>
+                                      <div className="text-right tabular-nums text-rose-600">
+                                        −₹{creditAmount.toFixed(2)}
+                                      </div>
+                                    </>
+                                  )}
+                                  <div className="font-semibold">
+                                    {finalAmount >= 0 ? "Customer paid" : "Refund owed"}
+                                  </div>
+                                  <div className="text-right font-semibold tabular-nums">
+                                    ₹{Math.abs(finalAmount).toFixed(2)}
+                                  </div>
+                                </div>
+                                {!hasOriginalPrice && (
+                                  <div className="text-[11px] text-amber-700">
+                                    Original price unavailable for this product — only the recorded swap charge is shown.
+                                  </div>
+                                )}
+                                {mathMismatch && (
+                                  <div className="text-[11px] text-amber-700">
+                                    Heads up: new − credit = ₹{balanceMath.toFixed(2)}, but the POS recorded ₹{finalAmount.toFixed(2)} as paid. Usually means a tax-handling issue on the original sale.
+                                  </div>
+                                )}
+                                {row.originalBillId && (
+                                  <div className="text-muted-foreground">
+                                    From bill:{" "}
+                                    <button
+                                      type="button"
+                                      className="text-blue-600 underline-offset-2 hover:underline"
+                                      onClick={() => {
+                                        const target = currentBills.find(
+                                          (b) => b.id === row.originalBillId,
+                                        );
+                                        if (target) {
+                                          setSelectedBill(target);
+                                        } else {
+                                          setBillSearchTerm(row.originalBillId || "");
+                                          setIsViewDialogOpen(false);
+                                        }
+                                      }}
+                                    >
+                                      {row.originalBillId}
+                                    </button>
+                                  </div>
+                                )}
+                                {row.damageReason && (
+                                  <div className="text-muted-foreground">
+                                    Reason: {row.damageReason}
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
 
                     <div className="border-t pt-3 space-y-1 text-sm">
                       <div className="flex justify-between text-muted-foreground">

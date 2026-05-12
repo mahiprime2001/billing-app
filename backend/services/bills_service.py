@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple, Any
 from zoneinfo import ZoneInfo
 
+from postgrest.exceptions import APIError
 from config import Config
 from utils.supabase_db import db
 from utils.supabase_resilience import (
@@ -431,6 +432,56 @@ def _enrich_bills_with_details(client, bills: List[Dict]) -> List[Dict]:
             )
             replacements.extend(replacements_response.data or [])
 
+    # Look up the price the replaced product sold for on its ORIGINAL bill.
+    # This is what the customer is being credited for during the swap. We
+    # need it both to recompute the actual diff when the POS persisted a
+    # wrong `final_amount`, and to surface the credit in the dashboard.
+    original_price_lookup: Dict[tuple, float] = {}
+    if replacements:
+        original_bill_ids = []
+        seen_orig_bills = set()
+        for replacement in replacements:
+            orig_bill = (
+                replacement.get("original_bill_id")
+                or replacement.get("originalbillid")
+                or replacement.get("originalBillId")
+            )
+            if orig_bill and orig_bill not in seen_orig_bills:
+                seen_orig_bills.add(orig_bill)
+                original_bill_ids.append(orig_bill)
+
+        if original_bill_ids:
+            original_items: List[Dict] = []
+            for chunk in chunked(original_bill_ids):
+                try:
+                    orig_resp = execute_with_retry(
+                        lambda chunk=chunk: client.table("billitems")
+                        .select("billid, productid, price, quantity")
+                        .in_("billid", chunk),
+                        "original bill items for replacements",
+                    )
+                    original_items.extend(orig_resp.data or [])
+                except Exception as orig_err:
+                    logger.warning(
+                        "Failed to fetch original bill items for replacement lookup: %s",
+                        orig_err,
+                    )
+            for row in original_items:
+                bid = row.get("billid")
+                pid = row.get("productid")
+                if not bid or not pid:
+                    continue
+                try:
+                    p = float(row.get("price") or 0)
+                except (TypeError, ValueError):
+                    p = 0.0
+                # Only set first occurrence — multiple lines for the same
+                # product on a single bill would aggregate; the per-line
+                # price is what we care about.
+                key = (str(bid), str(pid))
+                if key not in original_price_lookup:
+                    original_price_lookup[key] = p
+
     # Step 4: Collect product ids from bill items and replacements
     product_ids: List[str] = []
     product_id_set = set()
@@ -463,7 +514,7 @@ def _enrich_bills_with_details(client, bills: List[Dict]) -> List[Dict]:
     if product_ids:
         for chunk in chunked(product_ids):
             products_response = execute_with_retry(
-                lambda chunk=chunk: client.table("products").select("id,name,price,hsn_code_id,hsn_codes(tax)").in_("id", chunk),
+                lambda chunk=chunk: client.table("products").select("id,name,price,barcode,hsn_code_id,hsn_codes(tax)").in_("id", chunk),
                 "products for bills",
             )
             for row in products_response.data or []:
@@ -487,6 +538,7 @@ def _enrich_bills_with_details(client, bills: List[Dict]) -> List[Dict]:
                         "id": row.get("id"),
                         "name": row.get("name"),
                         "price": row.get("price") or row.get("sellingprice") or row.get("selling_price"),
+                        "barcode": row.get("barcode"),
                         "tax": row.get("tax"),
                         "hsn_code_id": row.get("hsn_code_id") or row.get("hsncodeid"),
                     }
@@ -535,6 +587,7 @@ def _enrich_bills_with_details(client, bills: List[Dict]) -> List[Dict]:
         products_map[product_id] = {
             "name": product.get("name", "Unknown Product"),
             "price": product.get("price", 0),
+            "barcode": product.get("barcode") or "",
             "tax": product.get("tax", 0),
             "hsn_code_id": hsn_code_id,
             "hsn_code": hsn_code,
@@ -586,14 +639,38 @@ def _enrich_bills_with_details(client, bills: List[Dict]) -> List[Dict]:
         except (TypeError, ValueError):
             quantity = 0
         try:
-            price = float(replacement.get("price") or 0)
+            new_unit_price = float(replacement.get("price") or 0)
         except (TypeError, ValueError):
-            price = 0.0
+            new_unit_price = 0.0
+        # `replacements.final_amount` is what the POS computed and stored at
+        # save time — this is the figure that, summed across replacements on
+        # the bill, equals what the customer actually paid (bill.total). We
+        # trust it as the source of truth and surface the supporting numbers
+        # (new amount + original price) so the admin can audit how it was
+        # arrived at, without re-deriving math on a different tax basis.
         try:
-            final_amount = float(replacement.get("final_amount") or 0)
+            stored_final_amount = float(replacement.get("final_amount") or 0)
         except (TypeError, ValueError):
-            final_amount = 0.0
-        line_total = final_amount if final_amount > 0 else (price * quantity)
+            stored_final_amount = 0.0
+
+        # Bring the credit onto the same tax basis as the new price.
+        # `billitems.price` is stored pre-tax, `replacements.price` is
+        # post-tax — multiply the lookup result by (1 + replaced_tax/100) so
+        # the rendered "Credit ₹X" matches what the customer originally paid.
+        original_unit_price_pretax = 0.0
+        if original_bill_id and replaced_product_id:
+            original_unit_price_pretax = original_price_lookup.get(
+                (str(original_bill_id), str(replaced_product_id)), 0.0
+            )
+        replaced_tax_rate = float(
+            products_map.get(str(replaced_product_id), {}).get("tax", 0) or 0
+        )
+        original_unit_price_with_tax = round(
+            original_unit_price_pretax * (1 + replaced_tax_rate / 100), 2
+        )
+
+        effective_diff = stored_final_amount
+        line_total = effective_diff
 
         replaced_product_name = products_map.get(replaced_product_id, {}).get(
             "name", "Unknown Product"
@@ -601,6 +678,12 @@ def _enrich_bills_with_details(client, bills: List[Dict]) -> List[Dict]:
         new_product_name = products_map.get(new_product_id, {}).get(
             "name", "Unknown Product"
         )
+
+        replaced_product_barcode = products_map.get(replaced_product_id, {}).get("barcode", "")
+        new_product_barcode = products_map.get(new_product_id, {}).get("barcode", "")
+
+        new_amount = round(new_unit_price * quantity, 2)
+        credit_amount = round(original_unit_price_with_tax * quantity, 2)
 
         replacement_stats["rows"] += 1
         replacement_stats["quantity"] += quantity
@@ -610,12 +693,19 @@ def _enrich_bills_with_details(client, bills: List[Dict]) -> List[Dict]:
                 "id": replacement.get("id"),
                 "replaced_product_id": replaced_product_id,
                 "replaced_product_name": replaced_product_name,
+                "replaced_product_barcode": replaced_product_barcode,
                 "new_product_id": new_product_id,
                 "new_product_name": new_product_name,
+                "new_product_barcode": new_product_barcode,
                 "quantity": quantity,
-                "price": price,
-                "final_amount": line_total,
+                "price": new_unit_price,
+                "original_unit_price": original_unit_price_with_tax,
+                "credit_amount": credit_amount,
+                "new_amount": new_amount,
+                "stored_final_amount": stored_final_amount,
+                "final_amount": effective_diff,
                 "damage_reason": replacement.get("damage_reason") or replacement.get("reason"),
+                "original_bill_id": original_bill_id,
             }
         )
 
@@ -636,6 +726,8 @@ def _enrich_bills_with_details(client, bills: List[Dict]) -> List[Dict]:
             item["productName"] = product_info["name"]
             item["productId"] = product_id
             item["tax"] = product_info.get("tax", 0)
+            if product_info.get("barcode"):
+                item["barcode"] = product_info.get("barcode")
             if product_info.get("hsn_code_id") is not None:
                 item["hsn_code_id"] = product_info.get("hsn_code_id")
                 item["hsnCodeId"] = product_info.get("hsn_code_id")
@@ -665,35 +757,54 @@ def _enrich_bills_with_details(client, bills: List[Dict]) -> List[Dict]:
         replacement_items_as_bill_items = []
         if replacement_stats:
             for replacement_item in replacement_stats.get("replacement_items", []):
-                line_total = float(
-                    replacement_item.get("final_amount")
-                    or (
-                        float(replacement_item.get("price") or 0)
-                        * int(replacement_item.get("quantity") or 0)
-                    )
-                )
+                qty_int = int(replacement_item.get("quantity") or 0)
+                new_unit_price = float(replacement_item.get("price") or 0)
+                # `total` on the rendered line should be the FULL new-product
+                # amount the customer is receiving (qty × new unit price).
+                # The diff the customer paid lives separately as
+                # final_amount, so the UI can show both numbers cleanly.
+                new_amount = round(new_unit_price * qty_int, 2)
+                diff_amount = float(replacement_item.get("final_amount") or 0)
                 replacement_items_as_bill_items.append(
                     {
                         "productid": replacement_item.get("new_product_id"),
                         "productId": replacement_item.get("new_product_id"),
                         "productname": replacement_item.get("new_product_name"),
                         "productName": replacement_item.get("new_product_name"),
-                        "quantity": int(replacement_item.get("quantity") or 0),
-                        "price": float(replacement_item.get("price") or 0),
-                        "total": line_total,
+                        "barcode": replacement_item.get("new_product_barcode") or "",
+                        "quantity": qty_int,
+                        "price": new_unit_price,
+                        "total": new_amount,
                         "is_replacement_item": True,
                         "isReplacementItem": True,
                         "replaced_product_id": replacement_item.get("replaced_product_id"),
                         "replacedProductId": replacement_item.get("replaced_product_id"),
                         "replaced_product_name": replacement_item.get("replaced_product_name"),
                         "replacedProductName": replacement_item.get("replaced_product_name"),
-                        "final_amount": replacement_item.get("final_amount"),
-                        "finalAmount": replacement_item.get("final_amount"),
+                        "replaced_product_barcode": replacement_item.get("replaced_product_barcode") or "",
+                        "replacedProductBarcode": replacement_item.get("replaced_product_barcode") or "",
+                        "damage_reason": replacement_item.get("damage_reason"),
+                        "damageReason": replacement_item.get("damage_reason"),
+                        "final_amount": diff_amount,
+                        "finalAmount": diff_amount,
                     }
                 )
 
+        # Merge sale items + replacement items so mixed bills (a partial
+        # replacement plus a regular sale on the same invoice) don't lose
+        # their non-replacement line items. The frontend can still tell the
+        # two kinds apart via the `isReplacementItem` flag.
         if replacement_stats and replacement_items_as_bill_items:
-            resolved_items = replacement_items_as_bill_items
+            replacement_product_ids = {
+                normalize_id(item.get("productId") or item.get("productid"))
+                for item in replacement_items_as_bill_items
+                if item.get("productId") or item.get("productid")
+            }
+            non_replacement_bill_items = [
+                item for item in (bill_items or existing_items or [])
+                if normalize_id(item.get("productId") or item.get("productid")) not in replacement_product_ids
+            ]
+            resolved_items = non_replacement_bill_items + replacement_items_as_bill_items
         else:
             resolved_items = bill_items or existing_items or replacement_items_as_bill_items
         bill["items"] = resolved_items
@@ -813,23 +924,50 @@ def get_bills_paginated(
             except Exception:
                 pass
 
-        query = client.table("bills").select("*", count="exact")
-        if store_id:
-            query = query.eq("storeid", store_id)
-        if from_date:
-            query = query.gte("created_at", from_date)
-        if to_date:
-            query = query.lte("created_at", to_date)
-        query = query.order("created_at", desc=True)
+        def _build_query():
+            q = client.table("bills").select("*", count="exact")
+            if store_id:
+                q = q.eq("storeid", store_id)
+            if from_date:
+                q = q.gte("created_at", from_date)
+            if to_date:
+                q = q.lte("created_at", to_date)
+            return q.order("created_at", desc=True)
 
         start = max(0, (page - 1) * page_size)
         end = start + page_size - 1
-        response = execute_with_retry(
-            lambda: query.range(start, end),
-            "bills paginated",
-        )
-        bills = response.data or []
-        total = response.count if response.count is not None else len(bills)
+
+        try:
+            response = execute_with_retry(
+                lambda: _build_query().range(start, end),
+                "bills paginated",
+            )
+            bills = response.data or []
+            total = response.count if response.count is not None else len(bills)
+        except APIError as range_err:
+            # PostgREST returns PGRST103 when the requested range starts past
+            # the last row (e.g. asking for offset=200 against a 5-row table).
+            # That's a normal "no more pages" outcome, not a real failure —
+            # surface an empty page with the true total so the frontend stops
+            # asking for more.
+            code = getattr(range_err, "code", None)
+            message = str(getattr(range_err, "message", range_err))
+            is_range_overflow = (
+                code == "PGRST103"
+                or "Requested range not satisfiable" in message
+            )
+            if not is_range_overflow:
+                raise
+            # Ask for just the count so we know the true `total` to report.
+            try:
+                count_resp = execute_with_retry(
+                    lambda: _build_query().range(0, 0),
+                    "bills paginated count",
+                )
+                total = count_resp.count if count_resp.count is not None else 0
+            except Exception:
+                total = 0
+            bills = []
 
         if include_details:
             bills = _enrich_bills_with_details(client, bills)
