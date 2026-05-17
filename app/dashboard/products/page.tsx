@@ -23,6 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -50,6 +51,13 @@ import {
   XCircle,
   Calendar,
   Filter, // NEW: For filters button icon
+  Warehouse,
+  ShoppingCart,
+  X,
+  ArrowUpDown,
+  Layers,
+  SlidersHorizontal,
+  Check,
 } from "lucide-react";
 import PrintDialog from "@/components/PrintDialog";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
@@ -1023,6 +1031,13 @@ const handleDeleteProduct = async (productId: string) => {
         if (stockFilter === "low" && !(stock > 0 && stock <= 5)) return false;
         if (stockFilter === "out" && stock !== 0) return false;
         if (stockFilter === "available" && !(stock > 5)) return false;
+        if (stockFilter === "unordered") {
+          const sold = Number((product as any).soldStock ?? 0);
+          const inStores = Number(
+            (product as any).inStoresStock ?? (product as any).allocatedStock ?? 0,
+          );
+          if (sold !== 0 || inStores !== 0) return false;
+        }
       }
 
       if (hasPriceFilter) {
@@ -1231,6 +1246,30 @@ const handleDeleteProduct = async (productId: string) => {
     () => filteredProducts.reduce((sum, p) => sum + Number(p.stock ?? 0), 0),
     [filteredProducts]
   );
+
+  const godownStats = useMemo(() => {
+    let items = 0;
+    let stock = 0;
+    for (const p of filteredProducts) {
+      const available = Number(
+        (p as any).availableStock ?? (p as any).globalStock ?? p.stock ?? 0
+      );
+      if (available > 0) items += 1;
+      stock += available;
+    }
+    return { items, stock };
+  }, [filteredProducts]);
+
+  const soldStats = useMemo(() => {
+    let items = 0;
+    let stock = 0;
+    for (const p of filteredProducts) {
+      const sold = Number((p as any).soldStock ?? 0);
+      if (sold > 0) items += 1;
+      stock += sold;
+    }
+    return { items, stock };
+  }, [filteredProducts]);
 
   const getStockStatus = (stock: number) => {
     if (stock === 0) return { label: "Out of Stock", variant: "destructive" as const, icon: XCircle }
@@ -1798,55 +1837,73 @@ const handleDeleteProduct = async (productId: string) => {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4">
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Package className="h-8 w-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Products</p>
-                  <p className="text-2xl font-bold text-gray-900">{filteredProducts.length}</p>
-                </div>
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs font-medium text-gray-600">Total Products</p>
+                <Package className="h-5 w-5 text-blue-600 shrink-0" />
               </div>
+              <p className="mt-2 text-2xl font-bold text-gray-900 break-words">
+                {filteredProducts.length}
+              </p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Stock</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {totalFilteredStock}
-                  </p>
-                </div>
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs font-medium text-gray-600">Total Stock</p>
+                <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
               </div>
+              <p className="mt-2 text-2xl font-bold text-gray-900 break-words">
+                {totalFilteredStock}
+              </p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <AlertCircle className="h-8 w-8 text-yellow-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Value of Selling Price</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ₹{totalSellingValue}
-                  </p>
-                </div>
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs font-medium text-gray-600">In Godown</p>
+                <Warehouse className="h-5 w-5 text-indigo-600 shrink-0" />
               </div>
+              <p className="mt-2 text-2xl font-bold text-gray-900 break-words">
+                {godownStats.items}
+              </p>
+              <p className="text-xs text-gray-500">{godownStats.stock} in stock</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Package className="h-8 w-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Inventory Price Value</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ₹{totalCostValue}
-                  </p>
-                </div>
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs font-medium text-gray-600">Sold Units</p>
+                <ShoppingCart className="h-5 w-5 text-purple-600 shrink-0" />
               </div>
+              <p className="mt-2 text-2xl font-bold text-gray-900 break-words">
+                {soldStats.items}
+              </p>
+              <p className="text-xs text-gray-500">{soldStats.stock} in stock</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs font-medium text-gray-600">Selling Value</p>
+                <AlertCircle className="h-5 w-5 text-yellow-600 shrink-0" />
+              </div>
+              <p className="mt-2 text-2xl font-bold text-gray-900 break-words">
+                ₹{totalSellingValue}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs font-medium text-gray-600">Inventory Value</p>
+                <Package className="h-5 w-5 text-blue-600 shrink-0" />
+              </div>
+              <p className="mt-2 text-2xl font-bold text-gray-900 break-words">
+                ₹{totalCostValue}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -1857,56 +1914,224 @@ const handleDeleteProduct = async (productId: string) => {
             <CardTitle>Product Catalog</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search products, barcodes, batch, HSN..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+            {(() => {
+              const scopeOptions = [
+                { value: "all", label: "All Fields" },
+                { value: "name", label: "Name" },
+                { value: "barcode", label: "Barcode" },
+                { value: "batch", label: "Batch" },
+                { value: "hsn", label: "HSN" },
+              ];
+              const stockOptions = [
+                { value: "all", label: "All", dot: "bg-slate-400" },
+                { value: "available", label: "In Stock", dot: "bg-emerald-500" },
+                { value: "low", label: "Low", dot: "bg-amber-500" },
+                { value: "out", label: "Out", dot: "bg-rose-500" },
+                { value: "unordered", label: "Unordered", dot: "bg-violet-500" },
+              ];
+              const sortOptions = [
+                { value: "newest", label: "Newest First" },
+                { value: "oldest", label: "Oldest First" },
+                { value: "name_asc", label: "Name A → Z" },
+                { value: "name_desc", label: "Name Z → A" },
+                { value: "stock_desc", label: "Stock High → Low" },
+                { value: "price_asc", label: "Price Low → High" },
+                { value: "price_desc", label: "Price High → Low" },
+              ];
+              const scopeMap = Object.fromEntries(scopeOptions.map((o) => [o.value, o.label]));
+              const stockMap = Object.fromEntries(stockOptions.map((o) => [o.value, o.label]));
+              const sortMap = Object.fromEntries(sortOptions.map((o) => [o.value, o.label]));
+              const filterCount =
+                (searchScope !== "all" ? 1 : 0) + (stockFilter !== "all" ? 1 : 0);
+              const resetFilters = () => {
+                setSearchScope("all");
+                setStockFilter("all");
+              };
+              const resetAll = () => {
+                resetFilters();
+                setSortBy("newest");
+              };
+              const anyActive = filterCount > 0 || sortBy !== "newest";
+              return (
+                <div className="mb-6 space-y-3">
+                  <div className="flex flex-col md:flex-row md:items-center gap-2">
+                    <div className="w-full md:w-[460px]">
+                      <div className="relative group">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 group-focus-within:text-blue-600 transition-colors" />
+                        <Input
+                          placeholder="Search products, barcodes, batch, HSN..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-10 pr-9 h-10 bg-white border-slate-200 focus-visible:ring-blue-500/30"
+                        />
+                        {searchTerm && (
+                          <button
+                            onClick={() => setSearchTerm("")}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                            aria-label="Clear search"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="h-10 gap-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          >
+                            <ArrowUpDown className="h-4 w-4 text-slate-500" />
+                            <span className="hidden sm:inline text-xs text-slate-500">Sort:</span>
+                            <span className="text-sm font-medium">{sortMap[sortBy]}</span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-56 p-1">
+                          {sortOptions.map((opt) => (
+                            <button
+                              key={opt.value}
+                              onClick={() => setSortBy(opt.value)}
+                              className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors ${
+                                sortBy === opt.value
+                                  ? "bg-blue-50 font-medium text-blue-700"
+                                  : "text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              <span>{opt.label}</span>
+                              {sortBy === opt.value && <Check className="h-4 w-4" />}
+                            </button>
+                          ))}
+                        </PopoverContent>
+                      </Popover>
+
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="h-10 gap-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 relative"
+                          >
+                            <SlidersHorizontal className="h-4 w-4 text-slate-500" />
+                            <span className="text-sm font-medium">Filters</span>
+                            {filterCount > 0 && (
+                              <span className="ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-semibold text-white">
+                                {filterCount}
+                              </span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-[360px] p-0">
+                          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <SlidersHorizontal className="h-4 w-4 text-slate-600" />
+                              <h4 className="text-sm font-semibold text-slate-900">Filters</h4>
+                            </div>
+                            {filterCount > 0 && (
+                              <button
+                                onClick={resetFilters}
+                                className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="space-y-5 p-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                <Search className="h-3 w-3" />
+                                Search In
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {scopeOptions.map((opt) => {
+                                  const active = searchScope === opt.value;
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      onClick={() => setSearchScope(opt.value)}
+                                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                                        active
+                                          ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                                      }`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                <Layers className="h-3 w-3" />
+                                Stock Level
+                              </div>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                {stockOptions.map((opt) => {
+                                  const active = stockFilter === opt.value;
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      onClick={() => setStockFilter(opt.value)}
+                                      className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-all ${
+                                        active
+                                          ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm"
+                                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                                      }`}
+                                    >
+                                      <span className={`h-2 w-2 rounded-full ${opt.dot}`} />
+                                      {opt.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+
+                      {anyActive && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={resetAll}
+                          className="h-10 text-xs text-slate-500 hover:text-slate-900"
+                        >
+                          Clear all
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {(searchScope !== "all" || stockFilter !== "all") && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {searchScope !== "all" && (
+                        <button
+                          onClick={() => setSearchScope("all")}
+                          className="group inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                        >
+                          <span className="text-slate-400 group-hover:text-rose-400">Search in:</span>
+                          <span className="font-medium">{scopeMap[searchScope]}</span>
+                          <X className="h-3 w-3 opacity-50 group-hover:opacity-100" />
+                        </button>
+                      )}
+                      {stockFilter !== "all" && (
+                        <button
+                          onClick={() => setStockFilter("all")}
+                          className="group inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                        >
+                          <span className="text-slate-400 group-hover:text-rose-400">Stock:</span>
+                          <span className="font-medium">{stockMap[stockFilter]}</span>
+                          <X className="h-3 w-3 opacity-50 group-hover:opacity-100" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-              <Select value={searchScope} onValueChange={setSearchScope}>
-                <SelectTrigger className="w-full md:w-52">
-                  <SelectValue placeholder="Search in" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Search All Fields</SelectItem>
-                  <SelectItem value="name">Product Name</SelectItem>
-                  <SelectItem value="barcode">Barcode</SelectItem>
-                  <SelectItem value="batch">Batch</SelectItem>
-                  <SelectItem value="hsn">HSN Code</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={stockFilter} onValueChange={setStockFilter}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Filter by stock" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Stock Levels</SelectItem>
-                  <SelectItem value="available">In Stock</SelectItem>
-                  <SelectItem value="low">Low Stock</SelectItem>
-                  <SelectItem value="out">Out of Stock</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full md:w-52">
-                  <SelectValue placeholder="Sort products" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newest">Newest First</SelectItem>
-                  <SelectItem value="oldest">Oldest First</SelectItem>
-                  <SelectItem value="name_asc">Name A-Z</SelectItem>
-                  <SelectItem value="name_desc">Name Z-A</SelectItem>
-                  <SelectItem value="stock_desc">Stock High-Low</SelectItem>
-                  <SelectItem value="price_asc">Price Low-High</SelectItem>
-                  <SelectItem value="price_desc">Price High-Low</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              );
+            })()}
 
             {/* Bulk Actions */}
             {selectedProducts.length > 0 && (

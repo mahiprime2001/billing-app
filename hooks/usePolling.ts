@@ -1,23 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
 
-interface UsePollingOptions {
+interface UsePollingOptions<T> {
   interval?: number; // Polling interval in milliseconds
   enabled?: boolean; // Whether polling is enabled
+  initialData?: () => T | undefined; // Synchronous hydrator (e.g. read from localStorage)
 }
 
 const usePolling = <T>(
   fetcher: () => Promise<T>,
-  options?: UsePollingOptions
+  options?: UsePollingOptions<T>
 ) => {
-  const { interval = 5000, enabled = true } = options || {};
-  const [data, setData] = useState<T | undefined>(undefined);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { interval = 5000, enabled = true, initialData } = options || {};
+  const [data, setData] = useState<T | undefined>(() => initialData?.());
+  // If we hydrated from cache, the UI already has something to show — don't
+  // gate it behind a loading spinner while we refresh in the background.
+  const [loading, setLoading] = useState<boolean>(() => initialData?.() === undefined);
   const [error, setError] = useState<Error | undefined>(undefined);
   const fetcherRef = useRef(fetcher);
 
   useEffect(() => {
     fetcherRef.current = fetcher;
   }, [fetcher]);
+
+  const dataRef = useRef<T | undefined>(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   useEffect(() => {
     if (!enabled) {
@@ -26,14 +34,16 @@ const usePolling = <T>(
     }
 
     const fetchData = async () => {
-      setLoading(true);
+      // Only flip the loading flag when we have nothing to show. Background
+      // refreshes shouldn't make a populated table flash a spinner.
+      if (dataRef.current === undefined) setLoading(true);
       try {
         const result = await fetcherRef.current();
         setData(result);
         setError(undefined);
       } catch (err: any) {
         setError(err);
-        setData(undefined);
+        // Keep previously fetched (or cached) data visible on transient errors.
       } finally {
         setLoading(false);
       }
@@ -51,14 +61,13 @@ const usePolling = <T>(
   const refetch = () => {
     // Manually trigger a fetch
     const fetchData = async () => {
-      setLoading(true);
+      if (dataRef.current === undefined) setLoading(true);
       try {
         const result = await fetcherRef.current();
         setData(result);
         setError(undefined);
       } catch (err: any) {
         setError(err);
-        setData(undefined);
       } finally {
         setLoading(false);
       }

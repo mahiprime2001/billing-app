@@ -171,6 +171,41 @@ const WALK_IN_CUSTOMER_NAME = "Walk-in Customer";
 const BILL_EDIT_WINDOW_HOURS = 24;
 const BILL_EDIT_WINDOW_MS = BILL_EDIT_WINDOW_HOURS * 60 * 60 * 1000;
 const BILLING_POLL_INTERVAL_MS = 300000;
+// Bills update much more often than products/customers, so they get a tighter
+// poll. The other resources stay at the slower cadence to limit backend load.
+const BILLS_POLL_INTERVAL_MS = 60000;
+const BILLS_CACHE_KEY = "billing:firstPageBills:v1";
+// Stale-while-revalidate window: cached bills are shown immediately on mount,
+// then the 60s poll replaces them with fresh data.
+const BILLS_CACHE_TTL_MS = 10 * 60 * 1000;
+
+const readBillsCache = (): any[] | undefined => {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(BILLS_CACHE_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.data)) return undefined;
+    if (typeof parsed.savedAt !== "number") return undefined;
+    if (Date.now() - parsed.savedAt > BILLS_CACHE_TTL_MS) return undefined;
+    return parsed.data;
+  } catch {
+    return undefined;
+  }
+};
+
+const writeBillsCache = (data: unknown) => {
+  if (typeof window === "undefined") return;
+  if (!Array.isArray(data)) return;
+  try {
+    window.localStorage.setItem(
+      BILLS_CACHE_KEY,
+      JSON.stringify({ savedAt: Date.now(), data }),
+    );
+  } catch {
+    // Quota / privacy mode — swallow; cache is best-effort.
+  }
+};
 const WALK_IN_CUSTOMER_FALLBACK: Customer = {
   id: WALK_IN_CUSTOMER_ID,
   name: WALK_IN_CUSTOMER_NAME,
@@ -232,6 +267,9 @@ export default function BillingPage() {
   const [hasMoreBillsToLoad, setHasMoreBillsToLoad] = useState(true);
   const [isLoadingMoreBills, setIsLoadingMoreBills] = useState(false);
   const [billsTotalCount, setBillsTotalCount] = useState<number | null>(null);
+  // Flag flipped true only when the stats loader has fetched every page —
+  // before that, totals from statsBills are partial and shouldn't be displayed.
+  const [statsComplete, setStatsComplete] = useState(false);
   // Lightweight summary of ALL bills (no item details) — used only for the stats cards
   // so totals are accurate without loading full detailed data into the table.
   const [statsBills, setStatsBills] = useState<any[] | null>(null);
@@ -675,6 +713,17 @@ export default function BillingPage() {
       // Use paginated endpoint to avoid fetching all bills at once
       const response = await api.get(buildBillsQuery(1, 200, 1));
       const data = extractBillsArray(response.data);
+      // Capture the server-side total so stats cards don't show a count
+      // that's just the size of page 1 before statsBills finishes loading.
+      // Reject a "0 total but rows present" response — that's a server-side
+      // inconsistency we shouldn't propagate to the UI.
+      const totalFromServer = response?.data?.total;
+      if (
+        typeof totalFromServer === "number" &&
+        (totalFromServer > 0 || data.length === 0)
+      ) {
+        setBillsTotalCount(totalFromServer);
+      }
       let processedData = mapBills(data);
 
       // If API returns empty during transient backend/supabase windows, fallback to local bills.
@@ -687,12 +736,15 @@ export default function BillingPage() {
       }
       // Silent background update
       api.post("/api/local/bills/update", processedData).catch(() => {});
+      writeBillsCache(processedData);
       return processedData;
     } catch (error) {
       console.error("fetchBills: Error fetching from backend, falling back to local", error);
       const localResponse = await api.get("/api/local/bills");
       const localData = extractBillsArray(localResponse.data);
-      return mapBills(localData);
+      const fallback = mapBills(localData);
+      writeBillsCache(fallback);
+      return fallback;
     }
   }, [adminUser, buildBillsQuery]);
 
@@ -703,7 +755,10 @@ export default function BillingPage() {
 
   // Use slower polling to reduce backend/Supabase pressure.
   const { data: productsData, loading: productsLoading, error: productsError, refetch: refetchProducts } = usePolling<Product[]>(fetchProducts, { interval: BILLING_POLL_INTERVAL_MS });
-  const { data: billsData, loading: billsLoading, error: billsError, refetch: refetchBills } = usePolling<Bill[]>(fetchBills, { interval: BILLING_POLL_INTERVAL_MS });
+  const { data: billsData, loading: billsLoading, error: billsError, refetch: refetchBills } = usePolling<Bill[]>(fetchBills, {
+    interval: BILLS_POLL_INTERVAL_MS,
+    initialData: () => readBillsCache() as Bill[] | undefined,
+  });
   const { data: customersData, loading: customersLoading, error: customersError, refetch: refetchCustomers } = usePolling<Customer[]>(fetchCustomers, { interval: BILLING_POLL_INTERVAL_MS });
 
   // Manual refresh function
@@ -715,6 +770,7 @@ export default function BillingPage() {
       setHasMoreBillsToLoad(true);
       setBillsTotalCount(null);
       setStatsBills(null);
+      setStatsComplete(false);
       await Promise.all([refetchProducts(), refetchBills(), refetchCustomers()]);
     } finally {
       setTimeout(() => setIsRefreshing(false), 500);
@@ -741,6 +797,7 @@ export default function BillingPage() {
     setHasMoreBillsToLoad(true);
     setBillsTotalCount(null);
     setStatsBills(null);
+    setStatsComplete(false);
     refetchBills();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey]);
@@ -763,7 +820,10 @@ export default function BillingPage() {
       const hasMore = Boolean(payload?.hasMore) && list.length > 0;
       setHasMoreBillsToLoad(hasMore);
       setNextBillsPage((p) => p + 1);
-      if (typeof payload?.total === "number") {
+      if (
+        typeof payload?.total === "number" &&
+        (payload.total > 0 || list.length === 0)
+      ) {
         setBillsTotalCount(payload.total);
       }
     } catch (err) {
@@ -807,8 +867,10 @@ export default function BillingPage() {
     let cancelled = false;
     const PAGE_SIZE = 500;
     const MAX_PAGES = 200;
+    setStatsComplete(false);
 
     (async () => {
+      let finishedCleanly = false;
       try {
         let page = 1;
         let collected: any[] = [];
@@ -821,16 +883,27 @@ export default function BillingPage() {
               : Array.isArray(payload?.data)
               ? payload.data
               : [];
-            if (list.length === 0) break;
+            if (list.length === 0) {
+              finishedCleanly = true;
+              break;
+            }
             collected = collected.concat(list);
             if (!cancelled) {
               setStatsBills([...collected]);
-              if (typeof payload?.total === "number") {
+              if (
+                typeof payload?.total === "number" &&
+                payload.total >= collected.length
+              ) {
+                // Skip implausible totals (e.g. 0 while we already have rows)
+                // so a single bad response can't drive the count card to 0.
                 setBillsTotalCount(payload.total);
               }
             }
             const hasMore = Boolean(payload?.hasMore);
-            if (!hasMore) break;
+            if (!hasMore) {
+              finishedCleanly = true;
+              break;
+            }
             page += 1;
           } catch (err) {
             console.error("Failed to load stats page", page, err);
@@ -839,6 +912,10 @@ export default function BillingPage() {
         }
       } catch (err) {
         console.error("Stats bills loader failed", err);
+      } finally {
+        if (!cancelled && finishedCleanly) {
+          setStatsComplete(true);
+        }
       }
     })();
 
@@ -2196,11 +2273,31 @@ export default function BillingPage() {
   };
 
   const filteredBills = useMemo(() => {
-    const searchLower = billSearchTerm.toLowerCase();
-    const filtered = currentBills.filter((bill: Bill) => {
+    const searchLower = billSearchTerm.toLowerCase().trim();
+
+    // When a search term is active, also include bills from the lightweight
+    // summary (statsBills) that haven't been scroll-loaded into currentBills
+    // yet — otherwise users can only search the first page of bills and old
+    // ones appear missing.
+    let searchSource: Bill[] = currentBills;
+    if (searchLower && statsBills && statsBills.length > 0) {
+      const currentIds = new Set(currentBills.map((b) => b.id));
+      const summaryOnly = statsBills
+        .filter((b: any) => b?.id && !currentIds.has(b.id))
+        .map((bill: any) => normalizeBillForDisplay(bill));
+      if (summaryOnly.length > 0) {
+        searchSource = [...currentBills, ...summaryOnly];
+      }
+    }
+
+    const filtered = searchSource.filter((bill: Bill) => {
+      if (!searchLower) return true;
       const customerName = bill.customerName || "";
       const billId = bill.id || "";
-      return customerName.toLowerCase().includes(searchLower) || billId.includes(searchLower);
+      return (
+        customerName.toLowerCase().includes(searchLower) ||
+        billId.toLowerCase().includes(searchLower)
+      );
     });
 
     const getEffectiveBillAmount = (bill: Bill): number => {
@@ -2246,7 +2343,7 @@ export default function BillingPage() {
     });
 
     return sorted;
-  }, [currentBills, billSearchTerm, billSortDirection, billSortKey]);
+  }, [currentBills, statsBills, billSearchTerm, billSortDirection, billSortKey]);
 
   const allFilteredBillsSelected =
     filteredBills.length > 0 && filteredBills.every((bill) => selectedBillIds.includes(bill.id));
@@ -2282,7 +2379,18 @@ export default function BillingPage() {
     // Prefer the full lightweight summary (statsBills) when loaded, so stats
     // reflect ALL bills even though the table only shows a paginated slice.
     const source: any[] = statsBills ?? currentBills;
-    const todayKey = new Date().toISOString().slice(0, 10);
+    // Use the LOCAL calendar date for "today" so a bill displayed as 5/15
+    // in the table is counted as today's, regardless of the user's UTC offset.
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const todayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const localDateKey = (raw: unknown): string => {
+      if (!raw) return "";
+      const d = new Date(raw as any);
+      const t = d.getTime();
+      if (!Number.isFinite(t)) return "";
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    };
     let todayCount = 0;
     let todayRevenue = 0;
     let totalRevenue = 0;
@@ -2298,19 +2406,35 @@ export default function BillingPage() {
         : Number(bill.total || 0);
       totalRevenue += amount;
       const rawDate = bill.date || bill.timestamp || bill.created_at || bill.createdAt || "";
-      const dateStr = rawDate ? String(rawDate).slice(0, 10) : "";
-      if (dateStr === todayKey) {
+      if (localDateKey(rawDate) === todayKey) {
         todayCount += 1;
         todayRevenue += amount;
       }
     });
+    // Pick the count from the same source as the revenue, so the two
+    // numbers can never contradict each other (e.g. "0 bills · ₹91,843").
+    // Preference order:
+    //   1. statsBills.length once the loader has finished — it matches the
+    //      revenue exactly.
+    //   2. billsTotalCount (server-reported) while the loader is still
+    //      catching up.
+    //   3. currentBills.length as a last resort before any totals arrive.
+    let totalCount: number;
+    if (statsComplete && statsBills) {
+      totalCount = statsBills.length;
+    } else if (typeof billsTotalCount === "number" && billsTotalCount > 0) {
+      totalCount = billsTotalCount;
+    } else {
+      totalCount = source.length;
+    }
     return {
       todayCount,
       todayRevenue,
-      totalCount: source.length,
+      totalCount,
       totalRevenue,
+      statsLoaded: statsComplete,
     };
-  }, [statsBills, currentBills]);
+  }, [statsBills, statsComplete, currentBills, billsTotalCount]);
 
   // Per-customer aggregation across the FULL dataset (via statsBills when loaded),
   // so the Customers tab shows accurate bill counts / total spent — not just the
@@ -2815,11 +2939,15 @@ export default function BillingPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="border rounded-lg p-3 bg-white">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Today's bills</div>
-            <div className="mt-1 text-xl font-semibold tabular-nums">{billingStats.todayCount}</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">
+              {billingStats.statsLoaded ? billingStats.todayCount : "…"}
+            </div>
           </div>
           <div className="border rounded-lg p-3 bg-white">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Today's revenue</div>
-            <div className="mt-1 text-xl font-semibold tabular-nums">₹{billingStats.todayRevenue.toFixed(2)}</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">
+              {billingStats.statsLoaded ? `₹${billingStats.todayRevenue.toFixed(2)}` : "…"}
+            </div>
           </div>
           <div className="border rounded-lg p-3 bg-white">
             <div className="text-xs uppercase tracking-wide text-muted-foreground flex items-center gap-1">
@@ -2833,7 +2961,9 @@ export default function BillingPage() {
               {activeFilterCount > 0 ? "Filtered revenue" : "Total revenue"}
               {activeFilterCount > 0 && <span className="text-blue-500">●</span>}
             </div>
-            <div className="mt-1 text-xl font-semibold tabular-nums">₹{billingStats.totalRevenue.toFixed(2)}</div>
+            <div className="mt-1 text-xl font-semibold tabular-nums">
+              {billingStats.statsLoaded ? `₹${billingStats.totalRevenue.toFixed(2)}` : "…"}
+            </div>
           </div>
         </div>
 

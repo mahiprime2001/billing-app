@@ -7,15 +7,20 @@ import * as XLSX from 'xlsx'
 import {
   AlertTriangle,
   BarChart3,
+  Boxes,
   Calendar,
   ChevronLeft,
   ChevronRight,
   DollarSign,
   Download,
+  Layers,
+  MapPin,
   Package,
+  Percent,
   RefreshCw,
   Search,
   ShoppingCart,
+  Store,
   TrendingDown,
   TrendingUp,
   Users,
@@ -106,6 +111,14 @@ interface ProductRecord {
   sellingPrice: number
   stock: number
   createdAt?: string
+  batchId?: string
+}
+
+interface BatchRecord {
+  id: string
+  batchNumber: string
+  place: string
+  createdAt?: string
 }
 
 interface ReturnItem {
@@ -150,6 +163,20 @@ interface ProductSalesStats {
   bills: number
   avgSellingPrice: number
   lastSoldAt?: string
+  costPrice: number
+  cogs: number
+  profit: number
+  profitMargin: number | null
+  batchId?: string
+  batchNumber?: string
+}
+
+interface ProductStoreStats {
+  storeId: string
+  storeName: string
+  quantity: number
+  revenue: number
+  bills: number
 }
 
 interface TrendingProduct {
@@ -188,12 +215,6 @@ interface StoreNonSellingStats {
   }>
 }
 
-interface AlertItem {
-  type: 'error' | 'warning' | 'info'
-  title: string
-  message: string
-}
-
 interface MetricSummary {
   revenue: number
   discount: number
@@ -216,6 +237,8 @@ type TabValue =
   | 'revenue'
   | 'stores'
   | 'products'
+  | 'profit'
+  | 'batches'
   | 'inventory'
   | 'returns'
 
@@ -291,6 +314,7 @@ const normalizeProducts = (rawProducts: any[]): ProductRecord[] => {
   return rawProducts.map((product) => {
     const costPrice = Number(product.price || 0)
     const sellingPrice = Number(product.sellingPrice ?? product.selling_price ?? product.price ?? 0)
+    const batchIdRaw = product.batchId ?? product.batchid ?? product.batch_id
 
     return {
       id: String(product.id || ''),
@@ -300,8 +324,18 @@ const normalizeProducts = (rawProducts: any[]): ProductRecord[] => {
       sellingPrice,
       stock: Number(product.stock || 0),
       createdAt: product.createdAt || product.created_at || product.createdat,
+      batchId: batchIdRaw ? String(batchIdRaw) : undefined,
     }
   })
+}
+
+const normalizeBatches = (rawBatches: any[]): BatchRecord[] => {
+  return rawBatches.map((batch) => ({
+    id: String(batch.id || ''),
+    batchNumber: String(batch.batchNumber ?? batch.batch_number ?? batch.batchnumber ?? '').trim() || 'Unnamed Batch',
+    place: String(batch.place ?? '').trim(),
+    createdAt: batch.createdAt || batch.created_at || batch.createdat,
+  }))
 }
 
 const normalizeReturns = (rawReturns: any[]): ReturnItem[] => {
@@ -624,29 +658,94 @@ const appendTotalRow = (
   return [...rows, totalRow]
 }
 
+type AccentColor = 'blue' | 'emerald' | 'amber' | 'violet' | 'rose' | 'sky'
+
+const ACCENT_STYLES: Record<AccentColor, { bar: string; iconBg: string; cardBg: string }> = {
+  blue: {
+    bar: 'bg-gradient-to-b from-blue-500 to-sky-400',
+    iconBg: 'bg-blue-50 text-blue-700',
+    cardBg: 'from-blue-50/40 to-white',
+  },
+  emerald: {
+    bar: 'bg-gradient-to-b from-emerald-500 to-green-400',
+    iconBg: 'bg-emerald-50 text-emerald-700',
+    cardBg: 'from-emerald-50/40 to-white',
+  },
+  amber: {
+    bar: 'bg-gradient-to-b from-amber-500 to-orange-400',
+    iconBg: 'bg-amber-50 text-amber-700',
+    cardBg: 'from-amber-50/40 to-white',
+  },
+  violet: {
+    bar: 'bg-gradient-to-b from-violet-500 to-purple-400',
+    iconBg: 'bg-violet-50 text-violet-700',
+    cardBg: 'from-violet-50/40 to-white',
+  },
+  rose: {
+    bar: 'bg-gradient-to-b from-rose-500 to-pink-400',
+    iconBg: 'bg-rose-50 text-rose-700',
+    cardBg: 'from-rose-50/40 to-white',
+  },
+  sky: {
+    bar: 'bg-gradient-to-b from-sky-500 to-cyan-400',
+    iconBg: 'bg-sky-50 text-sky-700',
+    cardBg: 'from-sky-50/40 to-white',
+  },
+}
+
 interface MetricCardProps {
   title: string
   value: string
   icon: React.ReactNode
   change?: number | null
+  subtitle?: string
+  accent?: AccentColor
+  progress?: number
 }
 
-const MetricCard = ({ title, value, icon, change }: MetricCardProps) => (
-  <Card className={KPI_CARD_CLASS}>
-    <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-blue-500 via-emerald-500 to-amber-500" />
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      <div className="rounded-md bg-slate-100 p-1.5 text-slate-700">{icon}</div>
-    </CardHeader>
-    <CardContent>
-      <div className="text-xl font-bold tracking-tight break-all leading-tight">{value}</div>
-      {change !== undefined && (
-        <p className="mt-1 text-xs text-muted-foreground">
-          {change === null && 'No previous period data'}
-          {change !== null && change === 0 && 'No change vs previous period'}
-          {change !== null && change > 0 && (
-            <span className="text-green-600">
-              <TrendingUp className="mr-1 inline h-3 w-3" />+{change}% vs previous period
+const MetricCard = ({
+  title,
+  value,
+  icon,
+  change,
+  subtitle,
+  accent = 'blue',
+  progress,
+}: MetricCardProps) => {
+  const styles = ACCENT_STYLES[accent]
+  return (
+    <Card
+      className={`relative overflow-hidden border-slate-200/80 shadow-sm bg-gradient-to-br ${styles.cardBg} transition-shadow hover:shadow-md`}
+    >
+      <div className={`absolute left-0 top-0 h-full w-1 ${styles.bar}`} />
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2 pl-4">
+        <CardTitle className="text-xs font-medium uppercase tracking-wide text-slate-600">
+          {title}
+        </CardTitle>
+        <div className={`rounded-md p-1.5 ${styles.iconBg}`}>{icon}</div>
+      </CardHeader>
+      <CardContent className="pl-4">
+        <div className="text-2xl font-bold tracking-tight break-all leading-tight text-slate-900">
+          {value}
+        </div>
+        {subtitle && (
+          <p className="mt-1 text-xs font-medium text-slate-500">{subtitle}</p>
+        )}
+        {typeof progress === 'number' && (
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className={`h-full ${styles.bar}`}
+              style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+            />
+          </div>
+        )}
+        {change !== undefined && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {change === null && 'No previous period data'}
+            {change !== null && change === 0 && 'No change vs previous period'}
+            {change !== null && change > 0 && (
+              <span className="text-green-600">
+                <TrendingUp className="mr-1 inline h-3 w-3" />+{change}% vs previous period
             </span>
           )}
           {change !== null && change < 0 && (
@@ -658,7 +757,8 @@ const MetricCard = ({ title, value, icon, change }: MetricCardProps) => (
       )}
     </CardContent>
   </Card>
-)
+  )
+}
 
 export default function AnalyticsPage() {
   const router = useRouter()
@@ -668,6 +768,7 @@ export default function AnalyticsPage() {
   const [stores, setStores] = useState<StoreRecord[]>([])
   const [products, setProducts] = useState<ProductRecord[]>([])
   const [returns, setReturns] = useState<ReturnItem[]>([])
+  const [batches, setBatches] = useState<BatchRecord[]>([])
   const [selectedStore, setSelectedStore] = useState('all')
   const [selectedDaysPreset, setSelectedDaysPreset] = useState('30')
   const [rangeFrom, setRangeFrom] = useState(format(subDays(new Date(), 29), 'yyyy-MM-dd'))
@@ -681,6 +782,10 @@ export default function AnalyticsPage() {
   const [productSearch, setProductSearch] = useState('')
   const [revenueMonth, setRevenueMonth] = useState(new Date().getMonth())
   const [revenueYear, setRevenueYear] = useState(new Date().getFullYear())
+  const [dialogProductId, setDialogProductId] = useState<string | null>(null)
+  const [productsLimit, setProductsLimit] = useState(30)
+  const [dialogBatchId, setDialogBatchId] = useState<string | null>(null)
+  const [batchSearch, setBatchSearch] = useState('')
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('adminLoggedIn')
@@ -698,17 +803,21 @@ export default function AnalyticsPage() {
     setLoading(true)
 
     try {
-      const [billsRes, storesRes, productsRes, returnsRes] = await Promise.all([
+      const [billsRes, storesRes, productsRes, returnsRes, batchesRes] = await Promise.all([
         fetch(`${backendUrl}/api/bills`).then((res) => res.json()),
         fetch(`${backendUrl}/api/stores`).then((res) => res.json()),
         fetch(`${backendUrl}/api/products`).then((res) => res.json()),
         fetch(`${backendUrl}/api/returns`).then((res) => res.json()),
+        fetch(`${backendUrl}/api/batches`)
+          .then((res) => (res.ok ? res.json() : []))
+          .catch(() => []),
       ])
 
       setBills(normalizeBills(Array.isArray(billsRes) ? billsRes : []))
       setStores(normalizeStores(Array.isArray(storesRes) ? storesRes : []))
       setProducts(normalizeProducts(Array.isArray(productsRes) ? productsRes : []))
       setReturns(normalizeReturns(Array.isArray(returnsRes) ? returnsRes : []))
+      setBatches(normalizeBatches(Array.isArray(batchesRes) ? batchesRes : []))
       setLastUpdated(new Date())
     } catch (error) {
       console.error('Failed to load analytics data', error)
@@ -807,6 +916,44 @@ export default function AnalyticsPage() {
     })
     return map
   }, [products])
+
+  const productCostMap = useMemo(() => {
+    const map = new Map<string, number>()
+    products.forEach((product) => {
+      map.set(product.id, product.costPrice || 0)
+    })
+    return map
+  }, [products])
+
+  const storeNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    stores.forEach((store) => {
+      map.set(store.id, store.name)
+    })
+    return map
+  }, [stores])
+
+  const batchMap = useMemo(() => {
+    const map = new Map<string, BatchRecord>()
+    batches.forEach((batch) => {
+      map.set(batch.id, batch)
+    })
+    return map
+  }, [batches])
+
+  const productBatchMap = useMemo(() => {
+    const map = new Map<string, { batchId: string; batchNumber: string; place: string }>()
+    products.forEach((product) => {
+      if (!product.batchId) return
+      const batch = batchMap.get(product.batchId)
+      map.set(product.id, {
+        batchId: product.batchId,
+        batchNumber: batch?.batchNumber || 'Unknown Batch',
+        place: batch?.place || '',
+      })
+    })
+    return map
+  }, [products, batchMap])
 
   const dailyStats = useMemo((): DailyStats[] => {
     const statsByDate = new Map<string, DailyStats>()
@@ -944,6 +1091,7 @@ export default function AnalyticsPage() {
         if (!item.productId) return
 
         if (!map.has(item.productId)) {
+          const batchInfo = productBatchMap.get(item.productId)
           map.set(item.productId, {
             productId: item.productId,
             productName: item.productName || 'Unknown Product',
@@ -954,6 +1102,12 @@ export default function AnalyticsPage() {
             bills: 0,
             avgSellingPrice: 0,
             lastSoldAt: billDateIso,
+            costPrice: productCostMap.get(item.productId) || 0,
+            cogs: 0,
+            profit: 0,
+            profitMargin: null,
+            batchId: batchInfo?.batchId,
+            batchNumber: batchInfo?.batchNumber,
           })
         }
 
@@ -976,10 +1130,13 @@ export default function AnalyticsPage() {
 
     map.forEach((stats) => {
       stats.avgSellingPrice = stats.quantity > 0 ? stats.revenue / stats.quantity : 0
+      stats.cogs = stats.costPrice * stats.quantity
+      stats.profit = stats.revenue - stats.cogs
+      stats.profitMargin = stats.revenue > 0 ? (stats.profit / stats.revenue) * 100 : null
     })
 
     return map
-  }, [filteredBills, productCategoryMap])
+  }, [filteredBills, productCategoryMap, productCostMap, productBatchMap])
 
   const previousSalesMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -1140,6 +1297,319 @@ export default function AnalyticsPage() {
     }
   }, [inventoryAnalytics, products])
 
+  const currentProfitSummary = useMemo(() => {
+    let revenue = 0
+    let cogs = 0
+    currentSalesMap.forEach((stats) => {
+      revenue += stats.revenue
+      cogs += stats.cogs
+    })
+    const profit = revenue - cogs
+    return {
+      revenue,
+      cogs,
+      profit,
+      marginPct: revenue > 0 ? (profit / revenue) * 100 : 0,
+    }
+  }, [currentSalesMap])
+
+  const previousProfitSummary = useMemo(() => {
+    let revenue = 0
+    let cogs = 0
+    previousPeriodBills.forEach((bill) => {
+      bill.items.forEach((item) => {
+        if (!item.productId) return
+        revenue += item.total
+        const cost = productCostMap.get(item.productId) || 0
+        cogs += cost * item.quantity
+      })
+    })
+    const profit = revenue - cogs
+    return {
+      revenue,
+      cogs,
+      profit,
+      marginPct: revenue > 0 ? (profit / revenue) * 100 : 0,
+    }
+  }, [previousPeriodBills, productCostMap])
+
+  const productStoreBreakdown = useMemo(() => {
+    const map = new Map<string, Map<string, ProductStoreStats>>()
+
+    filteredBills.forEach((bill) => {
+      if (!bill.storeId) return
+      const resolvedName =
+        storeNameMap.get(bill.storeId) || bill.storeName || 'Unknown Store'
+
+      bill.items.forEach((item) => {
+        if (!item.productId) return
+
+        if (!map.has(item.productId)) {
+          map.set(item.productId, new Map())
+        }
+        const storeMap = map.get(item.productId)!
+
+        if (!storeMap.has(bill.storeId)) {
+          storeMap.set(bill.storeId, {
+            storeId: bill.storeId,
+            storeName: resolvedName,
+            quantity: 0,
+            revenue: 0,
+            bills: 0,
+          })
+        }
+        const stats = storeMap.get(bill.storeId)!
+        stats.quantity += item.quantity
+        stats.revenue += item.total
+        stats.bills += 1
+      })
+    })
+
+    return map
+  }, [filteredBills, storeNameMap])
+
+  const topReturnedProducts = useMemo(() => {
+    interface ReturnedProductRow {
+      productId: string
+      productName: string
+      amount: number
+      count: number
+    }
+    const map = new Map<string, ReturnedProductRow>()
+
+    returnsInPeriod.forEach((item) => {
+      const productId = item.productId || 'unknown'
+      const productName =
+        products.find((p) => p.id === productId)?.name || productId || 'Unknown Product'
+      if (!map.has(productId)) {
+        map.set(productId, { productId, productName, amount: 0, count: 0 })
+      }
+      const r = map.get(productId)!
+      r.amount += item.returnAmount
+      r.count += 1
+    })
+
+    return Array.from(map.values()).sort((a, b) => b.amount - a.amount)
+  }, [returnsInPeriod, products])
+
+  const returnsByStore = useMemo(() => {
+    interface ReturnStoreRow {
+      storeId: string
+      storeName: string
+      amount: number
+      count: number
+    }
+    const map = new Map<string, ReturnStoreRow>()
+
+    returnsInPeriod.forEach((item) => {
+      const sid = item.storeId || 'unknown'
+      const sname = storeNameMap.get(sid) || 'Unknown Store'
+      if (!map.has(sid)) {
+        map.set(sid, { storeId: sid, storeName: sname, amount: 0, count: 0 })
+      }
+      const r = map.get(sid)!
+      r.amount += item.returnAmount
+      r.count += 1
+    })
+
+    return Array.from(map.values()).sort((a, b) => b.amount - a.amount)
+  }, [returnsInPeriod, storeNameMap])
+
+  const topPerformers = useMemo(() => {
+    const customerMap = new Map<string, { customerId: string; revenue: number; bills: number }>()
+    filteredBills.forEach((bill) => {
+      if (!bill.customerId) return
+      if (!customerMap.has(bill.customerId)) {
+        customerMap.set(bill.customerId, { customerId: bill.customerId, revenue: 0, bills: 0 })
+      }
+      const c = customerMap.get(bill.customerId)!
+      c.revenue += getEffectiveBillTotal(bill)
+      c.bills += 1
+    })
+    const bestCustomer =
+      Array.from(customerMap.values()).sort((a, b) => b.revenue - a.revenue)[0] || null
+    return {
+      bestStore: storeAnalytics[0] || null,
+      bestProduct: productAnalytics[0] || null,
+      bestDay: [...dailyStats].sort((a, b) => b.revenue - a.revenue)[0] || null,
+      bestCustomer,
+    }
+  }, [storeAnalytics, productAnalytics, dailyStats, filteredBills])
+
+  const storeWithLeaderProduct = useMemo(() => {
+    interface StoreProduct {
+      productId: string
+      productName: string
+      quantity: number
+      revenue: number
+    }
+    const storeProductMap = new Map<string, Map<string, StoreProduct>>()
+
+    filteredBills.forEach((bill) => {
+      if (!bill.storeId) return
+      if (!storeProductMap.has(bill.storeId)) {
+        storeProductMap.set(bill.storeId, new Map())
+      }
+      const prodMap = storeProductMap.get(bill.storeId)!
+
+      bill.items.forEach((item) => {
+        if (!item.productId) return
+        if (!prodMap.has(item.productId)) {
+          prodMap.set(item.productId, {
+            productId: item.productId,
+            productName: item.productName,
+            quantity: 0,
+            revenue: 0,
+          })
+        }
+        const p = prodMap.get(item.productId)!
+        p.quantity += item.quantity
+        p.revenue += item.total
+      })
+    })
+
+    return storeAnalytics.map((s) => {
+      const prods = Array.from(storeProductMap.get(s.storeId)?.values() || [])
+      const top = [...prods].sort((a, b) => b.quantity - a.quantity)[0]
+      return {
+        ...s,
+        topProductName: top?.productName || 'N/A',
+        topProductQty: top?.quantity || 0,
+        topProductRevenue: top?.revenue || 0,
+        productCount: prods.length,
+      }
+    })
+  }, [filteredBills, storeAnalytics])
+
+  const lossMakers = useMemo(
+    () => productAnalytics.filter((p) => p.profit < 0).sort((a, b) => a.profit - b.profit),
+    [productAnalytics],
+  )
+
+  const batchAnalytics = useMemo(() => {
+    interface BatchRow {
+      batchId: string
+      batchNumber: string
+      place: string
+      productsInBatch: number
+      productsSold: number
+      quantitySold: number
+      revenue: number
+      cogs: number
+      profit: number
+      marginPct: number | null
+      stockValue: number
+      currentStock: number
+      createdAt?: string
+    }
+
+    const map = new Map<string, BatchRow>()
+
+    batches.forEach((batch) => {
+      map.set(batch.id, {
+        batchId: batch.id,
+        batchNumber: batch.batchNumber,
+        place: batch.place,
+        productsInBatch: 0,
+        productsSold: 0,
+        quantitySold: 0,
+        revenue: 0,
+        cogs: 0,
+        profit: 0,
+        marginPct: null,
+        stockValue: 0,
+        currentStock: 0,
+        createdAt: batch.createdAt,
+      })
+    })
+
+    products.forEach((product) => {
+      if (!product.batchId) return
+      const row = map.get(product.batchId)
+      if (!row) return
+      row.productsInBatch += 1
+      row.currentStock += product.stock
+      row.stockValue += product.stock * product.sellingPrice
+    })
+
+    productAnalytics.forEach((sale) => {
+      if (!sale.batchId) return
+      const row = map.get(sale.batchId)
+      if (!row) return
+      row.productsSold += 1
+      row.quantitySold += sale.quantity
+      row.revenue += sale.revenue
+      row.cogs += sale.cogs
+      row.profit += sale.profit
+    })
+
+    map.forEach((row) => {
+      row.marginPct = row.revenue > 0 ? (row.profit / row.revenue) * 100 : null
+    })
+
+    return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue)
+  }, [batches, products, productAnalytics])
+
+  const filteredBatchAnalytics = useMemo(() => {
+    const term = batchSearch.trim().toLowerCase()
+    if (!term) return batchAnalytics
+    return batchAnalytics.filter(
+      (row) =>
+        row.batchNumber.toLowerCase().includes(term) ||
+        row.place.toLowerCase().includes(term),
+    )
+  }, [batchAnalytics, batchSearch])
+
+  const dialogBatch = useMemo(() => {
+    if (!dialogBatchId) return null
+    return batchAnalytics.find((row) => row.batchId === dialogBatchId) || null
+  }, [dialogBatchId, batchAnalytics])
+
+  const dialogBatchProducts = useMemo(() => {
+    if (!dialogBatchId) return null
+    const batchProductIds = new Set(
+      products.filter((p) => p.batchId === dialogBatchId).map((p) => p.id),
+    )
+    const productRecords = products.filter((p) => p.batchId === dialogBatchId)
+    const sold = productAnalytics
+      .filter((sale) => sale.batchId === dialogBatchId)
+      .sort((a, b) => b.quantity - a.quantity)
+    const soldIds = new Set(sold.map((s) => s.productId))
+    const unsold = productRecords.filter((p) => !soldIds.has(p.id))
+    return {
+      productsCount: batchProductIds.size,
+      sold,
+      unsold,
+    }
+  }, [dialogBatchId, products, productAnalytics])
+
+  const dialogProductStats = useMemo(() => {
+    if (!dialogProductId) return null
+    return productAnalytics.find((row) => row.productId === dialogProductId) || null
+  }, [dialogProductId, productAnalytics])
+
+  const dialogStoreStats = useMemo(() => {
+    if (!dialogProductId) return [] as ProductStoreStats[]
+    const storeMap = productStoreBreakdown.get(dialogProductId)
+    if (!storeMap) return []
+    return Array.from(storeMap.values()).sort((a, b) => b.quantity - a.quantity)
+  }, [dialogProductId, productStoreBreakdown])
+
+  const dialogTotalQty = useMemo(
+    () => dialogStoreStats.reduce((sum, row) => sum + row.quantity, 0),
+    [dialogStoreStats],
+  )
+
+  const dialogTotalRevenue = useMemo(
+    () => dialogStoreStats.reduce((sum, row) => sum + row.revenue, 0),
+    [dialogStoreStats],
+  )
+
+  const dialogProductRecord = useMemo(() => {
+    if (!dialogProductId) return null
+    return products.find((p) => p.id === dialogProductId) || null
+  }, [dialogProductId, products])
+
   const returnStatusData = useMemo(() => {
     const statusMap = new Map<string, number>()
 
@@ -1150,55 +1620,6 @@ export default function AnalyticsPage() {
 
     return Array.from(statusMap.entries()).map(([name, value]) => ({ name, value }))
   }, [returnsInPeriod])
-
-  const alerts = useMemo((): AlertItem[] => {
-    const rows: AlertItem[] = []
-
-    if (inventorySummary.outOfStockCount > 0) {
-      rows.push({
-        type: 'error',
-        title: 'Out of stock products',
-        message: `${inventorySummary.outOfStockCount} products are at zero stock.`,
-      })
-    }
-
-    if (inventorySummary.lowStockCount > 0) {
-      rows.push({
-        type: 'warning',
-        title: 'Low stock products',
-        message: `${inventorySummary.lowStockCount} products are below ${LOW_STOCK_THRESHOLD} units.`,
-      })
-    }
-
-    const pendingReturns = returns.filter((item) => item.status === 'pending').length
-    if (pendingReturns > 0) {
-      rows.push({
-        type: 'info',
-        title: 'Pending returns',
-        message: `${pendingReturns} returns are pending approval.`,
-      })
-    }
-
-    const nonSellingCount = nonSellingProducts90Days.length
-    if (nonSellingCount > 0) {
-      rows.push({
-        type: 'info',
-        title: 'Products not sold in 90 days',
-        message: `${nonSellingCount} products had zero sales in the last 90 days.`,
-      })
-    }
-
-    const inactiveStores = stores.filter((store) => store.status === 'inactive').length
-    if (inactiveStores > 0) {
-      rows.push({
-        type: 'warning',
-        title: 'Inactive stores',
-        message: `${inactiveStores} stores are inactive.`,
-      })
-    }
-
-    return rows
-  }, [inventorySummary, returns, nonSellingProducts90Days, stores])
 
   const currentSummary = useMemo(() => summarizeBills(filteredBills), [filteredBills])
   const previousSummary = useMemo(() => summarizeBills(previousPeriodBills), [previousPeriodBills])
@@ -1263,6 +1684,47 @@ export default function AnalyticsPage() {
     () => percentageChange(currentNetRevenue, previousNetRevenue),
     [currentNetRevenue, previousNetRevenue],
   )
+  const profitChange = useMemo(
+    () => percentageChange(currentProfitSummary.profit, previousProfitSummary.profit),
+    [currentProfitSummary.profit, previousProfitSummary.profit],
+  )
+  const cogsChange = useMemo(
+    () => percentageChange(currentProfitSummary.cogs, previousProfitSummary.cogs),
+    [currentProfitSummary.cogs, previousProfitSummary.cogs],
+  )
+  const marginChange = useMemo(
+    () => percentageChange(currentProfitSummary.marginPct, previousProfitSummary.marginPct),
+    [currentProfitSummary.marginPct, previousProfitSummary.marginPct],
+  )
+
+  const headlineMetrics = useMemo(() => {
+    const revenue = currentSummary.revenue
+    const bills = currentSummary.bills
+    const items = currentSummary.items
+    const cogs = currentProfitSummary.cogs
+    const profit = currentProfitSummary.profit
+    const replacementBillsCount = filteredBills.filter((b) => b.isReplacement).length
+    const returnsCount = approvedReturnsInPeriod.length
+    return {
+      itemsPerBill: bills > 0 ? items / bills : 0,
+      discountPct: revenue > 0 ? (currentSummary.discount / revenue) * 100 : 0,
+      cogsPct: revenue > 0 ? (cogs / revenue) * 100 : 0,
+      profitPerBill: bills > 0 ? profit / bills : 0,
+      replacementPct: revenue > 0 ? (currentReplacementAmount / revenue) * 100 : 0,
+      returnsPct: revenue > 0 ? (currentReturnsAmount / revenue) * 100 : 0,
+      netPct: revenue > 0 ? (currentNetRevenue / revenue) * 100 : 0,
+      replacementBillsCount,
+      returnsCount,
+    }
+  }, [
+    currentSummary,
+    currentProfitSummary,
+    currentReplacementAmount,
+    currentReturnsAmount,
+    currentNetRevenue,
+    filteredBills,
+    approvedReturnsInPeriod,
+  ])
 
   const selectedStoreName =
     selectedStore === 'all'
@@ -1299,18 +1761,34 @@ export default function AnalyticsPage() {
     const term = productSearch.trim().toLowerCase()
     if (!term) return productAnalytics
 
-    return productAnalytics.filter(
-      (product) =>
+    return productAnalytics.filter((product) => {
+      const batchInfo = product.batchId ? batchMap.get(product.batchId) : null
+      const batchText = `${batchInfo?.batchNumber ?? ''} ${batchInfo?.place ?? ''}`.toLowerCase()
+      return (
         product.productName.toLowerCase().includes(term) ||
         product.category.toLowerCase().includes(term) ||
-        product.productId.toLowerCase().includes(term),
-    )
-  }, [productAnalytics, productSearch])
+        product.productId.toLowerCase().includes(term) ||
+        batchText.includes(term)
+      )
+    })
+  }, [productAnalytics, productSearch, batchMap])
+
+  useEffect(() => {
+    setProductsLimit(30)
+  }, [productSearch, selectedStore, rangeFrom, rangeTo])
 
   const topStores = storeAnalytics.slice(0, 10)
   const topProducts = filteredProductAnalytics.slice(0, 15)
   const topTrending = trendingProducts.slice(0, 15)
   const topMarginProducts = inventoryAnalytics.slice(0, 15)
+  const topProfitableProducts = useMemo(
+    () =>
+      [...productAnalytics]
+        .filter((row) => row.profit !== 0)
+        .sort((a, b) => b.profit - a.profit)
+        .slice(0, 10),
+    [productAnalytics],
+  )
 
   const marginComparisonData = topMarginProducts.map((row) => ({
     productName: row.productName,
@@ -2054,128 +2532,679 @@ export default function AnalyticsPage() {
           </DialogContent>
         </Dialog>
 
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-          <MetricCard
-            title="Revenue"
-            value={formatCurrency(currentSummary.revenue)}
-            icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-            change={revenueChange}
-          />
-          <MetricCard
-            title="Bills"
-            value={currentSummary.bills.toString()}
-            icon={<ShoppingCart className="h-4 w-4 text-muted-foreground" />}
-            change={billsChange}
-          />
-          <MetricCard
-            title="Items Sold"
-            value={currentSummary.items.toString()}
-            icon={<Package className="h-4 w-4 text-muted-foreground" />}
-            change={itemsChange}
-          />
-          <MetricCard
-            title="Customers"
-            value={currentSummary.customers.toString()}
-            icon={<Users className="h-4 w-4 text-muted-foreground" />}
-            change={customerChange}
-          />
-          <MetricCard
-            title="Average Bill"
-            value={formatCurrency(currentSummary.avgBill)}
-            icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
-          />
-          <MetricCard
-            title="Replacement Amount"
-            value={formatCurrency(currentReplacementAmount)}
-            icon={<RefreshCw className="h-4 w-4 text-muted-foreground" />}
-            change={replacementChange}
-          />
-          <MetricCard
-            title="Returns Amount"
-            value={formatCurrency(currentReturnsAmount)}
-            icon={<TrendingDown className="h-4 w-4 text-muted-foreground" />}
-            change={returnsAmountChange}
-          />
-          <MetricCard
-            title="Net Revenue"
-            value={formatCurrency(currentNetRevenue)}
-            icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-            change={netRevenueChange}
-          />
-        </div>
+        <Dialog
+          open={dialogProductId !== null}
+          onOpenChange={(open) => {
+            if (!open) setDialogProductId(null)
+          }}
+        >
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                {dialogProductStats?.productName || 'Product Details'}
+              </DialogTitle>
+              <DialogDescription>
+                {dialogProductStats?.category || ''}
+                {dialogProductId ? ` · ID: ${dialogProductId}` : ''}
+                {dialogStoreStats.length > 0 && (
+                  <>
+                    {' · Sold in '}
+                    <strong>{dialogStoreStats.length}</strong>
+                    {' store(s) for '}
+                    {format(dateWindows.currentStart, 'dd MMM')}–{format(dateWindows.currentEnd, 'dd MMM yyyy')}
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+
+            {dialogProductStats && (
+              <div className="space-y-4">
+                <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-muted-foreground">Qty Sold</p>
+                    <p className="text-lg font-semibold">{dialogProductStats.quantity}</p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-muted-foreground">Revenue</p>
+                    <p className="text-lg font-semibold">{formatCurrency(dialogProductStats.revenue)}</p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-muted-foreground">Profit</p>
+                    <p
+                      className={`text-lg font-semibold ${
+                        dialogProductStats.profit >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}
+                    >
+                      {formatCurrency(dialogProductStats.profit)}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-muted-foreground">Margin</p>
+                    <p className="text-lg font-semibold">
+                      {dialogProductStats.profitMargin === null
+                        ? 'N/A'
+                        : `${dialogProductStats.profitMargin.toFixed(1)}%`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 grid-cols-2 md:grid-cols-4 text-sm">
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <p className="text-xs text-muted-foreground">Cost / Unit</p>
+                    <p className="font-medium">{formatCurrency(dialogProductStats.costPrice)}</p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <p className="text-xs text-muted-foreground">Listed Selling Price</p>
+                    <p className="font-medium">
+                      {formatCurrency(dialogProductRecord?.sellingPrice || 0)}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <p className="text-xs text-muted-foreground">Avg Sold Price</p>
+                    <p className="font-medium">{formatCurrency(dialogProductStats.avgSellingPrice)}</p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <p className="text-xs text-muted-foreground">Current Stock</p>
+                    <p className="font-medium">{dialogProductRecord?.stock ?? 'N/A'}</p>
+                  </div>
+                </div>
+
+                {dialogStoreStats.length > 0 && (
+                  <>
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-emerald-900">
+                        <MapPin className="h-4 w-4" />
+                        Top Selling Store
+                      </div>
+                      <p className="mt-1 text-base font-semibold text-emerald-900">
+                        {dialogStoreStats[0].storeName}
+                      </p>
+                      <p className="text-xs text-emerald-800">
+                        {dialogStoreStats[0].quantity} units ·{' '}
+                        {formatCurrency(dialogStoreStats[0].revenue)}
+                        {dialogTotalQty > 0 && (
+                          <>
+                            {' · '}
+                            {((dialogStoreStats[0].quantity / dialogTotalQty) * 100).toFixed(1)}% of total sales
+                          </>
+                        )}
+                      </p>
+                    </div>
+
+                    <Card className="border-slate-200">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm">
+                          <Store className="h-4 w-4" /> Sales by Store
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <ResponsiveContainer width="100%" height={260}>
+                          <BarChart data={dialogStoreStats} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" />
+                            <YAxis dataKey="storeName" type="category" width={140} />
+                            <Tooltip
+                              formatter={(value, name) =>
+                                name === 'Revenue' ? formatCurrency(Number(value)) : value
+                              }
+                            />
+                            <Legend />
+                            <Bar dataKey="quantity" fill="#2563eb" name="Qty Sold" />
+                            <Bar dataKey="revenue" fill="#16a34a" name="Revenue" />
+                          </BarChart>
+                        </ResponsiveContainer>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Store</TableHead>
+                              <TableHead className="text-right">Qty</TableHead>
+                              <TableHead className="text-right">Revenue</TableHead>
+                              <TableHead className="text-right">Bills</TableHead>
+                              <TableHead className="text-right">Share</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {dialogStoreStats.map((row) => {
+                              const share =
+                                dialogTotalQty > 0 ? (row.quantity / dialogTotalQty) * 100 : 0
+                              return (
+                                <TableRow key={row.storeId}>
+                                  <TableCell className="font-medium">{row.storeName}</TableCell>
+                                  <TableCell className="text-right">{row.quantity}</TableCell>
+                                  <TableCell className="text-right">
+                                    {formatCurrency(row.revenue)}
+                                  </TableCell>
+                                  <TableCell className="text-right">{row.bills}</TableCell>
+                                  <TableCell className="text-right">{share.toFixed(1)}%</TableCell>
+                                </TableRow>
+                              )
+                            })}
+                          </TableBody>
+                        </Table>
+                        <p className="text-xs text-muted-foreground">
+                          Totals: <strong>{dialogTotalQty}</strong> units ·{' '}
+                          {formatCurrency(dialogTotalRevenue)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+
+                {dialogStoreStats.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No store sales recorded for this product in the selected period.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogProductId(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={dialogBatchId !== null}
+          onOpenChange={(open) => {
+            if (!open) setDialogBatchId(null)
+          }}
+        >
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Layers className="h-5 w-5" />
+                {dialogBatch?.batchNumber || 'Batch Details'}
+              </DialogTitle>
+              <DialogDescription>
+                {dialogBatch?.place ? `${dialogBatch.place} · ` : ''}
+                {dialogBatch?.createdAt
+                  ? `Created ${format(new Date(dialogBatch.createdAt), 'dd MMM yyyy')}`
+                  : ''}
+                {' · '}
+                {dialogBatch?.productsInBatch || 0} products · Window:{' '}
+                {format(dateWindows.currentStart, 'dd MMM')}–
+                {format(dateWindows.currentEnd, 'dd MMM yyyy')}
+              </DialogDescription>
+            </DialogHeader>
+
+            {dialogBatch && dialogBatchProducts && (
+              <div className="space-y-4">
+                <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-muted-foreground">Products in Batch</p>
+                    <p className="text-lg font-semibold">{dialogBatch.productsInBatch}</p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-muted-foreground">Products Sold</p>
+                    <p className="text-lg font-semibold">
+                      {dialogBatch.productsSold}
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        (
+                        {dialogBatch.productsInBatch > 0
+                          ? ((dialogBatch.productsSold / dialogBatch.productsInBatch) * 100).toFixed(0)
+                          : 0}
+                        %)
+                      </span>
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-muted-foreground">Qty Sold</p>
+                    <p className="text-lg font-semibold">{dialogBatch.quantitySold}</p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-muted-foreground">Revenue</p>
+                    <p className="text-lg font-semibold">{formatCurrency(dialogBatch.revenue)}</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 grid-cols-2 md:grid-cols-4 text-sm">
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <p className="text-xs text-muted-foreground">COGS</p>
+                    <p className="font-medium">{formatCurrency(dialogBatch.cogs)}</p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <p className="text-xs text-muted-foreground">Profit</p>
+                    <p
+                      className={`font-medium ${
+                        dialogBatch.profit >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}
+                    >
+                      {formatCurrency(dialogBatch.profit)}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <p className="text-xs text-muted-foreground">Margin</p>
+                    <p className="font-medium">
+                      {dialogBatch.marginPct === null
+                        ? 'N/A'
+                        : `${dialogBatch.marginPct.toFixed(1)}%`}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <p className="text-xs text-muted-foreground">Stock On Hand</p>
+                    <p className="font-medium">
+                      {dialogBatch.currentStock} units ·{' '}
+                      <span className="text-xs text-muted-foreground">
+                        {formatCurrency(dialogBatch.stockValue)}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <Card className="border-emerald-200 bg-emerald-50/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-sm text-emerald-800">
+                      <TrendingUp className="h-4 w-4" /> Top Sellers in this Batch
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {dialogBatchProducts.sold.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No products from this batch were sold in the selected period.</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Product</TableHead>
+                            <TableHead className="text-right">Qty Sold</TableHead>
+                            <TableHead className="text-right">Revenue</TableHead>
+                            <TableHead className="text-right">Profit</TableHead>
+                            <TableHead className="text-right">Margin %</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dialogBatchProducts.sold.slice(0, 10).map((row) => (
+                            <TableRow
+                              key={row.productId}
+                              onClick={() => {
+                                setDialogBatchId(null)
+                                setDialogProductId(row.productId)
+                              }}
+                              className="cursor-pointer hover:bg-emerald-100/50"
+                            >
+                              <TableCell className="font-medium">{row.productName}</TableCell>
+                              <TableCell className="text-right">{row.quantity}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                              <TableCell className="text-right">
+                                <span className={row.profit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                  {formatCurrency(row.profit)}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {row.profitMargin === null ? 'N/A' : `${row.profitMargin.toFixed(1)}%`}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {dialogBatchProducts.sold.length > 1 && (
+                  <Card className="border-amber-200 bg-amber-50/30">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-sm text-amber-800">
+                        <TrendingDown className="h-4 w-4" /> Slowest Movers (sold but few units)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Product</TableHead>
+                            <TableHead className="text-right">Qty Sold</TableHead>
+                            <TableHead className="text-right">Revenue</TableHead>
+                            <TableHead className="text-right">Last Sold</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {[...dialogBatchProducts.sold]
+                            .sort((a, b) => a.quantity - b.quantity)
+                            .slice(0, 5)
+                            .map((row) => (
+                              <TableRow
+                                key={row.productId}
+                                onClick={() => {
+                                  setDialogBatchId(null)
+                                  setDialogProductId(row.productId)
+                                }}
+                                className="cursor-pointer hover:bg-amber-100/50"
+                              >
+                                <TableCell className="font-medium">{row.productName}</TableCell>
+                                <TableCell className="text-right">{row.quantity}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                                <TableCell className="text-right text-xs">
+                                  {row.lastSoldAt
+                                    ? format(new Date(row.lastSoldAt), 'dd MMM yyyy')
+                                    : 'N/A'}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {dialogBatchProducts.unsold.length > 0 && (
+                  <Card className="border-rose-200 bg-rose-50/30">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-sm text-rose-800">
+                        <Boxes className="h-4 w-4" /> Not Sold in this Period (
+                        {dialogBatchProducts.unsold.length})
+                      </CardTitle>
+                      <p className="text-xs text-rose-700">
+                        Products from this batch with zero sales — potential dead stock.
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead className="text-right">Stock</TableHead>
+                            <TableHead className="text-right">Cost / Unit</TableHead>
+                            <TableHead className="text-right">Selling Price</TableHead>
+                            <TableHead className="text-right">Blocked Value</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dialogBatchProducts.unsold.slice(0, 20).map((row) => (
+                            <TableRow
+                              key={row.id}
+                              onClick={() => {
+                                setDialogBatchId(null)
+                                setDialogProductId(row.id)
+                              }}
+                              className="cursor-pointer hover:bg-rose-100/40"
+                            >
+                              <TableCell className="font-medium">{row.name}</TableCell>
+                              <TableCell className="text-xs">{row.category}</TableCell>
+                              <TableCell className="text-right">{row.stock}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(row.costPrice)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(row.sellingPrice)}</TableCell>
+                              <TableCell className="text-right">
+                                {formatCurrency(row.stock * row.sellingPrice)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      {dialogBatchProducts.unsold.length > 20 && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Showing 20 of {dialogBatchProducts.unsold.length} unsold products.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogBatchId(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="h-5 w-1.5 rounded-full bg-gradient-to-b from-blue-500 to-sky-400" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+              Sales Performance
+            </h2>
+            <span className="text-xs text-slate-500">
+              · {selectedRangeDays}-day window · {selectedStoreName}
+            </span>
+          </div>
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+            <MetricCard
+              title="Revenue"
+              value={formatCurrency(currentSummary.revenue)}
+              icon={<DollarSign className="h-4 w-4" />}
+              change={revenueChange}
+              subtitle={`Avg ${formatCurrency(currentSummary.avgBill)} per bill`}
+              accent="blue"
+            />
+            <MetricCard
+              title="Bills"
+              value={currentSummary.bills.toLocaleString('en-IN')}
+              icon={<ShoppingCart className="h-4 w-4" />}
+              change={billsChange}
+              subtitle={`${headlineMetrics.itemsPerBill.toFixed(1)} items / bill avg`}
+              accent="sky"
+            />
+            <MetricCard
+              title="Items Sold"
+              value={currentSummary.items.toLocaleString('en-IN')}
+              icon={<Package className="h-4 w-4" />}
+              change={itemsChange}
+              subtitle={`Across ${currentSummary.bills.toLocaleString('en-IN')} bills`}
+              accent="sky"
+            />
+            <MetricCard
+              title="Customers"
+              value={currentSummary.customers.toLocaleString('en-IN')}
+              icon={<Users className="h-4 w-4" />}
+              change={customerChange}
+              subtitle={
+                currentSummary.customers > 0
+                  ? `${formatCurrency(currentSummary.revenue / currentSummary.customers)} per customer`
+                  : 'No tagged customers'
+              }
+              accent="blue"
+            />
+            <MetricCard
+              title="Average Bill"
+              value={formatCurrency(currentSummary.avgBill)}
+              icon={<Calendar className="h-4 w-4" />}
+              subtitle={
+                currentSummary.discount > 0
+                  ? `${headlineMetrics.discountPct.toFixed(1)}% avg discount given`
+                  : 'No discounts applied'
+              }
+              accent="blue"
+            />
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="h-5 w-1.5 rounded-full bg-gradient-to-b from-emerald-500 to-green-400" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+              Profitability
+            </h2>
+            <span className="text-xs text-slate-500">
+              · COGS uses product cost price · margin = profit ÷ revenue
+            </span>
+          </div>
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+            <MetricCard
+              title="Cost of Goods Sold"
+              value={formatCurrency(currentProfitSummary.cogs)}
+              icon={<Package className="h-4 w-4" />}
+              change={cogsChange}
+              subtitle={`${headlineMetrics.cogsPct.toFixed(1)}% of revenue`}
+              accent="amber"
+              progress={headlineMetrics.cogsPct}
+            />
+            <MetricCard
+              title="Total Profit"
+              value={formatCurrency(currentProfitSummary.profit)}
+              icon={<TrendingUp className="h-4 w-4" />}
+              change={profitChange}
+              subtitle={`${formatCurrency(headlineMetrics.profitPerBill)} per bill`}
+              accent="emerald"
+            />
+            <MetricCard
+              title="Profit Margin"
+              value={`${currentProfitSummary.marginPct.toFixed(1)}%`}
+              icon={<Percent className="h-4 w-4" />}
+              change={marginChange}
+              subtitle={`${formatCurrency(currentProfitSummary.profit)} earned on ${formatCurrency(
+                currentProfitSummary.revenue,
+              )}`}
+              accent="emerald"
+              progress={currentProfitSummary.marginPct}
+            />
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="h-5 w-1.5 rounded-full bg-gradient-to-b from-violet-500 to-purple-400" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+              Adjustments &amp; Net Position
+            </h2>
+            <span className="text-xs text-slate-500">
+              · Net Revenue = Gross − Returns
+            </span>
+          </div>
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-3">
+            <MetricCard
+              title="Replacement Amount"
+              value={formatCurrency(currentReplacementAmount)}
+              icon={<RefreshCw className="h-4 w-4" />}
+              change={replacementChange}
+              subtitle={`${headlineMetrics.replacementBillsCount} replacement bill(s) · ${headlineMetrics.replacementPct.toFixed(
+                1,
+              )}% of revenue`}
+              accent="violet"
+            />
+            <MetricCard
+              title="Returns Amount"
+              value={formatCurrency(currentReturnsAmount)}
+              icon={<TrendingDown className="h-4 w-4" />}
+              change={returnsAmountChange}
+              subtitle={`${headlineMetrics.returnsCount} approved return(s) · ${headlineMetrics.returnsPct.toFixed(
+                1,
+              )}% of revenue`}
+              accent="rose"
+              progress={headlineMetrics.returnsPct}
+            />
+            <MetricCard
+              title="Net Revenue"
+              value={formatCurrency(currentNetRevenue)}
+              icon={<DollarSign className="h-4 w-4" />}
+              change={netRevenueChange}
+              subtitle={`${headlineMetrics.netPct.toFixed(1)}% of gross revenue retained`}
+              accent="emerald"
+              progress={headlineMetrics.netPct}
+            />
+          </div>
+        </section>
 
         <div className="grid gap-4 md:grid-cols-3">
           <Card className={PANEL_CARD_CLASS}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Data Coverage</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <BarChart3 className="h-4 w-4 text-blue-600" />
+                Data Coverage
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1 text-sm text-muted-foreground">
-              <p>{`Bills in selected period: ${filteredBills.length}`}</p>
-              <p>{`Bills in previous period: ${previousPeriodBills.length}`}</p>
-              <p>{`Replacement amount: ${formatCurrency(currentReplacementAmount)}`}</p>
-              <p>{`Net revenue after returns: ${formatCurrency(currentNetRevenue)}`}</p>
-              <p>{`Products available: ${products.length}`}</p>
-              <p>{`Stores available: ${stores.length}`}</p>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Bills (selected)</span>
+                <span className="font-medium">{filteredBills.length}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Bills (previous)</span>
+                <span className="font-medium">{previousPeriodBills.length}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Replacement amount</span>
+                <span className="font-medium">{formatCurrency(currentReplacementAmount)}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Net after returns</span>
+                <span className="font-medium text-emerald-700">{formatCurrency(currentNetRevenue)}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Products</span>
+                <span className="font-medium">{products.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Stores</span>
+                <span className="font-medium">{stores.length}</span>
+              </div>
             </CardContent>
           </Card>
 
           <Card className={PANEL_CARD_CLASS}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Inventory Snapshot</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Package className="h-4 w-4 text-emerald-600" />
+                Inventory Snapshot
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1 text-sm text-muted-foreground">
-              <p>{`Total cost value: ${formatCurrency(inventorySummary.totalCostValue)}`}</p>
-              <p>{`Total potential sales: ${formatCurrency(inventorySummary.totalPotentialSalesValue)}`}</p>
-              <p>{`Potential profit: ${formatCurrency(inventorySummary.totalPotentialProfit)}`}</p>
-              <p>{`Non-selling (90 days): ${nonSellingProducts90Days.length}`}</p>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Total cost value</span>
+                <span className="font-medium">{formatCurrency(inventorySummary.totalCostValue)}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Potential sales</span>
+                <span className="font-medium">{formatCurrency(inventorySummary.totalPotentialSalesValue)}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Potential profit</span>
+                <span className="font-medium text-emerald-700">{formatCurrency(inventorySummary.totalPotentialProfit)}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Non-selling (90d)</span>
+                <span className="font-medium text-amber-700">{nonSellingProducts90Days.length}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Low stock</span>
+                <span className="font-medium text-amber-700">{inventorySummary.lowStockCount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Out of stock</span>
+                <span className="font-medium text-red-600">{inventorySummary.outOfStockCount}</span>
+              </div>
             </CardContent>
           </Card>
 
           <Card className={PANEL_CARD_CLASS}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">System Snapshot</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Store className="h-4 w-4 text-violet-600" />
+                System Snapshot
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1 text-sm text-muted-foreground">
-              <p>{`Selected store: ${selectedStoreName}`}</p>
-              <p>{`Inactive stores: ${stores.filter((store) => store.status === 'inactive').length}`}</p>
-              <p>{`Pending returns: ${returns.filter((item) => item.status === 'pending').length}`}</p>
-              <p>{`Last updated: ${lastUpdated ? format(lastUpdated, 'dd MMM yyyy, hh:mm a') : 'N/A'}`}</p>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Selected store</span>
+                <span className="font-medium truncate max-w-[60%] text-right">{selectedStoreName}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Active stores</span>
+                <span className="font-medium">{stores.filter((store) => store.status !== 'inactive').length}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Inactive stores</span>
+                <span className="font-medium text-amber-700">{stores.filter((store) => store.status === 'inactive').length}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Pending returns</span>
+                <span className="font-medium text-amber-700">{returns.filter((item) => item.status === 'pending').length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Last updated</span>
+                <span className="font-medium text-xs">{lastUpdated ? format(lastUpdated, 'dd MMM, hh:mm a') : 'N/A'}</span>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {alerts.length > 0 && (
-          <Card className={PANEL_CARD_CLASS}>
-            <CardHeader>
-              <CardTitle>Alerts</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {alerts.map((alert, index) => (
-                <div
-                  key={`${alert.title}-${index}`}
-                  className="flex items-start justify-between rounded-md border border-slate-200 bg-slate-50 p-3"
-                >
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle
-                      className={`mt-0.5 h-4 w-4 ${
-                        alert.type === 'error'
-                          ? 'text-red-500'
-                          : alert.type === 'warning'
-                          ? 'text-amber-500'
-                          : 'text-blue-500'
-                      }`}
-                    />
-                    <div>
-                      <p className="text-sm font-medium">{alert.title}</p>
-                      <p className="text-xs text-muted-foreground">{alert.message}</p>
-                    </div>
-                  </div>
-                  <Badge variant="outline">{alert.type}</Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)}>
           <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
@@ -2191,6 +3220,12 @@ export default function AnalyticsPage() {
             <TabsTrigger value="products" className="rounded-lg">
               Products
             </TabsTrigger>
+            <TabsTrigger value="profit" className="rounded-lg">
+              Profit
+            </TabsTrigger>
+            <TabsTrigger value="batches" className="rounded-lg">
+              Batches
+            </TabsTrigger>
             <TabsTrigger value="inventory" className="rounded-lg">
               Inventory
             </TabsTrigger>
@@ -2200,16 +3235,108 @@ export default function AnalyticsPage() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+                      Top Store
+                    </p>
+                    <Store className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <p className="mt-1 text-base font-semibold text-slate-900 truncate">
+                    {topPerformers.bestStore?.storeName || '—'}
+                  </p>
+                  <p className="text-xs text-slate-600">
+                    {topPerformers.bestStore
+                      ? `${formatCurrency(topPerformers.bestStore.revenue)} · ${topPerformers.bestStore.bills} bills`
+                      : 'No sales in period'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+                      Top Product
+                    </p>
+                    <Package className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <p className="mt-1 text-base font-semibold text-slate-900 truncate">
+                    {topPerformers.bestProduct?.productName || '—'}
+                  </p>
+                  <p className="text-xs text-slate-600">
+                    {topPerformers.bestProduct
+                      ? `${topPerformers.bestProduct.quantity} units · ${formatCurrency(topPerformers.bestProduct.revenue)}`
+                      : 'No sales in period'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                      Best Day
+                    </p>
+                    <Calendar className="h-4 w-4 text-amber-600" />
+                  </div>
+                  <p className="mt-1 text-base font-semibold text-slate-900">
+                    {topPerformers.bestDay
+                      ? format(new Date(topPerformers.bestDay.date), 'dd MMM yyyy')
+                      : '—'}
+                  </p>
+                  <p className="text-xs text-slate-600">
+                    {topPerformers.bestDay
+                      ? `${formatCurrency(topPerformers.bestDay.revenue)} · ${topPerformers.bestDay.bills} bills`
+                      : 'No sales in period'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-violet-200 bg-gradient-to-br from-violet-50 to-white">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
+                      Top Customer
+                    </p>
+                    <Users className="h-4 w-4 text-violet-600" />
+                  </div>
+                  <p className="mt-1 text-base font-semibold text-slate-900 truncate">
+                    {topPerformers.bestCustomer
+                      ? `ID: ${topPerformers.bestCustomer.customerId}`
+                      : 'No tagged customers'}
+                  </p>
+                  <p className="text-xs text-slate-600">
+                    {topPerformers.bestCustomer
+                      ? `${formatCurrency(topPerformers.bestCustomer.revenue)} · ${topPerformers.bestCustomer.bills} bills`
+                      : '—'}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Revenue Composition</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
-                <p>{`Replacement amount: ${formatCurrency(currentReplacementAmount)}`}</p>
-                <p>{`Approved/completed returns: ${formatCurrency(currentReturnsAmount)}`}</p>
-                <p>{`Net revenue: ${formatCurrency(currentNetRevenue)}`}</p>
+              <CardContent className="grid gap-3 text-sm md:grid-cols-3">
+                <div className="rounded-md border border-violet-100 bg-violet-50/50 p-3">
+                  <p className="text-xs text-violet-700">Replacement Amount</p>
+                  <p className="font-semibold text-slate-900">{formatCurrency(currentReplacementAmount)}</p>
+                </div>
+                <div className="rounded-md border border-rose-100 bg-rose-50/50 p-3">
+                  <p className="text-xs text-rose-700">Approved Returns</p>
+                  <p className="font-semibold text-slate-900">{formatCurrency(currentReturnsAmount)}</p>
+                </div>
+                <div className="rounded-md border border-emerald-100 bg-emerald-50/50 p-3">
+                  <p className="text-xs text-emerald-700">Net Revenue</p>
+                  <p className="font-semibold text-slate-900">{formatCurrency(currentNetRevenue)}</p>
+                </div>
               </CardContent>
             </Card>
+
             <div className="grid gap-4 lg:grid-cols-2">
               <Card className={PANEL_CARD_CLASS}>
                 <CardHeader>
@@ -2225,12 +3352,18 @@ export default function AnalyticsPage() {
                           <stop offset="5%" stopColor="#2563eb" stopOpacity={0.7} />
                           <stop offset="95%" stopColor="#2563eb" stopOpacity={0.05} />
                         </linearGradient>
+                        <linearGradient id="profitFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#16a34a" stopOpacity={0.5} />
+                          <stop offset="95%" stopColor="#16a34a" stopOpacity={0.05} />
+                        </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" tickFormatter={(value) => format(new Date(value), 'dd MMM')} />
                       <YAxis />
                       <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                      <Area type="monotone" dataKey="revenue" stroke="#2563eb" fill="url(#revenueFill)" />
+                      <Legend />
+                      <Area type="monotone" dataKey="revenue" stroke="#2563eb" fill="url(#revenueFill)" name="Revenue" />
+                      <Area type="monotone" dataKey="netRevenue" stroke="#16a34a" fill="url(#profitFill)" name="Net Revenue" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -2255,6 +3388,66 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
             </div>
+
+            <Card className={PANEL_CARD_CLASS}>
+              <CardHeader>
+                <CardTitle>Store Revenue Share</CardTitle>
+                <p className="text-xs text-muted-foreground">Each store&apos;s contribution to total revenue</p>
+              </CardHeader>
+              <CardContent>
+                {storeAnalytics.length === 0 || storeAnalytics.every((s) => s.revenue === 0) ? (
+                  <p className="text-sm text-muted-foreground">No store sales in this period.</p>
+                ) : (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={storeAnalytics.filter((s) => s.revenue > 0)}
+                          dataKey="revenue"
+                          nameKey="storeName"
+                          innerRadius={60}
+                          outerRadius={110}
+                          paddingAngle={2}
+                        >
+                          {storeAnalytics
+                            .filter((s) => s.revenue > 0)
+                            .map((entry, index) => (
+                              <Cell key={entry.storeId} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Store</TableHead>
+                          <TableHead className="text-right">Revenue</TableHead>
+                          <TableHead className="text-right">Share</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {storeAnalytics
+                          .filter((s) => s.revenue > 0)
+                          .slice(0, 8)
+                          .map((row) => {
+                            const totalRev = storeAnalytics.reduce((sum, s) => sum + s.revenue, 0)
+                            const share = totalRev > 0 ? (row.revenue / totalRev) * 100 : 0
+                            return (
+                              <TableRow key={row.storeId}>
+                                <TableCell className="font-medium">{row.storeName}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                                <TableCell className="text-right">{share.toFixed(1)}%</TableCell>
+                              </TableRow>
+                            )
+                          })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="revenue" className="space-y-4">
@@ -2380,28 +3573,68 @@ export default function AnalyticsPage() {
           </TabsContent>
 
           <TabsContent value="stores" className="space-y-4">
-            <Card className={PANEL_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Store Revenue Comparison</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={340}>
-                  <BarChart data={topStores}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="storeName" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                    <Legend />
-                    <Bar dataKey="revenue" fill="#2563eb" name="Revenue" />
-                    <Bar dataKey="bills" fill="#16a34a" name="Bills" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Card className={`${PANEL_CARD_CLASS} lg:col-span-2`}>
+                <CardHeader>
+                  <CardTitle>Store Revenue Comparison</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={340}>
+                    <BarChart data={topStores}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="storeName" />
+                      <YAxis yAxisId="left" />
+                      <YAxis yAxisId="right" orientation="right" />
+                      <Tooltip
+                        formatter={(value, name) =>
+                          name === 'Revenue' ? formatCurrency(Number(value)) : value
+                        }
+                      />
+                      <Legend />
+                      <Bar yAxisId="left" dataKey="revenue" fill="#2563eb" name="Revenue" />
+                      <Bar yAxisId="right" dataKey="bills" fill="#16a34a" name="Bills" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card className={PANEL_CARD_CLASS}>
+                <CardHeader>
+                  <CardTitle>Revenue Share</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {storeAnalytics.every((s) => s.revenue === 0) ? (
+                    <p className="text-sm text-muted-foreground">No store sales.</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={storeAnalytics.filter((s) => s.revenue > 0)}
+                          dataKey="revenue"
+                          nameKey="storeName"
+                          outerRadius={100}
+                          label
+                        >
+                          {storeAnalytics
+                            .filter((s) => s.revenue > 0)
+                            .map((entry, index) => (
+                              <Cell key={entry.storeId} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Store Performance Table</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Per-store revenue, bills, items, distinct products sold, and the leading product.
+                </p>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -2412,17 +3645,20 @@ export default function AnalyticsPage() {
                       <TableHead className="text-right">Bills</TableHead>
                       <TableHead className="text-right">Items</TableHead>
                       <TableHead className="text-right">Avg Bill</TableHead>
+                      <TableHead className="text-right">Products</TableHead>
+                      <TableHead>Top Product</TableHead>
+                      <TableHead className="text-right">Top Qty</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {storeAnalytics.length === 0 && (
+                    {storeWithLeaderProduct.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground">
                           No store data for this filter.
                         </TableCell>
                       </TableRow>
                     )}
-                    {storeAnalytics.map((storeRow) => (
+                    {storeWithLeaderProduct.map((storeRow) => (
                       <TableRow key={storeRow.storeId}>
                         <TableCell>
                           <div className="font-medium">{storeRow.storeName}</div>
@@ -2434,6 +3670,9 @@ export default function AnalyticsPage() {
                         <TableCell className="text-right">{storeRow.bills}</TableCell>
                         <TableCell className="text-right">{storeRow.items}</TableCell>
                         <TableCell className="text-right">{formatCurrency(storeRow.avgBill)}</TableCell>
+                        <TableCell className="text-right">{storeRow.productCount}</TableCell>
+                        <TableCell className="font-medium">{storeRow.topProductName}</TableCell>
+                        <TableCell className="text-right">{storeRow.topProductQty}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -2453,7 +3692,7 @@ export default function AnalyticsPage() {
                   <Input
                     value={productSearch}
                     onChange={(event) => setProductSearch(event.target.value)}
-                    placeholder="Search by product name, id, or category"
+                    placeholder="Search by product name, id, category, batch number or place"
                     className="pl-9"
                   />
                 </div>
@@ -2501,14 +3740,21 @@ export default function AnalyticsPage() {
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Product Sales Table</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Click any row to see store-by-store sales for that product. Search supports product name, ID, category, and batch number / place.
+                </p>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
+                      <TableHead>Batch</TableHead>
                       <TableHead className="text-right">Qty Sold</TableHead>
                       <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-right">COGS</TableHead>
+                      <TableHead className="text-right">Profit</TableHead>
+                      <TableHead className="text-right">Margin %</TableHead>
                       <TableHead className="text-right">Bills</TableHead>
                       <TableHead className="text-right">Avg Selling Price</TableHead>
                       <TableHead>Last Sold</TableHead>
@@ -2517,29 +3763,406 @@ export default function AnalyticsPage() {
                   <TableBody>
                     {filteredProductAnalytics.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        <TableCell colSpan={10} className="text-center text-muted-foreground">
                           No product sales in this period.
                         </TableCell>
                       </TableRow>
                     )}
-                    {filteredProductAnalytics.slice(0, 30).map((row) => (
-                      <TableRow key={row.productId}>
-                        <TableCell className="font-medium">{row.productName}</TableCell>
-                        <TableCell className="text-right">{row.quantity}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
-                        <TableCell className="text-right">{row.bills}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(row.avgSellingPrice)}</TableCell>
-                        <TableCell>
-                          {row.lastSoldAt ? format(new Date(row.lastSoldAt), 'dd MMM yyyy') : 'N/A'}
+                    {filteredProductAnalytics.slice(0, productsLimit).map((row) => {
+                      const batchInfo = row.batchId ? batchMap.get(row.batchId) : null
+                      return (
+                        <TableRow
+                          key={row.productId}
+                          onClick={() => setDialogProductId(row.productId)}
+                          className="cursor-pointer hover:bg-slate-50"
+                        >
+                          <TableCell className="font-medium">{row.productName}</TableCell>
+                          <TableCell>
+                            {batchInfo ? (
+                              <div>
+                                <div className="text-sm font-medium">{batchInfo.batchNumber}</div>
+                                {batchInfo.place && (
+                                  <div className="text-xs text-muted-foreground">{batchInfo.place}</div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">{row.quantity}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.cogs)}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={row.profit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                              {formatCurrency(row.profit)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {row.profitMargin === null ? 'N/A' : `${row.profitMargin.toFixed(1)}%`}
+                          </TableCell>
+                          <TableCell className="text-right">{row.bills}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.avgSellingPrice)}</TableCell>
+                          <TableCell>
+                            {row.lastSoldAt ? format(new Date(row.lastSoldAt), 'dd MMM yyyy') : 'N/A'}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+
+                {filteredProductAnalytics.length > 0 && (
+                  <div className="mt-4 flex flex-col items-center gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      Showing {Math.min(productsLimit, filteredProductAnalytics.length)} of{' '}
+                      {filteredProductAnalytics.length} products
+                    </p>
+                    {productsLimit < filteredProductAnalytics.length ? (
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          setProductsLimit((prev) =>
+                            Math.min(prev + 30, filteredProductAnalytics.length),
+                          )
+                        }
+                      >
+                        Load 30 more
+                      </Button>
+                    ) : (
+                      productsLimit > 30 && (
+                        <Button variant="ghost" size="sm" onClick={() => setProductsLimit(30)}>
+                          Collapse
+                        </Button>
+                      )
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+
+          <TabsContent value="profit" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <MetricCard
+                title="Revenue (Sold)"
+                value={formatCurrency(currentProfitSummary.revenue)}
+                icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
+              />
+              <MetricCard
+                title="Cost of Goods Sold"
+                value={formatCurrency(currentProfitSummary.cogs)}
+                icon={<Package className="h-4 w-4 text-muted-foreground" />}
+                change={cogsChange}
+              />
+              <MetricCard
+                title="Total Profit"
+                value={formatCurrency(currentProfitSummary.profit)}
+                icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+                change={profitChange}
+              />
+              <MetricCard
+                title="Profit Margin"
+                value={`${currentProfitSummary.marginPct.toFixed(1)}%`}
+                icon={<Percent className="h-4 w-4 text-muted-foreground" />}
+                change={marginChange}
+              />
+            </div>
+
+            <Card className={PANEL_CARD_CLASS}>
+              <CardHeader>
+                <CardTitle>How profit is calculated</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-1">
+                <p>
+                  <strong>Cost Price</strong> (Product master <code>price</code> field) is treated as the purchase/procurement cost per unit.
+                </p>
+                <p>
+                  <strong>Selling Price</strong> per line item is the actual amount billed (after any per-bill discount allocated).
+                </p>
+                <p>
+                  Profit = Σ(line item revenue) − Σ(cost price × quantity sold). Margin % = Profit ÷ Revenue × 100.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className={PANEL_CARD_CLASS}>
+              <CardHeader>
+                <CardTitle>Top 10 Profitable Products</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={340}>
+                  <BarChart data={topProfitableProducts} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis dataKey="productName" type="category" width={140} />
+                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                    <Legend />
+                    <Bar dataKey="revenue" fill="#2563eb" name="Revenue" />
+                    <Bar dataKey="cogs" fill="#94a3b8" name="COGS" />
+                    <Bar dataKey="profit" fill="#16a34a" name="Profit" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {lossMakers.length > 0 && (
+              <Card className="border-red-200 bg-red-50/30 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-red-700">
+                    <AlertTriangle className="h-4 w-4" />
+                    Loss-Making Products
+                  </CardTitle>
+                  <p className="text-xs text-red-600">
+                    Products where selling price was below cost. Total loss:{' '}
+                    <strong>{formatCurrency(lossMakers.reduce((s, p) => s + p.profit, 0))}</strong>
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Qty Sold</TableHead>
+                        <TableHead className="text-right">Cost / Unit</TableHead>
+                        <TableHead className="text-right">Avg Sell Price</TableHead>
+                        <TableHead className="text-right">Revenue</TableHead>
+                        <TableHead className="text-right">Loss</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {lossMakers.slice(0, 20).map((row) => (
+                        <TableRow
+                          key={row.productId}
+                          onClick={() => setDialogProductId(row.productId)}
+                          className="cursor-pointer hover:bg-red-100/50"
+                        >
+                          <TableCell className="font-medium">{row.productName}</TableCell>
+                          <TableCell className="text-right">{row.quantity}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.costPrice)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.avgSellingPrice)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                          <TableCell className="text-right text-red-600 font-medium">
+                            {formatCurrency(row.profit)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card className={PANEL_CARD_CLASS}>
+              <CardHeader>
+                <CardTitle>Profit by Product</CardTitle>
+                <p className="text-xs text-muted-foreground">Click any row for store-by-store breakdown</p>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead className="text-right">Qty Sold</TableHead>
+                      <TableHead className="text-right">Cost / Unit</TableHead>
+                      <TableHead className="text-right">Avg Sell Price</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-right">COGS</TableHead>
+                      <TableHead className="text-right">Profit</TableHead>
+                      <TableHead className="text-right">Margin %</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProductAnalytics.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center text-muted-foreground">
+                          No product sales in this period.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
+                    {filteredProductAnalytics
+                      .slice()
+                      .sort((a, b) => b.profit - a.profit)
+                      .slice(0, 50)
+                      .map((row) => (
+                        <TableRow
+                          key={row.productId}
+                          onClick={() => setDialogProductId(row.productId)}
+                          className="cursor-pointer hover:bg-slate-50"
+                        >
+                          <TableCell className="font-medium">{row.productName}</TableCell>
+                          <TableCell className="text-right">{row.quantity}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.costPrice)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.avgSellingPrice)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.cogs)}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={row.profit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                              {formatCurrency(row.profit)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {row.profitMargin === null ? 'N/A' : `${row.profitMargin.toFixed(1)}%`}
+                          </TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
           </TabsContent>
 
+          <TabsContent value="batches" className="space-y-4">
+            <Card className={PANEL_CARD_CLASS}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Layers className="h-4 w-4" /> Batch Overview
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {batches.length} batch(es) tracked · {products.filter((p) => p.batchId).length} of{' '}
+                  {products.length} products are batch-tagged · Click a batch to drill into its product performance.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="relative max-w-md mb-4">
+                  <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={batchSearch}
+                    onChange={(e) => setBatchSearch(e.target.value)}
+                    placeholder="Search by batch number or place"
+                    className="pl-9"
+                  />
+                </div>
+
+                {filteredBatchAnalytics.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {batches.length === 0
+                      ? 'No batches found. Make sure your products are batch-tagged.'
+                      : 'No batches match this search.'}
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Batch</TableHead>
+                        <TableHead>Place</TableHead>
+                        <TableHead className="text-right">Products</TableHead>
+                        <TableHead className="text-right">Sold</TableHead>
+                        <TableHead className="text-right">Qty Sold</TableHead>
+                        <TableHead className="text-right">Revenue</TableHead>
+                        <TableHead className="text-right">Profit</TableHead>
+                        <TableHead className="text-right">Margin %</TableHead>
+                        <TableHead className="text-right">Stock Value</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredBatchAnalytics.map((row) => {
+                        const sellThrough =
+                          row.productsInBatch > 0
+                            ? (row.productsSold / row.productsInBatch) * 100
+                            : 0
+                        return (
+                          <TableRow
+                            key={row.batchId}
+                            onClick={() => setDialogBatchId(row.batchId)}
+                            className="cursor-pointer hover:bg-slate-50"
+                          >
+                            <TableCell>
+                              <div className="font-medium">{row.batchNumber}</div>
+                              {row.createdAt && (
+                                <div className="text-xs text-muted-foreground">
+                                  {format(new Date(row.createdAt), 'dd MMM yyyy')}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm">{row.place || '—'}</TableCell>
+                            <TableCell className="text-right">{row.productsInBatch}</TableCell>
+                            <TableCell className="text-right">
+                              <span className="text-sm">
+                                {row.productsSold}
+                                <span className="ml-1 text-xs text-muted-foreground">
+                                  ({sellThrough.toFixed(0)}%)
+                                </span>
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">{row.quantitySold}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                            <TableCell className="text-right">
+                              <span className={row.profit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                {formatCurrency(row.profit)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {row.marginPct === null ? 'N/A' : `${row.marginPct.toFixed(1)}%`}
+                            </TableCell>
+                            <TableCell className="text-right">{formatCurrency(row.stockValue)}</TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+
+            {batchAnalytics.filter((b) => b.revenue > 0).length > 0 && (
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Card className={PANEL_CARD_CLASS}>
+                  <CardHeader>
+                    <CardTitle>Top Batches by Revenue</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart
+                        data={batchAnalytics.filter((b) => b.revenue > 0).slice(0, 10)}
+                        layout="vertical"
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" />
+                        <YAxis dataKey="batchNumber" type="category" width={140} />
+                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                        <Legend />
+                        <Bar dataKey="revenue" fill="#2563eb" name="Revenue" />
+                        <Bar dataKey="profit" fill="#16a34a" name="Profit" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                <Card className={PANEL_CARD_CLASS}>
+                  <CardHeader>
+                    <CardTitle>Batch Sell-Through Rate</CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      % of products in each batch that had at least one sale
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart
+                        data={batchAnalytics
+                          .filter((b) => b.productsInBatch > 0)
+                          .map((b) => ({
+                            batchNumber: b.batchNumber,
+                            sellThrough:
+                              b.productsInBatch > 0
+                                ? Number(((b.productsSold / b.productsInBatch) * 100).toFixed(1))
+                                : 0,
+                          }))
+                          .slice(0, 10)}
+                        layout="vertical"
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" domain={[0, 100]} unit="%" />
+                        <YAxis dataKey="batchNumber" type="category" width={140} />
+                        <Tooltip formatter={(value) => `${value}%`} />
+                        <Bar dataKey="sellThrough" fill="#16a34a" name="Sell-through %" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
 
           <TabsContent value="inventory" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -2627,46 +4250,155 @@ export default function AnalyticsPage() {
 
 
           <TabsContent value="returns" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <Card className="border-amber-200 bg-amber-50/40">
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Pending</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {returnsInPeriod.filter((item) => item.status === 'pending').length}
+                  </p>
+                  <p className="text-xs text-amber-600">Awaiting approval</p>
+                </CardContent>
+              </Card>
+              <Card className="border-emerald-200 bg-emerald-50/40">
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Approved</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {returnsInPeriod.filter((item) => item.status === 'approved' || item.status === 'completed').length}
+                  </p>
+                  <p className="text-xs text-emerald-600">
+                    {formatCurrency(currentReturnsAmount)} refunded
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="border-rose-200 bg-rose-50/40">
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-rose-700">Rejected</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {returnsInPeriod.filter((item) => item.status === 'rejected').length}
+                  </p>
+                  <p className="text-xs text-rose-600">Refund denied</p>
+                </CardContent>
+              </Card>
+              <Card className="border-violet-200 bg-violet-50/40">
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-violet-700">Replacements</p>
+                  <p className="text-2xl font-bold text-slate-900">{headlineMetrics.replacementBillsCount}</p>
+                  <p className="text-xs text-violet-600">
+                    {formatCurrency(currentReplacementAmount)} issued
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="grid gap-4 lg:grid-cols-2">
               <Card className={PANEL_CARD_CLASS}>
                 <CardHeader>
                   <CardTitle>Returns by Status</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <PieChart>
-                      <Pie data={returnStatusData} dataKey="value" nameKey="name" outerRadius={100} label>
-                        {returnStatusData.map((entry, index) => (
-                          <Cell key={`${entry.name}-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {returnStatusData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No returns in this period.</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <PieChart>
+                        <Pie data={returnStatusData} dataKey="value" nameKey="name" outerRadius={100} label>
+                          {returnStatusData.map((entry, index) => (
+                            <Cell key={`${entry.name}-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
                 </CardContent>
               </Card>
 
               <Card className={PANEL_CARD_CLASS}>
                 <CardHeader>
-                  <CardTitle>Returns Snapshot</CardTitle>
+                  <CardTitle>Returns by Store</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm text-muted-foreground">
-                  <p>{`Returns in selected period: ${returnsInPeriod.length}`}</p>
-                  <p>{`Pending: ${returnsInPeriod.filter((item) => item.status === 'pending').length}`}</p>
-                  <p>{`Approved: ${returnsInPeriod.filter((item) => item.status === 'approved').length}`}</p>
-                  <p>{`Rejected: ${returnsInPeriod.filter((item) => item.status === 'rejected').length}`}</p>
-                  <p>{`Completed: ${returnsInPeriod.filter((item) => item.status === 'completed').length}`}</p>
-                  <p>
-                    {`Total return amount: ${formatCurrency(
-                      returnsInPeriod.reduce((sum, item) => sum + item.returnAmount, 0),
-                    )}`}
-                  </p>
-                  <p>{`Replacement amount (selected period): ${formatCurrency(currentReplacementAmount)}`}</p>
-                  <p>{`Net revenue after returns: ${formatCurrency(currentNetRevenue)}`}</p>
+                <CardContent>
+                  {returnsByStore.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No store returns in this period.</p>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <BarChart data={returnsByStore.slice(0, 8)} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" />
+                          <YAxis dataKey="storeName" type="category" width={140} />
+                          <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                          <Bar dataKey="amount" fill="#dc2626" name="Return Amount" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Store</TableHead>
+                            <TableHead className="text-right">Returns</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {returnsByStore.slice(0, 8).map((row) => (
+                            <TableRow key={row.storeId}>
+                              <TableCell className="font-medium">{row.storeName}</TableCell>
+                              <TableCell className="text-right">{row.count}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>
+
+            <Card className={PANEL_CARD_CLASS}>
+              <CardHeader>
+                <CardTitle>Most Returned Products</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Identify problem products driving the largest refund amounts
+                </p>
+              </CardHeader>
+              <CardContent>
+                {topReturnedProducts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No returns in this period.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Return Count</TableHead>
+                        <TableHead className="text-right">Total Refund</TableHead>
+                        <TableHead className="text-right">Avg per Return</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {topReturnedProducts.slice(0, 15).map((row) => (
+                        <TableRow
+                          key={row.productId}
+                          onClick={() => row.productId !== 'unknown' && setDialogProductId(row.productId)}
+                          className={row.productId !== 'unknown' ? 'cursor-pointer hover:bg-slate-50' : ''}
+                        >
+                          <TableCell className="font-medium">{row.productName}</TableCell>
+                          <TableCell className="text-right">{row.count}</TableCell>
+                          <TableCell className="text-right text-red-600 font-medium">
+                            {formatCurrency(row.amount)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(row.count > 0 ? row.amount / row.count : 0)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
@@ -2678,7 +4410,8 @@ export default function AnalyticsPage() {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Return ID</TableHead>
-                      <TableHead>Product ID</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Store</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -2686,7 +4419,7 @@ export default function AnalyticsPage() {
                   <TableBody>
                     {returnsInPeriod.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
                           No returns in this period.
                         </TableCell>
                       </TableRow>
@@ -2699,31 +4432,37 @@ export default function AnalyticsPage() {
                           (parseDate(a.createdAt)?.getTime() || 0),
                       )
                       .slice(0, 30)
-                      .map((item) => (
-                        <TableRow key={item.returnId}>
-                          <TableCell>
-                            {parseDate(item.createdAt)
-                              ? format(parseDate(item.createdAt) as Date, 'dd MMM yyyy')
-                              : 'N/A'}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">{item.returnId}</TableCell>
-                          <TableCell className="font-mono text-xs">{item.productId || '-'}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(item.returnAmount)}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                item.status === 'approved' || item.status === 'completed'
-                                  ? 'default'
-                                  : item.status === 'pending'
-                                  ? 'secondary'
-                                  : 'destructive'
-                              }
-                            >
-                              {item.status}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      .map((item) => {
+                        const productName =
+                          products.find((p) => p.id === item.productId)?.name || item.productId || '—'
+                        const sname = storeNameMap.get(item.storeId || '') || '—'
+                        return (
+                          <TableRow key={item.returnId}>
+                            <TableCell>
+                              {parseDate(item.createdAt)
+                                ? format(parseDate(item.createdAt) as Date, 'dd MMM yyyy')
+                                : 'N/A'}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">{item.returnId}</TableCell>
+                            <TableCell>{productName}</TableCell>
+                            <TableCell>{sname}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(item.returnAmount)}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  item.status === 'approved' || item.status === 'completed'
+                                    ? 'default'
+                                    : item.status === 'pending'
+                                    ? 'secondary'
+                                    : 'destructive'
+                                }
+                              >
+                                {item.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                   </TableBody>
                 </Table>
               </CardContent>
