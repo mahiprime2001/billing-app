@@ -620,7 +620,21 @@ export default function ProductsPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update product");
+        let serverDetail = "";
+        try {
+          const body = await response.clone().json();
+          serverDetail = body?.error || body?.message || JSON.stringify(body);
+        } catch {
+          try {
+            serverDetail = await response.text();
+          } catch {
+            serverDetail = "";
+          }
+        }
+        const detailLine = serverDetail ? `\n${serverDetail}` : "";
+        throw new Error(
+          `Failed to update product (HTTP ${response.status} ${response.statusText})${detailLine}`,
+        );
       }
 
       const editingId = editingProduct.id;
@@ -642,7 +656,8 @@ export default function ProductsPage() {
       setIsEditDialogOpen(false);
     } catch (error) {
       console.error("Error updating product:", error);
-      alert("Failed to update product.");
+      const message = error instanceof Error ? error.message : String(error);
+      alert(message || "Failed to update product.");
     }
   };
 
