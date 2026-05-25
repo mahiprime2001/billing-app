@@ -632,7 +632,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-w-6xl h-[85vh] flex flex-col">
+      <DialogContent className="max-w-[1600px] w-[95vw] h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Package className="h-5 w-5" />
@@ -643,9 +643,9 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex gap-6">
+        <div className="flex-1 overflow-hidden flex gap-6 min-w-0">
           {/* Left Side - Product List */}
-          <div className="flex-1 flex flex-col gap-4">
+          <div className="flex-1 min-w-0 flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -673,8 +673,8 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
             </div>
 
             <div className="flex-1 border rounded-xl overflow-hidden bg-muted/10">
-              <div className="overflow-auto h-full">
-                <Table>
+              <div className="h-full [&>div]:h-full [&>div]:max-h-full">
+                <Table className="min-w-[900px]">
                   <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
                       <TableHead className="w-12">#</TableHead>
@@ -754,10 +754,10 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
           </div>
 
           {/* Right Side - Selected Products */}
-          <div className="w-96 border rounded-xl p-5 flex flex-col gap-4 bg-muted/20">
-            <div className="flex items-center justify-between">
-              <div className="font-semibold">Selected Products</div>
-              <div className="flex flex-col items-end gap-1">
+          <div className="w-96 shrink-0 border rounded-xl p-5 flex flex-col gap-4 bg-muted/20">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-semibold">Selected Products</div>
                 {selectedCount > 0 && (
                   <Button
                     variant="ghost"
@@ -768,7 +768,9 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                     Clear All
                   </Button>
                 )}
-                <Badge variant="secondary" className="text-sm">{selectedCount}</Badge>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className="text-sm">{selectedCount} selected</Badge>
                 <Badge variant="outline" className="text-sm">Total Stock: {formatStock(totalSelectedStock)}</Badge>
               </div>
             </div>
