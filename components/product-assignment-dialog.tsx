@@ -672,10 +672,10 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
               </label>
             </div>
 
-            <div className="flex-1 border rounded-xl overflow-hidden bg-muted/10">
-              <div className="h-full [&>div]:h-full [&>div]:max-h-full">
+            <div className="flex-1 border rounded-xl overflow-hidden bg-muted/10 min-h-0">
+              <div className="max-h-[calc(85vh-260px)] overflow-auto">
                 <Table className="min-w-[900px]">
-                  <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableHeader className="sticky top-0 bg-muted/40 z-10">
                     <TableRow>
                       <TableHead className="w-12">#</TableHead>
                       <TableHead>Barcode</TableHead>
@@ -754,7 +754,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
           </div>
 
           {/* Right Side - Selected Products */}
-          <div className="w-96 shrink-0 border rounded-xl p-5 flex flex-col gap-4 bg-muted/20">
+          <div className="w-96 shrink-0 border rounded-xl p-5 flex flex-col gap-4 bg-muted/20 min-h-0">
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="font-semibold">Selected Products</div>
@@ -810,7 +810,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                 </div>
               </div>
             ) : (
-              <div ref={selectedListRef} className="flex-1 overflow-auto space-y-3 pr-1">
+              <div ref={selectedListRef} className="flex-1 max-h-[calc(85vh-320px)] overflow-auto space-y-3 pr-1">
                 {selectedProductsList.map(p => {
                   const key = p.id || p.barcode
                   const qty = quantityMap[key] || 0

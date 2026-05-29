@@ -2193,9 +2193,9 @@ const handleDeleteProduct = async (productId: string) => {
             <div ref={productTableTopScrollRef} className="overflow-x-auto overflow-y-hidden mb-2">
               <div className="h-px" />
             </div>
-            <div className="overflow-x-hidden max-h-[500px] overflow-y-auto relative" ref={scrollableDivRef}>
+            <div className="overflow-x-hidden max-h-[calc(100vh-340px)] overflow-y-auto relative" ref={scrollableDivRef}>
               <table ref={productTableContentRef} className="w-full">
-                <thead>
+                <thead className="sticky top-0 bg-muted/40 z-10">
                   <tr className="border-b">
                     <th className="text-left p-4">
                       <input

@@ -777,7 +777,7 @@ def get_store_inventory(store_id: str) -> Tuple[Optional[List[Dict]], int]:
         client = db.client
         response = execute_with_retry(
             lambda: client.table("storeinventory")
-            .select("*, products(name, price, barcode)")
+            .select("*, products(name, price, selling_price, barcode)")
             .eq("storeid", store_id),
             f"store inventory for {store_id}",
         )
@@ -799,6 +799,7 @@ def get_store_inventory(store_id: str) -> Tuple[Optional[List[Dict]], int]:
                     row["products"] = {
                         "name": product.get("name"),
                         "price": product.get("price"),
+                        "selling_price": product.get("selling_price") or product.get("sellingPrice"),
                         "barcode": product.get("barcode"),
                     }
                     rows.append(row)
@@ -831,6 +832,7 @@ def get_store_inventory(store_id: str) -> Tuple[Optional[List[Dict]], int]:
                     row["products"] = {
                         "name": product.get("name"),
                         "price": product.get("price"),
+                        "selling_price": product.get("selling_price") or product.get("sellingPrice"),
                         "barcode": product.get("barcode"),
                     }
                     rows.append(row)

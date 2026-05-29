@@ -79,10 +79,14 @@ type StoreLiveInventoryRow = {
     name?: string
     barcode?: string
     price?: number
+    sellingPrice?: number
+    selling_price?: number
   }
   name?: string
   barcode?: string
   price?: number
+  sellingPrice?: number
+  selling_price?: number
 }
 
 
@@ -511,7 +515,7 @@ function StoreInsightModal({
                                 {qty}
                               </TableCell>
                               <TableCell className="text-right tabular-nums text-sm">
-                                ₹{(p.price || row.price || 0).toFixed(2)}
+                                ₹{Number(p.sellingPrice ?? p.selling_price ?? row.sellingPrice ?? row.selling_price ?? p.price ?? row.price ?? 0).toFixed(2)}
                               </TableCell>
                             </TableRow>
                           );
