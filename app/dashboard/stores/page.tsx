@@ -464,11 +464,11 @@ function StoreInsightModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-6">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="flex-1 overflow-hidden p-6 min-h-0">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full">
             {/* Products Section */}
-            <Card className="border shadow-none">
-              <CardHeader className="pb-3 space-y-2">
+            <Card className="border shadow-none flex flex-col h-full min-h-0 overflow-hidden">
+              <CardHeader className="pb-3 space-y-2 shrink-0">
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-sm font-medium">Products in store</CardTitle>
                   <span className="text-xs text-muted-foreground tabular-nums">
@@ -485,15 +485,15 @@ function StoreInsightModal({
                   />
                 </div>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="max-h-[calc(100vh-340px)] overflow-auto">
-                  <Table>
+              <CardContent className="p-0 flex-1 min-h-0 overflow-hidden">
+                <div className="h-full overflow-y-auto overflow-x-hidden [&>div]:overflow-visible pb-2">
+                  <Table className="table-fixed w-full">
                     <TableHeader className="bg-muted/40 sticky top-0 z-10">
                       <TableRow>
-                        <TableHead className="h-9">Barcode</TableHead>
-                        <TableHead className="h-9">Product</TableHead>
-                        <TableHead className="h-9 text-right">Qty</TableHead>
-                        <TableHead className="h-9 text-right">Price</TableHead>
+                        <TableHead className="h-10 w-[25%] text-sm">Barcode</TableHead>
+                        <TableHead className="h-10 w-[35%] text-sm">Product</TableHead>
+                        <TableHead className="h-10 w-[15%] text-sm text-right">Qty</TableHead>
+                        <TableHead className="h-10 w-[25%] text-sm text-right">Price</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -509,12 +509,12 @@ function StoreInsightModal({
                           const qty = Number(row.quantity || 0);
                           return (
                             <TableRow key={idx} className="hover:bg-muted/30">
-                              <TableCell className="font-mono text-xs">{p.barcode || row.barcode || "—"}</TableCell>
-                              <TableCell className="text-sm font-medium">{p.name || row.name || "Unknown"}</TableCell>
-                              <TableCell className={`text-right tabular-nums text-sm ${qty === 0 ? "text-rose-600" : ""}`}>
+                              <TableCell className="font-mono text-sm py-2 truncate" title={p.barcode || row.barcode || ""}>{p.barcode || row.barcode || "—"}</TableCell>
+                              <TableCell className="text-base font-medium py-2 truncate" title={p.name || row.name || ""}>{p.name || row.name || "Unknown"}</TableCell>
+                              <TableCell className={`text-right tabular-nums text-base py-2 ${qty === 0 ? "text-rose-600" : ""}`}>
                                 {qty}
                               </TableCell>
-                              <TableCell className="text-right tabular-nums text-sm">
+                              <TableCell className="text-right tabular-nums text-base py-2">
                                 ₹{Number(p.sellingPrice ?? p.selling_price ?? row.sellingPrice ?? row.selling_price ?? p.price ?? row.price ?? 0).toFixed(2)}
                               </TableCell>
                             </TableRow>
@@ -528,8 +528,8 @@ function StoreInsightModal({
             </Card>
 
             {/* Bills Section */}
-            <Card className="border shadow-none">
-              <CardHeader className="pb-3 space-y-3">
+            <Card className="border shadow-none flex flex-col h-full min-h-0 overflow-hidden">
+              <CardHeader className="pb-3 space-y-3 shrink-0">
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-sm font-medium">Recent bills</CardTitle>
                   <span className="text-xs text-muted-foreground tabular-nums">
@@ -566,15 +566,15 @@ function StoreInsightModal({
                   </div>
                 )}
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="max-h-[calc(100vh-340px)] overflow-auto">
-                  <Table>
+              <CardContent className="p-0 flex-1 min-h-0 overflow-hidden">
+                <div className="h-full overflow-y-auto overflow-x-hidden [&>div]:overflow-visible pb-2">
+                  <Table className="table-fixed w-full">
                     <TableHeader className="bg-muted/40 sticky top-0 z-10">
                       <TableRow>
-                        <TableHead className="h-9">Bill</TableHead>
-                        <TableHead className="h-9">Date</TableHead>
-                        <TableHead className="h-9 text-right">Amount</TableHead>
-                        <TableHead className="h-9">Status</TableHead>
+                        <TableHead className="h-9 w-[34%]">Bill</TableHead>
+                        <TableHead className="h-9 w-[28%]">Date</TableHead>
+                        <TableHead className="h-9 w-[18%] text-right">Amount</TableHead>
+                        <TableHead className="h-9 w-[20%]">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -601,14 +601,14 @@ function StoreInsightModal({
                               className="hover:bg-muted/30 cursor-pointer"
                               onClick={() => setSelectedBill(bill)}
                             >
-                              <TableCell className="font-mono text-xs">{bill.id}</TableCell>
-                              <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                              <TableCell className="font-mono text-xs py-1.5 truncate" title={bill.id}>{bill.id}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground whitespace-nowrap py-1.5 truncate">
                                 {formatDateTime(getBillDate(bill))}
                               </TableCell>
-                              <TableCell className="text-right font-semibold tabular-nums text-sm">
+                              <TableCell className="text-right font-semibold tabular-nums text-sm py-1.5">
                                 ₹{Number(bill.total || 0).toFixed(2)}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="py-1.5">
                                 <span className={`inline-block px-2 py-0.5 text-[11px] rounded border capitalize ${statusToneBill}`}>
                                   {status}
                                 </span>
@@ -625,7 +625,7 @@ function StoreInsightModal({
           </div>
         </div>
 
-        <DialogFooter className="border-t px-6 py-3 bg-white">
+        <DialogFooter className="border-t px-6 py-3 bg-white shrink-0">
           <Button variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>
