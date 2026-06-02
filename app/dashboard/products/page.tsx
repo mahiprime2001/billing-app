@@ -495,6 +495,11 @@ export default function ProductsPage() {
       }
     }
 
+    if (!formData.hsnCode || String(formData.hsnCode).trim() === "") {
+      alert("Please select an HSN code.");
+      return;
+    }
+
     const normalizeHsnCode = (value: unknown) => {
       if (value == null) return undefined;
       const str = String(value).trim();
@@ -1728,7 +1733,7 @@ const handleDeleteProduct = async (productId: string) => {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-2">
-                    <Label htmlFor="hsnCode">HSN Code</Label>
+                    <Label htmlFor="hsnCode">HSN Code <span className="text-red-500">*</span></Label>
                     <Select
                       value={formData.hsnCode || "none"}
                       onValueChange={(value) => handleHsnCodeChange(value === "none" ? "" : value)}
@@ -1737,7 +1742,6 @@ const handleDeleteProduct = async (productId: string) => {
                         <SelectValue placeholder="Select HSN Code" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
                         {hsnCodes.map((hsn) => (
                           <SelectItem key={hsn.id} value={String(hsn.id)}>
                             {hsn.hsnCode}
