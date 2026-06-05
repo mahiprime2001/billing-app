@@ -64,7 +64,13 @@
       "Bash(python3 -c ' *)",
       "Bash(grep -E \"^name = \\\\\"\\(tauri|tauri-build\\)\\\\\"$\" -A 1 d:/Siri-apps/billing-app/src-tauri/Cargo.lock)",
       "Bash(npm view *)",
-      "Bash(grep -n \"lastSoldAt: billDateIso,\\\\s*$\\\\|lastSoldAt: billDateIso,\" \"d:/Siri-apps/billing-app/app/dashboard/analytics/page.tsx\")"
+      "Bash(grep -n \"lastSoldAt: billDateIso,\\\\s*$\\\\|lastSoldAt: billDateIso,\" \"d:/Siri-apps/billing-app/app/dashboard/analytics/page.tsx\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(Get-ChildItem -Path \"d:\\\\Siri-apps\\\\billing-app\\\\backend\" -Exclude \".venv\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(xargs grep -l \"inventory_transfer_scans\\\\|inventory_transfer_verifications\")"
     ]
   }
 }

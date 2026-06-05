@@ -58,6 +58,7 @@ import {
   Layers,
   SlidersHorizontal,
   Check,
+  Store,
 } from "lucide-react";
 import PrintDialog from "@/components/PrintDialog";
 import { ScrollToBottomButton } from "@/components/ScrollToBottomButton";
@@ -143,6 +144,32 @@ export default function ProductsPage() {
       refreshInterval: 0,
     }
   );
+
+  // Stores list — used to resolve storeid -> { name, storecode } for the
+  // product distribution panel (the /products/:id/stores endpoint only
+  // returns storeid + quantity, not store names).
+  const { data: storesList = [] } = useSWR<any[]>(
+    "/api/stores",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 10000,
+      refreshInterval: 0,
+    }
+  );
+  const storeInfoMap = useMemo(() => {
+    const map = new Map<string, { name: string; storecode: string }>();
+    (Array.isArray(storesList) ? storesList : []).forEach((s: any) => {
+      if (s?.id != null) {
+        map.set(String(s.id), {
+          name: s.name || "Unknown store",
+          storecode: s.storecode || s.storeCode || s.store_code || "",
+        });
+      }
+    });
+    return map;
+  }, [storesList]);
   // Normalize data on fetch to create a 'barcodes' array from the 'barcode' string for UI
   const products: Product[] = useMemo(() => {
   if (!productsData || productsData.length === 0) return [];
@@ -217,6 +244,13 @@ export default function ProductsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false)
+  // Product store-distribution panel state
+  const [distributionProduct, setDistributionProduct] = useState<Product | null>(null)
+  const [distributionRows, setDistributionRows] = useState<
+    { storeId: string; name: string; storecode: string; quantity: number }[]
+  >([])
+  const [distributionLoading, setDistributionLoading] = useState(false)
+  const [distributionError, setDistributionError] = useState<string | null>(null)
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [productsToPrint, setProductsToPrint] = useState<Product[]>([]);
   const [isBulkHsnDialogOpen, setIsBulkHsnDialogOpen] = useState(false);
@@ -824,6 +858,49 @@ const handleDeleteProduct = async (productId: string) => {
     setNameSuggestions([]);
     setShowEditNameSuggestions(false);
     setIsEditDialogOpen(true)
+  }
+
+  // Open the store-distribution panel for a product: fetch which stores hold
+  // it (and how much), resolve store names/codes, and hide sold-out stores.
+  const openDistribution = async (product: Product) => {
+    setDistributionProduct(product)
+    setDistributionRows([])
+    setDistributionError(null)
+    setDistributionLoading(true)
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${product.id}/stores`,
+      )
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`)
+      }
+      const payload = await response.json()
+      const rawRows: any[] = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload)
+          ? payload
+          : []
+      const rows = rawRows
+        .map((row: any) => {
+          const storeId = String(row.storeid ?? row.storeId ?? "")
+          const info = storeInfoMap.get(storeId)
+          return {
+            storeId,
+            name: info?.name || storeId || "Unknown store",
+            storecode: info?.storecode || "",
+            quantity: Number(row.quantity ?? 0),
+          }
+        })
+        // Hide stores that have sold out (no stock currently in that store).
+        .filter((row) => row.quantity > 0)
+        .sort((a, b) => b.quantity - a.quantity)
+      setDistributionRows(rows)
+    } catch (error) {
+      console.error("Error fetching product distribution:", error)
+      setDistributionError("Could not load store distribution. Please try again.")
+    } finally {
+      setDistributionLoading(false)
+    }
   }
 
   const openPrintDialog = (productIds: string[]) => {
@@ -2290,10 +2367,13 @@ const handleDeleteProduct = async (productId: string) => {
                             const inStores = Number(
                               (product as any).inStoresStock ?? (product as any).allocatedStock ?? 0,
                             );
-                            const lifetime = Number(
-                              (product as any).lifetimeStock ??
-                                (Number(product.globalStock ?? product.stock ?? 0) + sold),
-                            );
+                            // Godown stock — same value shown in the "Available Units" column.
+                            const available = Number(product.availableStock ?? product.stock ?? 0);
+                            // Total stock = what's still on hand (godown + in stores) + what's
+                            // already sold. Derived from the three displayed components so the
+                            // total always matches the breakdown, even when the backend's raw
+                            // `stock` is out of sync with what's allocated to stores.
+                            const lifetime = available + inStores + sold;
                             return (
                               <div className="leading-tight">
                                 <div className="font-semibold text-base">{lifetime}</div>
@@ -2331,6 +2411,14 @@ const handleDeleteProduct = async (productId: string) => {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              title="View stores this product is sent to"
+                              onClick={() => openDistribution(product)}
+                            >
+                              <Store className="h-3 w-3" />
+                            </Button>
                             <Button variant="outline" size="sm" onClick={() => openEditDialog(product)}>
                               <Edit className="h-3 w-3" />
                             </Button>
@@ -2896,6 +2984,75 @@ return (
           forceBackendPrint={true}
           batches={batches}
         />
+
+        {/* Product Store Distribution Dialog */}
+        <Dialog
+          open={!!distributionProduct}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDistributionProduct(null);
+              setDistributionRows([]);
+              setDistributionError(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Store className="h-4 w-4" />
+                Store Distribution
+              </DialogTitle>
+              <DialogDescription>
+                {distributionProduct?.name}
+                {!distributionLoading && !distributionError && distributionRows.length > 0 && (
+                  <>
+                    {" — "}
+                    In {distributionRows.length} store{distributionRows.length === 1 ? "" : "s"} ·{" "}
+                    {distributionRows.reduce((sum, r) => sum + r.quantity, 0)} units
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="max-h-[60vh] overflow-y-auto">
+              {distributionLoading ? (
+                <div className="py-10 text-center text-sm text-muted-foreground">
+                  Loading store distribution…
+                </div>
+              ) : distributionError ? (
+                <div className="py-10 text-center text-sm text-red-600">{distributionError}</div>
+              ) : distributionRows.length === 0 ? (
+                <div className="py-10 text-center">
+                  <Store className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    This product isn't currently in any store.
+                  </p>
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="py-2 pr-4 font-medium">Store</th>
+                      <th className="py-2 pr-4 font-medium">Code</th>
+                      <th className="py-2 text-right font-medium">Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {distributionRows.map((row) => (
+                      <tr key={row.storeId} className="border-b last:border-0">
+                        <td className="py-2 pr-4 font-medium">{row.name}</td>
+                        <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">
+                          {row.storecode || "—"}
+                        </td>
+                        <td className="py-2 text-right tabular-nums">{row.quantity}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Edit Product Dialog (unchanged, but with formData updates if needed) */}
         <Dialog

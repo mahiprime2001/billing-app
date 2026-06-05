@@ -595,6 +595,11 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
     const term = search.trim().toLowerCase()
     if (!term) return
 
+    // Clear the input on every scan/enter (term is already captured above) so the
+    // field resets whether the product is added or the scan errors out. This keeps
+    // the next scan from being appended to a failed one.
+    setSearch("")
+
     const exactAvailable = products.find((p) => matchesProductTerm(p, term))
     const exactInDatabase = allProducts.find((p) => matchesProductTerm(p, term))
 
@@ -626,7 +631,6 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
       const next = Math.min(availableStock, Math.max(1, current + 1))
       return { ...prev, [key]: next }
     })
-    setSearch("")
   }
 
   return (
