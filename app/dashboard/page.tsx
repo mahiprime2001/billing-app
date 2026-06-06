@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { formatDisplayDate, toValidDate } from "@/app/utils/formatDate"
 import {
   BarChart3,
   TrendingUp,
@@ -36,6 +37,10 @@ interface Bill {
   total: number
   items?: BillItem[]
 }
+
+// Bills come straight from the API, which may carry the date under several
+// field names — toValidDate handles resolving + parsing.
+const resolveBillDate = (bill: any): Date | null => toValidDate(bill)
 
 interface Product {
   id: string
@@ -195,7 +200,8 @@ export default function DashboardPage() {
       const recentBills = [...bills]
         .sort(
           (a, b) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime(),
+            (resolveBillDate(b)?.getTime() ?? 0) -
+            (resolveBillDate(a)?.getTime() ?? 0),
         )
         .slice(0, 5)
 
@@ -394,9 +400,7 @@ setStats((prev) => ({
                         </p>
                         <p className="text-xs text-gray-400 flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
-                          {bill.date
-                            ? new Date(bill.date).toLocaleDateString()
-                            : "Invalid Date"}
+                          {formatDisplayDate(bill)}
                         </p>
                       </div>
                       <div className="text-right">

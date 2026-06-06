@@ -52,6 +52,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
 import { format } from "date-fns";
+import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate";
 
 interface BillFormat {
   width: number;
@@ -349,7 +350,7 @@ export default function BillingPage() {
   const formatDateLabel = (iso?: string) => {
     if (!iso) return "";
     try {
-      return format(new Date(`${iso}T00:00:00`), "MMM d, yyyy");
+      return formatDisplayDate(new Date(`${iso}T00:00:00`));
     } catch {
       return iso;
     }
@@ -3218,7 +3219,7 @@ export default function BillingPage() {
                                 )}
                               </TableCell>
                               <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                                {new Date(bill.date).toLocaleDateString()}
+                                {formatDisplayDate(bill.date)}
                               </TableCell>
                               <TableCell className="text-right tabular-nums text-sm">{bill.items?.length || 0}</TableCell>
                               <TableCell className="text-right tabular-nums text-sm">
@@ -3524,7 +3525,7 @@ export default function BillingPage() {
                       <div>
                         <DialogTitle className="font-mono text-base">{selectedBill.id}</DialogTitle>
                         <DialogDescription className="mt-1 text-xs">
-                          {billDate ? new Date(billDate).toLocaleString() : "N/A"}
+                          {formatDisplayDateTime(billDate, "N/A")}
                         </DialogDescription>
                       </div>
                       <div className="text-right">
@@ -3947,7 +3948,7 @@ export default function BillingPage() {
               </TableCell>
 
               <TableCell>
-                {new Date(bill.date).toLocaleDateString()}
+                {formatDisplayDate(bill.date)}
               </TableCell>
 
               <TableCell>

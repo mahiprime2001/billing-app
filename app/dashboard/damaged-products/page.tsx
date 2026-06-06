@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/dashboard-layout"
+import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -180,7 +181,7 @@ export default function DamagedProductsPage() {
                         </TableCell>
                         <TableCell className="capitalize">{row.resolutionStatus || "-"}</TableCell>
                         <TableCell className="max-w-60 truncate">{row.reason || "-"}</TableCell>
-                        <TableCell>{row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{formatDisplayDate(row.createdAt, "-")}</TableCell>
                         <TableCell>
                           {row.status !== "repaired" && row.resolutionStatus !== "fixed" && row.resolutionStatus !== "modified" && row.resolutionStatus !== "returned_to_store" ? (
                             <Button

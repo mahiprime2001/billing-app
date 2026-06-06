@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { differenceInCalendarDays, endOfDay, format, startOfDay, subDays } from 'date-fns'
+import { formatDisplayDate, formatDisplayDateTime } from '@/app/utils/formatDate'
 import * as XLSX from 'xlsx'
 import {
   AlertTriangle,
@@ -112,6 +113,30 @@ interface ProductRecord {
   stock: number
   createdAt?: string
   batchId?: string
+  barcode?: string
+}
+
+// One row in the grouped Product Sales Table: all variants (different ids /
+// barcodes / batches) that share the same product name AND selling price are
+// rolled up into a single group, with the per-variant rows kept for drill-down.
+interface GroupedProductStats {
+  key: string
+  productName: string
+  category: string
+  sellingPrice: number
+  quantity: number
+  revenue: number
+  discount: number
+  bills: number
+  avgSellingPrice: number
+  lastSoldAt?: string
+  costPrice: number
+  cogs: number
+  profit: number
+  profitMargin: number | null
+  variantCount: number
+  productIds: string[]
+  variants: ProductSalesStats[]
 }
 
 interface BatchRecord {
@@ -325,6 +350,7 @@ const normalizeProducts = (rawProducts: any[]): ProductRecord[] => {
       stock: Number(product.stock || 0),
       createdAt: product.createdAt || product.created_at || product.createdat,
       batchId: batchIdRaw ? String(batchIdRaw) : undefined,
+      barcode: typeof product.barcode === 'string' ? product.barcode : '',
     }
   })
 }
@@ -783,6 +809,7 @@ export default function AnalyticsPage() {
   const [revenueMonth, setRevenueMonth] = useState(new Date().getMonth())
   const [revenueYear, setRevenueYear] = useState(new Date().getFullYear())
   const [dialogProductId, setDialogProductId] = useState<string | null>(null)
+  const [dialogGroupKey, setDialogGroupKey] = useState<string | null>(null)
   const [productsLimit, setProductsLimit] = useState(30)
   const [dialogBatchId, setDialogBatchId] = useState<string | null>(null)
   const [batchSearch, setBatchSearch] = useState('')
@@ -921,6 +948,22 @@ export default function AnalyticsPage() {
     const map = new Map<string, number>()
     products.forEach((product) => {
       map.set(product.id, product.costPrice || 0)
+    })
+    return map
+  }, [products])
+
+  const productSellingMap = useMemo(() => {
+    const map = new Map<string, number>()
+    products.forEach((product) => {
+      map.set(product.id, product.sellingPrice || 0)
+    })
+    return map
+  }, [products])
+
+  const productRecordMap = useMemo(() => {
+    const map = new Map<string, ProductRecord>()
+    products.forEach((product) => {
+      map.set(product.id, product)
     })
     return map
   }, [products])
@@ -1167,6 +1210,66 @@ export default function AnalyticsPage() {
   const productAnalytics = useMemo((): ProductSalesStats[] => {
     return Array.from(currentSalesMap.values()).sort((a, b) => b.revenue - a.revenue)
   }, [currentSalesMap])
+
+  // Roll up per-variant sales into one row per (product name + selling price).
+  // Each group keeps its member variants so the drill-down dialog can show the
+  // individual barcodes / batches / per-store sales.
+  const groupedProductAnalytics = useMemo((): GroupedProductStats[] => {
+    const groups = new Map<string, GroupedProductStats>()
+
+    productAnalytics.forEach((variant) => {
+      const sellingPrice =
+        productSellingMap.get(variant.productId) ?? Math.round(variant.avgSellingPrice)
+      const key = `${variant.productName.trim().toLowerCase()}||${sellingPrice}`
+
+      let group = groups.get(key)
+      if (!group) {
+        group = {
+          key,
+          productName: variant.productName,
+          category: variant.category,
+          sellingPrice,
+          quantity: 0,
+          revenue: 0,
+          discount: 0,
+          bills: 0,
+          avgSellingPrice: 0,
+          lastSoldAt: undefined,
+          costPrice: 0,
+          cogs: 0,
+          profit: 0,
+          profitMargin: null,
+          variantCount: 0,
+          productIds: [],
+          variants: [],
+        }
+        groups.set(key, group)
+      }
+
+      group.quantity += variant.quantity
+      group.revenue += variant.revenue
+      group.discount += variant.discount
+      group.bills += variant.bills
+      group.cogs += variant.cogs
+      group.productIds.push(variant.productId)
+      group.variants.push(variant)
+      if (variant.lastSoldAt && (!group.lastSoldAt || variant.lastSoldAt > group.lastSoldAt)) {
+        group.lastSoldAt = variant.lastSoldAt
+      }
+    })
+
+    const list = Array.from(groups.values())
+    list.forEach((group) => {
+      group.variantCount = group.productIds.length
+      group.avgSellingPrice = group.quantity > 0 ? group.revenue / group.quantity : 0
+      group.costPrice = group.quantity > 0 ? group.cogs / group.quantity : 0
+      group.profit = group.revenue - group.cogs
+      group.profitMargin = group.revenue > 0 ? (group.profit / group.revenue) * 100 : null
+      group.variants.sort((a, b) => b.revenue - a.revenue)
+    })
+
+    return list.sort((a, b) => b.revenue - a.revenue)
+  }, [productAnalytics, productSellingMap])
 
   const trendingProducts = useMemo((): TrendingProduct[] => {
     const rows: TrendingProduct[] = []
@@ -1610,6 +1713,52 @@ export default function AnalyticsPage() {
     return products.find((p) => p.id === dialogProductId) || null
   }, [dialogProductId, products])
 
+  // ----- Grouped product drill-down dialog -----
+  const dialogGroup = useMemo(() => {
+    if (!dialogGroupKey) return null
+    return groupedProductAnalytics.find((g) => g.key === dialogGroupKey) || null
+  }, [dialogGroupKey, groupedProductAnalytics])
+
+  // Merge the per-store breakdown across every variant in the group.
+  const dialogGroupStoreStats = useMemo(() => {
+    if (!dialogGroup) return [] as ProductStoreStats[]
+    const merged = new Map<string, ProductStoreStats>()
+    dialogGroup.productIds.forEach((pid) => {
+      const storeMap = productStoreBreakdown.get(pid)
+      if (!storeMap) return
+      storeMap.forEach((stat, storeId) => {
+        const existing = merged.get(storeId)
+        if (existing) {
+          existing.quantity += stat.quantity
+          existing.revenue += stat.revenue
+          existing.bills += stat.bills
+        } else {
+          merged.set(storeId, { ...stat })
+        }
+      })
+    })
+    return Array.from(merged.values()).sort((a, b) => b.quantity - a.quantity)
+  }, [dialogGroup, productStoreBreakdown])
+
+  const dialogGroupTotalQty = useMemo(
+    () => dialogGroupStoreStats.reduce((sum, row) => sum + row.quantity, 0),
+    [dialogGroupStoreStats],
+  )
+
+  const dialogGroupTotalRevenue = useMemo(
+    () => dialogGroupStoreStats.reduce((sum, row) => sum + row.revenue, 0),
+    [dialogGroupStoreStats],
+  )
+
+  // Total current stock on hand across all variants in the group.
+  const dialogGroupStock = useMemo(() => {
+    if (!dialogGroup) return 0
+    return dialogGroup.productIds.reduce(
+      (sum, pid) => sum + (productRecordMap.get(pid)?.stock ?? 0),
+      0,
+    )
+  }, [dialogGroup, productRecordMap])
+
   const returnStatusData = useMemo(() => {
     const statusMap = new Map<string, number>()
 
@@ -1772,6 +1921,33 @@ export default function AnalyticsPage() {
       )
     })
   }, [productAnalytics, productSearch, batchMap])
+
+  // Search over grouped rows — matches the group name/category/price, or any of
+  // its variants' id / batch / barcode.
+  const filteredGroupedProductAnalytics = useMemo(() => {
+    const term = productSearch.trim().toLowerCase()
+    if (!term) return groupedProductAnalytics
+
+    return groupedProductAnalytics.filter((group) => {
+      if (
+        group.productName.toLowerCase().includes(term) ||
+        group.category.toLowerCase().includes(term) ||
+        String(group.sellingPrice).includes(term)
+      ) {
+        return true
+      }
+      return group.variants.some((variant) => {
+        const batchInfo = variant.batchId ? batchMap.get(variant.batchId) : null
+        const batchText = `${batchInfo?.batchNumber ?? ''} ${batchInfo?.place ?? ''}`.toLowerCase()
+        const barcode = (productRecordMap.get(variant.productId)?.barcode ?? '').toLowerCase()
+        return (
+          variant.productId.toLowerCase().includes(term) ||
+          batchText.includes(term) ||
+          barcode.includes(term)
+        )
+      })
+    })
+  }, [groupedProductAnalytics, productSearch, batchMap, productRecordMap])
 
   useEffect(() => {
     setProductsLimit(30)
@@ -2708,6 +2884,256 @@ export default function AnalyticsPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Grouped product drill-down: variants + merged store breakdown */}
+        <Dialog
+          open={dialogGroupKey !== null}
+          onOpenChange={(open) => {
+            if (!open) setDialogGroupKey(null)
+          }}
+        >
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                {dialogGroup?.productName || 'Product Details'}
+              </DialogTitle>
+              <DialogDescription>
+                {dialogGroup?.category || ''}
+                {dialogGroup ? ` · ${formatCurrency(dialogGroup.sellingPrice)}` : ''}
+                {dialogGroup && (
+                  <>
+                    {' · '}
+                    <strong>{dialogGroup.variantCount}</strong>
+                    {dialogGroup.variantCount === 1 ? ' variant' : ' variants'}
+                  </>
+                )}
+                {dialogGroupStoreStats.length > 0 && (
+                  <>
+                    {' · Sold in '}
+                    <strong>{dialogGroupStoreStats.length}</strong>
+                    {' store(s) for '}
+                    {format(dateWindows.currentStart, 'dd MMM')}–
+                    {format(dateWindows.currentEnd, 'dd MMM yyyy')}
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+
+            {dialogGroup && (
+              <div className="space-y-4">
+                <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-muted-foreground">Qty Sold</p>
+                    <p className="text-lg font-semibold">{dialogGroup.quantity}</p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-muted-foreground">Revenue</p>
+                    <p className="text-lg font-semibold">{formatCurrency(dialogGroup.revenue)}</p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-muted-foreground">Profit</p>
+                    <p
+                      className={`text-lg font-semibold ${
+                        dialogGroup.profit >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}
+                    >
+                      {formatCurrency(dialogGroup.profit)}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-muted-foreground">Margin</p>
+                    <p className="text-lg font-semibold">
+                      {dialogGroup.profitMargin === null
+                        ? 'N/A'
+                        : `${dialogGroup.profitMargin.toFixed(1)}%`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 grid-cols-2 md:grid-cols-4 text-sm">
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <p className="text-xs text-muted-foreground">Avg Cost / Unit</p>
+                    <p className="font-medium">{formatCurrency(dialogGroup.costPrice)}</p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <p className="text-xs text-muted-foreground">Listed Selling Price</p>
+                    <p className="font-medium">{formatCurrency(dialogGroup.sellingPrice)}</p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <p className="text-xs text-muted-foreground">Avg Sold Price</p>
+                    <p className="font-medium">{formatCurrency(dialogGroup.avgSellingPrice)}</p>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <p className="text-xs text-muted-foreground">Current Stock</p>
+                    <p className="font-medium">{dialogGroupStock}</p>
+                  </div>
+                </div>
+
+                {/* Per-variant breakdown (different barcodes / batches) */}
+                <Card className="border-slate-200">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <Package className="h-4 w-4" /> Variants in this product
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Click a variant to see its own store-by-store sales.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Barcode</TableHead>
+                          <TableHead>Batch</TableHead>
+                          <TableHead className="text-right">Qty Sold</TableHead>
+                          <TableHead className="text-right">Revenue</TableHead>
+                          <TableHead className="text-right">Avg Price</TableHead>
+                          <TableHead className="text-right">Stock</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dialogGroup.variants.map((variant) => {
+                          const record = productRecordMap.get(variant.productId)
+                          const batchInfo = variant.batchId ? batchMap.get(variant.batchId) : null
+                          return (
+                            <TableRow
+                              key={variant.productId}
+                              onClick={() => setDialogProductId(variant.productId)}
+                              className="cursor-pointer hover:bg-slate-50"
+                            >
+                              <TableCell className="font-mono text-xs">
+                                {record?.barcode || '—'}
+                              </TableCell>
+                              <TableCell>
+                                {batchInfo ? (
+                                  <div>
+                                    <div className="text-sm font-medium">{batchInfo.batchNumber}</div>
+                                    {batchInfo.place && (
+                                      <div className="text-xs text-muted-foreground">
+                                        {batchInfo.place}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">{variant.quantity}</TableCell>
+                              <TableCell className="text-right">
+                                {formatCurrency(variant.revenue)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {formatCurrency(variant.avgSellingPrice)}
+                              </TableCell>
+                              <TableCell className="text-right">{record?.stock ?? 'N/A'}</TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+                {dialogGroupStoreStats.length > 0 && (
+                  <>
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-emerald-900">
+                        <MapPin className="h-4 w-4" />
+                        Top Selling Store
+                      </div>
+                      <p className="mt-1 text-base font-semibold text-emerald-900">
+                        {dialogGroupStoreStats[0].storeName}
+                      </p>
+                      <p className="text-xs text-emerald-800">
+                        {dialogGroupStoreStats[0].quantity} units ·{' '}
+                        {formatCurrency(dialogGroupStoreStats[0].revenue)}
+                        {dialogGroupTotalQty > 0 && (
+                          <>
+                            {' · '}
+                            {((dialogGroupStoreStats[0].quantity / dialogGroupTotalQty) * 100).toFixed(1)}% of total sales
+                          </>
+                        )}
+                      </p>
+                    </div>
+
+                    <Card className="border-slate-200">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm">
+                          <Store className="h-4 w-4" /> Sales by Store
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <ResponsiveContainer width="100%" height={260}>
+                          <BarChart data={dialogGroupStoreStats} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" />
+                            <YAxis dataKey="storeName" type="category" width={140} />
+                            <Tooltip
+                              formatter={(value, name) =>
+                                name === 'Revenue' ? formatCurrency(Number(value)) : value
+                              }
+                            />
+                            <Legend />
+                            <Bar dataKey="quantity" fill="#2563eb" name="Qty Sold" />
+                            <Bar dataKey="revenue" fill="#16a34a" name="Revenue" />
+                          </BarChart>
+                        </ResponsiveContainer>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Store</TableHead>
+                              <TableHead className="text-right">Qty</TableHead>
+                              <TableHead className="text-right">Revenue</TableHead>
+                              <TableHead className="text-right">Bills</TableHead>
+                              <TableHead className="text-right">Share</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {dialogGroupStoreStats.map((row) => {
+                              const share =
+                                dialogGroupTotalQty > 0
+                                  ? (row.quantity / dialogGroupTotalQty) * 100
+                                  : 0
+                              return (
+                                <TableRow key={row.storeId}>
+                                  <TableCell className="font-medium">{row.storeName}</TableCell>
+                                  <TableCell className="text-right">{row.quantity}</TableCell>
+                                  <TableCell className="text-right">
+                                    {formatCurrency(row.revenue)}
+                                  </TableCell>
+                                  <TableCell className="text-right">{row.bills}</TableCell>
+                                  <TableCell className="text-right">{share.toFixed(1)}%</TableCell>
+                                </TableRow>
+                              )
+                            })}
+                          </TableBody>
+                        </Table>
+                        <p className="text-xs text-muted-foreground">
+                          Totals: <strong>{dialogGroupTotalQty}</strong> units ·{' '}
+                          {formatCurrency(dialogGroupTotalRevenue)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+
+                {dialogGroupStoreStats.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No store sales recorded for this product in the selected period.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogGroupKey(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Dialog
           open={dialogBatchId !== null}
           onOpenChange={(open) => {
@@ -2723,7 +3149,7 @@ export default function AnalyticsPage() {
               <DialogDescription>
                 {dialogBatch?.place ? `${dialogBatch.place} · ` : ''}
                 {dialogBatch?.createdAt
-                  ? `Created ${format(new Date(dialogBatch.createdAt), 'dd MMM yyyy')}`
+                  ? `Created ${formatDisplayDate(dialogBatch.createdAt)}`
                   : ''}
                 {' · '}
                 {dialogBatch?.productsInBatch || 0} products · Window:{' '}
@@ -2879,9 +3305,7 @@ export default function AnalyticsPage() {
                                 <TableCell className="text-right">{row.quantity}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
                                 <TableCell className="text-right text-xs">
-                                  {row.lastSoldAt
-                                    ? format(new Date(row.lastSoldAt), 'dd MMM yyyy')
-                                    : 'N/A'}
+                                  {formatDisplayDate(row.lastSoldAt, 'N/A')}
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -3199,7 +3623,7 @@ export default function AnalyticsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Last updated</span>
-                <span className="font-medium text-xs">{lastUpdated ? format(lastUpdated, 'dd MMM, hh:mm a') : 'N/A'}</span>
+                <span className="font-medium text-xs">{formatDisplayDateTime(lastUpdated, 'N/A')}</span>
               </div>
             </CardContent>
           </Card>
@@ -3284,7 +3708,7 @@ export default function AnalyticsPage() {
                   </div>
                   <p className="mt-1 text-base font-semibold text-slate-900">
                     {topPerformers.bestDay
-                      ? format(new Date(topPerformers.bestDay.date), 'dd MMM yyyy')
+                      ? formatDisplayDate(topPerformers.bestDay.date)
                       : '—'}
                   </p>
                   <p className="text-xs text-slate-600">
@@ -3556,7 +3980,7 @@ export default function AnalyticsPage() {
                     )}
                     {filteredDailyStats.map((row) => (
                       <TableRow key={row.date}>
-                        <TableCell>{format(new Date(row.date), 'dd MMM yyyy')}</TableCell>
+                        <TableCell>{formatDisplayDate(row.date)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(row.replacementAmount)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(row.returnsAmount)}</TableCell>
@@ -3741,7 +4165,7 @@ export default function AnalyticsPage() {
               <CardHeader>
                 <CardTitle>Product Sales Table</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Click any row to see store-by-store sales for that product. Search supports product name, ID, category, and batch number / place.
+                  Products with the same name and selling price are grouped into one row. Click a row to see its variants (barcodes / batches) and store-by-store sales. Search supports product name, price, category, barcode and batch number / place.
                 </p>
               </CardHeader>
               <CardContent>
@@ -3749,7 +4173,8 @@ export default function AnalyticsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead>Batch</TableHead>
+                      <TableHead className="text-right">Selling Price</TableHead>
+                      <TableHead className="text-center">Variants</TableHead>
                       <TableHead className="text-right">Qty Sold</TableHead>
                       <TableHead className="text-right">Revenue</TableHead>
                       <TableHead className="text-right">COGS</TableHead>
@@ -3761,68 +4186,61 @@ export default function AnalyticsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredProductAnalytics.length === 0 && (
+                    {filteredGroupedProductAnalytics.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center text-muted-foreground">
+                        <TableCell colSpan={11} className="text-center text-muted-foreground">
                           No product sales in this period.
                         </TableCell>
                       </TableRow>
                     )}
-                    {filteredProductAnalytics.slice(0, productsLimit).map((row) => {
-                      const batchInfo = row.batchId ? batchMap.get(row.batchId) : null
-                      return (
-                        <TableRow
-                          key={row.productId}
-                          onClick={() => setDialogProductId(row.productId)}
-                          className="cursor-pointer hover:bg-slate-50"
-                        >
-                          <TableCell className="font-medium">{row.productName}</TableCell>
-                          <TableCell>
-                            {batchInfo ? (
-                              <div>
-                                <div className="text-sm font-medium">{batchInfo.batchNumber}</div>
-                                {batchInfo.place && (
-                                  <div className="text-xs text-muted-foreground">{batchInfo.place}</div>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">{row.quantity}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.cogs)}</TableCell>
-                          <TableCell className="text-right">
-                            <span className={row.profit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                              {formatCurrency(row.profit)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {row.profitMargin === null ? 'N/A' : `${row.profitMargin.toFixed(1)}%`}
-                          </TableCell>
-                          <TableCell className="text-right">{row.bills}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.avgSellingPrice)}</TableCell>
-                          <TableCell>
-                            {row.lastSoldAt ? format(new Date(row.lastSoldAt), 'dd MMM yyyy') : 'N/A'}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
+                    {filteredGroupedProductAnalytics.slice(0, productsLimit).map((row) => (
+                      <TableRow
+                        key={row.key}
+                        onClick={() => setDialogGroupKey(row.key)}
+                        className="cursor-pointer hover:bg-slate-50"
+                      >
+                        <TableCell className="font-medium">{row.productName}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.sellingPrice)}</TableCell>
+                        <TableCell className="text-center">
+                          {row.variantCount > 1 ? (
+                            <Badge variant="secondary">{row.variantCount}</Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">1</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">{row.quantity}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.cogs)}</TableCell>
+                        <TableCell className="text-right">
+                          <span className={row.profit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {formatCurrency(row.profit)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.profitMargin === null ? 'N/A' : `${row.profitMargin.toFixed(1)}%`}
+                        </TableCell>
+                        <TableCell className="text-right">{row.bills}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.avgSellingPrice)}</TableCell>
+                        <TableCell>
+                          {formatDisplayDate(row.lastSoldAt, 'N/A')}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
 
-                {filteredProductAnalytics.length > 0 && (
+                {filteredGroupedProductAnalytics.length > 0 && (
                   <div className="mt-4 flex flex-col items-center gap-2">
                     <p className="text-xs text-muted-foreground">
-                      Showing {Math.min(productsLimit, filteredProductAnalytics.length)} of{' '}
-                      {filteredProductAnalytics.length} products
+                      Showing {Math.min(productsLimit, filteredGroupedProductAnalytics.length)} of{' '}
+                      {filteredGroupedProductAnalytics.length} products
                     </p>
-                    {productsLimit < filteredProductAnalytics.length ? (
+                    {productsLimit < filteredGroupedProductAnalytics.length ? (
                       <Button
                         variant="outline"
                         onClick={() =>
                           setProductsLimit((prev) =>
-                            Math.min(prev + 30, filteredProductAnalytics.length),
+                            Math.min(prev + 30, filteredGroupedProductAnalytics.length),
                           )
                         }
                       >
@@ -4071,7 +4489,7 @@ export default function AnalyticsPage() {
                               <div className="font-medium">{row.batchNumber}</div>
                               {row.createdAt && (
                                 <div className="text-xs text-muted-foreground">
-                                  {format(new Date(row.createdAt), 'dd MMM yyyy')}
+                                  {formatDisplayDate(row.createdAt)}
                                 </div>
                               )}
                             </TableCell>
@@ -4439,9 +4857,7 @@ export default function AnalyticsPage() {
                         return (
                           <TableRow key={item.returnId}>
                             <TableCell>
-                              {parseDate(item.createdAt)
-                                ? format(parseDate(item.createdAt) as Date, 'dd MMM yyyy')
-                                : 'N/A'}
+                              {formatDisplayDate(item.createdAt, 'N/A')}
                             </TableCell>
                             <TableCell className="font-mono text-xs">{item.returnId}</TableCell>
                             <TableCell>{productName}</TableCell>

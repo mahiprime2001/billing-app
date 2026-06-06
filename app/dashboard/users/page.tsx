@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -767,7 +768,7 @@ const handleOpenEditDialog = (user: AdminUser) => {
                           )}
                         </td>
                         <td className="p-4">
-                          <span className="text-sm text-gray-500">{new Date(user.createdat).toLocaleDateString()}</span>
+                          <span className="text-sm text-gray-500">{formatDisplayDate(user.createdat)}</span>
                         </td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">

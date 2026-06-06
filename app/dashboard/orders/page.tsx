@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
 import ProductAssignmentDialog, { AssignedProduct } from "@/components/product-assignment-dialog"
 import { unifiedPrint } from "@/app/utils/printUtils"
+import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -141,15 +142,7 @@ const getDateKey = (value?: string) => {
 
 const formatDateTime = (value?: string) => {
   if (!value) return "-"
-  const dt = new Date(value)
-  if (Number.isNaN(dt.getTime())) return value
-  return dt.toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
+  return formatDisplayDateTime(value)
 }
 
 const getAssignedQty = (item: TransferOrderItem) => Number(item.assignedQty ?? item.assigned_qty ?? 0)

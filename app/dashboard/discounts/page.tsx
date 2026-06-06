@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
+import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -184,7 +185,7 @@ export default function DiscountsPage() {
     }
   }
 
-  const formatDate = (value: string) => new Date(value).toLocaleDateString()
+  const formatDate = (value: string) => formatDisplayDate(value)
   const formatTime = (value: string) =>
     new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 

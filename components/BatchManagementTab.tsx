@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -279,7 +280,7 @@ export const BatchManagementTab: React.FC = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        {batch.createdAt ? new Date(batch.createdAt).toLocaleDateString() : "-"}
+                        {formatDisplayDate(batch.createdAt, "-")}
                       </TableCell>
                       <TableCell className="text-right">
                         {editingBatchId === batch.id ? (

@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -286,7 +287,7 @@ export const HSNManagementTab: React.FC = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        {code.createdAt ? new Date(code.createdAt).toLocaleDateString() : "N/A"}
+                        {formatDisplayDate(code.createdAt, "N/A")}
                       </TableCell>
                       <TableCell className="text-right">
                         {editingId === code.id ? (

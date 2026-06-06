@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { getBarcode } from "@/app/utils/getBarcode";
+import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import type { Product as ProductType, Batch } from "@/lib/types";
@@ -880,17 +881,27 @@ const handleDeleteProduct = async (productId: string) => {
         : Array.isArray(payload)
           ? payload
           : []
-      const rows = rawRows
-        .map((row: any) => {
-          const storeId = String(row.storeid ?? row.storeId ?? "")
+      // Aggregate by store so each store appears once (the inventory table can
+      // hold more than one row per store) — sums their quantities and keeps the
+      // React key (storeId) unique.
+      const byStore = new Map<string, { storeId: string; name: string; storecode: string; quantity: number }>()
+      for (const row of rawRows) {
+        const storeId = String(row.storeid ?? row.storeId ?? "")
+        const quantity = Number(row.quantity ?? 0)
+        const existing = byStore.get(storeId)
+        if (existing) {
+          existing.quantity += quantity
+        } else {
           const info = storeInfoMap.get(storeId)
-          return {
+          byStore.set(storeId, {
             storeId,
             name: info?.name || storeId || "Unknown store",
             storecode: info?.storecode || "",
-            quantity: Number(row.quantity ?? 0),
-          }
-        })
+            quantity,
+          })
+        }
+      }
+      const rows = Array.from(byStore.values())
         // Hide stores that have sold out (no stock currently in that store).
         .filter((row) => row.quantity > 0)
         .sort((a, b) => b.quantity - a.quantity)
@@ -2300,7 +2311,14 @@ const handleDeleteProduct = async (productId: string) => {
                 </thead>
                 <tbody>
                   {visibleProducts.map((product) => {
-                    const stockStatus = getStockStatus(product.stock)
+                    // Stock status reflects everything currently on hand — godown
+                    // (available) plus what's sitting in stores — so a product with
+                    // stock in stores isn't wrongly flagged "Out of Stock" just
+                    // because the godown is empty.
+                    const onHandStock =
+                      Number(product.availableStock ?? product.stock ?? 0) +
+                      Number((product as any).inStoresStock ?? (product as any).allocatedStock ?? 0)
+                    const stockStatus = getStockStatus(onHandStock)
                     const StatusIcon = stockStatus.icon
                     // Use the precomputed batchMap (O(1) lookup) instead of a
                     // linear .find() across the entire batches array per row.
@@ -2319,7 +2337,7 @@ const handleDeleteProduct = async (productId: string) => {
                           <div>
                             <div className="font-medium">{product.name}</div>
                             <div className="text-xs text-gray-500">
-                              {product.createdAt ? new Date(product.createdAt).toLocaleDateString() : ''}
+                              {formatDisplayDate(product.createdAt, '')}
                             </div>
                           </div>
                         </td>
@@ -3332,7 +3350,7 @@ return (
             <span>{bill.id}</span>
             {bill.date && (
               <span className="text-muted-foreground font-sans ml-4 whitespace-nowrap">
-                {new Date(bill.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                {formatDisplayDate(bill.date)}
               </span>
             )}
           </div>

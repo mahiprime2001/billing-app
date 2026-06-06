@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { formatDisplayDate, formatDisplayDateTime } from '@/app/utils/formatDate'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -795,7 +796,7 @@ const selectedProducts = products.filter(p => selected[p.id || p.barcode]);
                   <SelectContent>
                     {pendingOrders.map((draft) => (
                       <SelectItem key={draft.id} value={draft.id}>
-                        {new Date(draft.updatedAt).toLocaleString()} • {draft.items.length} item(s)
+                        {formatDisplayDateTime(draft.updatedAt)} • {draft.items.length} item(s)
                       </SelectItem>
                     ))}
                   </SelectContent>

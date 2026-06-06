@@ -2,6 +2,7 @@
 import type React from "react"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
 
 // Helper function to normalize store IDs
 const normalizeStoreId = (id: string | undefined | null): string | undefined | null => {
@@ -121,15 +122,7 @@ function StoreInsightModal({
 
   const formatDateTime = (value?: string) => {
     if (!value) return "-";
-    const dt = new Date(value);
-    if (Number.isNaN(dt.getTime())) return value;
-    return dt.toLocaleString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return formatDisplayDateTime(value);
   };
 
 
@@ -675,9 +668,7 @@ function BillDetailsDialog({
 
   const formatDateTime = (value?: string) => {
     if (!value) return "N/A";
-    const dt = new Date(value);
-    if (Number.isNaN(dt.getTime())) return value;
-    return dt.toLocaleString();
+    return formatDisplayDateTime(value);
   };
 
   const billTaxPercentage = toNumber(bill?.taxPercentage ?? bill?.tax_percentage);
