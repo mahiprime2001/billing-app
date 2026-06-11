@@ -70,7 +70,10 @@
       "Bash(git push *)",
       "Bash(Get-ChildItem -Path \"d:\\\\Siri-apps\\\\billing-app\\\\backend\" -Exclude \".venv\" -Directory)",
       "Bash(Select-Object Name)",
-      "Bash(xargs grep -l \"inventory_transfer_scans\\\\|inventory_transfer_verifications\")"
+      "Bash(xargs grep -l \"inventory_transfer_scans\\\\|inventory_transfer_verifications\")",
+      "PowerShell(npx tsc --noEmit 2>&1)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(echo \"grep exit: $?\")"
     ]
   }
 }

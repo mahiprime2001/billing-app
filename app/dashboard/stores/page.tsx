@@ -363,6 +363,13 @@ function StoreInsightModal({
   if (!open || !store) return null;
 
   const totalStock = inventoryRows.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
+  const totalSellingValue = inventoryRows.reduce((sum, row) => {
+    const p = row.products || {};
+    const sellingPrice = Number(
+      p.sellingPrice ?? p.selling_price ?? row.sellingPrice ?? row.selling_price ?? p.price ?? row.price ?? 0,
+    );
+    return sum + sellingPrice * Number(row.quantity || 0);
+  }, 0);
   const totalBillAmount = liveBills.reduce((sum, bill) => sum + Number(bill?.total || 0), 0);
   const activeTabBillAmount = activeLiveBills.reduce((sum, bill) => sum + Number(bill?.total || 0), 0);
 
@@ -438,7 +445,7 @@ function StoreInsightModal({
         </DialogHeader>
 
         {/* Stats strip */}
-        <div className="border-b px-6 py-3 bg-muted/30 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="border-b px-6 py-3 bg-muted/30 grid grid-cols-2 sm:grid-cols-5 gap-3">
           <div>
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Products</div>
             <div className="text-lg font-semibold tabular-nums">{inventoryRows.length}</div>
@@ -446,6 +453,10 @@ function StoreInsightModal({
           <div>
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Total stock</div>
             <div className="text-lg font-semibold tabular-nums">{totalStock}</div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Stock value (selling)</div>
+            <div className="text-lg font-semibold tabular-nums">₹{totalSellingValue.toFixed(2)}</div>
           </div>
           <div>
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Bills (period)</div>

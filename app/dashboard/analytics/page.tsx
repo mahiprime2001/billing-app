@@ -402,6 +402,7 @@ const CURRENCY_KEYS = new Set([
   'cost_price', 'selling_price', 'margin_per_unit', 'profit_per_unit', 'cost_value',
   'total_cost_value', 'potential_sales_value', 'total_selling_value', 'potential_profit',
   'total_potential_profit', 'blocked_value', 'amount', 'credit', 'debit',
+  'closing_stock_cost_value', 'closing_stock_selling_value',
 ])
 
 const PCT_KEYS = new Set(['margin_pct', 'profit_margin'])
@@ -445,7 +446,15 @@ const HEADER_LABELS: Record<string, string> = {
   last_sold: 'Last Sold On',
 
   // Inventory
-  stock: 'Current Stock (Units)',
+  stock: 'Closing Stock (Units)',
+  opening_stock: 'Opening Stock (Units)',
+  units_sold: 'Units Sold (Period)',
+  total_products: 'No. of Products',
+  opening_stock_units: 'Opening Stock (Units)',
+  items_sold_units: 'Items Sold (Units)',
+  closing_stock_units: 'Closing Stock (Units)',
+  closing_stock_cost_value: 'Closing Stock Value at Cost (₹)',
+  closing_stock_selling_value: 'Closing Stock Value at Selling Price (₹)',
   cost_price: 'Cost Price (₹)',
   selling_price: 'Selling Price (₹)',
   profit_per_unit: 'Profit / Unit (₹)',
@@ -482,6 +491,8 @@ interface BuildSheetOpts {
   title?: string
   subtitle?: string
   notes?: string[]
+  // Optional small table rendered above the main table (after the title block).
+  summary?: { title?: string; rows: Array<Record<string, unknown>> }
 }
 
 const buildSheet = (
@@ -492,11 +503,13 @@ const buildSheet = (
   const title = opts?.title
   const subtitle = opts?.subtitle
   const notes = opts?.notes || []
+  const summary = opts?.summary
   const keys = rows.length > 0 ? Object.keys(rows[0]) : []
 
-  const headerRow = keys.map(
-    (k) => HEADER_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-  )
+  const toLabel = (k: string) =>
+    HEADER_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+
+  const headerRow = keys.map(toLabel)
 
   const aoa: unknown[][] = []
 
@@ -505,6 +518,28 @@ const buildSheet = (
     aoa.push([title])
     if (subtitle) aoa.push([subtitle])
     aoa.push([]) // blank spacer
+  }
+
+  // Summary table block (above the main table)
+  let summaryTitleIdx = -1
+  let summaryHeaderIdx = -1
+  let summaryDataStart = -1
+  let summaryDataEnd = -1
+  let summaryKeys: string[] = []
+  if (summary && summary.rows.length > 0) {
+    summaryKeys = Object.keys(summary.rows[0])
+    if (summary.title) {
+      summaryTitleIdx = aoa.length
+      aoa.push([summary.title])
+    }
+    summaryHeaderIdx = aoa.length
+    aoa.push(summaryKeys.map(toLabel))
+    summaryDataStart = aoa.length
+    summary.rows.forEach((row) => {
+      aoa.push(summaryKeys.map((k) => row[k] ?? ''))
+    })
+    summaryDataEnd = aoa.length - 1
+    aoa.push([]) // blank spacer before the main table
   }
 
   const headerRowIdx = aoa.length
@@ -526,6 +561,12 @@ const buildSheet = (
   if (title && keys.length > 1) {
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: keys.length - 1 } })
     if (subtitle) merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: keys.length - 1 } })
+  }
+  if (summaryTitleIdx >= 0 && summaryKeys.length > 1) {
+    merges.push({
+      s: { r: summaryTitleIdx, c: 0 },
+      e: { r: summaryTitleIdx, c: summaryKeys.length - 1 },
+    })
   }
   const notesStartRow = headerRowIdx + rows.length + 1 + (notes.length > 0 ? 1 : 0)
   notes.forEach((_, i) => {
@@ -551,6 +592,9 @@ const buildSheet = (
     sheet['!rows'][0] = { hpt: 28 }
     if (subtitle) sheet['!rows'][1] = { hpt: 20 }
   }
+  if (summaryHeaderIdx >= 0) {
+    sheet['!rows'][summaryHeaderIdx] = { hpt: 36 }
+  }
   sheet['!rows'][headerRowIdx] = { hpt: 24 }
 
   // Auto-filter
@@ -575,12 +619,17 @@ const buildSheet = (
 
         const isTitleRow = title ? r === 0 : false
         const isSubtitleRow = title && subtitle ? r === 1 : false
+        const isSummaryTitleRow = r === summaryTitleIdx
+        const isSummaryHeaderRow = r === summaryHeaderIdx
+        const isSummaryDataRow =
+          summaryDataStart >= 0 && r >= summaryDataStart && r <= summaryDataEnd
         const isHeaderRow = r === headerRowIdx
         const isTotalRow = hasTotalRow && rows.length > 1 && r === headerRowIdx + rows.length
         const isDataRow = r > headerRowIdx && r < headerRowIdx + rows.length + 1 && !isTotalRow
         const isEvenDataRow = isDataRow && (r - headerRowIdx) % 2 === 0
         const isNoteRow = r >= notesStartRow
-        const colKey = keys[c] || ''
+        const colKey =
+          isSummaryHeaderRow || isSummaryDataRow ? summaryKeys[c] || '' : keys[c] || ''
         const isCurrency = CURRENCY_KEYS.has(colKey)
         const isPct = PCT_KEYS.has(colKey)
         const isNumeric = isCurrency || isPct || typeof cell.v === 'number'
@@ -603,6 +652,32 @@ const buildSheet = (
             font: { italic: true, sz: 10, color: { rgb: '64748B' } },
             fill: { patternType: 'solid', fgColor: { rgb: 'EFF6FF' } },
             alignment: { horizontal: 'center', vertical: 'center' },
+          }
+        } else if (isSummaryTitleRow) {
+          cell.s = {
+            font: { bold: true, sz: 12, color: { rgb: '1E293B' } },
+            fill: { patternType: 'solid', fgColor: { rgb: 'D1FAE5' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+          }
+        } else if (isSummaryHeaderRow) {
+          cell.s = {
+            font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
+            fill: { patternType: 'solid', fgColor: { rgb: '047857' } },
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+            border: thinBorder,
+          }
+        } else if (isSummaryDataRow) {
+          const isSummaryTotalRow =
+            r === summaryDataEnd && String(aoa[r]?.[0] ?? '').toUpperCase().startsWith('TOTAL')
+          cell.s = {
+            font: { bold: isSummaryTotalRow, sz: 10, color: { rgb: '1E293B' } },
+            fill: {
+              patternType: 'solid',
+              fgColor: { rgb: isSummaryTotalRow ? 'D1FAE5' : 'ECFDF5' },
+            },
+            border: thinBorder,
+            alignment: isNumeric ? { horizontal: 'right' } : { vertical: 'center' },
+            numFmt: isCurrency ? '#,##0.00' : isPct ? '0.0"%"' : undefined,
           }
         } else if (isHeaderRow) {
           cell.s = {
@@ -1875,6 +1950,7 @@ export default function AnalyticsPage() {
     approvedReturnsInPeriod,
   ])
 
+  const isSingleStore = selectedStore !== 'all'
   const selectedStoreName =
     selectedStore === 'all'
       ? 'All Stores'
@@ -1905,6 +1981,14 @@ export default function AnalyticsPage() {
     },
     [applyPresetRange],
   )
+
+  // Stores / Batches / Inventory show global (cross-store) data, so they are
+  // hidden when a single store is selected — kick back to Overview if needed.
+  useEffect(() => {
+    if (isSingleStore && ['stores', 'batches', 'inventory'].includes(activeTab)) {
+      setActiveTab('overview')
+    }
+  }, [isSingleStore, activeTab])
 
   const filteredProductAnalytics = useMemo(() => {
     const term = productSearch.trim().toLowerCase()
@@ -1998,7 +2082,6 @@ export default function AnalyticsPage() {
           const invData: Array<{ productId?: string; productid?: string; quantity?: number; products?: { name?: string; price?: number } }> = await invRes.json()
           const productMap = new Map(products.map((p) => [p.id, p]))
           expInventoryAnalytics = (Array.isArray(invData) ? invData : [])
-            .filter((row) => Number(row.quantity ?? 0) > 0)
             .map((row) => {
               const pid = String(row.productId || row.productid || '')
               const globalProduct = productMap.get(pid)
@@ -2340,10 +2423,25 @@ export default function AnalyticsPage() {
     // ══════════════════════════════════════════
     // 5. INVENTORY VALUATION & MARGINS
     // ══════════════════════════════════════════
-    const inventoryRows = appendTotalRow(
-      expInventoryAnalytics.map((row, i) => ({
+    // Units sold per product within the reporting period (store-scoped).
+    const expSoldByProduct = new Map<string, number>()
+    expFilteredBills.forEach((bill) => {
+      bill.items.forEach((item) => {
+        if (!item.productId) return
+        expSoldByProduct.set(
+          item.productId,
+          (expSoldByProduct.get(item.productId) || 0) + item.quantity,
+        )
+      })
+    })
+
+    const inventoryDataRows = expInventoryAnalytics.map((row, i) => {
+      const unitsSold = expSoldByProduct.get(row.productId) || 0
+      return {
         sl_no: i + 1,
         product_name: row.productName,
+        opening_stock: row.stock + unitsSold,
+        units_sold: unitsSold,
         stock: row.stock,
         cost_price: Number(row.costPrice.toFixed(2)),
         selling_price: Number(row.sellingPrice.toFixed(2)),
@@ -2352,22 +2450,132 @@ export default function AnalyticsPage() {
         total_cost_value: Number(row.costValue.toFixed(2)),
         total_selling_value: Number(row.potentialSalesValue.toFixed(2)),
         total_potential_profit: Number(row.potentialProfit.toFixed(2)),
-      })),
-      ['stock', 'cost_price', 'selling_price', 'profit_per_unit', 'total_cost_value', 'total_selling_value', 'total_potential_profit'],
+      }
+    })
+
+    const invMovementTotals = inventoryDataRows.reduce(
+      (acc, row) => {
+        acc.opening += row.opening_stock
+        acc.sold += row.units_sold
+        acc.closing += row.stock
+        acc.costValue += row.total_cost_value
+        acc.sellingValue += row.total_selling_value
+        return acc
+      },
+      { opening: 0, sold: 0, closing: 0, costValue: 0, sellingValue: 0 },
+    )
+
+    // ── Day-by-day stock movement for the period ──
+    // Units sold per product per day (store-scoped bills).
+    const expSoldByDay = new Map<string, Map<string, number>>()
+    expFilteredBills.forEach((bill) => {
+      const date = parseDate(bill.createdAt || bill.timestamp)
+      if (!date) return
+      const key = format(date, 'yyyy-MM-dd')
+      let dayMap = expSoldByDay.get(key)
+      if (!dayMap) {
+        dayMap = new Map()
+        expSoldByDay.set(key, dayMap)
+      }
+      bill.items.forEach((item) => {
+        if (!item.productId) return
+        dayMap!.set(item.productId, (dayMap!.get(item.productId) || 0) + item.quantity)
+      })
+    })
+
+    const expPriceByProduct = new Map(
+      expInventoryAnalytics.map((r) => [r.productId, { cost: r.costPrice, sell: r.sellingPrice }]),
+    )
+    const globalPriceByProduct = new Map(
+      products.map((p) => [p.id, { cost: p.costPrice, sell: p.sellingPrice }]),
+    )
+    const expCreatedAtByProduct = new Map(
+      products.map((p) => [p.id, parseDate(p.createdAt)]),
+    )
+
+    // Walk backwards from today's stock: each day's opening = closing + units
+    // sold that day; the previous day's closing = this day's opening.
+    let runningUnits = invMovementTotals.closing
+    let runningCostValue = invMovementTotals.costValue
+    let runningSellingValue = invMovementTotals.sellingValue
+
+    const dailyMovementRows: Array<Record<string, unknown>> = []
+    for (
+      let day = endOfDay(dateWindows.currentEnd);
+      day >= dateWindows.currentStart;
+      day = endOfDay(subDays(day, 1))
+    ) {
+      const dayKey = format(day, 'yyyy-MM-dd')
+      const soldMap = expSoldByDay.get(dayKey)
+      let soldUnits = 0
+      let soldCostValue = 0
+      let soldSellingValue = 0
+      soldMap?.forEach((qty, pid) => {
+        const price = expPriceByProduct.get(pid) || globalPriceByProduct.get(pid)
+        soldUnits += qty
+        soldCostValue += (price?.cost || 0) * qty
+        soldSellingValue += (price?.sell || 0) * qty
+      })
+
+      const productsExisting = expInventoryAnalytics.filter((r) => {
+        const createdAt = expCreatedAtByProduct.get(r.productId)
+        return !createdAt || createdAt <= day
+      }).length
+
+      dailyMovementRows.push({
+        date: format(day, 'dd MMM yyyy'),
+        total_products: productsExisting,
+        opening_stock_units: runningUnits + soldUnits,
+        items_sold_units: soldUnits,
+        closing_stock_units: runningUnits,
+        closing_stock_cost_value: Number(runningCostValue.toFixed(2)),
+        closing_stock_selling_value: Number(runningSellingValue.toFixed(2)),
+      })
+
+      runningUnits += soldUnits
+      runningCostValue += soldCostValue
+      runningSellingValue += soldSellingValue
+    }
+    dailyMovementRows.reverse() // oldest day first
+
+    if (dailyMovementRows.length > 0) {
+      dailyMovementRows.push({
+        date: 'TOTAL (Period)',
+        total_products: expInventoryAnalytics.length,
+        opening_stock_units: dailyMovementRows[0].opening_stock_units,
+        items_sold_units: invMovementTotals.sold,
+        closing_stock_units: invMovementTotals.closing,
+        closing_stock_cost_value: Number(invMovementTotals.costValue.toFixed(2)),
+        closing_stock_selling_value: Number(invMovementTotals.sellingValue.toFixed(2)),
+      })
+    }
+
+    const inventoryRows = appendTotalRow(
+      inventoryDataRows,
+      ['opening_stock', 'units_sold', 'stock', 'cost_price', 'selling_price', 'profit_per_unit', 'total_cost_value', 'total_selling_value', 'total_potential_profit'],
       'sl_no',
     )
     XLSX.utils.book_append_sheet(
       workbook,
       buildSheet(inventoryRows, {
         title: 'Inventory Valuation & Profit Margins',
-        subtitle: `${expStoreName} | As of ${generatedAt}`,
+        subtitle: `${expStoreName} | ${rangeLabel} | As of ${generatedAt}`,
+        summary: {
+          title: `Daily Stock Movement (${rangeLabel})`,
+          rows: dailyMovementRows,
+        },
         notes: [
+          'Daily Stock Movement: each row shows the stock position for one day — Opening Stock at the start of the day, Units Sold during the day, and Closing Stock (with its value) at the end of the day.',
+          'Daily stock levels are reconstructed backwards from the current stock using billed quantities. Stock purchases/additions made during the period are not tracked, so opening figures are estimates.',
+          'Opening Stock = Closing Stock + Units Sold in the period. Stock purchases/additions made during the period are not tracked, so this is an estimate.',
+          'Units Sold (Period) = Total units of the product billed during the reporting period.',
+          'Closing Stock = Stock remaining as of the report generation date.',
           'Cost Price = Purchase/procurement cost per unit.',
           'Selling Price = Listed retail price per unit.',
           'Profit / Unit = Selling Price minus Cost Price.',
           'Profit Margin (%) = (Profit / Unit ÷ Cost Price) × 100.',
-          'Total Cost Value = Cost Price × Current Stock. This is the capital tied up in inventory.',
-          'Total Selling Value = Selling Price × Current Stock. This is the expected revenue if all stock is sold at listed price.',
+          'Total Cost Value = Cost Price × Closing Stock. This is the capital tied up in inventory.',
+          'Total Selling Value = Selling Price × Closing Stock. This is the expected revenue if all remaining stock is sold at listed price.',
           'Total Potential Profit = Total Selling Value minus Total Cost Value.',
         ],
       }),
@@ -3526,7 +3734,7 @@ export default function AnalyticsPage() {
           </div>
         </section>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className={`grid gap-4 ${isSingleStore ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
           <Card className={PANEL_CARD_CLASS}>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm">
@@ -3547,21 +3755,28 @@ export default function AnalyticsPage() {
                 <span className="text-muted-foreground">Replacement amount</span>
                 <span className="font-medium">{formatCurrency(currentReplacementAmount)}</span>
               </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+              <div
+                className={`flex justify-between ${isSingleStore ? '' : 'border-b border-slate-100 pb-1.5'}`}
+              >
                 <span className="text-muted-foreground">Net after returns</span>
                 <span className="font-medium text-emerald-700">{formatCurrency(currentNetRevenue)}</span>
               </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Products</span>
-                <span className="font-medium">{products.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Stores</span>
-                <span className="font-medium">{stores.length}</span>
-              </div>
+              {!isSingleStore && (
+                <>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Products</span>
+                    <span className="font-medium">{products.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Stores</span>
+                    <span className="font-medium">{stores.length}</span>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
+          {!isSingleStore && (
           <Card className={PANEL_CARD_CLASS}>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm">
@@ -3596,6 +3811,7 @@ export default function AnalyticsPage() {
               </div>
             </CardContent>
           </Card>
+          )}
 
           <Card className={PANEL_CARD_CLASS}>
             <CardHeader className="pb-2">
@@ -3609,17 +3825,27 @@ export default function AnalyticsPage() {
                 <span className="text-muted-foreground">Selected store</span>
                 <span className="font-medium truncate max-w-[60%] text-right">{selectedStoreName}</span>
               </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Active stores</span>
-                <span className="font-medium">{stores.filter((store) => store.status !== 'inactive').length}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Inactive stores</span>
-                <span className="font-medium text-amber-700">{stores.filter((store) => store.status === 'inactive').length}</span>
-              </div>
+              {!isSingleStore && (
+                <>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Active stores</span>
+                    <span className="font-medium">{stores.filter((store) => store.status !== 'inactive').length}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Inactive stores</span>
+                    <span className="font-medium text-amber-700">{stores.filter((store) => store.status === 'inactive').length}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-muted-foreground">Pending returns</span>
-                <span className="font-medium text-amber-700">{returns.filter((item) => item.status === 'pending').length}</span>
+                <span className="font-medium text-amber-700">
+                  {returns.filter(
+                    (item) =>
+                      item.status === 'pending' &&
+                      (!isSingleStore || item.storeId === selectedStore),
+                  ).length}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Last updated</span>
@@ -3638,46 +3864,56 @@ export default function AnalyticsPage() {
             <TabsTrigger value="revenue" className="rounded-lg">
               Revenue
             </TabsTrigger>
-            <TabsTrigger value="stores" className="rounded-lg">
-              Stores
-            </TabsTrigger>
+            {!isSingleStore && (
+              <TabsTrigger value="stores" className="rounded-lg">
+                Stores
+              </TabsTrigger>
+            )}
             <TabsTrigger value="products" className="rounded-lg">
               Products
             </TabsTrigger>
             <TabsTrigger value="profit" className="rounded-lg">
               Profit
             </TabsTrigger>
-            <TabsTrigger value="batches" className="rounded-lg">
-              Batches
-            </TabsTrigger>
-            <TabsTrigger value="inventory" className="rounded-lg">
-              Inventory
-            </TabsTrigger>
+            {!isSingleStore && (
+              <TabsTrigger value="batches" className="rounded-lg">
+                Batches
+              </TabsTrigger>
+            )}
+            {!isSingleStore && (
+              <TabsTrigger value="inventory" className="rounded-lg">
+                Inventory
+              </TabsTrigger>
+            )}
             <TabsTrigger value="returns" className="rounded-lg">
               Returns
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
-                      Top Store
+            <div
+              className={`grid gap-3 md:grid-cols-2 ${isSingleStore ? 'xl:grid-cols-3' : 'xl:grid-cols-4'}`}
+            >
+              {!isSingleStore && (
+                <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+                        Top Store
+                      </p>
+                      <Store className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <p className="mt-1 text-base font-semibold text-slate-900 truncate">
+                      {topPerformers.bestStore?.storeName || '—'}
                     </p>
-                    <Store className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <p className="mt-1 text-base font-semibold text-slate-900 truncate">
-                    {topPerformers.bestStore?.storeName || '—'}
-                  </p>
-                  <p className="text-xs text-slate-600">
-                    {topPerformers.bestStore
-                      ? `${formatCurrency(topPerformers.bestStore.revenue)} · ${topPerformers.bestStore.bills} bills`
-                      : 'No sales in period'}
-                  </p>
-                </CardContent>
-              </Card>
+                    <p className="text-xs text-slate-600">
+                      {topPerformers.bestStore
+                        ? `${formatCurrency(topPerformers.bestStore.revenue)} · ${topPerformers.bestStore.bills} bills`
+                        : 'No sales in period'}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white">
                 <CardContent className="p-4">
@@ -3813,6 +4049,7 @@ export default function AnalyticsPage() {
               </Card>
             </div>
 
+            {!isSingleStore && (
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
                 <CardTitle>Store Revenue Share</CardTitle>
@@ -3872,6 +4109,7 @@ export default function AnalyticsPage() {
                 )}
               </CardContent>
             </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="revenue" className="space-y-4">
