@@ -402,7 +402,7 @@ const CURRENCY_KEYS = new Set([
   'cost_price', 'selling_price', 'margin_per_unit', 'profit_per_unit', 'cost_value',
   'total_cost_value', 'potential_sales_value', 'total_selling_value', 'potential_profit',
   'total_potential_profit', 'blocked_value', 'amount', 'credit', 'debit',
-  'closing_stock_cost_value', 'closing_stock_selling_value',
+  'closing_stock_cost_value', 'closing_stock_selling_value', 'cogs', 'profit',
 ])
 
 const PCT_KEYS = new Set(['margin_pct', 'profit_margin'])
@@ -441,9 +441,15 @@ const HEADER_LABELS: Record<string, string> = {
 
   // Products
   product_name: 'Product Name',
+  category: 'Category',
   quantity: 'Qty Sold',
   avg_selling_price: 'Avg. Selling Price (₹)',
   last_sold: 'Last Sold On',
+  cogs: 'COGS (₹)',
+  profit: 'Profit (₹)',
+  products_sold: 'Products Sold',
+  total_units: 'Total Units Sold',
+  count: 'Count',
 
   // Inventory
   stock: 'Closing Stock (Units)',
@@ -2229,12 +2235,22 @@ export default function AnalyticsPage() {
         if (billDate > p.lastSoldAt) p.lastSoldAt = billDate
       })
     })
+    const expProductRecordById = new Map(products.map((p) => [p.id, p]))
     const expProductAnalytics = Array.from(expProductMap.values())
-      .map((p) => ({
-        ...p,
-        bills: p.billIds.size,
-        avgSellingPrice: p.quantity > 0 ? p.revenue / p.quantity : 0,
-      }))
+      .map((p) => {
+        const record = expProductRecordById.get(p.productId)
+        const cogs = (record?.costPrice || 0) * p.quantity
+        const profit = p.revenue - cogs
+        return {
+          ...p,
+          category: record?.category || 'Uncategorized',
+          bills: p.billIds.size,
+          avgSellingPrice: p.quantity > 0 ? p.revenue / p.quantity : 0,
+          cogs,
+          profit,
+          profitMargin: p.revenue > 0 ? (profit / p.revenue) * 100 : null,
+        }
+      })
       .sort((a, b) => b.revenue - a.revenue)
 
     const shouldUseMonthlyRevenue = selectedRangeDays > 30
@@ -2317,7 +2333,7 @@ export default function AnalyticsPage() {
       shouldUseMonthlyRevenue
         ? monthlyRevenueRows.map((row, i) => ({
             sl_no: i + 1,
-            month: row.month,
+            month: format(new Date(`${row.month}-01T00:00:00`), 'MMM yyyy'),
             gross_sales: Number(row.revenue.toFixed(2)),
             replacements: Number(row.replacements.toFixed(2)),
             returns_refunded: Number(row.returns.toFixed(2)),
@@ -2396,23 +2412,54 @@ export default function AnalyticsPage() {
       expProductAnalytics.map((row, i) => ({
         sl_no: i + 1,
         product_name: row.productName,
+        category: row.category,
         quantity: row.quantity,
         revenue: Number(row.revenue.toFixed(2)),
         discount: Number(row.discount.toFixed(2)),
+        cogs: Number(row.cogs.toFixed(2)),
+        profit: Number(row.profit.toFixed(2)),
+        profit_margin: row.profitMargin !== null ? Number(row.profitMargin.toFixed(1)) : 0,
         bills: row.bills,
         avg_selling_price: Number(row.avgSellingPrice.toFixed(2)),
         last_sold: row.lastSoldAt ? format(new Date(row.lastSoldAt), 'dd MMM yyyy') : 'Not sold in period',
       })),
-      ['quantity', 'revenue', 'discount', 'bills', 'avg_selling_price'],
+      ['quantity', 'revenue', 'discount', 'cogs', 'profit', 'bills', 'avg_selling_price'],
       'sl_no',
+    )
+    const productSalesTotals = expProductAnalytics.reduce(
+      (acc, row) => {
+        acc.units += row.quantity
+        acc.revenue += row.revenue
+        acc.cogs += row.cogs
+        acc.profit += row.profit
+        return acc
+      },
+      { units: 0, revenue: 0, cogs: 0, profit: 0 },
     )
     XLSX.utils.book_append_sheet(
       workbook,
       buildSheet(productRows, {
         title: 'Product-wise Sales Report',
         subtitle: `${expStoreName} | ${rangeLabel}`,
+        summary: {
+          title: 'Product Sales Summary',
+          rows: [
+            {
+              products_sold: expProductAnalytics.length,
+              total_units: productSalesTotals.units,
+              revenue: Number(productSalesTotals.revenue.toFixed(2)),
+              cogs: Number(productSalesTotals.cogs.toFixed(2)),
+              profit: Number(productSalesTotals.profit.toFixed(2)),
+              profit_margin:
+                productSalesTotals.revenue > 0
+                  ? Number(((productSalesTotals.profit / productSalesTotals.revenue) * 100).toFixed(1))
+                  : 0,
+            },
+          ],
+        },
         notes: [
           'Qty Sold = Total units sold across all bills in the period.',
+          'COGS = Cost Price × Qty Sold. Profit = Revenue − COGS.',
           'Avg. Selling Price = Revenue ÷ Qty Sold. May differ from MRP if discounts were applied.',
           'Last Sold On = Most recent sale date within the reporting period.',
         ],
@@ -2598,11 +2645,35 @@ export default function AnalyticsPage() {
       ['refund_amount'],
       'sl_no',
     )
+    const returnStatusTotals = new Map<string, { count: number; amount: number }>()
+    expReturns.forEach((item) => {
+      const status = (item.status || 'pending').charAt(0).toUpperCase() + (item.status || 'pending').slice(1)
+      const bucket = returnStatusTotals.get(status) || { count: 0, amount: 0 }
+      bucket.count += 1
+      bucket.amount += item.returnAmount
+      returnStatusTotals.set(status, bucket)
+    })
+    const returnSummaryRows = Array.from(returnStatusTotals.entries()).map(([status, bucket]) => ({
+      return_status: status,
+      count: bucket.count,
+      refund_amount: Number(bucket.amount.toFixed(2)),
+    }))
+    if (returnSummaryRows.length > 1) {
+      returnSummaryRows.push({
+        return_status: 'TOTAL',
+        count: expReturns.length,
+        refund_amount: Number(expReturns.reduce((s, r) => s + r.returnAmount, 0).toFixed(2)),
+      })
+    }
     XLSX.utils.book_append_sheet(
       workbook,
       buildSheet(returnsRows, {
         title: 'Returns & Refunds Register',
         subtitle: `${expStoreName} | ${rangeLabel}`,
+        summary:
+          returnSummaryRows.length > 0
+            ? { title: 'Returns by Status', rows: returnSummaryRows }
+            : undefined,
         notes: [
           'This sheet lists all return/refund transactions raised during the reporting period.',
           'Status: Approved = refund processed; Pending = awaiting approval; Rejected = refund denied.',
@@ -2654,12 +2725,44 @@ export default function AnalyticsPage() {
       return bTime - aTime
     })
     const numberedLedger = ledgerRows.map((row, i) => ({ sl_no: i + 1, ...row }))
+    const ledgerCredit = ledgerRows.reduce((s, r) => s + r.credit, 0)
+    const ledgerDebit = ledgerRows.reduce((s, r) => s + r.debit, 0)
+    const replacementCount = ledgerRows.filter((r) => r.type === 'Replacement').length
     XLSX.utils.book_append_sheet(
       workbook,
       buildSheet(numberedLedger, {
         hasTotalRow: false,
         title: 'Replacements & Refunds Ledger',
         subtitle: `${expStoreName} | ${rangeLabel}`,
+        summary:
+          ledgerRows.length > 0
+            ? {
+                title: 'Ledger Summary',
+                rows: [
+                  {
+                    type: 'Replacements Issued',
+                    count: replacementCount,
+                    credit: ledgerCredit,
+                    debit: 0,
+                    amount: ledgerCredit,
+                  },
+                  {
+                    type: 'Refunds Paid',
+                    count: ledgerRows.length - replacementCount,
+                    credit: 0,
+                    debit: ledgerDebit,
+                    amount: -ledgerDebit,
+                  },
+                  {
+                    type: 'TOTAL (Net)',
+                    count: ledgerRows.length,
+                    credit: ledgerCredit,
+                    debit: ledgerDebit,
+                    amount: ledgerCredit - ledgerDebit,
+                  },
+                ],
+              }
+            : undefined,
         notes: [
           'Credit = Amount added (replacement goods issued). Debit = Amount refunded to customer.',
           'Net Amount = Credit minus Debit. Positive = inflow, Negative = outflow.',
@@ -2672,27 +2775,48 @@ export default function AnalyticsPage() {
     // ══════════════════════════════════════════
     // 8. BILL-WISE DETAILS
     // ══════════════════════════════════════════
-    const billDetailRows = expFilteredBills.map((bill, i) => {
-      const date = parseDate(bill.createdAt || bill.timestamp)
-      const effectiveTotal = getEffectiveBillTotal(bill)
+    const billDetailRows = appendTotalRow(
+      expFilteredBills.map((bill, i) => {
+        const date = parseDate(bill.createdAt || bill.timestamp)
+        const effectiveTotal = getEffectiveBillTotal(bill)
+        return {
+          sl_no: i + 1,
+          date: date ? format(date, 'dd MMM yyyy') : '',
+          bill_id: bill.id,
+          store: bill.storeId ? storeNameById(bill.storeId) : '—',
+          total_items: bill.items.reduce((sum, item) => sum + item.quantity, 0),
+          gross_sales: Number(effectiveTotal.toFixed(2)),
+          total_discount: Number(bill.discountAmount.toFixed(2)),
+          net_sales: Number((effectiveTotal - bill.discountAmount).toFixed(2)),
+          type: bill.isReplacement ? 'Replacement' : 'Regular Sale',
+        }
+      }),
+      ['total_items', 'gross_sales', 'total_discount', 'net_sales'],
+      'sl_no',
+    )
+    const billTypeSummary = (['Regular Sale', 'Replacement'] as const).map((type) => {
+      const rows = expFilteredBills.filter(
+        (bill) => (bill.isReplacement ? 'Replacement' : 'Regular Sale') === type,
+      )
       return {
-        sl_no: i + 1,
-        date: date ? format(date, 'dd MMM yyyy') : '',
-        bill_id: bill.id,
-        store: bill.storeId ? storeNameById(bill.storeId) : '—',
-        total_items: bill.items.reduce((sum, item) => sum + item.quantity, 0),
-        gross_sales: Number(effectiveTotal.toFixed(2)),
-        total_discount: Number(bill.discountAmount.toFixed(2)),
-        net_sales: Number((effectiveTotal - bill.discountAmount).toFixed(2)),
-        type: bill.isReplacement ? 'Replacement' : 'Regular Sale',
+        type,
+        bills: rows.length,
+        total_items: rows.reduce(
+          (s, bill) => s + bill.items.reduce((x, item) => x + item.quantity, 0),
+          0,
+        ),
+        gross_sales: Number(rows.reduce((s, bill) => s + getEffectiveBillTotal(bill), 0).toFixed(2)),
       }
     })
     XLSX.utils.book_append_sheet(
       workbook,
       buildSheet(billDetailRows, {
-        hasTotalRow: false,
         title: 'Bill-wise Transaction Details',
         subtitle: `${expStoreName} | ${rangeLabel} | ${expFilteredBills.length} bills`,
+        summary:
+          expFilteredBills.length > 0
+            ? { title: 'Bills Summary', rows: billTypeSummary }
+            : undefined,
         notes: [
           'Each row represents one bill/invoice raised during the reporting period.',
           'Replacement bills are goods issued free as replacements — they appear in Gross Sales but no payment is collected.',
@@ -2703,7 +2827,10 @@ export default function AnalyticsPage() {
     )
 
     const safeStoreName = expStoreName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30)
-    XLSX.writeFile(workbook, `Sales_Report_${safeStoreName}_${timestamp}.xlsx`, { cellStyles: true })
+    const safeRange = `${format(dateWindows.currentStart, 'ddMMMyyyy')}-${format(dateWindows.currentEnd, 'ddMMMyyyy')}`
+    XLSX.writeFile(workbook, `Sales_Report_${safeStoreName}_${safeRange}_${timestamp}.xlsx`, {
+      cellStyles: true,
+    })
   }, [
     exportStore,
     selectedRangeDays,
