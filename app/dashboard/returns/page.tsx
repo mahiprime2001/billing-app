@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { formatDisplayDateTime } from "@/app/utils/formatDate"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { PackageCheck, RefreshCw, ScanLine } from "lucide-react"
+import { PackageCheck, RefreshCw, ChevronRight } from "lucide-react"
 
 const API = process.env.NEXT_PUBLIC_BACKEND_API_URL
 
@@ -126,6 +126,7 @@ export default function AdminReturnsPage() {
         throw new Error(r?.error || `HTTP ${res.status}`)
       }
       setSendStoreId("")
+      setActiveOrder(null)
       await loadAll()
     } catch (err) {
       console.error("Send failed:", err)
@@ -139,19 +140,27 @@ export default function AdminReturnsPage() {
     loadAll()
   }, [])
 
-  const openVerify = (order: ReturnOrder) => {
-    const init: Record<string, Decision> = {}
-    for (const line of order.return_products || []) {
-      init[line.id] = {
-        verifyStatus: "pending",
-        verifiedQty: Number(line.quantity || 0),
-        reasonType: line.reason_type || "other",
+  // Open an order in the dialog. Unverified orders open in verify mode (scan to
+  // verify); already-verified orders open in details/send mode.
+  const openOrder = (order: ReturnOrder) => {
+    if (order.admin_status === "sent_to_admin") {
+      const init: Record<string, Decision> = {}
+      for (const line of order.return_products || []) {
+        init[line.id] = {
+          verifyStatus: "pending",
+          verifiedQty: Number(line.quantity || 0),
+          reasonType: line.reason_type || "other",
+        }
       }
+      setDecisions(init)
     }
-    setDecisions(init)
-    setActiveOrder(order)
+    setSelected({})
+    setSendStoreId("")
     setScanInput("")
+    setActiveOrder(order)
   }
+
+  const isUnverified = activeOrder?.admin_status === "sent_to_admin"
 
   const setDecision = (lineId: string, patch: Partial<Decision>) => {
     setDecisions((prev) => ({ ...prev, [lineId]: { ...prev[lineId], ...patch } }))
@@ -256,59 +265,9 @@ export default function AdminReturnsPage() {
             ) : orders.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No incoming return orders.</p>
             ) : (
-              orders.map((order) => {
-                const lines = order.return_products || []
-                const totalQty =
-                  Number(order.return_quantity || 0) ||
-                  lines.reduce((s, l) => s + Number(l.quantity || 0), 0)
-                return (
-                  <Card key={order.return_id}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="space-y-1">
-                          <CardTitle className="text-base">{order.stores?.name || order.store_id}</CardTitle>
-                          <div className="text-xs text-muted-foreground">
-                            Order {order.return_id} • {formatDisplayDateTime(order.created_at)}
-                          </div>
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            <Badge variant="outline">{titleCase(order.admin_status)}</Badge>
-                            <Badge variant="secondary">{lines.length} item(s)</Badge>
-                            <Badge variant="secondary">Qty {totalQty}</Badge>
-                          </div>
-                        </div>
-                        <Button size="sm" onClick={() => openVerify(order)}>
-                          <ScanLine className="h-4 w-4 mr-2" />
-                          Open & Verify
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Product</TableHead>
-                            <TableHead>Barcode</TableHead>
-                            <TableHead className="w-32">Reason</TableHead>
-                            <TableHead className="w-16 text-right">Qty</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {lines.map((line) => (
-                            <TableRow key={line.id}>
-                              <TableCell className="font-medium">{line.products?.name || "—"}</TableCell>
-                              <TableCell className="text-xs text-muted-foreground">
-                                {line.products?.barcode || "-"}
-                              </TableCell>
-                              <TableCell>{reasonLabel(line.reason_type)}</TableCell>
-                              <TableCell className="text-right">{line.quantity}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                )
-              })
+              orders.map((order) => (
+                <OrderRow key={order.return_id} order={order} onClick={() => openOrder(order)} />
+              ))
             )}
           </TabsContent>
 
@@ -320,11 +279,7 @@ export default function AdminReturnsPage() {
               <p className="text-sm text-muted-foreground py-8 text-center">No return orders yet.</p>
             ) : (
               allOrders.map((order) => (
-                <OrderCard
-                  key={order.return_id}
-                  order={order}
-                  onVerify={order.admin_status === "sent_to_admin" ? openVerify : undefined}
-                />
+                <OrderRow key={order.return_id} order={order} onClick={() => openOrder(order)} />
               ))
             )}
           </TabsContent>
@@ -413,180 +368,234 @@ export default function AdminReturnsPage() {
         </Tabs>
       </div>
 
-      {/* Verify dialog */}
+      {/* Order dialog: verify (pending) or details + send (verified) */}
       <Dialog open={!!activeOrder} onOpenChange={(open) => !open && setActiveOrder(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Verify Return Order</DialogTitle>
+            <DialogTitle>{isUnverified ? "Verify Return Order" : "Return Order"}</DialogTitle>
             <DialogDescription>
               {activeOrder ? `${activeOrder.stores?.name || activeOrder.store_id} • Order ${activeOrder.return_id}` : ""}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <Label htmlFor="verify-scan">Scan product to verify</Label>
-              <Input
-                id="verify-scan"
-                autoFocus
-                placeholder="Scan or enter barcode"
-                value={scanInput}
-                onChange={(e) => setScanInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    handleScan()
-                  }
-                }}
-              />
-            </div>
-            <Button variant="outline" onClick={verifyAll}>
-              Verify all
-            </Button>
-          </div>
+          {isUnverified ? (
+            <>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Label htmlFor="verify-scan">Scan product to verify</Label>
+                  <Input
+                    id="verify-scan"
+                    autoFocus
+                    placeholder="Scan or enter barcode"
+                    value={scanInput}
+                    onChange={(e) => setScanInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        handleScan()
+                      }
+                    }}
+                  />
+                </div>
+                <Button variant="outline" onClick={verifyAll}>
+                  Verify all
+                </Button>
+              </div>
 
-          <div className="max-h-[55vh] overflow-y-auto rounded border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="w-16 text-right">Sent</TableHead>
-                  <TableHead className="w-20">Got</TableHead>
-                  <TableHead className="w-36">Reason</TableHead>
-                  <TableHead className="w-40">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(activeOrder?.return_products || []).map((line) => {
-                  const d = decisions[line.id]
-                  if (!d) return null
-                  return (
-                    <TableRow
-                      key={line.id}
-                      className={d.verifyStatus === "verified" ? "bg-green-50 dark:bg-green-950/20" : ""}
-                    >
-                      <TableCell className="font-medium">
-                        {line.products?.name || "—"}
-                        <div className="text-xs text-muted-foreground">{line.products?.barcode || ""}</div>
-                      </TableCell>
-                      <TableCell className="text-right">{line.quantity}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min={0}
-                          className="h-8"
-                          value={d.verifiedQty}
-                          onChange={(e) => setDecision(line.id, { verifiedQty: Math.max(0, Number(e.target.value)) })}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Select value={d.reasonType} onValueChange={(v) => setDecision(line.id, { reasonType: v })}>
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {REASONS.map((r) => (
-                              <SelectItem key={r.value} value={r.value}>
-                                {r.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={d.verifyStatus}
-                          onValueChange={(v) => setDecision(line.id, { verifyStatus: v as Decision["verifyStatus"] })}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="verified">Verified</SelectItem>
-                            <SelectItem value="unsent">Not sent (missing)</SelectItem>
-                            <SelectItem value="oversend">Over-sent (extra)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
+              <div className="max-h-[55vh] overflow-y-auto rounded border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead className="w-16 text-right">Sent</TableHead>
+                      <TableHead className="w-20">Got</TableHead>
+                      <TableHead className="w-36">Reason</TableHead>
+                      <TableHead className="w-40">Status</TableHead>
                     </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {(activeOrder?.return_products || []).map((line) => {
+                      const d = decisions[line.id]
+                      if (!d) return null
+                      return (
+                        <TableRow
+                          key={line.id}
+                          className={d.verifyStatus === "verified" ? "bg-green-50 dark:bg-green-950/20" : ""}
+                        >
+                          <TableCell className="font-medium">
+                            {line.products?.name || "—"}
+                            <div className="text-xs text-muted-foreground">{line.products?.barcode || ""}</div>
+                          </TableCell>
+                          <TableCell className="text-right">{line.quantity}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={0}
+                              className="h-8"
+                              value={d.verifiedQty}
+                              onChange={(e) => setDecision(line.id, { verifiedQty: Math.max(0, Number(e.target.value)) })}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Select value={d.reasonType} onValueChange={(v) => setDecision(line.id, { reasonType: v })}>
+                              <SelectTrigger className="h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {REASONS.map((r) => (
+                                  <SelectItem key={r.value} value={r.value}>
+                                    {r.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={d.verifyStatus}
+                              onValueChange={(v) => setDecision(line.id, { verifyStatus: v as Decision["verifyStatus"] })}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="verified">Verified</SelectItem>
+                                <SelectItem value="unsent">Not sent (missing)</SelectItem>
+                                <SelectItem value="oversend">Over-sent (extra)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
 
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
-              {allDecided ? "All items decided." : "Scan or set a status for every item to finish."}
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setActiveOrder(null)} disabled={submitting}>
-                Cancel
-              </Button>
-              <Button onClick={submitVerify} disabled={!allDecided || submitting}>
-                {submitting ? "Saving..." : "Confirm Verification"}
-              </Button>
-            </div>
-          </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">
+                  {allDecided ? "All items decided." : "Scan or set a status for every item to finish."}
+                </span>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setActiveOrder(null)} disabled={submitting}>
+                    Cancel
+                  </Button>
+                  <Button onClick={submitVerify} disabled={!allDecided || submitting}>
+                    {submitting ? "Saving..." : "Confirm Verification"}
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="max-h-[55vh] overflow-y-auto rounded border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10"></TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Barcode</TableHead>
+                      <TableHead className="w-32">Reason</TableHead>
+                      <TableHead className="w-16 text-right">Qty</TableHead>
+                      <TableHead className="w-32">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(activeOrder?.return_products || []).map((line) => {
+                      const sendable = line.holding_status === "with_admin"
+                      return (
+                        <TableRow key={line.id}>
+                          <TableCell>
+                            {sendable ? (
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4"
+                                checked={!!selected[line.id]}
+                                onChange={() => setSelected((p) => ({ ...p, [line.id]: !p[line.id] }))}
+                              />
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="font-medium">{line.products?.name || "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{line.products?.barcode || "-"}</TableCell>
+                          <TableCell>{reasonLabel(line.reason_type)}</TableCell>
+                          <TableCell className="text-right">{line.verified_qty || line.quantity}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{titleCase(line.holding_status || line.verify_status)}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <div className="w-64">
+                  <Label htmlFor="dlg-send-store">Send {selectedIds.length} selected to store</Label>
+                  <Select value={sendStoreId} onValueChange={setSendStoreId}>
+                    <SelectTrigger id="dlg-send-store">
+                      <SelectValue placeholder="Choose destination store" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stores.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name || s.id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setActiveOrder(null)}>
+                    Close
+                  </Button>
+                  <Button onClick={sendSelected} disabled={!sendStoreId || selectedIds.length === 0 || sending}>
+                    {sending ? "Sending..." : "Send to store"}
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Only items still held "with admin" can be selected and sent. Sent items create a transfer order the store verifies.
+              </p>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
   )
 }
 
-function OrderCard({ order, onVerify }: { order: ReturnOrder; onVerify?: (o: ReturnOrder) => void }) {
+function OrderRow({ order, onClick }: { order: ReturnOrder; onClick: () => void }) {
   const lines = order.return_products || []
   const totalQty =
     Number(order.return_quantity || 0) || lines.reduce((s, l) => s + Number(l.quantity || 0), 0)
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-1">
-            <CardTitle className="text-base">{order.stores?.name || order.store_id}</CardTitle>
-            <div className="text-xs text-muted-foreground">
-              Order {order.return_id} • {formatDisplayDateTime(order.created_at)}
-            </div>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Badge variant="outline">{titleCase(order.admin_status)}</Badge>
-              <Badge variant="secondary">{lines.length} item(s)</Badge>
-              <Badge variant="secondary">Qty {totalQty}</Badge>
-            </div>
+    <Card
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+      className="cursor-pointer transition-colors hover:bg-muted/40"
+    >
+      <CardContent className="flex items-center justify-between gap-3 py-3">
+        <div className="space-y-0.5">
+          <div className="font-medium">{order.stores?.name || order.store_id}</div>
+          <div className="text-xs text-muted-foreground">
+            Order {order.return_id} • {formatDisplayDateTime(order.created_at)}
           </div>
-          {onVerify && (
-            <Button size="sm" onClick={() => onVerify(order)}>
-              <ScanLine className="h-4 w-4 mr-2" />
-              Open & Verify
-            </Button>
-          )}
         </div>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead>Barcode</TableHead>
-              <TableHead className="w-32">Reason</TableHead>
-              <TableHead className="w-16 text-right">Qty</TableHead>
-              <TableHead className="w-32">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lines.map((line) => (
-              <TableRow key={line.id}>
-                <TableCell className="font-medium">{line.products?.name || "—"}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{line.products?.barcode || "-"}</TableCell>
-                <TableCell>{reasonLabel(line.reason_type)}</TableCell>
-                <TableCell className="text-right">{line.quantity}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{titleCase(line.holding_status || line.verify_status)}</Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline">{titleCase(order.admin_status)}</Badge>
+          <Badge variant="secondary">{lines.length} item(s)</Badge>
+          <Badge variant="secondary">Qty {totalQty}</Badge>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </div>
       </CardContent>
     </Card>
   )
