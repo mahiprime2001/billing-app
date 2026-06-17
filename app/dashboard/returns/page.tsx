@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { PackageCheck, RefreshCw, ChevronRight } from "lucide-react"
+import { PackageCheck, RefreshCw, ChevronRight, Search, X } from "lucide-react"
 
 const API = process.env.NEXT_PUBLIC_BACKEND_API_URL
 
@@ -24,6 +24,7 @@ const REASONS = [
 ]
 
 const reasonLabel = (v?: string) => REASONS.find((r) => r.value === v)?.label || (v ? v : "-")
+const money = (v?: number) => `₹${Number(v || 0).toLocaleString("en-IN")}`
 const titleCase = (v?: string) =>
   v ? String(v).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "-"
 const normalizeBarcode = (v: string) => v.trim().replace(/^0+/, "")
@@ -44,6 +45,9 @@ interface ReturnLine {
   verify_status?: string
   verified_qty?: number
   holding_status?: string
+  sent_to_store_id?: string
+  from_store?: { id?: string; name?: string } | null
+  to_store?: { id?: string; name?: string } | null
   products?: ProductInfo | null
 }
 interface ReturnOrder {
@@ -84,6 +88,8 @@ export default function AdminReturnsPage() {
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [sendStoreId, setSendStoreId] = useState<string>("")
   const [sending, setSending] = useState(false)
+  const [withAdminSearch, setWithAdminSearch] = useState("")
+  const [sendQty, setSendQty] = useState<Record<string, number>>({})
 
   const loadAll = async () => {
     setLoading(true)
@@ -112,6 +118,20 @@ export default function AdminReturnsPage() {
 
   const selectedIds = useMemo(() => Object.keys(selected).filter((id) => selected[id]), [selected])
 
+  const filteredWithAdmin = useMemo(() => {
+    const raw = withAdminSearch.trim()
+    if (!raw) return withAdmin
+    const code = normalizeBarcode(raw)
+    const text = raw.toLowerCase()
+    return withAdmin.filter((l) => {
+      const name = String(l.products?.name || "").toLowerCase()
+      const barcodes = String(l.products?.barcode || "")
+        .split(",")
+        .map((b) => normalizeBarcode(b))
+      return name.includes(text) || barcodes.some((b) => b.includes(code))
+    })
+  }, [withAdmin, withAdminSearch])
+
   const sendSelected = async () => {
     if (!sendStoreId || selectedIds.length === 0) return
     setSending(true)
@@ -119,7 +139,10 @@ export default function AdminReturnsPage() {
       const res = await fetch(`${API}/api/return-holdings/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storeId: sendStoreId, items: selectedIds.map((id) => ({ line_id: id })) }),
+        body: JSON.stringify({
+          storeId: sendStoreId,
+          items: selectedIds.map((id) => ({ line_id: id, qty: sendQty[id] })),
+        }),
       })
       if (!res.ok) {
         const r = await res.json().catch(() => ({}))
@@ -161,6 +184,40 @@ export default function AdminReturnsPage() {
   }
 
   const isUnverified = activeOrder?.admin_status === "sent_to_admin"
+
+  // Sendable items = those still held "with admin". Used for the header
+  // "select all" checkbox in both the With Admin tab and the order dialog.
+  const dialogSendable = (activeOrder?.return_products || []).filter((l) => l.holding_status === "with_admin")
+  const allDialogSelected = dialogSendable.length > 0 && dialogSendable.every((l) => selected[l.id])
+  const allWithAdminSelected = filteredWithAdmin.length > 0 && filteredWithAdmin.every((l) => selected[l.id])
+  const cartLines = withAdmin.filter((l) => selected[l.id])
+  const cartTotal = cartLines.reduce((sum, l) => {
+    const held = Number(l.verified_qty || l.quantity || 0)
+    const qty = sendQty[l.id] ?? held
+    return sum + Number(l.products?.selling_price || 0) * qty
+  }, 0)
+  const addBarcodeToCart = () => {
+    const code = normalizeBarcode(withAdminSearch)
+    if (!code) return
+    const match = withAdmin.find((l) =>
+      String(l.products?.barcode || "")
+        .split(",")
+        .map((b) => normalizeBarcode(b))
+        .includes(code),
+    )
+    if (match) {
+      setSelected((p) => ({ ...p, [match.id]: true }))
+      setWithAdminSearch("")
+    }
+  }
+  const toggleSelectAll = (lines: ReturnLine[], currentlyAll: boolean) => {
+    const target = !currentlyAll
+    setSelected((prev) => {
+      const next = { ...prev }
+      for (const l of lines) next[l.id] = target
+      return next
+    })
+  }
 
   const setDecision = (lineId: string, patch: Partial<Decision>) => {
     setDecisions((prev) => ({ ...prev, [lineId]: { ...prev[lineId], ...patch } }))
@@ -285,85 +342,195 @@ export default function AdminReturnsPage() {
           </TabsContent>
 
           {/* ── WITH ADMIN (holding) ── */}
-          <TabsContent value="with_admin" className="mt-4 space-y-3">
+          <TabsContent value="with_admin" className="mt-4">
             {withAdmin.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">
                 Nothing is held with admin right now.
               </p>
             ) : (
-              <>
-                <div className="flex flex-wrap items-end gap-2 rounded-md border bg-muted/20 p-3">
-                  <div className="w-64">
-                    <Label htmlFor="send-store">Send {selectedIds.length} selected to store</Label>
-                    <Select value={sendStoreId} onValueChange={setSendStoreId}>
-                      <SelectTrigger id="send-store">
-                        <SelectValue placeholder="Choose destination store" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {stores.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.name || s.id}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    onClick={sendSelected}
-                    disabled={!sendStoreId || selectedIds.length === 0 || sending}
-                  >
-                    {sending ? "Sending..." : "Send to store"}
-                  </Button>
-                  <span className="ml-auto self-center text-xs text-muted-foreground">
-                    Sent items create a transfer order; the store verifies them.
-                  </span>
+              <div className="grid gap-4 lg:grid-cols-3">
+                {/* LEFT: cart */}
+                <div className="lg:col-span-1">
+                  <Card className="lg:sticky lg:top-4">
+                    <CardContent className="space-y-3 pt-4">
+                      {/* Send controls fixed at the top */}
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">Cart ({cartLines.length})</span>
+                        {cartLines.length > 0 && (
+                          <button
+                            className="text-xs text-muted-foreground hover:underline"
+                            onClick={() => setSelected({})}
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="cart-send-store">Destination store</Label>
+                        <Select value={sendStoreId} onValueChange={setSendStoreId}>
+                          <SelectTrigger id="cart-send-store">
+                            <SelectValue placeholder="Choose destination store" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {stores.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.name || s.id}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Total</span>
+                        <span className="font-semibold">{money(cartTotal)}</span>
+                      </div>
+
+                      <Button
+                        className="w-full"
+                        onClick={sendSelected}
+                        disabled={!sendStoreId || cartLines.length === 0 || sending}
+                      >
+                        {sending ? "Sending..." : `Send ${cartLines.length} to store`}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Sent items create a transfer order; the store verifies them.
+                      </p>
+
+                      {/* Cart items below */}
+                      <div className="border-t pt-3">
+                        {cartLines.length === 0 ? (
+                          <p className="py-6 text-center text-sm text-muted-foreground">
+                            Scan or click items from the list to add them here.
+                          </p>
+                        ) : (
+                          <div className="max-h-[45vh] space-y-2 overflow-y-auto">
+                            {cartLines.map((line) => {
+                              const held = Number(line.verified_qty || line.quantity || 0)
+                              const qty = sendQty[line.id] ?? held
+                              const price = Number(line.products?.selling_price || 0)
+                              return (
+                                <div key={line.id} className="flex items-center gap-2 rounded border p-2">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="truncate text-sm font-medium">{line.products?.name || "—"}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {money(price)} · {money(price * qty)}
+                                    </div>
+                                  </div>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    max={held}
+                                    className="h-8 w-14 text-right"
+                                    value={qty}
+                                    onChange={(e) =>
+                                      setSendQty((p) => ({
+                                        ...p,
+                                        [line.id]: Math.max(1, Math.min(held, Number(e.target.value) || 1)),
+                                      }))
+                                    }
+                                  />
+                                  <button
+                                    className="text-muted-foreground hover:text-destructive"
+                                    title="Remove"
+                                    onClick={() => setSelected((p) => ({ ...p, [line.id]: false }))}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-                <Card>
-                  <CardContent className="pt-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-10"></TableHead>
-                          <TableHead>Product</TableHead>
-                          <TableHead>Barcode</TableHead>
-                          <TableHead className="w-32">Reason</TableHead>
-                          <TableHead className="w-20 text-right">Qty</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {withAdmin.map((line) => (
-                          <TableRow key={line.id}>
-                            <TableCell>
+
+                {/* RIGHT: list */}
+                <div className="space-y-3 lg:col-span-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      className="pl-8"
+                      placeholder="Scan barcode or search product…"
+                      value={withAdminSearch}
+                      onChange={(e) => setWithAdminSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          addBarcodeToCart()
+                        }
+                      }}
+                    />
+                  </div>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-10">
                               <input
                                 type="checkbox"
                                 className="h-4 w-4"
-                                checked={!!selected[line.id]}
-                                onChange={() =>
-                                  setSelected((p) => ({ ...p, [line.id]: !p[line.id] }))
-                                }
+                                checked={allWithAdminSelected}
+                                disabled={filteredWithAdmin.length === 0}
+                                onChange={() => toggleSelectAll(filteredWithAdmin, allWithAdminSelected)}
+                                title="Select all"
                               />
-                            </TableCell>
-                            <TableCell className="font-medium">{line.products?.name || "—"}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {line.products?.barcode || "-"}
-                            </TableCell>
-                            <TableCell>{reasonLabel(line.reason_type)}</TableCell>
-                            <TableCell className="text-right">
-                              {line.verified_qty || line.quantity}
-                            </TableCell>
+                            </TableHead>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Barcode</TableHead>
+                            <TableHead className="w-28">Reason</TableHead>
+                            <TableHead className="w-14 text-right">Qty</TableHead>
+                            <TableHead className="w-24 text-right">Price</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredWithAdmin.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                                No matching items.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            filteredWithAdmin.map((line) => {
+                              const held = Number(line.verified_qty || line.quantity || 0)
+                              const price = Number(line.products?.selling_price || 0)
+                              const inCart = !!selected[line.id]
+                              return (
+                                <TableRow
+                                  key={line.id}
+                                  className={`cursor-pointer ${inCart ? "bg-muted/40" : ""}`}
+                                  onClick={() => setSelected((p) => ({ ...p, [line.id]: !p[line.id] }))}
+                                >
+                                  <TableCell>
+                                    <input type="checkbox" className="h-4 w-4" checked={inCart} readOnly />
+                                  </TableCell>
+                                  <TableCell className="font-medium">{line.products?.name || "—"}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">
+                                    {line.products?.barcode || "-"}
+                                  </TableCell>
+                                  <TableCell>{reasonLabel(line.reason_type)}</TableCell>
+                                  <TableCell className="text-right">{held}</TableCell>
+                                  <TableCell className="text-right">{money(price)}</TableCell>
+                                </TableRow>
+                              )
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             )}
           </TabsContent>
 
           {/* ── SENT OUT ── */}
           <TabsContent value="sent_out" className="mt-4">
-            <HoldingTable rows={sentOut} emptyText="Nothing has been sent out yet." />
+            <HoldingTable rows={sentOut} emptyText="Nothing has been sent out yet." showRoute />
           </TabsContent>
         </Tabs>
       </div>
@@ -493,33 +660,69 @@ export default function AdminReturnsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="w-10">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4"
+                          checked={allDialogSelected}
+                          disabled={dialogSendable.length === 0}
+                          onChange={() => toggleSelectAll(dialogSendable, allDialogSelected)}
+                          title="Select all 'with admin' items"
+                        />
+                      </TableHead>
                       <TableHead>Product</TableHead>
                       <TableHead>Barcode</TableHead>
-                      <TableHead className="w-32">Reason</TableHead>
-                      <TableHead className="w-16 text-right">Qty</TableHead>
-                      <TableHead className="w-32">Status</TableHead>
+                      <TableHead className="w-28">Reason</TableHead>
+                      <TableHead className="w-12 text-right">Qty</TableHead>
+                      <TableHead className="w-24 text-right">Price</TableHead>
+                      <TableHead className="w-24 text-right">Value</TableHead>
+                      <TableHead className="w-28">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {(activeOrder?.return_products || []).map((line) => {
                       const sendable = line.holding_status === "with_admin"
+                      const held = Number(line.verified_qty || line.quantity || 0)
+                      const qty = sendable ? sendQty[line.id] ?? held : held
+                      const price = Number(line.products?.selling_price || 0)
                       return (
                         <TableRow key={line.id}>
                           <TableCell>
-                            {sendable ? (
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4"
-                                checked={!!selected[line.id]}
-                                onChange={() => setSelected((p) => ({ ...p, [line.id]: !p[line.id] }))}
-                              />
-                            ) : null}
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 disabled:cursor-not-allowed disabled:opacity-40"
+                              checked={!!selected[line.id]}
+                              disabled={!sendable}
+                              onChange={() =>
+                                sendable && setSelected((p) => ({ ...p, [line.id]: !p[line.id] }))
+                              }
+                              title={sendable ? "Select to send" : "Already sent out — can't be sent again"}
+                            />
                           </TableCell>
                           <TableCell className="font-medium">{line.products?.name || "—"}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{line.products?.barcode || "-"}</TableCell>
                           <TableCell>{reasonLabel(line.reason_type)}</TableCell>
-                          <TableCell className="text-right">{line.verified_qty || line.quantity}</TableCell>
+                          <TableCell className="text-right">
+                            {sendable && held > 1 ? (
+                              <Input
+                                type="number"
+                                min={1}
+                                max={held}
+                                className="h-8 w-16 ml-auto text-right"
+                                value={qty}
+                                onChange={(e) =>
+                                  setSendQty((p) => ({
+                                    ...p,
+                                    [line.id]: Math.max(1, Math.min(held, Number(e.target.value) || 1)),
+                                  }))
+                                }
+                              />
+                            ) : (
+                              qty
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">{money(price)}</TableCell>
+                          <TableCell className="text-right">{money(price * qty)}</TableCell>
                           <TableCell>
                             <Badge variant="outline">{titleCase(line.holding_status || line.verify_status)}</Badge>
                           </TableCell>
@@ -601,7 +804,15 @@ function OrderRow({ order, onClick }: { order: ReturnOrder; onClick: () => void 
   )
 }
 
-function HoldingTable({ rows, emptyText }: { rows: ReturnLine[]; emptyText: string }) {
+function HoldingTable({
+  rows,
+  emptyText,
+  showRoute,
+}: {
+  rows: ReturnLine[]
+  emptyText: string
+  showRoute?: boolean
+}) {
   if (!rows || rows.length === 0) {
     return <p className="text-sm text-muted-foreground py-8 text-center">{emptyText}</p>
   }
@@ -614,8 +825,10 @@ function HoldingTable({ rows, emptyText }: { rows: ReturnLine[]; emptyText: stri
               <TableHead>Product</TableHead>
               <TableHead>Barcode</TableHead>
               <TableHead className="w-32">Reason</TableHead>
-              <TableHead className="w-20 text-right">Qty</TableHead>
-              <TableHead className="w-32">Status</TableHead>
+              <TableHead className="w-16 text-right">Qty</TableHead>
+              {showRoute && <TableHead>Sent From</TableHead>}
+              {showRoute && <TableHead>Sent To</TableHead>}
+              <TableHead className="w-28">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -625,6 +838,8 @@ function HoldingTable({ rows, emptyText }: { rows: ReturnLine[]; emptyText: stri
                 <TableCell className="text-xs text-muted-foreground">{line.products?.barcode || "-"}</TableCell>
                 <TableCell>{reasonLabel(line.reason_type)}</TableCell>
                 <TableCell className="text-right">{line.verified_qty || line.quantity}</TableCell>
+                {showRoute && <TableCell>{line.from_store?.name || "—"}</TableCell>}
+                {showRoute && <TableCell>{line.to_store?.name || "—"}</TableCell>}
                 <TableCell>
                   <Badge variant="outline">{titleCase(line.holding_status)}</Badge>
                 </TableCell>

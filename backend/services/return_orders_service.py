@@ -27,6 +27,23 @@ def _now() -> str:
     return datetime.now().isoformat()
 
 
+def _notify(store_id, ntype, message, related_id=None):
+    """Best-effort notification. store_id targets a store; None targets admin."""
+    try:
+        from services import notifications_service
+        notifications_service.create_notification(
+            {
+                "type": ntype,
+                "notification": message,
+                "store_id": store_id,
+                "relatedId": related_id,
+                "isRead": False,
+            }
+        )
+    except Exception as e:
+        logger.warning(f"Failed to create notification ({ntype}): {e}")
+
+
 def _adjust_store_inventory(client, store_id, product_id, delta, now_iso):
     """Increment/decrement a store's inventory for a product (create row if needed)."""
     resp = (
@@ -209,6 +226,8 @@ def verify_return_order(return_id: str, payload: Dict[str, Any], actor: Optional
             {"admin_status": "verified", "updated_at": now_iso}
         ).eq("return_id", return_id).execute()
 
+        _notify(store_id, "RETURN_VERIFIED", f"Your return {return_id} was verified by admin.", return_id)
+
         return True, "Return order verified", 200
     except Exception as e:
         logger.error(f"Error verifying return order {return_id}: {e}", exc_info=True)
@@ -257,7 +276,12 @@ def send_holdings_to_store(store_id, items, actor=None, note=None) -> Tuple[bool
             line = lines_by_id.get(lid)
             if not line or (line.get("holding_status") or "") != "with_admin":
                 continue
-            qty = int(line.get("verified_qty") or line.get("quantity") or 0)
+            held = int(line.get("verified_qty") or line.get("quantity") or 0)
+            # Optional per-item qty for a partial send; default to the full held
+            # amount, clamped to what is actually held.
+            requested = it.get("qty")
+            qty = int(requested) if requested is not None else held
+            qty = max(0, min(qty, held))
             if qty <= 0:
                 continue
             item_rows.append(
@@ -275,7 +299,7 @@ def send_holdings_to_store(store_id, items, actor=None, note=None) -> Tuple[bool
                     "updated_at": now_iso,
                 }
             )
-            sent_lines.append((line, qty))
+            sent_lines.append((line, held, qty))
 
         if not item_rows:
             return False, "No eligible items to send (must be held with admin)", 400, {}
@@ -295,11 +319,30 @@ def send_holdings_to_store(store_id, items, actor=None, note=None) -> Tuple[bool
         client.table("inventory_transfer_orders").insert(order_row).execute()
         client.table("inventory_transfer_items").insert(item_rows).execute()
 
-        for line, qty in sent_lines:
+        for line, held, qty in sent_lines:
             _increment_owner_stock(client, line.get("product_id"), qty, now_iso)
-            client.table("return_products").update(
-                {"holding_status": "sent_out", "updated_at": now_iso}
-            ).eq("id", line.get("id")).execute()
+            remaining = held - qty
+            if remaining > 0:
+                # Partial send: keep the remainder held with admin.
+                client.table("return_products").update(
+                    {"verified_qty": remaining, "updated_at": now_iso}
+                ).eq("id", line.get("id")).execute()
+            else:
+                client.table("return_products").update(
+                    {
+                        "holding_status": "sent_out",
+                        "sent_to_store_id": store_id,
+                        "sent_at": now_iso,
+                        "updated_at": now_iso,
+                    }
+                ).eq("id", line.get("id")).execute()
+
+        _notify(
+            store_id,
+            "RETURN_INCOMING",
+            f"{len(item_rows)} item(s) incoming from admin returns — verify transfer {order_id}.",
+            order_id,
+        )
 
         return True, f"Sent {len(item_rows)} item(s) as transfer {order_id}", 200, {
             "orderId": order_id,
@@ -419,6 +462,13 @@ def send_damaged_to_store(store_id, ids, actor=None, note=None) -> Tuple[bool, s
                 }
             ).eq("id", row.get("id")).execute()
 
+        _notify(
+            store_id,
+            "RETURN_INCOMING",
+            f"{len(item_rows)} fixed item(s) incoming from admin — verify transfer {order_id}.",
+            order_id,
+        )
+
         return True, f"Sent {len(item_rows)} fixed item(s) as transfer {order_id}", 200, {
             "orderId": order_id,
             "itemCount": len(item_rows),
@@ -429,7 +479,11 @@ def send_damaged_to_store(store_id, ids, actor=None, note=None) -> Tuple[bool, s
 
 
 def list_return_holdings(holding_status: str = "with_admin", limit: int = 500) -> Tuple[List[Dict], int]:
-    """List return_products lines by holding_status (e.g. with_admin, sent_out)."""
+    """List return_products lines by holding_status (e.g. with_admin, sent_out).
+
+    Each row is enriched with from_store (the store that returned it, via the
+    parent return) and to_store (the destination it was sent to, for sent_out).
+    """
     try:
         client = db.client
         resp = (
@@ -440,7 +494,29 @@ def list_return_holdings(holding_status: str = "with_admin", limit: int = 500) -
             .limit(limit)
             .execute()
         )
-        return resp.data or [], 200
+        rows = resp.data or []
+
+        # Origin store comes from the parent return; destination from sent_to_store_id.
+        return_ids = list({str(r.get("return_id")) for r in rows if r.get("return_id")})
+        store_by_return: Dict[str, str] = {}
+        if return_ids:
+            rr = client.table("returns").select("return_id, store_id").in_("return_id", return_ids).execute()
+            store_by_return = {str(r.get("return_id")): str(r.get("store_id") or "") for r in (rr.data or [])}
+
+        store_ids = {v for v in store_by_return.values() if v}
+        store_ids.update(str(r.get("sent_to_store_id") or "") for r in rows if r.get("sent_to_store_id"))
+        store_names: Dict[str, Any] = {}
+        if store_ids:
+            st = client.table("stores").select("id, name").in_("id", list(store_ids)).execute()
+            store_names = {str(s.get("id")): s.get("name") for s in (st.data or [])}
+
+        for r in rows:
+            from_id = store_by_return.get(str(r.get("return_id")), "")
+            r["from_store"] = {"id": from_id, "name": store_names.get(from_id)} if from_id else None
+            to_id = str(r.get("sent_to_store_id") or "")
+            r["to_store"] = {"id": to_id, "name": store_names.get(to_id)} if to_id else None
+
+        return rows, 200
     except Exception as e:
         logger.error(f"Error listing return holdings ({holding_status}): {e}", exc_info=True)
         return [], 500

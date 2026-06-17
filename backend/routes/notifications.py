@@ -90,6 +90,20 @@ def get_notification(notification_id):
         return jsonify({"error": str(e)}), 500
 
 
+@notifications_bp.route('/notifications/read-all', methods=['PUT'])
+def mark_all_read():
+    """Mark all notifications as read (optionally scoped via ?storeId=)."""
+    try:
+        store_id = request.args.get('storeId') or request.args.get('store_id')
+        success, message, status_code = notifications_service.mark_all_notifications_read(store_id)
+        if success:
+            return jsonify({"message": message}), status_code
+        return jsonify({"error": message}), status_code
+    except Exception as e:
+        logger.error(f"Error in mark_all_read: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @notifications_bp.route('/notifications/<notification_id>', methods=['PUT'])
 def mark_notification_read(notification_id):
     """Mark notification as read"""

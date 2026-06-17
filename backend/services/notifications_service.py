@@ -4,7 +4,7 @@ Handles all notification-related business logic and database operations
 """
 import logging
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
 
 from utils.supabase_db import db
@@ -216,6 +216,67 @@ def mark_notification_as_read(notification_id: str) -> Tuple[bool, str, int]:
     except Exception as e:
         logger.error(f"Error marking notification as read: {e}", exc_info=True)
         return False, str(e), 500
+
+
+def mark_all_notifications_read(store_id: Optional[str] = None) -> Tuple[bool, str, int]:
+    """Mark every unread notification as read (optionally only for one store).
+    Also prunes old read notifications to keep the list from growing forever."""
+    try:
+        now = datetime.now().isoformat()
+        notifications = get_notifications_data()
+        count = 0
+        for n in notifications:
+            if store_id and str(n.get("store_id") or "") != str(store_id):
+                continue
+            if not n.get("is_read"):
+                n["is_read"] = True
+                n["updated_at"] = now
+                count += 1
+        save_notifications_data(notifications)
+
+        try:
+            client = db.client
+            query = client.table("notifications").update({"is_read": True, "updated_at": now}).eq("is_read", False)
+            if store_id:
+                query = query.eq("store_id", store_id)
+            execute_with_retry(lambda: query, "notifications mark all read", retries=2)
+        except Exception as supabase_error:
+            logger.warning(f"Marked all read locally; Supabase sync deferred: {supabase_error}")
+
+        # Opportunistic cleanup of old read notifications.
+        prune_read_notifications()
+
+        return True, f"Marked {count} notification(s) as read", 200
+    except Exception as e:
+        logger.error(f"Error marking all notifications read: {e}", exc_info=True)
+        return False, str(e), 500
+
+
+def prune_read_notifications(days: int = 30) -> int:
+    """Delete read notifications older than `days`. Returns how many were removed."""
+    try:
+        cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+        notifications = get_notifications_data()
+        keep = [
+            n for n in notifications
+            if not (n.get("is_read") and str(n.get("created_at") or "") < cutoff)
+        ]
+        removed = len(notifications) - len(keep)
+        if removed > 0:
+            save_notifications_data(keep)
+            try:
+                client = db.client
+                execute_with_retry(
+                    lambda: client.table("notifications").delete().eq("is_read", True).lt("created_at", cutoff),
+                    "notifications prune",
+                    retries=1,
+                )
+            except Exception as supabase_error:
+                logger.warning(f"Pruned read notifications locally; Supabase delete deferred: {supabase_error}")
+        return removed
+    except Exception as e:
+        logger.error(f"Error pruning notifications: {e}", exc_info=True)
+        return 0
 
 
 def delete_notification(notification_id: str) -> Tuple[bool, str, int]:

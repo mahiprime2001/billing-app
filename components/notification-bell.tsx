@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, Check, Clock, User, X, RefreshCw } from "lucide-react"
+import { Bell, Check, Clock, User, X, RefreshCw, PackageCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
@@ -19,7 +19,15 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 // Notification types
 export interface Notification {
   id: string
-  type: "PASSWORD_RESET" | "USER_LOGIN" | "SYSTEM_ALERT" | "RETURN_REQUEST" | "DISCOUNT_REQUEST"
+  type:
+    | "PASSWORD_RESET"
+    | "USER_LOGIN"
+    | "SYSTEM_ALERT"
+    | "RETURN_REQUEST"
+    | "DISCOUNT_REQUEST"
+    | "RETURN_ORDER"
+    | "RETURN_VERIFIED"
+    | "RETURN_INCOMING"
   title?: string
   message: string
   userId?: string
@@ -99,6 +107,10 @@ const NotificationItem: React.FC<{
         return <RefreshCw className="h-4 w-4 text-purple-600" />
       case "DISCOUNT_REQUEST":
         return <RefreshCw className="h-4 w-4 text-purple-600" />
+      case "RETURN_ORDER":
+      case "RETURN_VERIFIED":
+      case "RETURN_INCOMING":
+        return <PackageCheck className="h-4 w-4 text-emerald-600" />
       default:
         return <Bell className="h-4 w-4 text-gray-600" />
     }
@@ -219,6 +231,12 @@ export const NotificationBell: React.FC = () => {
         return "Return request"
       case "DISCOUNT_REQUEST":
         return "Discount request"
+      case "RETURN_ORDER":
+        return "New return order"
+      case "RETURN_VERIFIED":
+        return "Return verified"
+      case "RETURN_INCOMING":
+        return "Items incoming"
       case "PASSWORD_RESET":
         return "Password reset"
       case "USER_LOGIN":
@@ -231,6 +249,8 @@ export const NotificationBell: React.FC = () => {
   const getNotificationLink = (type: string): string | undefined => {
     if (type === "RETURN_REQUEST") return "/dashboard/damaged-products"
     if (type === "DISCOUNT_REQUEST") return "/dashboard/discounts"
+    if (type === "RETURN_ORDER" || type === "RETURN_VERIFIED" || type === "RETURN_INCOMING")
+      return "/dashboard/returns"
     return undefined
   }
 
@@ -556,12 +576,9 @@ export const NotificationBell: React.FC = () => {
     }
   }
 
-  // Step 5: Mark all as read — optimistic, no refetch
+  // Step 5: Mark all as read — optimistic, single request
   const markAllAsRead = async () => {
     const previousNotifications = notifications
-    const unreadPersistedIds = notifications
-      .filter((notification) => !notification.isRead && !notification.isVirtual)
-      .map((n) => n.id)
 
     // Optimistic update immediately
     setNotifications((prev) => {
@@ -573,20 +590,16 @@ export const NotificationBell: React.FC = () => {
     })
 
     try {
-      const results = await Promise.all(
-        unreadPersistedIds.map((id) =>
-          fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/notifications/${id}`, {
-            method: "PUT",
-          }),
-        ),
+      const response = await fetch(
+        process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/notifications/read-all",
+        { method: "PUT" },
       )
-      // If any failed, revert
-      if (results.some(r => !r.ok)) {
+      if (!response.ok) {
         setNotifications(previousNotifications)
         setUnreadCount(previousNotifications.filter((item) => !item.isRead).length)
       }
     } catch (err) {
-      console.error('Error marking all as read:', err)
+      console.error("Error marking all as read:", err)
       setNotifications(previousNotifications)
       setUnreadCount(previousNotifications.filter((item) => !item.isRead).length)
     }
