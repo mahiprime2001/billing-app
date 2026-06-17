@@ -62,12 +62,24 @@ def _safe_json_dump(path: str, data: Any) -> bool:
             logger.error(f"Failed to create directory {parent_dir}: {e}")
             return False
     
+    # Atomic write: serialize to a temp file, fsync, then os.replace. This
+    # guarantees readers never see a half-written/truncated file (which a crash
+    # mid-write would otherwise leave behind and corrupt the local cache).
+    tmp = f"{path}.tmp"
     try:
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(tmp, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
         return True
     except Exception as e:
         logger.error(f"Failed to write JSON to {path}: {e}")
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except OSError:
+            pass
         return False
 
 

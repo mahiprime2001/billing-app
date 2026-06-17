@@ -268,17 +268,42 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
                     bills_error,
                 )
 
+        # Build a product -> selling price map so we can value each store's stock.
+        price_by_product: Dict[str, float] = {}
+        try:
+            product_price_rows = _fetch_all_rows(
+                client,
+                "products",
+                "id,selling_price,price",
+                "products (price map)",
+            )
+            for prod in product_price_rows:
+                pid = prod.get("id")
+                if not pid:
+                    continue
+                price_by_product[pid] = float(
+                    prod.get("selling_price") or prod.get("price") or 0
+                )
+        except Exception as price_error:
+            logger.warning(
+                "Supabase product price fetch failed in get_all_stores_with_inventory; "
+                "stock value will be 0: %s",
+                price_error,
+            )
+
         inventory_by_store: Dict[str, Dict] = {}
         for row in inventory_rows_data:
             sid = row.get("storeid") or row.get("storeId")
             if not sid:
                 continue
             if sid not in inventory_by_store:
-                inventory_by_store[sid] = {"product_ids": set(), "total_stock": 0}
+                inventory_by_store[sid] = {"product_ids": set(), "total_stock": 0, "total_value": 0.0}
             product_id = row.get("productid") or row.get("productId")
             if product_id:
                 inventory_by_store[sid]["product_ids"].add(product_id)
-            inventory_by_store[sid]["total_stock"] += int(row.get("quantity") or 0)
+            quantity = int(row.get("quantity") or 0)
+            inventory_by_store[sid]["total_stock"] += quantity
+            inventory_by_store[sid]["total_value"] += quantity * price_by_product.get(product_id, 0.0)
 
         bills_by_store: Dict[str, Dict] = {}
         for row in bill_rows_data:
@@ -295,15 +320,17 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
             if not store_id:
                 store["productCount"] = 0
                 store["totalStock"] = 0
+                store["totalStockValue"] = 0.0
                 store["totalRevenue"] = 0.0
                 store["totalBills"] = 0
                 continue
 
-            inv = inventory_by_store.get(store_id, {"product_ids": set(), "total_stock": 0})
+            inv = inventory_by_store.get(store_id, {"product_ids": set(), "total_stock": 0, "total_value": 0.0})
             bill = bills_by_store.get(store_id, {"bill_count": 0, "total_revenue": 0.0})
 
             store["productCount"] = len(inv["product_ids"])
             store["totalStock"] = inv["total_stock"]
+            store["totalStockValue"] = round(inv.get("total_value", 0.0), 2)
             store["totalRevenue"] = bill["total_revenue"]
             store["totalBills"] = bill["bill_count"]
         

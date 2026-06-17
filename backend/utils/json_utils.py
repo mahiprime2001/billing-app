@@ -32,10 +32,17 @@ class CustomJsonEncoder(json.JSONEncoder):
 
 def save_json_file(filepath: str, data):
     """
-    Saves data to a JSON file, handling Decimal and datetime objects.
+    Saves data to a JSON file atomically, handling Decimal and datetime objects.
+
+    Writes to a temp file and os.replace()s it into place so a crash mid-write
+    can never leave a half-written/corrupt file.
     """
-    with open(filepath, 'w') as f:
+    tmp = f"{filepath}.tmp"
+    with open(tmp, 'w') as f:
         json.dump(data, f, indent=2, cls=CustomJsonEncoder)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, filepath)
 
 def load_json_file(filepath: str):
     """

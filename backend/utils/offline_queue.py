@@ -161,23 +161,52 @@ class OfflineQueue:
         logger.warning("⚠️ Cleared entire offline queue")
     
     def _load_queue(self) -> List[Dict]:
-        """Load queue from file"""
+        """Load queue from file.
+
+        On corruption, the file is preserved as a ``.corrupt-<ts>`` backup rather
+        than silently discarded. Combined with the atomic _save_queue below, this
+        prevents the queue from being erased: a half-written/corrupt file used to
+        be read as [] and the next save overwrote everything that was queued.
+        """
         try:
             with open(self.queue_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
+        except FileNotFoundError:
+            return []
+        except json.JSONDecodeError as e:
+            backup = f"{self.queue_file}.corrupt-{int(datetime.now().timestamp())}"
+            try:
+                os.replace(self.queue_file, backup)
+                logger.error(f"Corrupt offline queue backed up to {backup}: {e}")
+            except OSError as be:
+                logger.error(f"Corrupt offline queue; backup failed: {be}")
             return []
         except Exception as e:
             logger.error(f"Error loading queue: {e}")
             return []
-    
-    def _save_queue(self, queue: List[Dict]):
-        """Save queue to file"""
+
+    def _save_queue(self, queue: List[Dict]) -> bool:
+        """Save queue atomically: temp file -> fsync -> os.replace.
+
+        Guarantees the queue file is never left half-written, so a crash mid-write
+        cannot corrupt it. Returns True on success, False on failure.
+        """
+        tmp = f"{self.queue_file}.tmp"
         try:
-            with open(self.queue_file, 'w', encoding='utf-8') as f:
+            with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(queue, f, indent=2, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, self.queue_file)
+            return True
         except Exception as e:
             logger.error(f"Error saving queue: {e}")
+            try:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+            except OSError:
+                pass
+            return False
 
 # Global instance
 offline_queue = OfflineQueue()

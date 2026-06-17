@@ -73,7 +73,12 @@
       "Bash(xargs grep -l \"inventory_transfer_scans\\\\|inventory_transfer_verifications\")",
       "PowerShell(npx tsc --noEmit 2>&1)",
       "Bash(echo \"exit: $?\")",
-      "Bash(echo \"grep exit: $?\")"
+      "Bash(echo \"grep exit: $?\")",
+      "Read(//d/d/Siri-apps/billing-app/app/dashboard/**)",
+      "Read(//d/d/Siri-apps/billing-app/**)",
+      "Bash(git mv *)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-String -Pattern \"error TS\" | ForEach-Object { \\($_ -split '\\\\\\('\\)[0] } | Sort-Object -Unique)",
+      "PowerShell(cd d:\\\\Siri-apps\\\\billing-app; npx tsc --noEmit -p tsconfig.json 2>&1 | Select-String -Pattern \"error TS\" | ForEach-Object { \\($_ -split '\\\\\\('\\)[0] } | Sort-Object -Unique)"
     ]
   }
 }
