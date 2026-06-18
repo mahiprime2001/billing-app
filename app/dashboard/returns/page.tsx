@@ -16,6 +16,10 @@ import { PackageCheck, RefreshCw, ChevronRight, Search, X } from "lucide-react"
 
 const API = process.env.NEXT_PUBLIC_BACKEND_API_URL
 
+// Synthetic destination: add held items back to the warehouse (global stock)
+// instead of sending them to a store. No store verification step.
+const WAREHOUSE_ID = "__warehouse__"
+
 const REASONS = [
   { value: "damaged", label: "Damaged" },
   { value: "low_sales", label: "Low Sales" },
@@ -136,13 +140,17 @@ export default function AdminReturnsPage() {
     if (!sendStoreId || selectedIds.length === 0) return
     setSending(true)
     try {
-      const res = await fetch(`${API}/api/return-holdings/send`, {
+      const toWarehouse = sendStoreId === WAREHOUSE_ID
+      const url = toWarehouse
+        ? `${API}/api/return-holdings/add-to-warehouse`
+        : `${API}/api/return-holdings/send`
+      const body = toWarehouse
+        ? { items: selectedIds.map((id) => ({ line_id: id, qty: sendQty[id] })) }
+        : { storeId: sendStoreId, items: selectedIds.map((id) => ({ line_id: id, qty: sendQty[id] })) }
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          storeId: sendStoreId,
-          items: selectedIds.map((id) => ({ line_id: id, qty: sendQty[id] })),
-        }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const r = await res.json().catch(() => ({}))
@@ -373,6 +381,7 @@ export default function AdminReturnsPage() {
                             <SelectValue placeholder="Choose destination store" />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value={WAREHOUSE_ID}>Add to warehouse</SelectItem>
                             {stores.map((s) => (
                               <SelectItem key={s.id} value={s.id}>
                                 {s.name || s.id}
@@ -392,10 +401,18 @@ export default function AdminReturnsPage() {
                         onClick={sendSelected}
                         disabled={!sendStoreId || cartLines.length === 0 || sending}
                       >
-                        {sending ? "Sending..." : `Send ${cartLines.length} to store`}
+                        {sending
+                          ? sendStoreId === WAREHOUSE_ID
+                            ? "Adding..."
+                            : "Sending..."
+                          : sendStoreId === WAREHOUSE_ID
+                            ? `Add ${cartLines.length} to warehouse`
+                            : `Send ${cartLines.length} to store`}
                       </Button>
                       <p className="text-xs text-muted-foreground">
-                        Sent items create a transfer order; the store verifies them.
+                        {sendStoreId === WAREHOUSE_ID
+                          ? "Items return to warehouse stock and become available to assign again (no verification)."
+                          : "Sent items create a transfer order; the store verifies them."}
                       </p>
 
                       {/* Cart items below */}
@@ -735,12 +752,13 @@ export default function AdminReturnsPage() {
 
               <div className="flex flex-wrap items-end justify-between gap-2">
                 <div className="w-64">
-                  <Label htmlFor="dlg-send-store">Send {selectedIds.length} selected to store</Label>
+                  <Label htmlFor="dlg-send-store">Send {selectedIds.length} selected to destination</Label>
                   <Select value={sendStoreId} onValueChange={setSendStoreId}>
                     <SelectTrigger id="dlg-send-store">
-                      <SelectValue placeholder="Choose destination store" />
+                      <SelectValue placeholder="Choose destination" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={WAREHOUSE_ID}>Add to warehouse</SelectItem>
                       {stores.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
                           {s.name || s.id}
@@ -754,12 +772,18 @@ export default function AdminReturnsPage() {
                     Close
                   </Button>
                   <Button onClick={sendSelected} disabled={!sendStoreId || selectedIds.length === 0 || sending}>
-                    {sending ? "Sending..." : "Send to store"}
+                    {sending
+                      ? sendStoreId === WAREHOUSE_ID
+                        ? "Adding..."
+                        : "Sending..."
+                      : sendStoreId === WAREHOUSE_ID
+                        ? "Add to warehouse"
+                        : "Send to store"}
                   </Button>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Only items still held "with admin" can be selected and sent. Sent items create a transfer order the store verifies.
+                Only items still held "with admin" can be selected. Sent items create a transfer order the store verifies; warehouse items return to stock and become available to assign again (no verification).
               </p>
             </>
           )}

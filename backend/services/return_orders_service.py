@@ -353,6 +353,68 @@ def send_holdings_to_store(store_id, items, actor=None, note=None) -> Tuple[bool
         return False, str(e), 500, {}
 
 
+def add_holdings_to_warehouse(items, actor=None, note=None) -> Tuple[bool, str, int, Dict]:
+    """Add selected 'with admin' return lines back to the warehouse (global stock).
+
+    There is no destination store and no verification: global product stock is
+    restored immediately (so the items reappear on the Products page as available
+    stock that can be assigned again), and the return line is marked as held in
+    the warehouse. No transfer order is created.
+    """
+    try:
+        client = db.client
+        now_iso = _now()
+        if not items:
+            return False, "No items to add", 400, {}
+
+        line_ids = [str(i.get("line_id") or i.get("id")) for i in items if (i.get("line_id") or i.get("id"))]
+        if not line_ids:
+            return False, "No valid line ids", 400, {}
+        lines_resp = client.table("return_products").select("*").in_("id", line_ids).execute()
+        lines_by_id = {str(l.get("id")): l for l in (lines_resp.data or [])}
+
+        applied_lines = []
+        for it in items:
+            lid = str(it.get("line_id") or it.get("id") or "")
+            line = lines_by_id.get(lid)
+            if not line or (line.get("holding_status") or "") != "with_admin":
+                continue
+            held = int(line.get("verified_qty") or line.get("quantity") or 0)
+            requested = it.get("qty")
+            qty = int(requested) if requested is not None else held
+            qty = max(0, min(qty, held))
+            if qty <= 0:
+                continue
+            applied_lines.append((line, held, qty))
+
+        if not applied_lines:
+            return False, "No eligible items to add (must be held with admin)", 400, {}
+
+        for line, held, qty in applied_lines:
+            _increment_owner_stock(client, line.get("product_id"), qty, now_iso)
+            remaining = held - qty
+            if remaining > 0:
+                # Partial add: keep the remainder held with admin.
+                client.table("return_products").update(
+                    {"verified_qty": remaining, "updated_at": now_iso}
+                ).eq("id", line.get("id")).execute()
+            else:
+                client.table("return_products").update(
+                    {
+                        "holding_status": "in_warehouse",
+                        "sent_at": now_iso,
+                        "updated_at": now_iso,
+                    }
+                ).eq("id", line.get("id")).execute()
+
+        return True, f"Added {len(applied_lines)} item(s) to warehouse", 200, {
+            "itemCount": len(applied_lines),
+        }
+    except Exception as e:
+        logger.error(f"Error adding holdings to warehouse: {e}", exc_info=True)
+        return False, str(e), 500, {}
+
+
 def set_damage_resolution(row_id: str, action: str, actor: Optional[str] = None) -> Tuple[bool, str, int]:
     """Mark a damaged item Fixed or Discarded (also used to move Discarded -> Fixed).
     No stock movement here — fixed stock re-enters the system only when sent to a store."""

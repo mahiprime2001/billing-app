@@ -109,6 +109,29 @@ def send_return_holdings():
         return jsonify({'error': str(e)}), 500
 
 
+@return_orders_bp.route('/return-holdings/add-to-warehouse', methods=['POST'])
+def add_return_holdings_to_warehouse():
+    """Add selected 'with admin' return lines back to the warehouse (global stock).
+
+    Restores global product stock and logs a completed transfer order (no store
+    verification step), so the items appear on the Products page and Orders page.
+    """
+    try:
+        payload = request.json or {}
+        items = payload.get('items') or []
+        actor = payload.get('createdBy') or payload.get('created_by')
+        note = payload.get('note')
+        success, message, status_code, data = return_orders_service.add_holdings_to_warehouse(
+            items, actor, note
+        )
+        if success:
+            return jsonify({'message': message, **(data or {})}), status_code
+        return jsonify({'error': message}), status_code
+    except Exception as e:
+        logger.error(f"Error in add_return_holdings_to_warehouse: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @return_orders_bp.route('/return-holdings', methods=['GET'])
 def list_return_holdings():
     """List return_products lines by holding_status (with_admin | sent_out | ...)."""
