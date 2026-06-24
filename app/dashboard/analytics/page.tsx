@@ -7,6 +7,7 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/app/utils/formatDate
 import * as XLSX from 'xlsx'
 import {
   AlertTriangle,
+  Ban,
   BarChart3,
   Boxes,
   Calendar,
@@ -93,6 +94,7 @@ interface Bill {
   discountPercentage: number
   createdAt: string
   timestamp: string
+  status: string
   isReplacement?: boolean
   replacementFinalAmount?: number
 }
@@ -252,6 +254,10 @@ interface MetricSummary {
 const CHART_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#f97316', '#dc2626', '#7c3aed']
 const LOW_STOCK_THRESHOLD = 10
 const RETURN_IMPACT_STATUSES = new Set(['approved', 'completed'])
+// Cancelled/voided bills are not sales and must be excluded from every metric.
+const CANCELLED_BILL_STATUSES = new Set(['cancelled', 'canceled', 'void', 'voided'])
+const isCancelledBill = (bill: any): boolean =>
+  CANCELLED_BILL_STATUSES.has(String(bill?.status || '').trim().toLowerCase())
 const PANEL_CARD_CLASS = 'border-slate-200/80 shadow-sm bg-white/90 backdrop-blur'
 const KPI_CARD_CLASS =
   'relative overflow-hidden border-slate-200/80 shadow-sm bg-gradient-to-br from-white to-slate-50'
@@ -290,6 +296,9 @@ const percentageChange = (current: number, previous: number): number | null => {
 }
 
 const normalizeBills = (rawBills: any[]): Bill[] => {
+  // Keep ALL bills (status included). Cancelled bills are split out at the call
+  // site so sales metrics exclude them while a dedicated metric can still
+  // surface cancelled-bill counts and amounts.
   return rawBills.map((bill) => ({
     id: String(bill.id || bill.billId || bill.bill_id || ''),
     storeId: String(bill.storeId || bill.store_id || bill.storeid || ''),
@@ -302,6 +311,7 @@ const normalizeBills = (rawBills: any[]): Bill[] => {
     ),
     createdAt: bill.createdAt || bill.created_at || bill.timestamp || '',
     timestamp: bill.timestamp || bill.createdAt || bill.created_at || '',
+    status: String(bill.status || '').trim().toLowerCase(),
     isReplacement: Boolean(bill.isReplacement ?? bill.is_replacement),
     replacementFinalAmount: Number(
       bill.replacementFinalAmount ?? bill.replacement_final_amount ?? 0,
@@ -872,6 +882,7 @@ export default function AnalyticsPage() {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:8080'
 
   const [bills, setBills] = useState<Bill[]>([])
+  const [cancelledBills, setCancelledBills] = useState<Bill[]>([])
   const [stores, setStores] = useState<StoreRecord[]>([])
   const [products, setProducts] = useState<ProductRecord[]>([])
   const [returns, setReturns] = useState<ReturnItem[]>([])
@@ -921,7 +932,11 @@ export default function AnalyticsPage() {
           .catch(() => []),
       ])
 
-      setBills(normalizeBills(Array.isArray(billsRes) ? billsRes : []))
+      const normalizedBills = normalizeBills(Array.isArray(billsRes) ? billsRes : [])
+      // Sales metrics use only non-cancelled bills; cancelled bills are tracked
+      // separately so they can be surfaced without inflating revenue.
+      setBills(normalizedBills.filter((bill) => !isCancelledBill(bill)))
+      setCancelledBills(normalizedBills.filter((bill) => isCancelledBill(bill)))
       setStores(normalizeStores(Array.isArray(storesRes) ? storesRes : []))
       setProducts(normalizeProducts(Array.isArray(productsRes) ? productsRes : []))
       setReturns(normalizeReturns(Array.isArray(returnsRes) ? returnsRes : []))
@@ -982,6 +997,34 @@ export default function AnalyticsPage() {
       return !!date && date >= dateWindows.staleNinetyStart && date <= dateWindows.currentEnd
     })
   }, [billsByStore, dateWindows])
+
+  const cancelledBillsByStore = useMemo(() => {
+    return cancelledBills.filter((bill) => selectedStore === 'all' || bill.storeId === selectedStore)
+  }, [cancelledBills, selectedStore])
+
+  const cancelledBillsInPeriod = useMemo(() => {
+    return cancelledBillsByStore.filter((bill) => {
+      const date = parseDate(bill.createdAt || bill.timestamp)
+      return !!date && date >= dateWindows.currentStart && date <= dateWindows.currentEnd
+    })
+  }, [cancelledBillsByStore, dateWindows])
+
+  const cancelledBillsPreviousPeriod = useMemo(() => {
+    return cancelledBillsByStore.filter((bill) => {
+      const date = parseDate(bill.createdAt || bill.timestamp)
+      return !!date && date >= dateWindows.previousStart && date < dateWindows.currentStart
+    })
+  }, [cancelledBillsByStore, dateWindows])
+
+  const cancelledSummary = useMemo(() => {
+    const amount = cancelledBillsInPeriod.reduce((sum, bill) => sum + (bill.total || 0), 0)
+    const previousAmount = cancelledBillsPreviousPeriod.reduce((sum, bill) => sum + (bill.total || 0), 0)
+    return {
+      count: cancelledBillsInPeriod.length,
+      amount,
+      previousAmount,
+    }
+  }, [cancelledBillsInPeriod, cancelledBillsPreviousPeriod])
 
   const returnsInPeriod = useMemo(() => {
     return returns.filter((item) => {
@@ -1913,6 +1956,10 @@ export default function AnalyticsPage() {
   const netRevenueChange = useMemo(
     () => percentageChange(currentNetRevenue, previousNetRevenue),
     [currentNetRevenue, previousNetRevenue],
+  )
+  const cancelledAmountChange = useMemo(
+    () => percentageChange(cancelledSummary.amount, cancelledSummary.previousAmount),
+    [cancelledSummary.amount, cancelledSummary.previousAmount],
   )
   const profitChange = useMemo(
     () => percentageChange(currentProfitSummary.profit, previousProfitSummary.profit),
@@ -3824,10 +3871,10 @@ export default function AnalyticsPage() {
               Adjustments &amp; Net Position
             </h2>
             <span className="text-xs text-slate-500">
-              · Net Revenue = Gross − Returns
+              · Net Revenue = Gross − Returns · Cancelled bills excluded from sales
             </span>
           </div>
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-3">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
             <MetricCard
               title="Replacement Amount"
               value={formatCurrency(currentReplacementAmount)}
@@ -3858,6 +3905,14 @@ export default function AnalyticsPage() {
               accent="emerald"
               progress={headlineMetrics.netPct}
             />
+            <MetricCard
+              title="Cancelled Bills"
+              value={formatCurrency(cancelledSummary.amount)}
+              icon={<Ban className="h-4 w-4" />}
+              change={cancelledAmountChange}
+              subtitle={`${cancelledSummary.count} cancelled bill(s) · excluded from sales`}
+              accent="rose"
+            />
           </div>
         </section>
 
@@ -3877,6 +3932,12 @@ export default function AnalyticsPage() {
               <div className="flex justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-muted-foreground">Bills (previous)</span>
                 <span className="font-medium">{previousPeriodBills.length}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-muted-foreground">Cancelled bills (selected)</span>
+                <span className="font-medium text-rose-600">
+                  {cancelledSummary.count} · {formatCurrency(cancelledSummary.amount)}
+                </span>
               </div>
               <div className="flex justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-muted-foreground">Replacement amount</span>

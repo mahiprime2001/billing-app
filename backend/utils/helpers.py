@@ -43,6 +43,25 @@ def _stock_of(product: dict) -> int:
     return _safe_int(product.get('stock'))
 
 
+# Bill statuses that represent a voided/cancelled bill and must be excluded
+# from revenue, sales amount and bill-count aggregations.
+CANCELLED_BILL_STATUSES = frozenset({"cancelled", "canceled", "void", "voided"})
+
+
+def is_cancelled_bill(bill: Any) -> bool:
+    """Return True if a bill should NOT count as a sale (cancelled/voided).
+
+    A bill with no/empty status is treated as a valid sale (matches the
+    frontend default of "completed"), so only an explicit cancelled status
+    is excluded.
+    """
+    try:
+        status = str((bill or {}).get("status") or "").strip().lower()
+    except AttributeError:
+        return False
+    return status in CANCELLED_BILL_STATUSES
+
+
 def json_serial(obj: Any) -> Any:
     """
     JSON serializer for objects not serializable by default json code.

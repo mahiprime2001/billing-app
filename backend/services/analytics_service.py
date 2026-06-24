@@ -8,12 +8,18 @@ from typing import Dict, List, Tuple
 from collections import defaultdict
 
 from utils.json_helpers import (
-    get_bills_data, get_products_data, 
+    get_bills_data, get_products_data,
     get_stores_data, get_store_inventory_data,
     get_users_data
 )
+from utils.helpers import is_cancelled_bill
 
 logger = logging.getLogger(__name__)
+
+
+def _countable_bills() -> List[Dict]:
+    """Bills that count as real sales (cancelled/voided bills excluded)."""
+    return [bill for bill in get_bills_data() if not is_cancelled_bill(bill)]
 
 
 # ============================================
@@ -26,10 +32,10 @@ def get_dashboard_analytics() -> Tuple[Dict, int]:
     Returns (analytics_dict, status_code)
     """
     try:
-        bills = get_bills_data()
+        bills = _countable_bills()
         products = get_products_data()
         stores = get_stores_data()
-        
+
         # Calculate totals
         total_revenue = sum(float(bill.get('total', 0)) for bill in bills)
         total_bills = len(bills)
@@ -77,8 +83,8 @@ def get_revenue_trends(days: int = 7) -> Tuple[List[Dict], int]:
     Returns (trends_list, status_code)
     """
     try:
-        bills = get_bills_data()
-        
+        bills = _countable_bills()
+
         # Calculate date range
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days)
@@ -116,8 +122,8 @@ def get_top_products(limit: int = 10) -> Tuple[List[Dict], int]:
     Returns (products_list, status_code)
     """
     try:
-        bills = get_bills_data()
-        
+        bills = _countable_bills()
+
         # Count product sales
         product_sales = defaultdict(lambda: {'quantity': 0, 'revenue': 0.0})
         
@@ -206,9 +212,9 @@ def get_store_performance() -> Tuple[List[Dict], int]:
     Returns (performance_list, status_code)
     """
     try:
-        bills = get_bills_data()
+        bills = _countable_bills()
         stores = get_stores_data()
-        
+
         # Group bills by store
         store_revenue = defaultdict(lambda: {'billCount': 0, 'revenue': 0.0})
         

@@ -30,6 +30,7 @@ from utils.json_helpers import (
 )
 from utils.json_utils import convert_camel_to_snake, convert_snake_to_camel
 from utils.concurrency_guard import extract_base_markers, safe_update_with_conflict_check
+from utils.helpers import is_cancelled_bill
 
 logger = logging.getLogger(__name__)
 
@@ -184,7 +185,7 @@ def get_store_bill_stats(store_id: str) -> Tuple[float, int]:
         while True:
             end = start + page_size - 1
             response = execute_with_retry(
-                lambda s=start, e=end: client.table("bills").select("total").eq('storeid', store_id).range(s, e),
+                lambda s=start, e=end: client.table("bills").select("total, status").eq('storeid', store_id).range(s, e),
                 f"bills for store {store_id} page {start // page_size + 1}",
             )
             page = response.data if response and response.data is not None else []
@@ -198,6 +199,8 @@ def get_store_bill_stats(store_id: str) -> Tuple[float, int]:
                 logger.warning("bills pagination safety cap hit for store %s", store_id)
                 break
 
+        # Exclude cancelled/voided bills from revenue and bill count.
+        bills = [bill for bill in bills if not is_cancelled_bill(bill)]
         if not bills:
             return 0.0, 0
 
@@ -254,7 +257,7 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
             bill_rows_data = _fetch_all_rows(
                 client,
                 "bills",
-                "storeid,total",
+                "storeid,total,status",
                 "bills (all stores)",
             )
         except Exception as bills_error:
@@ -309,6 +312,9 @@ def get_all_stores_with_inventory() -> Tuple[List[Dict], int]:
         for row in bill_rows_data:
             sid = row.get("storeid") or row.get("storeId")
             if not sid:
+                continue
+            # Skip cancelled/voided bills so they don't inflate revenue/bill count.
+            if is_cancelled_bill(row):
                 continue
             if sid not in bills_by_store:
                 bills_by_store[sid] = {"bill_count": 0, "total_revenue": 0.0}

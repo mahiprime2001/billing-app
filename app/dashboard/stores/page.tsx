@@ -12,6 +12,11 @@ const normalizeStoreId = (id: string | undefined | null): string | undefined | n
   return id;
 };
 
+// Cancelled/voided bills must not count toward revenue, sales amount or bill counts.
+const CANCELLED_BILL_STATUSES = new Set(['cancelled', 'canceled', 'void', 'voided']);
+const isCancelledBill = (bill: any): boolean =>
+  CANCELLED_BILL_STATUSES.has(String(bill?.status || '').trim().toLowerCase());
+
 import DashboardLayout from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -370,8 +375,14 @@ function StoreInsightModal({
     );
     return sum + sellingPrice * Number(row.quantity || 0);
   }, 0);
-  const totalBillAmount = liveBills.reduce((sum, bill) => sum + Number(bill?.total || 0), 0);
-  const activeTabBillAmount = activeLiveBills.reduce((sum, bill) => sum + Number(bill?.total || 0), 0);
+  const totalBillAmount = liveBills.reduce(
+    (sum, bill) => sum + (isCancelledBill(bill) ? 0 : Number(bill?.total || 0)),
+    0,
+  );
+  const activeTabBillAmount = activeLiveBills.reduce(
+    (sum, bill) => sum + (isCancelledBill(bill) ? 0 : Number(bill?.total || 0)),
+    0,
+  );
 
   const storeStatus = String(store.status || "active").toLowerCase();
   const statusTone =
@@ -944,7 +955,9 @@ export default function StoresPage() {
 
   
   const calculateStoreAnalytics = (storeId: string) => {
-    const storeBills = bills.filter((bill) => normalizeStoreId(bill.storeId) === normalizeStoreId(storeId))
+    const storeBills = bills
+      .filter((bill) => normalizeStoreId(bill.storeId) === normalizeStoreId(storeId))
+      .filter((bill) => !isCancelledBill(bill))
     const totalRevenue = storeBills.reduce((sum, bill) => sum + (bill.total || 0), 0)
     const totalBills = storeBills.length
     const lastBillDate = storeBills.length > 0
@@ -1103,8 +1116,9 @@ export default function StoresPage() {
     );
   })
 
-  const totalRevenue = bills.reduce((sum, bill) => sum + (bill.total || 0), 0);
-  const totalBills = bills.length;
+  const countableBills = bills.filter((bill) => !isCancelledBill(bill));
+  const totalRevenue = countableBills.reduce((sum, bill) => sum + (bill.total || 0), 0);
+  const totalBills = countableBills.length;
   const activeStores = stores.filter((store) => store.status === "active").length;
 
   return (
