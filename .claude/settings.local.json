@@ -78,7 +78,8 @@
       "Read(//d/d/Siri-apps/billing-app/**)",
       "Bash(git mv *)",
       "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-String -Pattern \"error TS\" | ForEach-Object { \\($_ -split '\\\\\\('\\)[0] } | Sort-Object -Unique)",
-      "PowerShell(cd d:\\\\Siri-apps\\\\billing-app; npx tsc --noEmit -p tsconfig.json 2>&1 | Select-String -Pattern \"error TS\" | ForEach-Object { \\($_ -split '\\\\\\('\\)[0] } | Sort-Object -Unique)"
+      "PowerShell(cd d:\\\\Siri-apps\\\\billing-app; npx tsc --noEmit -p tsconfig.json 2>&1 | Select-String -Pattern \"error TS\" | ForEach-Object { \\($_ -split '\\\\\\('\\)[0] } | Sort-Object -Unique)",
+      "Bash(xargs grep -l \"CREATE TABLE.*stores\\\\|CREATE TABLE.*products\")"
     ]
   }
 }
