@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { differenceInCalendarDays, endOfDay, format, startOfDay, subDays } from 'date-fns'
 import { formatDisplayDate, formatDisplayDateTime } from '@/app/utils/formatDate'
+import AttendanceEmployees from '@/components/attendance-employees'
 import * as XLSX from 'xlsx'
 import {
   AlertTriangle,
@@ -272,6 +273,7 @@ type TabValue =
   | 'batches'
   | 'inventory'
   | 'returns'
+  | 'employees'
 
 const formatCurrency = (value: number): string =>
   new Intl.NumberFormat('en-IN', {
@@ -4076,6 +4078,9 @@ export default function AnalyticsPage() {
             <TabsTrigger value="returns" className="rounded-lg">
               Returns
             </TabsTrigger>
+            <TabsTrigger value="employees" className="rounded-lg">
+              Employees
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -5309,6 +5314,10 @@ export default function AnalyticsPage() {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="employees" className="space-y-4">
+            <AttendanceEmployees showCharts />
           </TabsContent>
         </Tabs>
       </div>

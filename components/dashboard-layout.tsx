@@ -47,6 +47,7 @@ import {
   Percent,
   ClipboardList,
   PackageCheck,
+  ScanFace,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { NotificationBell } from "@/components/notification-bell"
@@ -75,6 +76,7 @@ const menuItems: MenuItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Products", url: "/dashboard/products", icon: Package },
   { title: "Users", url: "/dashboard/users", icon: Users },
+  { title: "Employees", url: "/dashboard/employees", icon: ScanFace },
   { title: "Stores", url: "/dashboard/stores", icon: Store },
   { title: "Audit", url: "/dashboard/audit", icon: RefreshCcw },
   { title: "Orders", url: "/dashboard/orders", icon: ClipboardList },
