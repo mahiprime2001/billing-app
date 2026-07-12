@@ -3,7 +3,9 @@ services:
     build: .
     container_name: siriadmin-backend
     ports:
-      - "8080:8080"
+      # Host port 7156 (8080 is taken on the VPS) -> container port 8080.
+      # The app inside the container still runs on 8080; nothing else changes.
+      - "7156:8080"
     env_file:
       - .env
     environment:
