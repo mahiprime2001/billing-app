@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
@@ -98,7 +99,7 @@ export default function UsersPage() {
   const loadUsers = async () => {
   try {
     console.log("[FRONTEND] loadUsers - Fetching users...");
-    const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/users");
+    const response = await fetch(API_BASE + "/api/users");
     
     if (response.ok) {
       const data = await response.json();
@@ -128,7 +129,7 @@ export default function UsersPage() {
 
   const loadStores = async () => {
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/stores")
+      const response = await fetch(API_BASE + "/api/stores")
       if (response.ok) {
         const data = await response.json()
         setStores(data)
@@ -205,7 +206,7 @@ export default function UsersPage() {
     console.log("[FRONTEND] handleAddUser - formData.assignedStores:", formData.assignedStores);
     console.log("[FRONTEND] handleAddUser - payload being sent:", JSON.stringify(payload, null, 2));
 
-    const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/users", {
+    const response = await fetch(API_BASE + "/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -280,7 +281,7 @@ export default function UsersPage() {
   console.log("[FRONTEND] handleEditUser - payload being sent:", JSON.stringify(payload, null, 2));
 
   try {
-    const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/users/${editingUser.id}`, {
+    const response = await fetch(API_BASE + `/api/users/${editingUser.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -314,7 +315,7 @@ export default function UsersPage() {
     }
 
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/users/${userId}`, {
+      const response = await fetch(API_BASE + `/api/users/${userId}`, {
         method: "DELETE",
       })
 

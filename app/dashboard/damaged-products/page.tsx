@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { formatDisplayDate } from "@/app/utils/formatDate"
@@ -12,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Package, Wrench, RefreshCw, AlertTriangle, Trash2, RotateCcw, Send } from "lucide-react"
 
-const API = process.env.NEXT_PUBLIC_BACKEND_API_URL
+const API = API_BASE
 
 interface StoreDamageReturnRow {
   id: string

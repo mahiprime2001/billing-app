@@ -1,3 +1,4 @@
+import { API_BASE } from "@/lib/api-base"
 import { invoke } from "@tauri-apps/api/core";
 
 declare global {
@@ -158,7 +159,7 @@ export async function unifiedPrint({
   // ✅ FIXED: Properly typed payload
   if (useBackendPrint && labelData && labelData.length > 0) {
     try {
-      const backendApiUrl = (process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:8080").replace(/\/+$/g, "");
+      const backendApiUrl = API_BASE.replace(/\/+$/g, "");
       // Map labelData to only include selling_price (snake_case) and remove price
       const labelDataForBackend = labelData.map(item => {
         let selling_price = item.selling_price;

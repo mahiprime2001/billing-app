@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { Product as ProductType } from "@/lib/types"
 
@@ -74,7 +75,7 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
     setLoadedPages(0)
     setTotalCount(null)
 
-    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || ""
+    const baseUrl = API_BASE
     const pageBuckets: ProductType[][] = []
     let firstPageApplied = false
     let pagesCompleted = 0

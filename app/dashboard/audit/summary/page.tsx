@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import { Suspense, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
@@ -64,7 +65,7 @@ import {
   type ReconcileSummary,
 } from "@/lib/audit"
 
-const API = process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://127.0.0.1:8080"
+const API = API_BASE
 
 function getAuditorName(): string {
   if (typeof window === "undefined") return "Unknown"

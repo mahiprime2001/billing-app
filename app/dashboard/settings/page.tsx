@@ -36,6 +36,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { API_BASE } from "@/lib/api-base"
 
 interface SystemSettings {
   companyName: string
@@ -76,9 +77,7 @@ interface SuperAdminUser {
   twofa?: TwoFactorStatus | null
 }
 
-const BACKEND_API_BASE_URL = (
-  process.env.NEXT_PUBLIC_BACKEND_API_URL?.trim() || "http://127.0.0.1:8080"
-).replace(/\/+$/g, "")
+const BACKEND_API_BASE_URL = API_BASE.replace(/\/+$/g, "")
 
 const backendApiUrl = (path: string): string => {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`
@@ -87,7 +86,7 @@ const backendApiUrl = (path: string): string => {
 
 const toNetworkErrorMessage = (error: unknown, path: string): string => {
   if (error instanceof TypeError && /Failed to fetch/i.test(error.message)) {
-    return `Unable to reach backend at ${backendApiUrl(path)}. Ensure backend is running and NEXT_PUBLIC_BACKEND_API_URL is configured.`
+    return `Unable to reach backend at ${backendApiUrl(path)}. Ensure the backend is running.`
   }
   return error instanceof Error ? error.message : "Request failed"
 }

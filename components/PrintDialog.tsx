@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE } from "@/lib/api-base"
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -108,7 +109,7 @@ interface PrintDialogProps {
 }
 
 function getBackendBase(): string {
-  const envBase = (process.env.NEXT_PUBLIC_BACKEND_API_URL || "").trim();
+  const envBase = (API_BASE).trim();
   return envBase.replace(/\/+$/, "");
 }
 

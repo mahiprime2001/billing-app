@@ -1,3 +1,5 @@
+import { API_BASE } from "@/lib/api-base"
+
 // Audit domain types + data layer.
 //
 // UI-FIRST NOTE: the read/write functions below currently persist completed
@@ -394,7 +396,7 @@ export function hasDraft(storeId: string): boolean {
 // DATA LAYER (backend: Flask + Supabase)
 // ============================================================
 
-const API = process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://127.0.0.1:8080"
+const API = API_BASE
 
 // Save a completed audit. POST /api/stores/:id/audits
 export async function saveAudit(

@@ -1,4 +1,5 @@
 "use client"
+import { API_BASE } from "@/lib/api-base"
 import type React from "react"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -51,7 +52,7 @@ import {
   RefreshCw,
 } from "lucide-react"
 
-const API = process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://127.0.0.1:8080"
+const API = API_BASE
 
 interface StoreType {
   id: string

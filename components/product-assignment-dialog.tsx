@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { formatDisplayDate, formatDisplayDateTime } from '@/app/utils/formatDate'
 import { Button } from '@/components/ui/button'
@@ -27,7 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Package, Plus, Minus, X, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const API = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:8080'
+const API = API_BASE
 
 export type AssignedProduct = {
   id: string // Changed to be a required string to match backend Product type

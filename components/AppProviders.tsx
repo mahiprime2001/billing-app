@@ -6,6 +6,7 @@ import OfflineBanner from "@/components/OfflineBanner";
 import ServerErrorHandler from "@/components/server-error-handler";
 import Updater from "@/components/Updater";
 import { invoke } from "@tauri-apps/api/core";
+import { API_BASE, isAndroid } from "@/lib/api-base";
 
 export default function AppProviders({
   children,
@@ -22,8 +23,8 @@ export default function AppProviders({
   const previousBackendStatusRef = useRef<'online' | 'offline' | 'checking'>('checking');
   const reconnectSyncInFlightRef = useRef(false);
 
-  // ✅ HARDCODED: Backend URL
-  const BACKEND_URL = "http://127.0.0.1:8080";
+  // Local sidecar on desktop, VPS on Android
+  const BACKEND_URL = API_BASE;
 
   useEffect(() => {
     const pollInterval = 5000; // Poll every 5 seconds
@@ -114,6 +115,9 @@ export default function AppProviders({
 
     // ✅ FIX: Ensure backend is running only ONCE
     const ensureBackend = async () => {
+      // The sidecar exe only exists on desktop; Android talks to the VPS.
+      if (isAndroid) return;
+
       if (backendInitialized.current) {
         console.log("⚠️ Backend already initialized, skipping...");
         return;

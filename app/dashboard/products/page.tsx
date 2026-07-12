@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { getBarcode } from "@/app/utils/getBarcode";
 import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate";
@@ -90,7 +91,7 @@ interface HsnCode {
 
 const fetcher = async (url: string) => {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`);
+    const response = await fetch(`${API_BASE}${url}`);
     if (!response.ok) {
       const errorData = await response.json();
       console.error(`API Error for ${url}:`, errorData);
@@ -552,7 +553,7 @@ export default function ProductsPage() {
     };
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products`, {
+      const response = await fetch(`${API_BASE}/api/products`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newProduct),
@@ -653,7 +654,7 @@ export default function ProductsPage() {
     };
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${editingProduct.id}`, {
+      const response = await fetch(`${API_BASE}/api/products/${editingProduct.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedProduct),
@@ -704,7 +705,7 @@ export default function ProductsPage() {
 const handleDeleteProduct = async (productId: string) => {
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`,
+      `${API_BASE}/api/products/${productId}`,
       {
         method: "DELETE",
         headers: {
@@ -761,7 +762,7 @@ const handleDeleteProduct = async (productId: string) => {
     try {
       const deleteResults = await Promise.allSettled(
         productIdsToDelete.map((productId) =>
-          fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`, {
+          fetch(`${API_BASE}/api/products/${productId}`, {
             method: "DELETE",
             headers: {
               "Content-Type": "application/json",
@@ -800,7 +801,7 @@ const handleDeleteProduct = async (productId: string) => {
 
     try {
       const updatePromises = selectedProducts.map(productId =>
-        fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${productId}`, {
+        fetch(`${API_BASE}/api/products/${productId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ hsnCode: hsnValue }),
@@ -870,7 +871,7 @@ const handleDeleteProduct = async (productId: string) => {
     setDistributionLoading(true)
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products/${product.id}/stores`,
+        `${API_BASE}/api/products/${product.id}/stores`,
       )
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`)
@@ -954,7 +955,7 @@ const handleDeleteProduct = async (productId: string) => {
         const importedProducts = JSON.parse(e.target?.result as string);
         if (Array.isArray(importedProducts)) {
           for (const product of importedProducts) {
-            await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/products`, {
+            await fetch(`${API_BASE}/api/products`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(product),

@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import React, { useState } from "react"
 import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -18,7 +19,7 @@ interface HsnCode {
   createdAt?: string
 }
 
-const fetcher = (url: string) => fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`).then((res) => res.json())
+const fetcher = (url: string) => fetch(`${API_BASE}${url}`).then((res) => res.json())
 
 export const HSNManagementTab: React.FC = () => {
   const { data: rawCodes, error, isLoading } = useSWR("/api/hsn-codes", fetcher)
@@ -72,7 +73,7 @@ export const HSNManagementTab: React.FC = () => {
 
     setIsAdding(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/hsn-codes`, {
+      const response = await fetch(`${API_BASE}/api/hsn-codes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hsnCode: newHsnCode.trim(), tax: parsedTax }),
@@ -129,7 +130,7 @@ export const HSNManagementTab: React.FC = () => {
 
     setIsSaving(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/hsn-codes/${hsnId}`, {
+      const response = await fetch(`${API_BASE}/api/hsn-codes/${hsnId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hsnCode: editedHsnCode.trim(), tax: parsedTax }),
@@ -164,7 +165,7 @@ export const HSNManagementTab: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/hsn-codes/${hsnId}`, {
+      const response = await fetch(`${API_BASE}/api/hsn-codes/${hsnId}`, {
         method: "DELETE",
       })
 

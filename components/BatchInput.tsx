@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,7 @@ interface BatchInputProps {
   // onSave: (batchNumber: string, place: string) => void; // REMOVED
 }
 
-const fetcher = (url: string) => fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`).then((res) => res.json()); // NEW
+const fetcher = (url: string) => fetch(`${API_BASE}${url}`).then((res) => res.json()); // NEW
 
 export const BatchInput: React.FC<BatchInputProps> = ({ isOpen, onOpenChange }) => { // MODIFIED
   const { mutate } = useSWR("/api/batches", fetcher); // NEW
@@ -28,7 +29,7 @@ export const BatchInput: React.FC<BatchInputProps> = ({ isOpen, onOpenChange }) 
   const handleSave = async () => { // MODIFIED to async
     if (batchNumber && place) {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/batches`, {
+        const response = await fetch(`${API_BASE}/api/batches`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ batchNumber, place }),

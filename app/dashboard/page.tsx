@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
@@ -100,7 +101,7 @@ export default function DashboardPage() {
 
   const loadDashboardData = async () => {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL
+      const baseUrl = API_BASE
 
       const [billsResponse, productsResponse, storesResponse, usersResponse] =
         await Promise.all([

@@ -1,5 +1,6 @@
 'use client'
 
+import { API_BASE } from "@/lib/api-base"
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { differenceInCalendarDays, endOfDay, format, startOfDay, subDays } from 'date-fns'
@@ -881,7 +882,7 @@ const MetricCard = ({
 
 export default function AnalyticsPage() {
   const router = useRouter()
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://127.0.0.1:8080'
+  const backendUrl = API_BASE
 
   const [bills, setBills] = useState<Bill[]>([])
   const [cancelledBills, setCancelledBills] = useState<Bill[]>([])

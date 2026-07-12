@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE } from "@/lib/api-base"
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -421,7 +422,7 @@ export default function BillingPage() {
     }
 
     // Load system settings
-    fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/settings`)
+    fetch(`${API_BASE}/api/settings`)
       .then((res) => res.json())
       .then((data) => {
         if (data.systemSettings) {

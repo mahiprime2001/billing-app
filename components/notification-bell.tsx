@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, Check, Clock, User, X, RefreshCw, PackageCheck } from "lucide-react"
@@ -372,7 +373,7 @@ export const NotificationBell: React.FC = () => {
       setLoading(true)
       setError(null)
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL
+      const backendUrl = API_BASE
 
       // Step 3: only fetch returns/discounts for super_admin AND when dropdown is open (or explicitly requested)
       const shouldFetchPending = isSuperAdmin && (options?.includePending ?? false)
@@ -519,7 +520,7 @@ export const NotificationBell: React.FC = () => {
     if (target.isVirtual) return
 
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/notifications/${id}`, {
+      const response = await fetch(API_BASE + `/api/notifications/${id}`, {
         method: 'PUT'
       })
       if (!response.ok) {
@@ -557,7 +558,7 @@ export const NotificationBell: React.FC = () => {
     if (target.isVirtual) return
 
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_BACKEND_API_URL + `/api/notifications/${id}`, {
+      const response = await fetch(API_BASE + `/api/notifications/${id}`, {
         method: 'DELETE'
       })
       if (!response.ok) {
@@ -591,7 +592,7 @@ export const NotificationBell: React.FC = () => {
 
     try {
       const response = await fetch(
-        process.env.NEXT_PUBLIC_BACKEND_API_URL + "/api/notifications/read-all",
+        API_BASE + "/api/notifications/read-all",
         { method: "PUT" },
       )
       if (!response.ok) {

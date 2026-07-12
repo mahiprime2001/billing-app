@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -128,7 +129,7 @@ export default function LoginPage() {
       }
 
       // Use the Flask backend URL directly
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/auth/login`, {
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: normalizedEmail, password }),
@@ -222,7 +223,7 @@ export default function LoginPage() {
 
     try {
       // Use the Flask backend URL directly for forgot password
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/auth/forgot-password-proxy`, {
+      const response = await fetch(`${API_BASE}/api/auth/forgot-password-proxy`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

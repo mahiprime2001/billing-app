@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import AppProviders from "@/components/AppProviders";
 import { VersionBadge } from "@/components/VersionBadge";
+import OfflineGate from "@/components/OfflineGate";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,6 +25,7 @@ export default function RootLayout({
       <body className={inter.className} suppressHydrationWarning={true}>
         <AppProviders>{children}</AppProviders>
         <VersionBadge />
+        <OfflineGate />
       </body>
     </html>
   );

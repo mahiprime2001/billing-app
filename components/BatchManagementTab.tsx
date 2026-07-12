@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import React, { useState, useEffect } from "react"
 import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -18,7 +19,7 @@ interface Batch {
   createdAt: string
 }
 
-const fetcher = (url: string) => fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${url}`).then((res) => res.json());
+const fetcher = (url: string) => fetch(`${API_BASE}${url}`).then((res) => res.json());
 
 export const BatchManagementTab: React.FC = () => {
   const { data: rawBatches, error, isLoading: isLoadingBatches } = useSWR("/api/batches", fetcher);
@@ -71,7 +72,7 @@ export const BatchManagementTab: React.FC = () => {
 
     setIsAdding(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/batches`, {
+      const response = await fetch(`${API_BASE}/api/batches`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ batchNumber: newBatchNumber, place: newPlace }),
@@ -118,7 +119,7 @@ export const BatchManagementTab: React.FC = () => {
 
     setIsSaving(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/batches/${batchId}`, {
+      const response = await fetch(`${API_BASE}/api/batches/${batchId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ batchNumber: editedBatchNumber, place: editedPlace }),
@@ -152,7 +153,7 @@ export const BatchManagementTab: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/batches/${batchId}`, {
+      const response = await fetch(`${API_BASE}/api/batches/${batchId}`, {
         method: "DELETE",
       });
 

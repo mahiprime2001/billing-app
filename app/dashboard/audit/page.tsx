@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
@@ -9,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Store, Package, Boxes, IndianRupee, Search, Loader2, ChevronRight, Clock, Gauge } from "lucide-react"
 import { hasDraft, listAudits, formatDateTime, type AuditRecord } from "@/lib/audit"
 
-const API = process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://127.0.0.1:8080"
+const API = API_BASE
 
 interface StoreType {
   id: string

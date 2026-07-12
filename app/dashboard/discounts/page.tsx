@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
@@ -126,10 +127,10 @@ export default function DiscountsPage() {
     }
     setError(null)
     try {
-      const mergedUrl = `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/discounts?mode=merged&limit=${DISCOUNTS_FETCH_LIMIT}&t=${Date.now()}`
+      const mergedUrl = `${API_BASE}/api/discounts?mode=merged&limit=${DISCOUNTS_FETCH_LIMIT}&t=${Date.now()}`
       let response = await fetch(mergedUrl, { cache: "no-store", signal })
       if (!response.ok) {
-        const localUrl = `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/discounts/local?limit=${DISCOUNTS_FETCH_LIMIT}&t=${Date.now()}`
+        const localUrl = `${API_BASE}/api/discounts/local?limit=${DISCOUNTS_FETCH_LIMIT}&t=${Date.now()}`
         response = await fetch(localUrl, { cache: "no-store", signal })
       }
       if (!response.ok) {
@@ -163,7 +164,7 @@ export default function DiscountsPage() {
 
   const loadUsers = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/users?t=${Date.now()}`, {
+      const response = await fetch(`${API_BASE}/api/users?t=${Date.now()}`, {
         cache: "no-store",
       })
       if (!response.ok) {
@@ -262,7 +263,7 @@ export default function DiscountsPage() {
           ? `/api/discounts/${filteredIds[0]}`
           : `/api/discounts/bulk-delete`
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}${endpoint}`, {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
         method: filteredIds.length === 1 ? "DELETE" : "POST",
         headers: filteredIds.length === 1 ? undefined : { "Content-Type": "application/json" },
         body: filteredIds.length === 1 ? undefined : JSON.stringify({ ids: filteredIds }),
@@ -308,7 +309,7 @@ export default function DiscountsPage() {
     }
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/discounts/${requestId}/status`,
+        `${API_BASE}/api/discounts/${requestId}/status`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

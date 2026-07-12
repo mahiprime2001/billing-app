@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/api-base"
 import { useEffect, useMemo, useState } from "react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { formatDisplayDateTime } from "@/app/utils/formatDate"
@@ -14,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { PackageCheck, RefreshCw, ChevronRight, Search, X } from "lucide-react"
 
-const API = process.env.NEXT_PUBLIC_BACKEND_API_URL
+const API = API_BASE
 
 // Synthetic destination: add held items back to the warehouse (global stock)
 // instead of sending them to a store. No store verification step.
