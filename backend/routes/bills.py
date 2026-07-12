@@ -144,6 +144,75 @@ def create_bill():
         logger.error("Error creating bill", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
+@bills_bp.route("/bills/summary", methods=["GET"])
+@bills_bp.route("/bills/summary/", methods=["GET"])
+def get_bills_summary():
+    """
+    Server-side stats for the billing dashboard tiles. Mobile clients would
+    otherwise have to download every bill just to sum 4 numbers.
+    Mirrors the frontend tile math: replacement bills contribute their
+    recomputed swap-diff amount; "today" is the server's local calendar day
+    (container runs in the business timezone).
+    Returns {totalCount, totalRevenue, todayCount, todayRevenue}.
+    """
+    from datetime import datetime
+
+    try:
+        from_date = request.args.get("from")
+        to_date = request.args.get("to")
+        store_id = request.args.get("storeId") or request.args.get("store_id")
+
+        result = bills_service.get_bills_paginated(
+            page=1,
+            page_size=1_000_000,
+            from_date=from_date,
+            to_date=to_date,
+            store_id=store_id,
+            include_details=False,
+        )
+        bills = (result or {}).get("data") or []
+
+        today_key = datetime.now().strftime("%Y-%m-%d")
+        total_revenue = 0.0
+        today_revenue = 0.0
+        today_count = 0
+        for bill in bills:
+            is_repl = bool(bill.get("isReplacement") or bill.get("is_replacement"))
+            repl_raw = bill.get("replacementFinalAmount", bill.get("replacement_final_amount"))
+            try:
+                repl_amt = float(repl_raw)
+            except (TypeError, ValueError):
+                repl_amt = None
+            if is_repl and repl_amt is not None:
+                amount = max(0.0, repl_amt)
+            else:
+                try:
+                    amount = float(bill.get("total") or 0)
+                except (TypeError, ValueError):
+                    amount = 0.0
+            total_revenue += amount
+            raw_date = (
+                bill.get("date")
+                or bill.get("timestamp")
+                or bill.get("created_at")
+                or bill.get("createdAt")
+                or ""
+            )
+            if str(raw_date)[:10] == today_key:
+                today_count += 1
+                today_revenue += amount
+
+        return jsonify({
+            "totalCount": len(bills),
+            "totalRevenue": total_revenue,
+            "todayCount": today_count,
+            "todayRevenue": today_revenue,
+        }), 200
+    except Exception as e:
+        logger.error(f"Error computing bills summary: {e}", exc_info=True)
+        return jsonify({"error": "Failed to compute bills summary"}), 500
+
+
 @bills_bp.route("/bills", methods=["GET"])
 @bills_bp.route("/bills/", methods=["GET"])
 def get_bills():

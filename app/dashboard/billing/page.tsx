@@ -272,6 +272,15 @@ export default function BillingPage() {
   // Flag flipped true only when the stats loader has fetched every page —
   // before that, totals from statsBills are partial and shouldn't be displayed.
   const [statsComplete, setStatsComplete] = useState(false);
+  // One-request server-side tile stats — fills the cards immediately while
+  // the full statsBills pagination loop (needed for the Customers tab)
+  // catches up in the background.
+  const [serverSummary, setServerSummary] = useState<null | {
+    totalCount: number;
+    totalRevenue: number;
+    todayCount: number;
+    todayRevenue: number;
+  }>(null);
   // Lightweight summary of ALL bills (no item details) — used only for the stats cards
   // so totals are accurate without loading full detailed data into the table.
   const [statsBills, setStatsBills] = useState<any[] | null>(null);
@@ -801,6 +810,33 @@ export default function BillingPage() {
     setStatsBills(null);
     setStatsComplete(false);
     refetchBills();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey]);
+
+  // Fetch the server-computed tile stats (one tiny request) on load and
+  // whenever the filters change.
+  useEffect(() => {
+    let cancelled = false;
+    setServerSummary(null);
+    const params = new URLSearchParams();
+    if (filterFromDate) params.set("from", filterFromDate);
+    if (filterToDate) params.set("to", filterToDate);
+    if (filterStoreId && filterStoreId !== "all") params.set("storeId", filterStoreId);
+    const qs = params.toString();
+    api
+      .get(`/api/bills/summary${qs ? `?${qs}` : ""}`)
+      .then((res) => {
+        const data = res?.data;
+        if (!cancelled && data && typeof data.totalCount === "number") {
+          setServerSummary(data);
+        }
+      })
+      .catch(() => {
+        // Old backends without /summary: tiles fall back to the stats loop.
+      });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey]);
 
@@ -2378,6 +2414,21 @@ export default function BillingPage() {
   };
 
   const billingStats = useMemo(() => {
+    // Until the client-side stats loop finishes, trust the server-computed
+    // summary — it covers ALL bills in one request, so tiles never sit on
+    // "…" while pages download.
+    if (!statsComplete && serverSummary) {
+      return {
+        todayCount: serverSummary.todayCount,
+        todayRevenue: serverSummary.todayRevenue,
+        totalCount:
+          typeof billsTotalCount === "number" && billsTotalCount > 0
+            ? billsTotalCount
+            : serverSummary.totalCount,
+        totalRevenue: serverSummary.totalRevenue,
+        statsLoaded: true,
+      };
+    }
     // Prefer the full lightweight summary (statsBills) when loaded, so stats
     // reflect ALL bills even though the table only shows a paginated slice.
     const source: any[] = statsBills ?? currentBills;
@@ -2436,7 +2487,7 @@ export default function BillingPage() {
       totalRevenue,
       statsLoaded: statsComplete,
     };
-  }, [statsBills, statsComplete, currentBills, billsTotalCount]);
+  }, [statsBills, statsComplete, currentBills, billsTotalCount, serverSummary]);
 
   // Per-customer aggregation across the FULL dataset (via statsBills when loaded),
   // so the Customers tab shows accurate bill counts / total spent — not just the
