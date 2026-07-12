@@ -20,6 +20,12 @@ logger = logging.getLogger(__name__)
 @printing_bp.route("/printers", methods=["GET"])
 def get_printers():
     try:
+        import sys
+        if sys.platform != "win32":
+            # Server deployments (Linux/VPS) have no local printers — that's
+            # normal, not an error.
+            return jsonify({"status": "success", "printers": []}), 200
+
         import win32print
 
         printer_info = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL)
