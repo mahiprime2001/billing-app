@@ -42,20 +42,34 @@ import {
 } from "@/components/ui/table"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   AlertCircle,
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
+  Copy,
   LogIn,
   LogOut,
+  MoreVertical,
+  Plus,
   RefreshCcw,
   ScanFace,
   Search,
+  Smartphone,
   Store as StoreIcon,
   Timer,
+  Trash2,
   UserCheck,
   Users,
+  UserX,
 } from "lucide-react"
 import {
   Bar,
@@ -90,6 +104,16 @@ interface AttendanceRecord {
   ts: string
   match_score: number | null
   photo_url: string | null
+}
+
+interface AttendanceDevice {
+  id: string
+  store_id: string
+  name: string | null
+  activation_code: string | null
+  status: string // unclaimed | active | disabled
+  device_info: string | null
+  last_seen: string | null
 }
 
 interface Session {
@@ -171,6 +195,16 @@ export default function AttendanceEmployees({
   const [search, setSearch] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+
+  // management state
+  const [addOpen, setAddOpen] = useState(false)
+  const [addName, setAddName] = useState("")
+  const [adding, setAdding] = useState(false)
+  const [devicesOpen, setDevicesOpen] = useState(false)
+  const [devices, setDevices] = useState<AttendanceDevice[]>([])
+  const [loadingDevices, setLoadingDevices] = useState(false)
+  const [creatingDevice, setCreatingDevice] = useState(false)
+  const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
   // ---- date filtering ----
   const [mode, setMode] = useState<FilterMode>("today")
@@ -262,6 +296,178 @@ export default function AttendanceEmployees({
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // ---- employee management ----
+
+  const addEmployee = async () => {
+    const name = addName.trim()
+    if (!name || !storeId) return
+    setAdding(true)
+    setError(null)
+    try {
+      const { error: err } = await supabase.from("attendance_employees").insert({
+        store_id: storeId,
+        name,
+        status: "active",
+        enroll_status: "pending",
+      })
+      if (err) throw err
+      setAddName("")
+      setAddOpen(false)
+      await loadData()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add employee")
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const reEnroll = async (emp: AttendanceEmployeeRow) => {
+    if (
+      !confirm(
+        `Re-enroll ${emp.name}? Their current face data will be replaced at the next capture on the shop phone.`
+      )
+    )
+      return
+    const { error: err } = await supabase
+      .from("attendance_employees")
+      .update({ enroll_status: "pending", face_embeddings: null })
+      .eq("id", emp.id)
+    if (err) setError(err.message)
+    await loadData()
+  }
+
+  const toggleEmployee = async (emp: AttendanceEmployeeRow) => {
+    const next = emp.status === "active" ? "disabled" : "active"
+    if (
+      next === "disabled" &&
+      !confirm(`Disable ${emp.name}? Their face will stop marking attendance.`)
+    )
+      return
+    const { error: err } = await supabase
+      .from("attendance_employees")
+      .update({ status: next })
+      .eq("id", emp.id)
+    if (err) setError(err.message)
+    await loadData()
+  }
+
+  const deleteEmployee = async (emp: AttendanceEmployeeRow) => {
+    if (
+      !confirm(
+        `Delete ${emp.name} completely? Their face data AND all attendance history will be deleted. Use Disable instead if you only want to stop their scans.`
+      )
+    )
+      return
+    try {
+      const { error: e1 } = await supabase
+        .from("attendance_records")
+        .delete()
+        .eq("employee_id", emp.id)
+      if (e1) throw e1
+      const { error: e2 } = await supabase
+        .from("attendance_employees")
+        .delete()
+        .eq("id", emp.id)
+      if (e2) throw e2
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete employee")
+    }
+    setSelectedId(null)
+    await loadData()
+  }
+
+  // ---- device management ----
+
+  const loadDevices = useCallback(async () => {
+    if (!storeId) return
+    setLoadingDevices(true)
+    try {
+      const { data, error: err } = await supabase
+        .from("attendance_devices")
+        .select("id, store_id, name, activation_code, status, device_info, last_seen")
+        .eq("store_id", storeId)
+        .order("created_at", { ascending: false })
+      if (err) throw err
+      setDevices((data ?? []) as AttendanceDevice[])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load devices")
+    } finally {
+      setLoadingDevices(false)
+    }
+  }, [storeId])
+
+  useEffect(() => {
+    if (devicesOpen) loadDevices()
+  }, [devicesOpen, loadDevices])
+
+  const genCode = (): string => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    let code = ""
+    for (let i = 0; i < 8; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)]
+      if (i === 3) code += "-"
+    }
+    return code
+  }
+
+  const createDevice = async () => {
+    if (!storeId) return
+    setCreatingDevice(true)
+    try {
+      const storeName = stores.find((s) => s.id === storeId)?.name ?? "Shop"
+      const { error: err } = await supabase.from("attendance_devices").insert({
+        store_id: storeId,
+        name: `${storeName} phone`,
+        activation_code: genCode(),
+        status: "unclaimed",
+      })
+      if (err) throw err
+      await loadDevices()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create device")
+    } finally {
+      setCreatingDevice(false)
+    }
+  }
+
+  const removeDevice = async (d: AttendanceDevice) => {
+    const msg =
+      d.status === "unclaimed"
+        ? "Remove this unused activation code?"
+        : "Remove this phone? The app on it resets and can be added again with a new code. Attendance history stays."
+    if (!confirm(msg)) return
+    try {
+      const { error: e1 } = await supabase
+        .from("attendance_records")
+        .update({ device_id: null })
+        .eq("device_id", d.id)
+      if (e1) throw e1
+      const { error: e2 } = await supabase
+        .from("attendance_devices")
+        .delete()
+        .eq("id", d.id)
+      if (e2) throw e2
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to remove device")
+    }
+    await loadDevices()
+  }
+
+  const copyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopiedCode(code)
+      setTimeout(() => setCopiedCode(null), 1500)
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
+
+  const isOnline = (d: AttendanceDevice): boolean => {
+    if (!d.last_seen) return false
+    return Date.now() - new Date(d.last_seen).getTime() < 2 * 60 * 1000
+  }
 
   // ---- per-employee summaries ----
   const summaries = useMemo<EmpSummary[]>(() => {
@@ -433,9 +639,19 @@ export default function AttendanceEmployees({
             className="w-56 pl-9"
           />
         </div>
-        <Button variant="outline" size="icon" className="ml-auto" onClick={loadData}>
-          <RefreshCcw className="h-4 w-4" />
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add Employee
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setDevicesOpen(true)}>
+            <Smartphone className="mr-1.5 h-4 w-4" />
+            Devices
+          </Button>
+          <Button variant="outline" size="icon" onClick={loadData}>
+            <RefreshCcw className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* row 2: date filters */}
@@ -669,6 +885,49 @@ export default function AttendanceEmployees({
                       </Badge>
                     </div>
                   </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="-mr-1 -mt-1 h-8 w-8 shrink-0"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {s.emp.enroll_status === "enrolled" && (
+                        <DropdownMenuItem onClick={() => reEnroll(s.emp)}>
+                          <ScanFace className="mr-2 h-4 w-4" />
+                          Re-enroll face
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => toggleEmployee(s.emp)}>
+                        {s.emp.status === "active" ? (
+                          <>
+                            <UserX className="mr-2 h-4 w-4" />
+                            Disable
+                          </>
+                        ) : (
+                          <>
+                            <UserCheck className="mr-2 h-4 w-4" />
+                            Enable
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600"
+                        onClick={() => deleteEmployee(s.emp)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete permanently
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {/* day strip: the selected day, or today when a range is chosen */}
@@ -927,6 +1186,142 @@ export default function AttendanceEmployees({
               </ScrollArea>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ---------- add employee dialog ---------- */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add employee</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              value={addName}
+              onChange={(e) => setAddName(e.target.value)}
+              placeholder="Employee name"
+              autoFocus
+              onKeyDown={(e) => e.key === "Enter" && addEmployee()}
+            />
+            <p className="text-xs text-muted-foreground">
+              Added to <span className="font-medium">{selectedStore?.name}</span>. The
+              shop phone then shows an ADD popup for this person to scan their face —
+              attendance starts working after that.
+            </p>
+            <Button
+              className="w-full"
+              disabled={adding || !addName.trim()}
+              onClick={addEmployee}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              {adding ? "Adding…" : "Add employee"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---------- devices dialog ---------- */}
+      <Dialog open={devicesOpen} onOpenChange={setDevicesOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Smartphone className="h-4 w-4" />
+              Devices · {selectedStore?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Button
+              className="w-full"
+              disabled={creatingDevice}
+              onClick={createDevice}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              {creatingDevice ? "Generating…" : "New activation code"}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Enter the code once in the app on this shop's phone. One code = one phone.
+            </p>
+
+            {loadingDevices ? (
+              <div className="space-y-2">
+                <Skeleton className="h-16 rounded-lg" />
+                <Skeleton className="h-16 rounded-lg" />
+              </div>
+            ) : !devices.length ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No phone for this shop yet — generate a code above.
+              </p>
+            ) : (
+              <ScrollArea className="max-h-[45vh]">
+                <div className="space-y-2 pr-3">
+                  {devices.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex items-center gap-3 rounded-lg border p-3"
+                    >
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                          isOnline(d)
+                            ? "bg-green-100 text-green-600"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <Smartphone className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {d.name || "Shop phone"}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {d.device_info || "Not activated yet"}
+                        </p>
+                        {d.status === "unclaimed" && d.activation_code && (
+                          <button
+                            className="mt-1 inline-flex items-center gap-1.5 rounded-md border bg-muted px-2 py-0.5 font-mono text-xs hover:border-primary"
+                            onClick={() => copyCode(d.activation_code!)}
+                          >
+                            {d.activation_code}
+                            {copiedCode === d.activation_code ? (
+                              <CheckCircle2 className="h-3 w-3 text-green-600" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        <Badge
+                          variant={
+                            d.status === "unclaimed"
+                              ? "outline"
+                              : isOnline(d)
+                                ? "default"
+                                : "secondary"
+                          }
+                          className="text-[10px]"
+                        >
+                          {d.status === "unclaimed"
+                            ? "Waiting"
+                            : isOnline(d)
+                              ? "Online"
+                              : "Offline"}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-red-600 hover:text-red-600"
+                          onClick={() => removeDevice(d)}
+                        >
+                          <Trash2 className="mr-1 h-3 w-3" />
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
