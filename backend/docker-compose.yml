@@ -8,6 +8,9 @@ services:
       - .env
     environment:
       - FLASK_ENV=production
+      # Match the business timezone — the backend stamps and filters dates
+      # with local time (datetime.now()), same as the desktop sidecar.
+      - TZ=Asia/Kolkata
     volumes:
       - backend-data:/app/data
     restart: unless-stopped
