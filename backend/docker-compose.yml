@@ -1,11 +1,9 @@
 services:
   backend:
     build: .
-    container_name: siriadmin-backend
+    container_name: siri-admin-backend
     ports:
-      # Host port 7156 (8080 is taken on the VPS) -> container port 8080.
-      # The app inside the container still runs on 8080; nothing else changes.
-      - "7156:8080"
+      - "7156:7156"
     env_file:
       - .env
     environment:
@@ -14,7 +12,7 @@ services:
       - backend-data:/app/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=5)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7156/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
