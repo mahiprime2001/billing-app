@@ -33,6 +33,9 @@ warp = "0.3"
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
 tauri-plugin-log = "2.7.0"
 once_cell = "1.19"
+# Pin the rustls crypto engine; without an installed default provider the
+# TLS client panics with "No provider set" on Android.
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 
 
 

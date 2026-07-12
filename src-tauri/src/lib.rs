@@ -1,5 +1,8 @@
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  // Select the TLS crypto engine before anything opens an HTTPS connection.
+  let _ = rustls::crypto::ring::default_provider().install_default();
+
   tauri::Builder::default()
     .setup(|app| {
       if cfg!(debug_assertions) {

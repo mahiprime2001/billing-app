@@ -28,7 +28,9 @@ export default function AppProviders({
 
   useEffect(() => {
     const pollInterval = 5000; // Poll every 5 seconds
-    const requestTimeout = 5000; // 5 second timeout for requests
+    // Internet round-trips (Android -> VPS) need more headroom than localhost,
+    // especially while large responses are downloading in parallel.
+    const requestTimeout = 15000;
 
     const triggerReconnectSync = async () => {
       if (reconnectSyncInFlightRef.current) return;

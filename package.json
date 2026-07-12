@@ -1,8 +1,9 @@
 {
   "name": "Siri-Admin-app",
-  "version": "0.2.44",
+  "version": "0.2.45",
   "private": true,
   "scripts": {
+    "tauri": "tauri",
     "build": "next build",
     "dev": "npm run dev:next",
     "dev:next": "next dev",
