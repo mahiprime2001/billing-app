@@ -1180,7 +1180,7 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Orders list */}
-                <div className="space-y-3 max-h-[calc(100vh-420px)] overflow-y-auto pr-1">
+                <div className="space-y-3 max-h-[max(20rem,calc(100vh-420px))] overflow-y-auto pr-1">
                   {filteredOrders.length > 0 ? (
                     filteredOrders.map((order) => {
                       const statusStr = getOrderStatus(order)
