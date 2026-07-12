@@ -83,6 +83,7 @@ dependencies = [
  "once_cell",
  "regex",
  "reqwest 0.11.27",
+ "rustls 0.23.36",
  "serde",
  "serde_json",
  "serialport",

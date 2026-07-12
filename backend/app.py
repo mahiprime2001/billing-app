@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flask_compress import Compress
 from dotenv import load_dotenv
 
 # Import configuration
@@ -68,7 +69,11 @@ def create_app(config_name='default'):
     
     # Setup logging
     setup_logging(app)
-    
+
+    # Compress JSON responses — large lists (bills/products) are ~10x smaller,
+    # which matters for mobile clients hitting the VPS over the internet.
+    Compress(app)
+
     # Enable CORS
     CORS(
         app,

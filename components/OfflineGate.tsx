@@ -20,7 +20,9 @@ export default function OfflineGate() {
 
     const ping = async () => {
       try {
-        const res = await fetch(`${API_BASE}/health`, { cache: "no-store" })
+        // Must be an /api/* path — the Flask backend only sets CORS headers
+        // on /api/* routes, and a CORS-blocked response looks like "offline".
+        const res = await fetch(`${API_BASE}/api/sync/status`, { cache: "no-store" })
         if (!cancelled) setOffline(!res.ok)
       } catch {
         if (!cancelled) setOffline(true)

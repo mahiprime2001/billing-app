@@ -10,6 +10,13 @@ const nextConfig = {
     unoptimized: true,
   },
   output: 'export',
+  webpack: (config) => {
+    // Avoid webpack's default xxhash64 (WASM) hasher — it crashes
+    // intermittently on Node 24 ("Cannot read properties of undefined
+    // (reading 'length')" in WasmHash).
+    config.output.hashFunction = 'sha256';
+    return config;
+  },
   async rewrites() {
     return [
       {
