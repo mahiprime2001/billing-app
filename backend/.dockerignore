@@ -6,6 +6,5 @@ build/
 *.spec
 .env
 data/
-uv.lock
 pyinstaller.txt
 requirements.txt
