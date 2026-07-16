@@ -56,6 +56,7 @@ import {
   ChevronRight,
   Clock,
   Copy,
+  Download,
   LogIn,
   LogOut,
   MoreVertical,
@@ -114,6 +115,7 @@ interface AttendanceDevice {
   status: string // unclaimed | active | disabled
   device_info: string | null
   last_seen: string | null
+  app_version: string | null
 }
 
 interface Session {
@@ -385,7 +387,7 @@ export default function AttendanceEmployees({
     try {
       const { data, error: err } = await supabase
         .from("attendance_devices")
-        .select("id, store_id, name, activation_code, status, device_info, last_seen")
+        .select("id, store_id, name, activation_code, status, device_info, last_seen, app_version")
         .eq("store_id", storeId)
         .order("created_at", { ascending: false })
       if (err) throw err
@@ -467,6 +469,140 @@ export default function AttendanceEmployees({
   const isOnline = (d: AttendanceDevice): boolean => {
     if (!d.last_seen) return false
     return Date.now() - new Date(d.last_seen).getTime() < 2 * 60 * 1000
+  }
+
+  // ---- export ----
+
+  const [exporting, setExporting] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportTarget, setExportTarget] = useState<string>("store") // "store" | employee id
+
+  /** Every date in the selected period (never past today). */
+  const listReportDates = (): string[] => {
+    const today = todayKey()
+    const end = toKey < today ? toKey : today
+    const out: string[] = []
+    let d = new Date(`${fromKey}T00:00:00`)
+    const endDate = new Date(`${end}T00:00:00`)
+    while (d <= endDate) {
+      out.push(format(d, "yyyy-MM-dd"))
+      d = new Date(d.getTime() + 86_400_000)
+    }
+    return out
+  }
+
+  /** Register row for one employee on one date: Present with times, or Absent. */
+  const registerRow = (s: EmpSummary, date: string) => {
+    const created = (s.emp.created_at ?? "").slice(0, 10)
+    if (created && date < created) {
+      return { Status: "—", IN: "", OUT: "", Hours: "" } // not joined yet
+    }
+    const day = s.days.find((d) => d.date === date)
+    if (!day) {
+      return { Status: "Absent", IN: "", OUT: "", Hours: "" }
+    }
+    const firstIn = day.sessions.find((x) => x.inRec)?.inRec
+    const outs = day.sessions.filter((x) => x.outRec)
+    const lastOut = outs.length ? outs[outs.length - 1].outRec : null
+    return {
+      Status: "Present",
+      IN: fmtTime(firstIn?.ts),
+      OUT: lastOut
+        ? fmtTime(lastOut.ts)
+        : date === todayKey()
+          ? "still in"
+          : "—",
+      Hours: fmtMs(day.ms),
+    }
+  }
+
+  const exportExcel = async () => {
+    if (exporting || !summaries.length) return
+    setExporting(true)
+    try {
+      const XLSX = await import("xlsx")
+      const storeName = stores.find((s) => s.id === storeId)?.name ?? "store"
+      const dates = listReportDates()
+      const wb = XLSX.utils.book_new()
+      const safe = (v: string) =>
+        v.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-")
+
+      if (exportTarget === "store") {
+        // Sheet 1 — store summary
+        const summaryRows = summaries.map((s) => ({
+          Employee: s.emp.name,
+          Status: s.emp.status === "active" ? "Active" : "Disabled",
+          "Days Present": s.daysPresent,
+          "Working Days": s.totalDays,
+          Leaves: s.leaves,
+          "Total Hours": fmtMs(s.totalMs),
+          "Avg IN": s.avgInLabel,
+          "Avg OUT": s.avgOutLabel,
+        }))
+        const ws1 = XLSX.utils.json_to_sheet(summaryRows)
+        ws1["!cols"] = [
+          { wch: 22 }, { wch: 10 }, { wch: 13 }, { wch: 13 },
+          { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 10 },
+        ]
+        XLSX.utils.book_append_sheet(wb, ws1, "Summary")
+
+        // Sheet 2 — full register: every employee, every day
+        const registerRows = dates.flatMap((date) =>
+          summaries.map((s) => ({
+            Date: date,
+            Day: format(parseISO(date), "EEE"),
+            Employee: s.emp.name,
+            ...registerRow(s, date),
+          }))
+        )
+        const ws2 = XLSX.utils.json_to_sheet(registerRows)
+        ws2["!cols"] = [
+          { wch: 12 }, { wch: 6 }, { wch: 22 },
+          { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+        ]
+        XLSX.utils.book_append_sheet(wb, ws2, "Register")
+
+        XLSX.writeFile(
+          wb,
+          `attendance-${safe(storeName)}-${fromKey}_to_${toKey}.xlsx`
+        )
+      } else {
+        // Individual employee report: one row per day of the period
+        const s = summaries.find((x) => x.emp.id === exportTarget)
+        if (!s) return
+        const rows = dates.map((date) => ({
+          Date: date,
+          Day: format(parseISO(date), "EEE"),
+          ...registerRow(s, date),
+        }))
+        // Totals footer
+        rows.push({
+          Date: "TOTAL",
+          Day: "",
+          Status: `${s.daysPresent} present · ${s.leaves} absent`,
+          IN: "",
+          OUT: "",
+          Hours: fmtMs(s.totalMs),
+        })
+        const ws = XLSX.utils.json_to_sheet(rows)
+        ws["!cols"] = [
+          { wch: 12 }, { wch: 6 }, { wch: 22 },
+          { wch: 10 }, { wch: 10 }, { wch: 10 },
+        ]
+        XLSX.utils.book_append_sheet(
+          wb,
+          ws,
+          safe(s.emp.name).slice(0, 31) || "Employee"
+        )
+        XLSX.writeFile(
+          wb,
+          `attendance-${safe(s.emp.name)}-${fromKey}_to_${toKey}.xlsx`
+        )
+      }
+      setExportOpen(false)
+    } finally {
+      setExporting(false)
+    }
   }
 
   // ---- per-employee summaries ----
@@ -647,6 +783,15 @@ export default function AttendanceEmployees({
           <Button size="sm" variant="outline" onClick={() => setDevicesOpen(true)}>
             <Smartphone className="mr-1.5 h-4 w-4" />
             Devices
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={loading || !summaries.length}
+            onClick={() => setExportOpen(true)}
+          >
+            <Download className="mr-1.5 h-4 w-4" />
+            Export
           </Button>
           <Button variant="outline" size="icon" onClick={loadData}>
             <RefreshCcw className="h-4 w-4" />
@@ -1189,6 +1334,56 @@ export default function AttendanceEmployees({
         </DialogContent>
       </Dialog>
 
+      {/* ---------- export dialog ---------- */}
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Export report
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                Report for
+              </p>
+              <Select value={exportTarget} onValueChange={setExportTarget}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="store">
+                    Entire store — {stores.find((s) => s.id === storeId)?.name}
+                  </SelectItem>
+                  {employees.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="rounded-lg border bg-muted/40 p-2.5 text-xs text-muted-foreground">
+              <p>
+                Period: <span className="font-medium text-foreground">{periodLabel}</span>
+              </p>
+              <p className="mt-1">
+                Table format — one row per day with IN time, OUT time, hours,
+                and Present / Absent status.
+                {exportTarget === "store"
+                  ? " Store export includes a per-employee summary sheet plus the full register."
+                  : ""}
+              </p>
+            </div>
+            <Button className="w-full" disabled={exporting} onClick={exportExcel}>
+              <Download className="mr-1.5 h-4 w-4" />
+              {exporting ? "Exporting…" : "Download Excel"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* ---------- add employee dialog ---------- */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="max-w-sm">
@@ -1274,6 +1469,7 @@ export default function AttendanceEmployees({
                         </p>
                         <p className="truncate text-[11px] text-muted-foreground">
                           {d.device_info || "Not activated yet"}
+                          {d.app_version ? ` · v${d.app_version}` : ""}
                         </p>
                         {d.status === "unclaimed" && d.activation_code && (
                           <button
