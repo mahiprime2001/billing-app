@@ -1,0 +1,144 @@
+2026-07-15 13:04:58,814 - scripts.sync_manager - INFO - Starting background sync scheduler
+2026-07-15 13:04:58,815 - scripts.sync_manager - INFO - Sync scheduler thread started
+2026-07-15 13:04:58,815 - scripts.sync_manager - INFO - Background sync started successfully
+2026-07-15 13:04:58,815 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
+2026-07-15 13:04:58,847 - scripts.sync_manager - INFO - Cleaning up logs older than 2026-06-15T13:04:58.847808
+2026-07-15 13:04:59,377 - scripts.sync_manager - ERROR - Error cleaning Supabase sync_table: {'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': "b'no available server\\n'"}
+Traceback (most recent call last):
+  File "postgrest\_sync\request_builder.py", line 52, in execute
+  File "postgrest\utils.py", line 56, in model_validate_json
+  File "pydantic\main.py", line 766, in model_validate_json
+pydantic_core._pydantic_core.ValidationError: 1 validation error for APIErrorFromJSON
+  Invalid JSON: expected ident at line 1 column 2 [type=json_invalid, input_value=b'no available server\n', input_type=bytes]
+    For further information visit https://errors.pydantic.dev/2.12/v/json_invalid
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "scripts\sync_manager.py", line 811, in cleanup_old_logs
+    response = self.supabase_db.client.table("sync_table").delete().lt("created_at", cutoff_date.isoformat()).execute()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "postgrest\_sync\request_builder.py", line 55, in execute
+postgrest.exceptions.APIError: {'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': "b'no available server\\n'"}
+2026-07-15 13:04:59,380 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2026-07-15 13:04:59,380 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to Supabase
+2026-07-15 13:04:59,380 - scripts.sync_manager - INFO - No pending sync logs to process
+2026-07-15 13:04:59,380 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2026-07-15 13:04:59,380 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from Supabase
+2026-07-15 13:04:59,381 - scripts.sync_manager - INFO - Pulling from Supabase sync_table. Last sync: Never. Table: All, Full Pull: False
+2026-07-15 13:04:59,381 - scripts.sync_manager - DEBUG - Executing Supabase pull query with filter: source.eq.remote,and(source.eq.local,status.eq.pending),and(source.eq.local,status.eq.failed),and(source.eq.local,status.eq.synced,created_at.gte.2026-06-15T13:04:59.381839)
+2026-07-15 13:04:59,546 - scripts.sync_manager - ERROR - Error pulling from Supabase sync_table: {'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': "b'no available server\\n'"}
+Traceback (most recent call last):
+  File "postgrest\_sync\request_builder.py", line 52, in execute
+  File "postgrest\utils.py", line 56, in model_validate_json
+  File "pydantic\main.py", line 766, in model_validate_json
+pydantic_core._pydantic_core.ValidationError: 1 validation error for APIErrorFromJSON
+  Invalid JSON: expected ident at line 1 column 2 [type=json_invalid, input_value=b'no available server\n', input_type=bytes]
+    For further information visit https://errors.pydantic.dev/2.12/v/json_invalid
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "scripts\sync_manager.py", line 319, in pull_from_supabase_sync_table
+    response = query.execute()
+               ^^^^^^^^^^^^^^^
+  File "postgrest\_sync\request_builder.py", line 55, in execute
+postgrest.exceptions.APIError: {'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': "b'no available server\\n'"}
+2026-07-15 13:04:59,547 - scripts.sync_manager - INFO - Pull result: {'status': 'error', 'message': '{\'message\': \'JSON could not be generated\', \'code\': 503, \'hint\': \'Refer to full message for details\', \'details\': "b\'no available server\\\\n\'"}'}
+2026-07-15 13:04:59,547 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2026-07-15 13:05:54,843 - scripts.sync_manager - INFO - Starting background sync scheduler
+2026-07-15 13:05:54,844 - scripts.sync_manager - INFO - Sync scheduler thread started
+2026-07-15 13:05:54,844 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
+2026-07-15 13:05:54,845 - scripts.sync_manager - INFO - Cleaning up logs older than 2026-06-15T13:05:54.845759
+2026-07-15 13:05:54,846 - scripts.sync_manager - INFO - Background sync started successfully
+2026-07-15 13:05:55,382 - scripts.sync_manager - ERROR - Error cleaning Supabase sync_table: {'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': "b'no available server\\n'"}
+Traceback (most recent call last):
+  File "postgrest\_sync\request_builder.py", line 52, in execute
+  File "postgrest\utils.py", line 56, in model_validate_json
+  File "pydantic\main.py", line 766, in model_validate_json
+pydantic_core._pydantic_core.ValidationError: 1 validation error for APIErrorFromJSON
+  Invalid JSON: expected ident at line 1 column 2 [type=json_invalid, input_value=b'no available server\n', input_type=bytes]
+    For further information visit https://errors.pydantic.dev/2.12/v/json_invalid
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "scripts\sync_manager.py", line 811, in cleanup_old_logs
+    response = self.supabase_db.client.table("sync_table").delete().lt("created_at", cutoff_date.isoformat()).execute()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "postgrest\_sync\request_builder.py", line 55, in execute
+postgrest.exceptions.APIError: {'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': "b'no available server\\n'"}
+2026-07-15 13:05:55,383 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2026-07-15 13:05:55,383 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to Supabase
+2026-07-15 13:05:55,383 - scripts.sync_manager - INFO - No pending sync logs to process
+2026-07-15 13:05:55,384 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2026-07-15 13:05:55,384 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from Supabase
+2026-07-15 13:05:55,384 - scripts.sync_manager - INFO - Pulling from Supabase sync_table. Last sync: Never. Table: All, Full Pull: False
+2026-07-15 13:05:55,384 - scripts.sync_manager - DEBUG - Executing Supabase pull query with filter: source.eq.remote,and(source.eq.local,status.eq.pending),and(source.eq.local,status.eq.failed),and(source.eq.local,status.eq.synced,created_at.gte.2026-06-15T13:05:55.384893)
+2026-07-15 13:05:55,543 - scripts.sync_manager - ERROR - Error pulling from Supabase sync_table: {'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': "b'no available server\\n'"}
+Traceback (most recent call last):
+  File "postgrest\_sync\request_builder.py", line 52, in execute
+  File "postgrest\utils.py", line 56, in model_validate_json
+  File "pydantic\main.py", line 766, in model_validate_json
+pydantic_core._pydantic_core.ValidationError: 1 validation error for APIErrorFromJSON
+  Invalid JSON: expected ident at line 1 column 2 [type=json_invalid, input_value=b'no available server\n', input_type=bytes]
+    For further information visit https://errors.pydantic.dev/2.12/v/json_invalid
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "scripts\sync_manager.py", line 319, in pull_from_supabase_sync_table
+    response = query.execute()
+               ^^^^^^^^^^^^^^^
+  File "postgrest\_sync\request_builder.py", line 55, in execute
+postgrest.exceptions.APIError: {'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': "b'no available server\\n'"}
+2026-07-15 13:05:55,544 - scripts.sync_manager - INFO - Pull result: {'status': 'error', 'message': '{\'message\': \'JSON could not be generated\', \'code\': 503, \'hint\': \'Refer to full message for details\', \'details\': "b\'no available server\\\\n\'"}'}
+2026-07-15 13:05:55,545 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===
+2026-07-15 13:06:00,336 - scripts.sync_manager - INFO - Starting background sync scheduler
+2026-07-15 13:06:00,338 - scripts.sync_manager - INFO - Sync scheduler thread started
+2026-07-15 13:06:00,338 - scripts.sync_manager - INFO - Performing initial sync and immediate cleanup
+2026-07-15 13:06:00,338 - scripts.sync_manager - INFO - Background sync started successfully
+2026-07-15 13:06:00,338 - scripts.sync_manager - INFO - Cleaning up logs older than 2026-06-15T13:06:00.338088
+2026-07-15 13:06:00,926 - scripts.sync_manager - ERROR - Error cleaning Supabase sync_table: {'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': "b'no available server\\n'"}
+Traceback (most recent call last):
+  File "postgrest\_sync\request_builder.py", line 52, in execute
+  File "postgrest\utils.py", line 56, in model_validate_json
+  File "pydantic\main.py", line 766, in model_validate_json
+pydantic_core._pydantic_core.ValidationError: 1 validation error for APIErrorFromJSON
+  Invalid JSON: expected ident at line 1 column 2 [type=json_invalid, input_value=b'no available server\n', input_type=bytes]
+    For further information visit https://errors.pydantic.dev/2.12/v/json_invalid
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "scripts\sync_manager.py", line 811, in cleanup_old_logs
+    response = self.supabase_db.client.table("sync_table").delete().lt("created_at", cutoff_date.isoformat()).execute()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "postgrest\_sync\request_builder.py", line 55, in execute
+postgrest.exceptions.APIError: {'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': "b'no available server\\n'"}
+2026-07-15 13:06:00,927 - scripts.sync_manager - INFO - === Starting scheduled sync cycle ===
+2026-07-15 13:06:00,927 - scripts.sync_manager - INFO - Step 1: Pushing pending logs to Supabase
+2026-07-15 13:06:00,927 - scripts.sync_manager - INFO - No pending sync logs to process
+2026-07-15 13:06:00,927 - scripts.sync_manager - INFO - Push result: {'status': 'success', 'message': 'No pending logs', 'processed': 0, 'failed': 0}
+2026-07-15 13:06:00,928 - scripts.sync_manager - INFO - Step 2: Pulling remote changes from Supabase
+2026-07-15 13:06:00,928 - scripts.sync_manager - INFO - Pulling from Supabase sync_table. Last sync: Never. Table: All, Full Pull: False
+2026-07-15 13:06:00,928 - scripts.sync_manager - DEBUG - Executing Supabase pull query with filter: source.eq.remote,and(source.eq.local,status.eq.pending),and(source.eq.local,status.eq.failed),and(source.eq.local,status.eq.synced,created_at.gte.2026-06-15T13:06:00.928198)
+2026-07-15 13:06:01,086 - scripts.sync_manager - ERROR - Error pulling from Supabase sync_table: {'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': "b'no available server\\n'"}
+Traceback (most recent call last):
+  File "postgrest\_sync\request_builder.py", line 52, in execute
+  File "postgrest\utils.py", line 56, in model_validate_json
+  File "pydantic\main.py", line 766, in model_validate_json
+pydantic_core._pydantic_core.ValidationError: 1 validation error for APIErrorFromJSON
+  Invalid JSON: expected ident at line 1 column 2 [type=json_invalid, input_value=b'no available server\n', input_type=bytes]
+    For further information visit https://errors.pydantic.dev/2.12/v/json_invalid
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "scripts\sync_manager.py", line 319, in pull_from_supabase_sync_table
+    response = query.execute()
+               ^^^^^^^^^^^^^^^
+  File "postgrest\_sync\request_builder.py", line 55, in execute
+postgrest.exceptions.APIError: {'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': "b'no available server\\n'"}
+2026-07-15 13:06:01,086 - scripts.sync_manager - INFO - Pull result: {'status': 'error', 'message': '{\'message\': \'JSON could not be generated\', \'code\': 503, \'hint\': \'Refer to full message for details\', \'details\': "b\'no available server\\\\n\'"}'}
+2026-07-15 13:06:01,087 - scripts.sync_manager - INFO - === Scheduled sync cycle completed successfully ===

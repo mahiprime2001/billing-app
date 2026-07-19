@@ -1630,6 +1630,200 @@ def delete_bill(bill_id: str) -> Tuple[bool, str, int]:
         return False, str(e), 500
 
 
+def cancel_bill(
+    bill_id: str,
+    store_id_override: Optional[str] = None,
+    cancelled_by: Optional[str] = None,
+) -> Tuple[bool, str, int]:
+    """
+    Cancel a bill without deleting it:
+    1) restore sold quantities back to store inventory (+ products stock)
+    2) mark the bill status as cancelled for audit/history
+    """
+    try:
+        bills = get_bills_data()
+        local_bill = next((b for b in bills if b.get("id") == bill_id), None)
+
+        cloud_bill: Optional[Dict] = None
+        try:
+            client = db.client
+            cloud_bill_resp = execute_with_retry(
+                lambda: client.table("bills").select("*").eq("id", bill_id).limit(1),
+                f"lookup bill {bill_id} for cancel",
+                retries=1,
+            )
+            if cloud_bill_resp.data:
+                cloud_bill = cloud_bill_resp.data[0]
+        except Exception as cloud_lookup_error:
+            logger.warning(f"Failed cloud bill lookup for cancel {bill_id}: {cloud_lookup_error}")
+
+        source_bill = local_bill or cloud_bill
+        if not source_bill:
+            return False, "Bill not found", 404
+
+        status = str(source_bill.get("status") or "").strip().lower()
+        if status in {"cancelled", "canceled", "void", "voided"}:
+            return False, "Bill is already cancelled", 409
+
+        store_id = (
+            str(store_id_override or "").strip()
+            or str(source_bill.get("storeid") or source_bill.get("store_id") or source_bill.get("storeId") or "").strip()
+        )
+        if not store_id:
+            return False, "Store id is required to cancel this bill", 400
+
+        source_items = source_bill.get("items") if source_bill else None
+        qty_by_product = _aggregate_item_quantity_by_product(source_items if isinstance(source_items, list) else [])
+
+        if not qty_by_product:
+            try:
+                client = db.client
+                billitems_resp = execute_with_retry(
+                    lambda: client.table("billitems").select("productid, quantity").eq("billid", bill_id),
+                    f"billitems lookup for cancel {bill_id}",
+                    retries=2,
+                )
+                qty_by_product = {}
+                for row in (billitems_resp.data or []):
+                    pid = row.get("productid")
+                    qty = int(row.get("quantity") or 0)
+                    if not pid or qty <= 0:
+                        continue
+                    qty_by_product[pid] = qty_by_product.get(pid, 0) + qty
+            except Exception as billitems_lookup_error:
+                logger.warning(f"Failed cloud billitems lookup for cancel {bill_id}: {billitems_lookup_error}")
+
+        if not qty_by_product:
+            return False, "No bill items found for stock restore", 400
+
+        now_iso = datetime.now().isoformat()
+        cancelled_by_value = str(cancelled_by or "").strip()
+
+        local_products = get_products_data()
+        local_product_map = {p.get("id"): p for p in local_products if p.get("id")}
+        for pid, qty in qty_by_product.items():
+            product_row = local_product_map.get(pid)
+            if not product_row:
+                continue
+            product_row["stock"] = int(product_row.get("stock") or 0) + qty
+            product_row["updatedat"] = now_iso
+        save_products_data(local_products)
+
+        local_inventory = get_store_inventory_data()
+        for pid, qty in qty_by_product.items():
+            inv_row = next(
+                (
+                    row for row in local_inventory
+                    if str(row.get("storeid") or "") == store_id and str(row.get("productid") or "") == str(pid)
+                ),
+                None,
+            )
+            if inv_row:
+                inv_row["quantity"] = int(inv_row.get("quantity") or 0) + qty
+                inv_row["updatedat"] = now_iso
+            else:
+                local_inventory.append(
+                    {
+                        "id": f"SINV-{uuid.uuid4().hex[:12]}",
+                        "storeid": store_id,
+                        "productid": pid,
+                        "quantity": qty,
+                        "createdat": now_iso,
+                        "updatedat": now_iso,
+                    }
+                )
+        save_store_inventory_data(local_inventory)
+
+        if local_bill:
+            local_bill["status"] = "cancelled"
+            local_bill["cancelled_at"] = now_iso
+            if cancelled_by_value:
+                local_bill["cancelled_by"] = cancelled_by_value
+            local_bill["updated_at"] = now_iso
+            local_bill["updatedat"] = now_iso
+            save_bills_data(bills)
+
+        cloud_sync_deferred = False
+        try:
+            client = db.client
+            for pid, qty in qty_by_product.items():
+                inv_resp = execute_with_retry(
+                    lambda pid=pid: client.table("storeinventory")
+                    .select("id, quantity")
+                    .eq("storeid", store_id)
+                    .eq("productid", pid)
+                    .limit(1),
+                    f"storeinventory lookup for cancel {bill_id}/{pid}",
+                    retries=2,
+                )
+                if inv_resp.data:
+                    inv_row = inv_resp.data[0]
+                    new_qty = int(inv_row.get("quantity") or 0) + qty
+                    execute_with_retry(
+                        lambda inv_id=inv_row.get("id"), new_qty=new_qty: client.table("storeinventory").update(
+                            {"quantity": new_qty, "updatedat": now_iso}
+                        ).eq("id", inv_id),
+                        f"storeinventory restock update for cancel {bill_id}/{pid}",
+                        retries=2,
+                    )
+                else:
+                    execute_with_retry(
+                        lambda pid=pid, qty=qty: client.table("storeinventory").insert(
+                            {
+                                "id": f"SINV-{uuid.uuid4().hex[:12]}",
+                                "storeid": store_id,
+                                "productid": pid,
+                                "quantity": qty,
+                                "createdat": now_iso,
+                                "updatedat": now_iso,
+                            }
+                        ),
+                        f"storeinventory restock insert for cancel {bill_id}/{pid}",
+                        retries=2,
+                    )
+
+                prod_resp = execute_with_retry(
+                    lambda pid=pid: client.table("products").select("id, stock").eq("id", pid).limit(1),
+                    f"products lookup for cancel {bill_id}/{pid}",
+                    retries=2,
+                )
+                if prod_resp.data:
+                    row = prod_resp.data[0]
+                    new_stock = int(row.get("stock") or 0) + qty
+                    execute_with_retry(
+                        lambda pid=pid, new_stock=new_stock: client.table("products").update(
+                            {"stock": new_stock, "updatedat": now_iso}
+                        ).eq("id", pid),
+                        f"products restock update for cancel {bill_id}/{pid}",
+                        retries=2,
+                    )
+
+            execute_with_retry(
+                lambda: client.table("bills").update({
+                    "status": "cancelled",
+                    "updated_at": now_iso,
+                }).eq("id", bill_id),
+                f"mark bill cancelled {bill_id}",
+                retries=2,
+            )
+        except Exception as cloud_error:
+            if is_circuit_open_error(cloud_error) or is_transient_supabase_error(cloud_error):
+                cloud_sync_deferred = True
+                logger.warning(f"Cloud cancel sync deferred for bill {bill_id}: {cloud_error}")
+            else:
+                logger.error(f"Cloud cancel failed for bill {bill_id}: {cloud_error}", exc_info=True)
+                return False, f"Bill cancelled locally but cloud update failed: {cloud_error}", 500
+
+        logger.info(f"Bill cancelled successfully: {bill_id}")
+        if cloud_sync_deferred:
+            return True, "Bill cancelled locally; cloud sync deferred", 200
+        return True, "Bill cancelled and stock restored", 200
+
+    except Exception as e:
+        logger.error(f"Error cancelling bill {bill_id}: {e}", exc_info=True)
+        return False, str(e), 500
+
+
 def revise_bill(bill_id: str, store_id_override: Optional[str] = None) -> Tuple[bool, str, int]:
     """
     Revise bill by:

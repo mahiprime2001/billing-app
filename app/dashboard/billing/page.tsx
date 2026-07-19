@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw, ArrowUpDown, Pencil, RotateCcw, CalendarIcon, SlidersHorizontal, X } from "lucide-react";
+import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw, ArrowUpDown, Pencil, RotateCcw, CalendarIcon, SlidersHorizontal, X, Ban } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Upload } from "lucide-react";
 import { unifiedPrint } from "@/app/utils/printUtils";
@@ -180,6 +180,9 @@ const BILLS_CACHE_KEY = "billing:firstPageBills:v1";
 // Stale-while-revalidate window: cached bills are shown immediately on mount,
 // then the 60s poll replaces them with fresh data.
 const BILLS_CACHE_TTL_MS = 10 * 60 * 1000;
+const CANCELLED_BILL_STATUSES = new Set(["cancelled", "canceled", "void", "voided"]);
+const isBillCancelled = (bill: { status?: string } | null | undefined): boolean =>
+  CANCELLED_BILL_STATUSES.has(String(bill?.status || "").trim().toLowerCase());
 
 const readBillsCache = (): any[] | undefined => {
   if (typeof window === "undefined") return undefined;
@@ -1791,6 +1794,10 @@ export default function BillingPage() {
   const reviseBill = async (bill: Bill) => {
     const normalized = normalizeBillForDisplay(bill);
     if (!normalized?.id) return;
+    if (isBillCancelled(normalized)) {
+      alert("This bill is already cancelled.");
+      return;
+    }
 
     const confirmed = window.confirm(
       `Revise bill ${normalized.id}?\n\nThis will restore stock and remove this bill data. This action cannot be undone.`
@@ -1816,6 +1823,43 @@ export default function BillingPage() {
         error?.response?.data?.error ||
         error?.response?.data?.message ||
         "Failed to revise bill.";
+      alert(message);
+    }
+  };
+
+  const cancelBill = async (bill: Bill) => {
+    const normalized = normalizeBillForDisplay(bill);
+    if (!normalized?.id) return;
+    if (isBillCancelled(normalized)) {
+      alert("This bill is already cancelled.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Cancel bill ${normalized.id}?\n\nThis will restore stock and keep the bill in history as cancelled. This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const response = await api.post(`/api/bills/${normalized.id}/cancel`, {
+        storeId: normalized.storeId || undefined,
+        cancelledBy: adminUser?.id || adminUser?.name || undefined,
+      });
+      if (!response.status.toString().startsWith("2")) {
+        throw new Error("Failed to cancel bill");
+      }
+      if (selectedBill?.id === normalized.id) {
+        setSelectedBill({ ...normalized, status: "cancelled" });
+      }
+      setSelectedBillIds((prev) => prev.filter((id) => id !== normalized.id));
+      await Promise.all([refetchBills(), refetchProducts(), refetchCustomers()]);
+      alert("Bill cancelled successfully. Stock restored.");
+    } catch (error: any) {
+      console.error("Error cancelling bill", error);
+      const message =
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        "Failed to cancel bill.";
       alert(message);
     }
   };
@@ -2448,6 +2492,7 @@ export default function BillingPage() {
     let todayRevenue = 0;
     let totalRevenue = 0;
     source.forEach((bill: any) => {
+      if (isBillCancelled(bill)) return;
       const isRepl = Boolean(bill.isReplacement ?? bill.is_replacement);
       const replAmt = Number(bill.replacementFinalAmount ?? bill.replacement_final_amount);
       // For replacement bills, use the recomputed swap-diff sum even when
@@ -2474,11 +2519,11 @@ export default function BillingPage() {
     //   3. currentBills.length as a last resort before any totals arrive.
     let totalCount: number;
     if (statsComplete && statsBills) {
-      totalCount = statsBills.length;
+      totalCount = statsBills.filter((bill: any) => !isBillCancelled(bill)).length;
     } else if (typeof billsTotalCount === "number" && billsTotalCount > 0) {
       totalCount = billsTotalCount;
     } else {
-      totalCount = source.length;
+      totalCount = source.filter((bill: any) => !isBillCancelled(bill)).length;
     }
     return {
       todayCount,
@@ -2496,6 +2541,7 @@ export default function BillingPage() {
     const source: any[] = statsBills ?? currentBills;
     const map = new Map<string, { count: number; total: number }>();
     source.forEach((bill: any) => {
+      if (isBillCancelled(bill)) return;
       const customerId = bill.customerId || bill.customerid || bill.customer_id;
       if (!customerId) return;
       const isRepl = Boolean(bill.isReplacement ?? bill.is_replacement);
@@ -3239,6 +3285,7 @@ export default function BillingPage() {
                       <TableBody>
                         {filteredBills.map((bill: Bill) => {
                           const status = String(bill.status || "completed").toLowerCase();
+                          const cancelled = isBillCancelled(bill);
                           const statusTone =
                             status === "completed"
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -3299,15 +3346,32 @@ export default function BillingPage() {
                                     size="icon"
                                     className="h-8 w-8"
                                     onClick={() => openEditBillDialog(bill)}
-                                    disabled={!canEditBill(bill)}
-                                    title={getEditWindowRemainingText(bill) || "Edit"}
+                                    disabled={cancelled || !canEditBill(bill)}
+                                    title={cancelled ? "Cancelled bills cannot be edited" : getEditWindowRemainingText(bill) || "Edit"}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrintBill(bill)} title="Print">
                                     <Printer className="h-4 w-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => reviseBill(bill)} title="Revise">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-amber-600 hover:text-amber-700"
+                                    onClick={() => cancelBill(bill)}
+                                    disabled={cancelled}
+                                    title={cancelled ? "Already cancelled" : "Cancel"}
+                                  >
+                                    <Ban className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => reviseBill(bill)}
+                                    disabled={cancelled}
+                                    title={cancelled ? "Cancelled bills cannot be revised" : "Revise"}
+                                  >
                                     <RotateCcw className="h-4 w-4" />
                                   </Button>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-600 hover:text-rose-700" onClick={() => openDeleteDialog(bill.id)} title="Delete">
@@ -3857,15 +3921,31 @@ export default function BillingPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => openEditBillDialog(selectedBill)}
-                  disabled={!canEditBill(selectedBill)}
-                  title={getEditWindowRemainingText(selectedBill)}
+                  disabled={isBillCancelled(selectedBill) || !canEditBill(selectedBill)}
+                  title={isBillCancelled(selectedBill) ? "Cancelled bills cannot be edited" : getEditWindowRemainingText(selectedBill)}
                 >
                   <Pencil className="h-4 w-4 mr-1.5" />
                   Edit
                 </Button>
               )}
               {selectedBill && (
-                <Button variant="outline" size="sm" onClick={() => reviseBill(selectedBill)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cancelBill(selectedBill)}
+                  disabled={isBillCancelled(selectedBill)}
+                >
+                  <Ban className="h-4 w-4 mr-1.5" />
+                  Cancel
+                </Button>
+              )}
+              {selectedBill && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => reviseBill(selectedBill)}
+                  disabled={isBillCancelled(selectedBill)}
+                >
                   <RotateCcw className="h-4 w-4 mr-1.5" />
                   Revise
                 </Button>

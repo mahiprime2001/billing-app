@@ -46,6 +46,11 @@ def _set_bills_cache(key: str, data):
             "stale_until": now + _BILLS_CACHE_STALE_SECONDS,
         }
 
+
+def _clear_bills_cache():
+    with _BILLS_CACHE_LOCK:
+        _BILLS_CACHE.clear()
+
 # Create Blueprint
 bills_bp = Blueprint("bills", __name__, url_prefix="/api")
 
@@ -125,6 +130,7 @@ def create_bill():
         bill_id, message, status_code = bills_service.create_bill(bill_data)
 
         if status_code == 201 and bill_id:
+            _clear_bills_cache()
             try:
                 from scripts.sync_manager import log_json_crud_operation
                 log_json_crud_operation(
@@ -173,10 +179,14 @@ def get_bills_summary():
         bills = (result or {}).get("data") or []
 
         today_key = datetime.now().strftime("%Y-%m-%d")
+        active_total_count = 0
         total_revenue = 0.0
         today_revenue = 0.0
         today_count = 0
         for bill in bills:
+            if str(bill.get("status") or "").strip().lower() in {"cancelled", "canceled", "void", "voided"}:
+                continue
+            active_total_count += 1
             is_repl = bool(bill.get("isReplacement") or bill.get("is_replacement"))
             repl_raw = bill.get("replacementFinalAmount", bill.get("replacement_final_amount"))
             try:
@@ -203,7 +213,7 @@ def get_bills_summary():
                 today_revenue += amount
 
         return jsonify({
-            "totalCount": len(bills),
+            "totalCount": active_total_count,
             "totalRevenue": total_revenue,
             "todayCount": today_count,
             "todayRevenue": today_revenue,
@@ -370,6 +380,7 @@ def update_bill(bill_id):
         success, message, status_code = bills_service.update_bill(bill_id, bill_data)
 
         if success:
+            _clear_bills_cache()
             try:
                 from scripts.sync_manager import log_json_crud_operation
                 log_json_crud_operation(
@@ -394,6 +405,46 @@ def update_bill(bill_id):
 # REVISE BILL
 # ======================================================
 
+@bills_bp.route("/bills/<bill_id>/cancel", methods=["POST"])
+@bills_bp.route("/bills/<bill_id>/cancel/", methods=["POST"])
+def cancel_bill(bill_id):
+    """Cancel bill: restore stock, keep bill record, and mark status cancelled"""
+    try:
+        payload = request.json or {}
+        store_id = payload.get("storeId") or payload.get("storeid") or payload.get("store_id")
+        cancelled_by = (
+            payload.get("cancelledBy")
+            or payload.get("cancelled_by")
+            or payload.get("userId")
+            or payload.get("userid")
+        )
+        success, message, status_code = bills_service.cancel_bill(
+            bill_id,
+            store_id_override=store_id,
+            cancelled_by=cancelled_by,
+        )
+
+        if success:
+            _clear_bills_cache()
+            try:
+                from scripts.sync_manager import log_json_crud_operation
+                log_json_crud_operation(
+                    json_type="bills",
+                    operation="UPDATE",
+                    record_id=bill_id,
+                    data={"id": bill_id, "status": "cancelled"},
+                )
+            except ImportError:
+                logger.warning("Sync manager not available")
+
+            return jsonify({"message": message, "id": bill_id}), status_code
+
+        return jsonify({"error": message}), status_code
+    except Exception as e:
+        logger.error("Error cancelling bill", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @bills_bp.route("/bills/<bill_id>/revise", methods=["POST"])
 @bills_bp.route("/bills/<bill_id>/revise/", methods=["POST"])
 def revise_bill(bill_id):
@@ -404,6 +455,7 @@ def revise_bill(bill_id):
         success, message, status_code = bills_service.revise_bill(bill_id, store_id_override=store_id)
 
         if success:
+            _clear_bills_cache()
             try:
                 from scripts.sync_manager import log_json_crud_operation
                 log_json_crud_operation(
@@ -435,6 +487,7 @@ def delete_bill(bill_id):
         success, message, status_code = bills_service.delete_bill(bill_id)
 
         if success:
+            _clear_bills_cache()
             # Sync log (optional)
             try:
                 from scripts.sync_manager import log_json_crud_operation

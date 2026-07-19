@@ -1,0 +1,71 @@
+2026-07-15 13:03:17,618 - app - INFO - app.py:209 - Application started - Log file: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs\app-log-2026-07-15.log
+2026-07-15 13:03:17,618 - app - INFO - app.py:210 - BASE_DIR: D:\Siri-apps\billing-app\src-tauri\binaries
+2026-07-15 13:03:17,618 - app - INFO - app.py:211 - JSON_DIR: D:\Siri-apps\billing-app\src-tauri\binaries\data\json
+2026-07-15 13:03:17,619 - app - INFO - app.py:212 - LOGS_DIR: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs
+2026-07-15 13:03:17,619 - app - INFO - app.py:239 - Starting log file cleanup. Keeping files for 30 days.
+2026-07-15 13:03:17,620 - app - INFO - app.py:256 - Log cleanup completed. Deleted 0 old log files.
+2026-07-15 13:03:17,620 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data
+2026-07-15 13:03:17,620 - app - INFO - app.py:230 - Created directory: D:\Siri-apps\billing-app\src-tauri\binaries\data\json
+2026-07-15 13:03:17,621 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs
+2026-07-15 13:03:17,621 - app - INFO - app.py:82 - Enhanced sync manager initialized
+2026-07-15 13:03:17,623 - app - INFO - app.py:85 - Background sync scheduler started
+2026-07-15 13:03:20,707 - app - INFO - app.py:267 - Initial data export from Supabase completed successfully.
+2026-07-15 13:03:20,707 - app - INFO - app.py:278 - Starting Flask server on port 8080 (debug=True)
+2026-07-15 13:03:23,778 - app - INFO - app.py:209 - Application started - Log file: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs\app-log-2026-07-15.log
+2026-07-15 13:03:23,779 - app - INFO - app.py:210 - BASE_DIR: D:\Siri-apps\billing-app\src-tauri\binaries
+2026-07-15 13:03:23,779 - app - INFO - app.py:211 - JSON_DIR: D:\Siri-apps\billing-app\src-tauri\binaries\data\json
+2026-07-15 13:03:23,779 - app - INFO - app.py:212 - LOGS_DIR: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs
+2026-07-15 13:03:23,779 - app - INFO - app.py:239 - Starting log file cleanup. Keeping files for 30 days.
+2026-07-15 13:03:23,780 - app - INFO - app.py:256 - Log cleanup completed. Deleted 0 old log files.
+2026-07-15 13:03:23,780 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data
+2026-07-15 13:03:23,780 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data\json
+2026-07-15 13:03:23,780 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs
+2026-07-15 13:03:23,780 - app - INFO - app.py:82 - Enhanced sync manager initialized
+2026-07-15 13:03:23,783 - app - INFO - app.py:85 - Background sync scheduler started
+2026-07-15 13:03:26,510 - app - INFO - app.py:267 - Initial data export from Supabase completed successfully.
+2026-07-15 13:03:26,510 - app - INFO - app.py:278 - Starting Flask server on port 8080 (debug=True)
+2026-07-15 13:03:26,547 - app - INFO - app.py:114 - Incoming Request: Method=GET, Path=/health, Origin=None
+2026-07-15 13:04:58,812 - app - INFO - app.py:209 - Application started - Log file: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs\app-log-2026-07-15.log
+2026-07-15 13:04:58,812 - app - INFO - app.py:210 - BASE_DIR: D:\Siri-apps\billing-app\src-tauri\binaries
+2026-07-15 13:04:58,812 - app - INFO - app.py:211 - JSON_DIR: D:\Siri-apps\billing-app\src-tauri\binaries\data\json
+2026-07-15 13:04:58,812 - app - INFO - app.py:212 - LOGS_DIR: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs
+2026-07-15 13:04:58,812 - app - INFO - app.py:239 - Starting log file cleanup. Keeping files for 30 days.
+2026-07-15 13:04:58,813 - app - INFO - app.py:256 - Log cleanup completed. Deleted 0 old log files.
+2026-07-15 13:04:58,813 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data
+2026-07-15 13:04:58,813 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data\json
+2026-07-15 13:04:58,813 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs
+2026-07-15 13:04:58,814 - app - INFO - app.py:82 - Enhanced sync manager initialized
+2026-07-15 13:04:58,815 - app - INFO - app.py:85 - Background sync scheduler started
+2026-07-15 13:05:02,237 - app - INFO - app.py:267 - Initial data export from Supabase completed successfully.
+2026-07-15 13:05:02,237 - app - INFO - app.py:278 - Starting Flask server on port 8080 (debug=True)
+2026-07-15 13:05:54,840 - app - INFO - app.py:209 - Application started - Log file: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs\app-log-2026-07-15.log
+2026-07-15 13:05:54,840 - app - INFO - app.py:210 - BASE_DIR: D:\Siri-apps\billing-app\src-tauri\binaries
+2026-07-15 13:05:54,841 - app - INFO - app.py:211 - JSON_DIR: D:\Siri-apps\billing-app\src-tauri\binaries\data\json
+2026-07-15 13:05:54,841 - app - INFO - app.py:212 - LOGS_DIR: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs
+2026-07-15 13:05:54,841 - app - INFO - app.py:239 - Starting log file cleanup. Keeping files for 30 days.
+2026-07-15 13:05:54,841 - app - INFO - app.py:256 - Log cleanup completed. Deleted 0 old log files.
+2026-07-15 13:05:54,842 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data
+2026-07-15 13:05:54,842 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data\json
+2026-07-15 13:05:54,842 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs
+2026-07-15 13:05:54,843 - app - INFO - app.py:82 - Enhanced sync manager initialized
+2026-07-15 13:05:54,846 - app - INFO - app.py:85 - Background sync scheduler started
+2026-07-15 13:05:57,469 - app - INFO - app.py:267 - Initial data export from Supabase completed successfully.
+2026-07-15 13:05:57,469 - app - INFO - app.py:278 - Starting Flask server on port 8080 (debug=True)
+2026-07-15 13:06:00,335 - app - INFO - app.py:209 - Application started - Log file: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs\app-log-2026-07-15.log
+2026-07-15 13:06:00,335 - app - INFO - app.py:210 - BASE_DIR: D:\Siri-apps\billing-app\src-tauri\binaries
+2026-07-15 13:06:00,335 - app - INFO - app.py:211 - JSON_DIR: D:\Siri-apps\billing-app\src-tauri\binaries\data\json
+2026-07-15 13:06:00,335 - app - INFO - app.py:212 - LOGS_DIR: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs
+2026-07-15 13:06:00,335 - app - INFO - app.py:239 - Starting log file cleanup. Keeping files for 30 days.
+2026-07-15 13:06:00,335 - app - INFO - app.py:256 - Log cleanup completed. Deleted 0 old log files.
+2026-07-15 13:06:00,336 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data
+2026-07-15 13:06:00,336 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data\json
+2026-07-15 13:06:00,336 - app - DEBUG - app.py:234 - Directory already exists: D:\Siri-apps\billing-app\src-tauri\binaries\data\logs
+2026-07-15 13:06:00,336 - app - INFO - app.py:82 - Enhanced sync manager initialized
+2026-07-15 13:06:00,338 - app - INFO - app.py:85 - Background sync scheduler started
+2026-07-15 13:06:03,609 - app - INFO - app.py:267 - Initial data export from Supabase completed successfully.
+2026-07-15 13:06:03,609 - app - INFO - app.py:278 - Starting Flask server on port 8080 (debug=True)
+2026-07-15 13:06:07,930 - app - INFO - app.py:114 - Incoming Request: Method=GET, Path=/health, Origin=None
+2026-07-15 13:06:08,986 - app - INFO - app.py:114 - Incoming Request: Method=GET, Path=/api/notifications, Origin=http://tauri.localhost
+2026-07-15 13:06:21,499 - app - INFO - app.py:114 - Incoming Request: Method=POST, Path=/api/shutdown, Origin=None
+2026-07-15 13:06:21,499 - app - INFO - app.py:151 - Shutdown request received from frontend
+2026-07-15 13:06:21,499 - app - INFO - app.py:164 - werkzeug.server.shutdown not available, using fallback exit

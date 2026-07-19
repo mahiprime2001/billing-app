@@ -1,0 +1,97 @@
+[
+  {
+    "id": 1,
+    "timestamp": "2026-07-15T13:03:19.013176",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "error",
+        "message": "{'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': \"b'no available server\\\\n'\"}"
+      },
+      "timestamp": "2026-07-15T13:03:19.013176"
+    }
+  },
+  {
+    "id": 2,
+    "timestamp": "2026-07-15T13:03:24.487882",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "error",
+        "message": "{'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': \"b'no available server\\\\n'\"}"
+      },
+      "timestamp": "2026-07-15T13:03:24.487882"
+    }
+  },
+  {
+    "id": 3,
+    "timestamp": "2026-07-15T13:04:59.547879",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "error",
+        "message": "{'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': \"b'no available server\\\\n'\"}"
+      },
+      "timestamp": "2026-07-15T13:04:59.547879"
+    }
+  },
+  {
+    "id": 4,
+    "timestamp": "2026-07-15T13:05:55.544482",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "error",
+        "message": "{'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': \"b'no available server\\\\n'\"}"
+      },
+      "timestamp": "2026-07-15T13:05:55.544482"
+    }
+  },
+  {
+    "id": 5,
+    "timestamp": "2026-07-15T13:06:01.087241",
+    "eventType": "scheduled_sync",
+    "status": "completed",
+    "details": {
+      "push": {
+        "status": "success",
+        "message": "No pending logs",
+        "processed": 0,
+        "failed": 0
+      },
+      "pull": {
+        "status": "error",
+        "message": "{'message': 'JSON could not be generated', 'code': 503, 'hint': 'Refer to full message for details', 'details': \"b'no available server\\\\n'\"}"
+      },
+      "timestamp": "2026-07-15T13:06:01.086241"
+    }
+  }
+]
