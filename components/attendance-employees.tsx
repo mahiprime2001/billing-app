@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   addMonths,
   endOfMonth,
@@ -299,6 +299,53 @@ export default function AttendanceEmployees({
     loadData()
   }, [loadData])
 
+  // ---- live updates (Supabase Realtime, no polling) ----
+  // The subscription only needs to resubscribe when the store changes, but
+  // it must always call the *current* loadData (bound to the current date
+  // filters) — a ref keeps that current without retriggering the effect.
+  const loadDataRef = useRef(loadData)
+  useEffect(() => {
+    loadDataRef.current = loadData
+  }, [loadData])
+
+  useEffect(() => {
+    if (!storeId) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    // Collapses a burst of rapid-fire events (e.g. a phone that was offline
+    // dumping many queued records at once) into a single reload.
+    const debouncedReload = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => loadDataRef.current(), 600)
+    }
+    const channel = supabase
+      .channel(`attendance-store-${storeId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance_records",
+          filter: `store_id=eq.${storeId}`,
+        },
+        debouncedReload
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance_employees",
+          filter: `store_id=eq.${storeId}`,
+        },
+        debouncedReload
+      )
+      .subscribe()
+    return () => {
+      clearTimeout(timer)
+      supabase.removeChannel(channel)
+    }
+  }, [storeId])
+
   // ---- employee management ----
 
   const addEmployee = async () => {
@@ -403,14 +450,40 @@ export default function AttendanceEmployees({
     if (devicesOpen) loadDevices()
   }, [devicesOpen, loadDevices])
 
-  const genCode = (): string => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    let code = ""
-    for (let i = 0; i < 8; i++) {
-      code += chars[Math.floor(Math.random() * chars.length)]
-      if (i === 3) code += "-"
+  const loadDevicesRef = useRef(loadDevices)
+  useEffect(() => {
+    loadDevicesRef.current = loadDevices
+  }, [loadDevices])
+
+  useEffect(() => {
+    if (!devicesOpen || !storeId) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const debouncedReload = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => loadDevicesRef.current(), 600)
     }
-    return code
+    const channel = supabase
+      .channel(`attendance-devices-${storeId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance_devices",
+          filter: `store_id=eq.${storeId}`,
+        },
+        debouncedReload
+      )
+      .subscribe()
+    return () => {
+      clearTimeout(timer)
+      supabase.removeChannel(channel)
+    }
+  }, [devicesOpen, storeId])
+
+  const genCode = (): string => {
+    // Simple 6-digit code — quick to type on a phone's numpad.
+    return String(Math.floor(100000 + Math.random() * 900000))
   }
 
   const createDevice = async () => {
