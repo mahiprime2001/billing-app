@@ -37,6 +37,10 @@ import {
   Clock,
   Gauge,
   ChevronRight,
+  X,
+  Minus,
+  Plus,
+  Trash2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -203,6 +207,14 @@ function StoreAuditView() {
     router.push(`/dashboard/audit/summary?auditId=${encodeURIComponent(record.id)}`)
   }
 
+  const cancelAudit = () => {
+    if (!window.confirm("Cancel this audit? Any progress will be discarded.")) return
+    clearDraft(storeId)
+    setHasSavedDraft(false)
+    setMode(null)
+    setTab("overview")
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground">
@@ -314,6 +326,7 @@ function StoreAuditView() {
               baseItems={baseItems}
               catalogByBarcode={catalogByBarcode}
               onSaved={handleAuditSaved}
+              onCancel={cancelAudit}
             />
           ) : (
             <Card>
@@ -509,6 +522,7 @@ function ScanPanel({
   baseItems,
   catalogByBarcode,
   onSaved,
+  onCancel,
 }: {
   storeId: string
   store: StoreType | null
@@ -516,6 +530,7 @@ function ScanPanel({
   baseItems: LiveItem[]
   catalogByBarcode: React.MutableRefObject<Map<string, any>>
   onSaved: (record: AuditRecord) => void
+  onCancel: () => void
 }) {
   // Seed from draft (resume) or from base inventory (fresh).
   const seed = useMemo(() => {
@@ -591,9 +606,10 @@ function ScanPanel({
         setRightItems((prev) => [{ ...item, countedQty: nextCount }, ...prev])
         setLastScan({ text: `Verified: ${item.name}`, tone: "ok" })
       } else {
-        setLeftItems((prev) =>
-          prev.map((it, i) => (i === leftIdx ? { ...it, countedQty: nextCount } : it)),
-        )
+        setLeftItems((prev) => [
+          { ...item, countedQty: nextCount },
+          ...prev.filter((_, i) => i !== leftIdx),
+        ])
         setLastScan({ text: `${item.name} — ${nextCount}/${item.systemQty || "?"}`, tone: "ok" })
       }
       focusScan()
@@ -676,24 +692,87 @@ function ScanPanel({
     const scannedUnits =
       rightItems.reduce((s, it) => s + it.countedQty, 0) +
       leftItems.reduce((s, it) => s + it.countedQty, 0)
+    const countedValue =
+      rightItems.reduce((s, it) => s + it.price * it.countedQty, 0) +
+      leftItems.reduce((s, it) => s + it.price * it.countedQty, 0)
     return {
       verifiedLines: rightItems.length,
       missingLines: missing.length,
       foundLines: found.length,
       scannedUnits,
+      countedValue,
     }
   }, [leftItems, rightItems])
+
+  // Clicking a left card = manually verify one unit of that product (same effect as scanning it).
+  const selectLeftItem = (idx: number) => {
+    const item = leftItems[idx]
+    if (!item) return
+    const nextCount = item.countedQty + 1
+    if (!item.unexpected && nextCount >= item.systemQty) {
+      setLeftItems((prev) => prev.filter((_, i) => i !== idx))
+      setRightItems((prev) => [{ ...item, countedQty: nextCount }, ...prev])
+      setLastScan({ text: `Verified: ${item.name}`, tone: "ok" })
+    } else {
+      setLeftItems((prev) => [
+        { ...item, countedQty: nextCount },
+        ...prev.filter((_, i) => i !== idx),
+      ])
+      setLastScan({ text: `${item.name} — ${nextCount}/${item.systemQty || "?"}`, tone: "ok" })
+    }
+  }
+
+  // Close on a verified card = un-verify it entirely, sending it back to the left panel to recount.
+  const removeRightItem = (idx: number) => {
+    const item = rightItems[idx]
+    if (!item) return
+    setRightItems((prev) => prev.filter((_, i) => i !== idx))
+    setLeftItems((prev) => [{ ...item, countedQty: 0 }, ...prev])
+    setLastScan({ text: `Unverified: ${item.name}`, tone: "warn" })
+  }
+
+  // Clears every card from the verified (right) panel — sent back left to recount, none deleted.
+  const clearAllRight = () => {
+    if (rightItems.length === 0) return
+    const ok = window.confirm(
+      `Un-verify all ${rightItems.length} item${rightItems.length === 1 ? "" : "s"}? They will be sent back to the system list to recount.`,
+    )
+    if (!ok) return
+    setLeftItems((prev) => [...rightItems.map((it) => ({ ...it, countedQty: 0 })), ...prev])
+    setRightItems([])
+    setLastScan({ text: "Cleared all verified items", tone: "warn" })
+  }
+
+  // +/- on a verified card manually adjusts its counted qty; dropping below the expected qty sends it back left.
+  const adjustRightQty = (idx: number, delta: number) => {
+    const item = rightItems[idx]
+    if (!item) return
+    const nextCount = Math.max(0, item.countedQty + delta)
+    if (nextCount < item.systemQty) {
+      setRightItems((prev) => prev.filter((_, i) => i !== idx))
+      setLeftItems((prev) => [{ ...item, countedQty: nextCount }, ...prev])
+      setLastScan({ text: `${item.name} — ${nextCount}/${item.systemQty}`, tone: "warn" })
+    } else {
+      setRightItems((prev) => prev.map((it, i) => (i === idx ? { ...it, countedQty: nextCount } : it)))
+      setLastScan(
+        nextCount > item.systemQty
+          ? { text: `Over-count: ${item.name}`, tone: "warn" }
+          : { text: `Verified: ${item.name}`, tone: "ok" },
+      )
+    }
+  }
 
   return (
     <div className="space-y-5">
       {/* Live stats */}
       <Card>
         <CardContent className="py-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">
             <Stat icon={ScanLine} label="Scanned units" value={stats.scannedUnits} />
             <Stat icon={CheckCircle2} label="Verified" value={stats.verifiedLines} tone="ok" />
             <Stat icon={AlertTriangle} label="Remaining" value={stats.missingLines} tone="warn" />
             <Stat icon={Sparkles} label="Newly found" value={stats.foundLines} tone="found" />
+            <Stat icon={IndianRupee} label="Counted value" value={`₹${formatCurrency(stats.countedValue)}`} />
           </div>
         </CardContent>
       </Card>
@@ -733,6 +812,9 @@ function ScanPanel({
               )}
               Done the audit
             </Button>
+            <Button variant="destructive" onClick={onCancel} disabled={isSaving}>
+              <X className="h-4 w-4 mr-1" /> Cancel
+            </Button>
           </div>
           {lastScan && (
             <p
@@ -753,24 +835,43 @@ function ScanPanel({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Panel
           title="In store (system)"
-          subtitle="Expected — missing items stay here. Green = newly found, not in system."
+          subtitle="Expected — tap a card to count one unit. Green = newly found, not in system."
           count={leftItems.length}
           empty="All expected products verified."
         >
           {leftItems.map((it, i) => (
-            <ItemRow key={`${it.productId}-${i}`} item={it} side="left" />
+            <ItemRow
+              key={`${it.productId}-${i}`}
+              item={it}
+              side="left"
+              onSelect={() => selectLeftItem(i)}
+            />
           ))}
         </Panel>
 
         <Panel
           title="Verified (rescanned)"
-          subtitle="Products confirmed physically present."
+          subtitle="Products confirmed physically present. Adjust qty or close to un-verify."
           count={rightItems.length}
           tone="ok"
           empty="Scan products to verify them."
+          action={
+            rightItems.length > 0 && (
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearAllRight}>
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear all
+              </Button>
+            )
+          }
         >
           {rightItems.map((it, i) => (
-            <ItemRow key={`${it.productId}-${i}`} item={it} side="right" />
+            <ItemRow
+              key={`${it.productId}-${i}`}
+              item={it}
+              side="right"
+              onRemove={() => removeRightItem(i)}
+              onIncrement={() => adjustRightQty(i, 1)}
+              onDecrement={() => adjustRightQty(i, -1)}
+            />
           ))}
         </Panel>
       </div>
@@ -863,6 +964,7 @@ function Panel({
   count,
   tone,
   empty,
+  action,
   children,
 }: {
   title: string
@@ -870,15 +972,19 @@ function Panel({
   count: number
   tone?: "ok"
   empty: string
+  action?: React.ReactNode
   children: React.ReactNode
 }) {
   const isEmpty = Array.isArray(children) ? children.length === 0 : !children
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base">{title}</CardTitle>
-          <Badge variant={tone === "ok" ? "default" : "secondary"}>{count}</Badge>
+          <div className="flex items-center gap-2">
+            {action}
+            <Badge variant={tone === "ok" ? "default" : "secondary"}>{count}</Badge>
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </CardHeader>
@@ -893,17 +999,26 @@ function Panel({
   )
 }
 
-function ItemRow({ item, side }: { item: LiveItem; side: "left" | "right" }) {
+function ItemRow({
+  item,
+  side,
+  onSelect,
+  onRemove,
+  onIncrement,
+  onDecrement,
+}: {
+  item: LiveItem
+  side: "left" | "right"
+  onSelect?: () => void
+  onRemove?: () => void
+  onIncrement?: () => void
+  onDecrement?: () => void
+}) {
   const isShort = side === "left" && !item.unexpected && item.countedQty < item.systemQty
   const isOver = side === "right" && item.countedQty > item.systemQty
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-3 rounded-md border px-3 py-2",
-        item.unexpected && "border-green-500/40 bg-green-50",
-        side === "right" && "border-emerald-500/30 bg-emerald-50/40",
-      )}
-    >
+
+  const body = (
+    <>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium" title={item.name}>
           {item.name}
@@ -917,13 +1032,80 @@ function ItemRow({ item, side }: { item: LiveItem; side: "left" | "right" }) {
           {item.barcode || "—"}
         </div>
       </div>
-      <div className="text-right text-sm tabular-nums">
-        <div className={cn(isOver && "text-amber-600", isShort && "text-amber-600", "font-semibold")}>
-          {item.countedQty}
-          {!item.unexpected && <span className="text-muted-foreground"> / {item.systemQty}</span>}
+      {side === "left" ? (
+        <div className="text-right text-sm tabular-nums">
+          <div className={cn(isShort && "text-amber-600", "font-semibold")}>
+            {item.countedQty}
+            {!item.unexpected && <span className="text-muted-foreground"> / {item.systemQty}</span>}
+          </div>
+          <div className="text-[11px] text-muted-foreground">₹{formatCurrency(item.price)}</div>
         </div>
-        <div className="text-[11px] text-muted-foreground">₹{formatCurrency(item.price)}</div>
-      </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDecrement?.()
+              }}
+              className="flex h-6 w-6 items-center justify-center rounded border text-muted-foreground hover:bg-muted"
+              aria-label="Decrease quantity"
+            >
+              <Minus className="h-3 w-3" />
+            </button>
+            <div className={cn("w-10 text-center text-sm font-semibold tabular-nums", isOver && "text-amber-600")}>
+              {item.countedQty}
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onIncrement?.()
+              }}
+              className="flex h-6 w-6 items-center justify-center rounded border text-muted-foreground hover:bg-muted"
+              aria-label="Increase quantity"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </div>
+          <div className="text-[11px] text-muted-foreground w-14 text-right">₹{formatCurrency(item.price)}</div>
+        </div>
+      )}
+    </>
+  )
+
+  if (side === "left") {
+    return (
+      <button
+        type="button"
+        onClick={onSelect}
+        className={cn(
+          "flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors hover:border-primary/50 hover:bg-muted/40 active:bg-muted/60",
+          item.unexpected && "border-green-500/40 bg-green-50",
+        )}
+      >
+        {body}
+      </button>
+    )
+  }
+
+  return (
+    <div
+      className={cn(
+        "relative flex items-center justify-between gap-3 rounded-md border px-3 py-2 pr-8",
+        "border-emerald-500/30 bg-emerald-50/40",
+      )}
+    >
+      {body}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        aria-label="Remove from verified"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
     </div>
   )
 }
