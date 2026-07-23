@@ -198,27 +198,41 @@ async fn install_update(app_handle: AppHandle) -> Result<String, String> {
                     }
                     Err(e) => {
                         error!("[install_update] Failed: {}", e);
-                        SETUP_READY.store(true, Ordering::SeqCst);
+                        restart_backend_after_aborted_update(&app_handle);
                         return Err(format!("Failed to download/install update: {}", e));
                     }
                 }
             }
             Ok(None) => {
-                SETUP_READY.store(true, Ordering::SeqCst);
+                restart_backend_after_aborted_update(&app_handle);
                 return Ok("No update available.".into());
             }
             Err(e) => {
-                SETUP_READY.store(true, Ordering::SeqCst);
+                restart_backend_after_aborted_update(&app_handle);
                 return Err(format!("Update check failed: {}", e));
             }
         },
         Err(e) => {
-            SETUP_READY.store(true, Ordering::SeqCst);
+            restart_backend_after_aborted_update(&app_handle);
             return Err(format!("Updater error: {}", e));
         }
     }
 
     Ok("Update complete.".into())
+}
+
+// The kill+cleanup at the top of install_update runs before we even know if
+// there's an update to apply, so every early-return path above (no update,
+// check failed, download/install failed) has already stopped the backend.
+// Reopen the spawn gate and bring it back up in the background so a failed
+// or skipped update doesn't strand the app with a dead backend.
+fn restart_backend_after_aborted_update(app_handle: &AppHandle) {
+    SETUP_READY.store(true, Ordering::SeqCst);
+    info!("[install_update] Update aborted — restarting backend that was stopped for it");
+    let handle = app_handle.clone();
+    tauri::async_runtime::spawn(async move {
+        spawn_backend_with_retry(handle).await;
+    });
 }
 
 // ============================================================================
