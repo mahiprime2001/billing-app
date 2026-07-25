@@ -419,7 +419,34 @@ export default function AttendanceEmployees({
       .update({ status: next })
       .eq("id", emp.id)
     if (err) setError(err.message)
+    else if (next === "disabled") await autoCloseOpenSession(emp)
     await loadData()
+  }
+
+  /** Disabling blocks the kiosk from ever letting them post the matching
+   * OUT, so a mid-shift disable would otherwise leave them "Still in"
+   * forever and trip up the next scan after re-enabling (the app would ask
+   * them to confirm leaving instead of starting a fresh IN). Closing the
+   * session right here keeps history honest and re-enabling clean. */
+  const autoCloseOpenSession = async (emp: AttendanceEmployeeRow) => {
+    const todayStart = `${todayKey()}T00:00:00`
+    const { data } = await supabase
+      .from("attendance_records")
+      .select("id, type, store_id")
+      .eq("employee_id", emp.id)
+      .gte("ts", todayStart)
+      .order("ts", { ascending: false })
+      .limit(1)
+    const last = data?.[0] as { type: string; store_id: string } | undefined
+    if (!last || last.type !== "in") return
+    await supabase.from("attendance_records").insert({
+      id: crypto.randomUUID(),
+      employee_id: emp.id,
+      store_id: last.store_id,
+      device_id: null,
+      type: "out",
+      ts: new Date().toISOString(),
+    })
   }
 
   const deleteEmployee = async (emp: AttendanceEmployeeRow) => {
