@@ -60,6 +60,7 @@ import {
   LogIn,
   LogOut,
   MoreVertical,
+  Navigation,
   Plus,
   RefreshCcw,
   ScanFace,
@@ -96,6 +97,7 @@ interface AttendanceEmployeeRow {
   enroll_status: string // pending | enrolled
   photo_url: string | null
   created_at: string | null
+  is_roaming: boolean // can mark attendance at any store, not just store_id
 }
 
 interface AttendanceRecord {
@@ -271,10 +273,12 @@ export default function AttendanceEmployees({
     setError(null)
     try {
       const [empRes, recRes] = await Promise.all([
+        // Roaming employees (e.g. an auditor) show up at every store they
+        // can actually mark attendance at, not just their home store.
         supabase
           .from("attendance_employees")
-          .select("id, store_id, name, status, enroll_status, photo_url, created_at")
-          .eq("store_id", storeId)
+          .select("id, store_id, name, status, enroll_status, photo_url, created_at, is_roaming")
+          .or(`store_id.eq.${storeId},is_roaming.eq.true`)
           .order("name", { ascending: true }),
         supabase
           .from("attendance_records")
@@ -381,6 +385,23 @@ export default function AttendanceEmployees({
     const { error: err } = await supabase
       .from("attendance_employees")
       .update({ enroll_status: "pending", face_embeddings: null })
+      .eq("id", emp.id)
+    if (err) setError(err.message)
+    await loadData()
+  }
+
+  const toggleRoaming = async (emp: AttendanceEmployeeRow) => {
+    const next = !emp.is_roaming
+    if (
+      next &&
+      !confirm(
+        `Make ${emp.name} roaming? They'll be able to mark attendance at every store's phone, not just this one — useful for auditors who visit multiple shops.`
+      )
+    )
+      return
+    const { error: err } = await supabase
+      .from("attendance_employees")
+      .update({ is_roaming: next })
       .eq("id", emp.id)
     if (err) setError(err.message)
     await loadData()
@@ -689,7 +710,19 @@ export default function AttendanceEmployees({
     const today = todayKey()
     const stripDate = singleDay ? fromKey : today
 
-    return employees.map((emp) => {
+    return employees
+      .filter((emp) => {
+        // A roaming employee only shows up at a store other than their home
+        // store once they've actually scanned there — they're not
+        // "assigned" to every shop, so no point listing them with nothing
+        // but leaves.
+        if (emp.is_roaming && emp.store_id !== storeId) {
+          return (byEmp.get(emp.id) ?? []).length > 0
+        }
+        return true
+      })
+      .map((emp) => {
+      const awayFromHome = emp.is_roaming && emp.store_id !== storeId
       const recs = byEmp.get(emp.id) ?? []
       const dayMap = new Map<string, EmpDay>()
       for (const r of recs) {
@@ -740,6 +773,9 @@ export default function AttendanceEmployees({
               86_400_000
           ) + 1
       }
+      // Away from home, only the days they actually showed up count — no
+      // absence tracking for a store they're not permanently assigned to.
+      if (awayFromHome) totalDays = days.length
       const leaves = Math.max(0, totalDays - days.length)
 
       const stripDay = days.find((d) => d.date === stripDate) ?? null
@@ -779,7 +815,7 @@ export default function AttendanceEmployees({
   const selectedStore = stores.find((s) => s.id === storeId)
 
   const presentCount = summaries.filter((s) => s.daysPresent > 0).length
-  const activeCount = employees.filter((e) => e.status === "active").length
+  const activeCount = summaries.filter((s) => s.emp.status === "active").length
   const stillInCount = rangeIncludesToday
     ? summaries.filter((s) => s.stillIn).length
     : 0
@@ -1101,6 +1137,12 @@ export default function AttendanceEmployees({
                         <ScanFace className="h-3 w-3" />
                         {s.emp.enroll_status === "enrolled" ? "Enrolled" : "No face yet"}
                       </Badge>
+                      {s.emp.is_roaming && (
+                        <Badge variant="outline" className="gap-1 text-[10px] text-sky-600">
+                          <Navigation className="h-3 w-3" />
+                          Roaming
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <DropdownMenu>
@@ -1123,6 +1165,10 @@ export default function AttendanceEmployees({
                           Re-enroll face
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuItem onClick={() => toggleRoaming(s.emp)}>
+                        <Navigation className="mr-2 h-4 w-4" />
+                        {s.emp.is_roaming ? "Remove roaming" : "Make roaming"}
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => toggleEmployee(s.emp)}>
                         {s.emp.status === "active" ? (
                           <>
@@ -1263,6 +1309,12 @@ export default function AttendanceEmployees({
                             ? "Face enrolled"
                             : "Waiting for face scan"}
                         </Badge>
+                        {selected.emp.is_roaming && (
+                          <Badge variant="outline" className="gap-1 text-[10px] text-sky-600">
+                            <Navigation className="h-3 w-3" />
+                            Roaming
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <Badge variant="outline" className="ml-auto shrink-0 font-normal">
