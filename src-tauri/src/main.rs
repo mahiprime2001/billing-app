@@ -5,13 +5,11 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use once_cell::sync::Lazy;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, AppHandle, WindowEvent};
-use tauri_plugin_shell::process::CommandEvent;
 use warp::Filter;
 use serde::{Deserialize, Serialize};
 use log::{info, error, warn, debug};
 use std::path::PathBuf;
 use std::fs;
-use tauri_plugin_shell::ShellExt;
 use tauri_plugin_updater::UpdaterExt;
 use tauri_plugin_log::{Target, TargetKind};
 
@@ -732,6 +730,38 @@ fn kill_all_backend_processes() {
     }
 }
 
+// PyInstaller onedir output: an exe plus a sibling `_internal` folder it
+// needs at runtime. Bundled as a plain `resources` entry (not `externalBin`
+// sidecar — Tauri's sidecar mechanism only copies a single file, which can't
+// carry `_internal` along with it).
+const BACKEND_RELATIVE_EXE: &str = "binaries/Siriadmin-backend/Siriadmin-backend-x86_64-pc-windows-msvc.exe";
+
+fn resolve_backend_exe_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
+    // Packaged app: resources are copied verbatim under the resource dir,
+    // so the exe and its `_internal` folder land together, same as in dev.
+    if let Ok(resolved) = app_handle
+        .path()
+        .resolve(BACKEND_RELATIVE_EXE, tauri::path::BaseDirectory::Resource)
+    {
+        if resolved.exists() {
+            return Ok(resolved);
+        }
+    }
+
+    // Dev mode (`tauri dev` / `cargo run`): nothing has been bundled yet, so
+    // fall back to the source location directly. CARGO_MANIFEST_DIR is baked
+    // in at compile time and always points at src-tauri/.
+    let dev_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(BACKEND_RELATIVE_EXE);
+    if dev_path.exists() {
+        return Ok(dev_path);
+    }
+
+    Err(format!(
+        "Backend executable not found via resource resolution or at dev path {}",
+        dev_path.display()
+    ))
+}
+
 fn spawn_sidecar(app_handle: &AppHandle) -> Result<(), String> {
     if BACKEND_SPAWNING.load(Ordering::SeqCst) {
         warn!("[spawn_sidecar] Already spawning, skipping duplicate");
@@ -743,78 +773,94 @@ fn spawn_sidecar(app_handle: &AppHandle) -> Result<(), String> {
     PYINSTALLER_TEMP_ERROR.store(false, Ordering::SeqCst);
     BACKEND_SPAWNING.store(true, Ordering::SeqCst);
 
-    info!("[spawn_sidecar] Creating sidecar command for Siriadmin-backend...");
-    let cmd = match app_handle.shell().sidecar("Siriadmin-backend") {
-        Ok(cmd) => {
-            info!("[spawn_sidecar] Command created");
-            cmd
-        }
+    let exe_path = match resolve_backend_exe_path(app_handle) {
+        Ok(p) => p,
         Err(e) => {
             BACKEND_SPAWNING.store(false, Ordering::SeqCst);
-            error!("[spawn_sidecar] Failed: {} — check tauri.conf.json bundle.externalBin", e);
-            return Err(format!("Failed to create sidecar command: {}", e));
+            error!("[spawn_sidecar] {} — check tauri.conf.json bundle.resources", e);
+            return Err(e);
         }
     };
+    info!("[spawn_sidecar] Resolved backend exe: {}", exe_path.display());
 
     let temp_path = std::env::temp_dir();
-    let temp_str = temp_path.to_str().unwrap_or("C:\\Windows\\Temp");
+    let temp_str = temp_path.to_str().unwrap_or("C:\\Windows\\Temp").to_string();
     info!("[spawn_sidecar] Spawning with TEMP/TMP={}", temp_str);
 
-    let (mut rx, child) = match cmd.env("TEMP", temp_str).env("TMP", temp_str).spawn() {
-        Ok(r) => r,
+    let mut command = tokio::process::Command::new(&exe_path);
+    command
+        .env("TEMP", &temp_str)
+        .env("TMP", &temp_str)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = match command.spawn() {
+        Ok(c) => c,
         Err(e) => {
             BACKEND_SPAWNING.store(false, Ordering::SeqCst);
             error!("[spawn_sidecar] Spawn failed: {}", e);
-            return Err(format!("Failed to spawn sidecar: {}", e));
+            return Err(format!("Failed to spawn backend: {}", e));
         }
     };
 
-    let pid = child.pid();
-    info!("[spawn_sidecar] Sidecar running with PID: {}", pid);
+    let pid = child.id().unwrap_or(0);
+    info!("[spawn_sidecar] Backend running with PID: {}", pid);
     *BACKEND_PID.lock().unwrap() = Some(pid);
 
+    if let Some(stdout) = child.stdout.take() {
+        tauri::async_runtime::spawn(async move {
+            use tokio::io::{AsyncBufReadExt, BufReader};
+            let mut lines = BufReader::new(stdout).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                info!("[sidecar PID={}] stdout: {}", pid, line);
+            }
+        });
+    }
+
+    if let Some(stderr) = child.stderr.take() {
+        tauri::async_runtime::spawn(async move {
+            use tokio::io::{AsyncBufReadExt, BufReader};
+            let mut lines = BufReader::new(stderr).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                // Detect PyInstaller temp dir failure before logging
+                if line.contains("Could not create temporary directory") {
+                    error!(
+                        "[sidecar PID={}] PyInstaller temp dir error — \
+                         will run cleanup before next retry",
+                        pid
+                    );
+                    PYINSTALLER_TEMP_ERROR.store(true, Ordering::SeqCst);
+                } else {
+                    // Flask/Gunicorn write normal INFO to stderr — shown as
+                    // ERROR level so it's easy to spot in the log file
+                    error!("[sidecar PID={}] stderr: {}", pid, line);
+                }
+            }
+        });
+    }
+
     tauri::async_runtime::spawn(async move {
-        info!("[sidecar PID={}] Output monitor started", pid);
-        while let Some(event) = rx.recv().await {
-            match event {
-                CommandEvent::Stdout(line) => {
-                    info!("[sidecar PID={}] stdout: {}", pid, String::from_utf8_lossy(&line));
+        match child.wait().await {
+            Ok(status) => {
+                let code = status.code().unwrap_or(-1);
+                if code == 0 {
+                    info!("[sidecar PID={}] exited cleanly (code 0)", pid);
+                } else {
+                    error!("[sidecar PID={}] exited with code {} — check stderr above", pid, code);
                 }
-                CommandEvent::Stderr(line) => {
-                    let text = String::from_utf8_lossy(&line);
-                    // Detect PyInstaller temp dir failure before logging
-                    if text.contains("Could not create temporary directory") {
-                        error!(
-                            "[sidecar PID={}] PyInstaller temp dir error — \
-                             will run cleanup before next retry",
-                            pid
-                        );
-                        PYINSTALLER_TEMP_ERROR.store(true, Ordering::SeqCst);
-                    } else {
-                        // Flask/Gunicorn write normal INFO to stderr — shown as
-                        // ERROR level so it's easy to spot in the log file
-                        error!("[sidecar PID={}] stderr: {}", pid, text);
-                    }
-                }
-                CommandEvent::Error(err) => {
-                    error!("[sidecar PID={}] process error: {}", pid, err);
-                }
-                CommandEvent::Terminated(payload) => {
-                    let code = payload.code.unwrap_or(-1);
-                    if code == 0 {
-                        info!("[sidecar PID={}] exited cleanly (code 0)", pid);
-                    } else {
-                        error!("[sidecar PID={}] exited with code {} — check stderr above", pid, code);
-                    }
-                    LAST_EXIT_CODE.store(code as i32, Ordering::SeqCst);
-                    BACKEND_SPAWNING.store(false, Ordering::SeqCst);
-                    *BACKEND_PID.lock().unwrap() = None;
-                }
-                _ => {}
+                LAST_EXIT_CODE.store(code, Ordering::SeqCst);
+            }
+            Err(e) => {
+                error!("[sidecar PID={}] wait() failed: {}", pid, e);
             }
         }
-        warn!("[sidecar PID={}] output stream closed", pid);
         BACKEND_SPAWNING.store(false, Ordering::SeqCst);
+        *BACKEND_PID.lock().unwrap() = None;
     });
 
     Ok(())

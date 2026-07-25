@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 import logging
 import threading
 import time
-from services import bills_service
+from services import bills_service, products_service
 import utils.supabase_circuit as supabase_circuit
 
 logger = logging.getLogger(__name__)
@@ -168,6 +168,13 @@ def get_bills_summary():
         to_date = request.args.get("to")
         store_id = request.args.get("storeId") or request.args.get("store_id")
 
+        cache_key = "summary:" + _bills_cache_key(
+            {"from": from_date or "", "to": to_date or "", "storeId": store_id or ""}
+        )
+        cached = _get_bills_cache(cache_key, allow_stale=False)
+        if cached is not None:
+            return jsonify(cached), 200
+
         result = bills_service.get_bills_paginated(
             page=1,
             page_size=1_000_000,
@@ -212,15 +219,85 @@ def get_bills_summary():
                 today_count += 1
                 today_revenue += amount
 
-        return jsonify({
+        payload = {
             "totalCount": active_total_count,
             "totalRevenue": total_revenue,
             "todayCount": today_count,
             "todayRevenue": today_revenue,
-        }), 200
+        }
+        _set_bills_cache(cache_key, payload)
+        return jsonify(payload), 200
     except Exception as e:
         logger.error(f"Error computing bills summary: {e}", exc_info=True)
         return jsonify({"error": "Failed to compute bills summary"}), 500
+
+
+@bills_bp.route("/dashboard/summary", methods=["GET"])
+@bills_bp.route("/dashboard/summary/", methods=["GET"])
+def get_dashboard_summary():
+    """
+    Everything the dashboard landing page's tiles need in one lightweight,
+    cached call: revenue/bill counts, product counts, recent bills, and top
+    sellers. Replaces the old pattern of downloading every bill (with full
+    item/product/replacement joins) and the entire product catalog just to
+    derive ~10 numbers and two 5-row lists in the browser.
+    """
+    from datetime import datetime
+
+    try:
+        cache_key = "dashboard:summary"
+        cached = _get_bills_cache(cache_key, allow_stale=False)
+        if cached is not None:
+            return jsonify(cached), 200
+
+        summary_result = bills_service.get_bills_paginated(
+            page=1, page_size=1_000_000, include_details=False,
+        )
+        bills = (summary_result or {}).get("data") or []
+
+        today_key = datetime.now().strftime("%Y-%m-%d")
+        total_count = 0
+        total_revenue = 0.0
+        today_count = 0
+        today_revenue = 0.0
+        for bill in bills:
+            if str(bill.get("status") or "").strip().lower() in {"cancelled", "canceled", "void", "voided"}:
+                continue
+            total_count += 1
+            is_repl = bool(bill.get("isReplacement") or bill.get("is_replacement"))
+            repl_raw = bill.get("replacementFinalAmount", bill.get("replacement_final_amount"))
+            try:
+                repl_amt = float(repl_raw)
+            except (TypeError, ValueError):
+                repl_amt = None
+            amount = max(0.0, repl_amt) if (is_repl and repl_amt is not None) else float(bill.get("total") or 0)
+            total_revenue += amount
+            raw_date = bill.get("date") or bill.get("timestamp") or bill.get("created_at") or bill.get("createdAt") or ""
+            if str(raw_date)[:10] == today_key:
+                today_count += 1
+                today_revenue += amount
+
+        recent_result = bills_service.get_bills_paginated(page=1, page_size=5, include_details=True)
+        recent_bills = (recent_result or {}).get("data") or []
+
+        products_count = products_service.get_products_count_summary()
+        top_products = products_service.get_top_selling_products(limit=5)
+
+        payload = {
+            "totalRevenue": total_revenue,
+            "totalBills": total_count,
+            "todayCount": today_count,
+            "todayRevenue": today_revenue,
+            "totalProducts": products_count.get("total", 0),
+            "lowStockProducts": products_count.get("lowStock", 0),
+            "recentBills": recent_bills,
+            "topProducts": top_products,
+        }
+        _set_bills_cache(cache_key, payload)
+        return jsonify(payload), 200
+    except Exception as e:
+        logger.error(f"Error computing dashboard summary: {e}", exc_info=True)
+        return jsonify({"error": "Failed to compute dashboard summary"}), 500
 
 
 @bills_bp.route("/bills", methods=["GET"])

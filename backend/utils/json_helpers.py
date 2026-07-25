@@ -52,6 +52,19 @@ def _safe_json_dump(path: str, data: Any) -> bool:
     Returns:
         True if successful, False otherwise
     """
+    # Many callers refresh this file on every GET request (re-syncing a local
+    # cache from Supabase) even when nothing changed. Skip the write — and the
+    # fsync + os.replace it costs — when the content is identical to what's
+    # already on disk; a read + equality check is far cheaper than a write.
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8-sig') as f:
+                existing = json.load(f)
+            if existing == data:
+                return True
+        except Exception:
+            pass  # Fall through and write normally if we can't tell.
+
     # Only create directory if parent doesn't exist
     parent_dir = os.path.dirname(path)
     if not os.path.exists(parent_dir):
@@ -61,7 +74,7 @@ def _safe_json_dump(path: str, data: Any) -> bool:
         except Exception as e:
             logger.error(f"Failed to create directory {parent_dir}: {e}")
             return False
-    
+
     # Atomic write: serialize to a temp file, fsync, then os.replace. This
     # guarantees readers never see a half-written/truncated file (which a crash
     # mid-write would otherwise leave behind and corrupt the local cache).

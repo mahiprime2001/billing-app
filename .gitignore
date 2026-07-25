@@ -1,6 +1,7 @@
 node_modules
 .next/
 !src-tauri/
+src-tauri/binaries/Siriadmin-backend/
 backend/.venv
 backend/__pycache__/
 backend/dist/

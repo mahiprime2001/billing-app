@@ -62,9 +62,9 @@
       "icons/icon.ico",
       "icons/icon.png"
     ],
-    "externalBin": [
-      "binaries/Siriadmin-backend"
-    ],
+    "resources": {
+      "binaries/Siriadmin-backend": "binaries/Siriadmin-backend"
+    },
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",

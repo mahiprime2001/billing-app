@@ -117,6 +117,20 @@ def _safe_int(value) -> int:
         return 0
 
 
+def _products_signature(products: List[Dict]) -> frozenset:
+    """Cheap (id, updatedAt) fingerprint used to decide whether the merged
+    product set actually differs from what's on disk, so we can skip the
+    disk rewrite (fsync + os.replace) on requests where nothing changed."""
+    sig = set()
+    for p in products:
+        pid = p.get("id")
+        if not pid:
+            continue
+        updated = p.get("updatedAt") or p.get("updatedat") or p.get("updated_at")
+        sig.add((str(pid), str(updated)))
+    return frozenset(sig)
+
+
 def _paginate_table(table: str, select_expr: str, label: str) -> List[Dict]:
     """Paginate a Supabase select using the larger internal page size. Only
     used by cache builders — never serves rows directly to the UI."""
@@ -329,6 +343,147 @@ def _get_sold_quantity_map(force_refresh: bool = False) -> Dict[str, int]:
         return sold_by_product
 
 
+_PRODUCTS_COUNT_CACHE: Dict[str, object] = {"data": None, "ts": 0.0}
+_PRODUCTS_COUNT_TTL = 30.0
+_PRODUCTS_COUNT_LOCK = threading.Lock()
+
+
+def get_products_count_summary(force_refresh: bool = False) -> Dict[str, int]:
+    """{total, lowStock} counted from three narrow columns instead of the
+    dashboard downloading every full product row just to count them.
+
+    Note: Supabase's stock-alert column is `minstocklevel` — the frontend
+    `Product.minStock` field name doesn't exist anywhere in the API response,
+    so any older client-side low-stock count was always comparing against
+    undefined. This is computed correctly here.
+    """
+    now = time.time()
+    cached = _PRODUCTS_COUNT_CACHE.get("data")
+    cached_ts = float(_PRODUCTS_COUNT_CACHE.get("ts") or 0)
+    if not force_refresh and cached is not None and (now - cached_ts) < _PRODUCTS_COUNT_TTL:
+        return cached  # type: ignore[return-value]
+
+    with _PRODUCTS_COUNT_LOCK:
+        cached = _PRODUCTS_COUNT_CACHE.get("data")
+        cached_ts = float(_PRODUCTS_COUNT_CACHE.get("ts") or 0)
+        if not force_refresh and cached is not None and (time.time() - cached_ts) < _PRODUCTS_COUNT_TTL:
+            return cached  # type: ignore[return-value]
+
+        total = 0
+        low_stock = 0
+        try:
+            for row in _paginate_table("products", "id, stock, minstocklevel", "products count/low-stock"):
+                total += 1
+                try:
+                    if float(row.get("stock") or 0) <= float(row.get("minstocklevel") or 0):
+                        low_stock += 1
+                except (TypeError, ValueError):
+                    pass
+        except Exception as e:
+            logger.warning("Products count/low-stock scan failed: %s", e)
+
+        data = {"total": total, "lowStock": low_stock}
+        _PRODUCTS_COUNT_CACHE["data"] = data
+        _PRODUCTS_COUNT_CACHE["ts"] = time.time()
+        return data
+
+
+_TOP_SELLERS_CACHE: Dict[str, object] = {"map": None, "ts": 0.0}
+_TOP_SELLERS_TTL = 60.0
+_TOP_SELLERS_LOCK = threading.Lock()
+
+
+def _get_product_sales_aggregate(force_refresh: bool = False) -> Dict[str, Dict[str, float]]:
+    """Per-product {quantity, revenue} aggregated from non-cancelled bill
+    items. Computed once per TTL window and shared by every caller instead of
+    every dashboard/analytics page load re-downloading every bill's items to
+    do this sum in the browser."""
+    now = time.time()
+    cached = _TOP_SELLERS_CACHE.get("map")
+    cached_ts = float(_TOP_SELLERS_CACHE.get("ts") or 0)
+    if not force_refresh and cached is not None and (now - cached_ts) < _TOP_SELLERS_TTL:
+        return cached  # type: ignore[return-value]
+
+    with _TOP_SELLERS_LOCK:
+        cached = _TOP_SELLERS_CACHE.get("map")
+        cached_ts = float(_TOP_SELLERS_CACHE.get("ts") or 0)
+        if not force_refresh and cached is not None and (time.time() - cached_ts) < _TOP_SELLERS_TTL:
+            return cached  # type: ignore[return-value]
+
+        cancelled_or_voided: set = set()
+        try:
+            for row in _paginate_table("bills", "id, status", "bills status (top sellers)"):
+                bill_id = row.get("id")
+                if not bill_id:
+                    continue
+                status = str(row.get("status") or "").strip().lower()
+                if status and status not in ("completed", "paid"):
+                    cancelled_or_voided.add(str(bill_id))
+        except Exception as e:
+            logger.warning("Bills status lookup failed for top sellers: %s", e)
+
+        agg: Dict[str, Dict[str, float]] = {}
+        try:
+            for row in _paginate_table(
+                "billitems", "billid, productid, quantity, total, price", "billitems (top sellers)"
+            ):
+                bill_id = row.get("billid")
+                if bill_id and str(bill_id) in cancelled_or_voided:
+                    continue
+                pid = row.get("productid")
+                if not pid:
+                    continue
+                qty = _safe_int(row.get("quantity"))
+                line_total = row.get("total")
+                try:
+                    revenue = float(line_total) if line_total is not None else qty * float(row.get("price") or 0)
+                except (TypeError, ValueError):
+                    revenue = 0.0
+                entry = agg.setdefault(str(pid), {"quantity": 0, "revenue": 0.0})
+                entry["quantity"] += qty
+                entry["revenue"] += revenue
+        except Exception as e:
+            logger.warning("billitems aggregation failed for top sellers: %s", e)
+
+        _TOP_SELLERS_CACHE["map"] = agg
+        _TOP_SELLERS_CACHE["ts"] = time.time()
+        return agg
+
+
+def get_top_selling_products(limit: int = 5) -> List[Dict]:
+    """Top N products by quantity sold. Names are resolved with one small
+    targeted query for just those N ids — never a full-catalog scan."""
+    agg = _get_product_sales_aggregate()
+    ranked = sorted(agg.items(), key=lambda kv: kv[1]["quantity"], reverse=True)[: max(1, limit)]
+    ids = [pid for pid, _ in ranked]
+
+    names: Dict[str, str] = {}
+    if ids:
+        try:
+            client = db.client
+            resp = execute_with_retry(
+                lambda: client.table("products").select("id, name").in_("id", ids),
+                "top sellers name lookup",
+                retries=2,
+            )
+            for row in resp.data or []:
+                pid = row.get("id")
+                if pid:
+                    names[str(pid)] = row.get("name") or "Unknown product"
+        except Exception as e:
+            logger.warning("Top sellers name lookup failed: %s", e)
+
+    return [
+        {
+            "productId": pid,
+            "name": names.get(pid, "Unknown product"),
+            "quantity": data["quantity"],
+            "revenue": round(data["revenue"], 2),
+        }
+        for pid, data in ranked
+    ]
+
+
 def invalidate_products_caches() -> None:
     """Drop cached HSN + inventory + sold maps. Call after a write that
     could have changed any of these (create/update/delete product, etc.)."""
@@ -338,6 +493,10 @@ def invalidate_products_caches() -> None:
     _INVENTORY_ALLOC_CACHE["ts"] = 0.0
     _SOLD_QTY_CACHE["map"] = None
     _SOLD_QTY_CACHE["ts"] = 0.0
+    _PRODUCTS_COUNT_CACHE["data"] = None
+    _PRODUCTS_COUNT_CACHE["ts"] = 0.0
+    _TOP_SELLERS_CACHE["map"] = None
+    _TOP_SELLERS_CACHE["ts"] = 0.0
 
 
 def _transform_product_row(
@@ -1034,8 +1193,9 @@ def get_merged_products() -> Tuple[List[Dict], int]:
         merged_products = list(merged_by_id.values()) + merged_without_id
 
         try:
-            cache_rows = [convert_camel_to_snake(p) for p in merged_products]
-            save_products_data(cache_rows)
+            if _products_signature(merged_products) != _products_signature(local_products):
+                cache_rows = [convert_camel_to_snake(p) for p in merged_products]
+                save_products_data(cache_rows)
         except Exception as cache_err:
             logger.warning(f"Failed to refresh local products cache from merged set: {cache_err}")
 

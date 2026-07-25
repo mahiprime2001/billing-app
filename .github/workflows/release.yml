@@ -127,13 +127,19 @@ jobs:
         working-directory: backend
 
       - name: Run PyInstaller
-        run: uv run pyinstaller --clean --name "Siriadmin-backend-x86_64-pc-windows-msvc" --runtime-tmpdir . --onefile --add-data "scripts:scripts" --add-data "utils:utils" --add-data "routes:routes" --add-data "services:services" --add-data "config.py:." --add-data ".env:." app.py
+        # Onedir build, no UPX: the exe + its _internal deps folder are
+        # bundled as-is via tauri.conf.json bundle.resources, not as a
+        # single-file externalBin sidecar. Onefile + UPX was re-extracting
+        # the whole interpreter into a fresh temp dir on every app launch
+        # (~14s of the old ~18s cold start).
+        run: uv run pyinstaller --clean --name "Siriadmin-backend-x86_64-pc-windows-msvc" --noupx --add-data "scripts:scripts" --add-data "utils:utils" --add-data "routes:routes" --add-data "services:services" --add-data "config.py:." --add-data ".env:." app.py
         working-directory: backend
 
-      - name: Copy Python executable to Tauri binaries
+      - name: Copy Python backend folder to Tauri binaries
         run: |
-          if (-not (Test-Path src-tauri/binaries)) { New-Item -ItemType Directory -Path src-tauri/binaries | Out-Null }
-          Copy-Item backend/dist/Siriadmin-backend-x86_64-pc-windows-msvc.exe src-tauri/binaries/ -Force
+          if (Test-Path src-tauri/binaries/Siriadmin-backend) { Remove-Item -Recurse -Force src-tauri/binaries/Siriadmin-backend }
+          New-Item -ItemType Directory -Path src-tauri/binaries/Siriadmin-backend | Out-Null
+          Copy-Item backend/dist/Siriadmin-backend-x86_64-pc-windows-msvc/* src-tauri/binaries/Siriadmin-backend/ -Recurse -Force
 
 
       - name: Install Tauri CLI

@@ -5,6 +5,7 @@ Modular structure with blueprints for better organization
 import os
 import sys
 import logging
+import threading
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -273,23 +274,33 @@ def cleanup_old_log_files(log_directory, days_to_keep, logger):
 app = create_app(os.getenv('FLASK_ENV', 'development'))
 
 
-# Run once on startup to ensure local JSON files are up to date
-with app.app_context():
-    try:
-        cloud_reachable = False
+# Refresh local JSON files from Supabase in the background instead of
+# blocking here. This app is offline-first (local JSON is the primary data
+# source, Supabase is a sync target) — there's no need to make every process
+# start wait several seconds on a network round-trip + full export before
+# Flask can even open its listening socket. The health check (and every
+# route) already falls back to local JSON, so serving requests immediately
+# with whatever is on disk and letting this catch up shortly after is safe.
+def _initial_supabase_export():
+    with app.app_context():
         try:
-            supabase_db.client.table("products").select("id").limit(1).execute()
-            cloud_reachable = True
-        except Exception:
             cloud_reachable = False
+            try:
+                supabase_db.client.table("products").select("id").limit(1).execute()
+                cloud_reachable = True
+            except Exception:
+                cloud_reachable = False
 
-        if cloud_reachable:
-            export_all_data_from_supabase()
-            app.logger.info("Initial data export from Supabase completed successfully.")
-        else:
-            app.logger.warning("Supabase unavailable at startup; using local JSON fallback until connection recovers.")
-    except Exception as e:
-        app.logger.error(f"Failed initial data export from Supabase: {e}", exc_info=True)
+            if cloud_reachable:
+                export_all_data_from_supabase()
+                app.logger.info("Initial data export from Supabase completed successfully.")
+            else:
+                app.logger.warning("Supabase unavailable at startup; using local JSON fallback until connection recovers.")
+        except Exception as e:
+            app.logger.error(f"Failed initial data export from Supabase: {e}", exc_info=True)
+
+
+threading.Thread(target=_initial_supabase_export, daemon=True, name="initial-supabase-export").start()
 
 
 if __name__ == '__main__':

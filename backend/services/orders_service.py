@@ -116,6 +116,7 @@ def _filter_local_orders(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
     limit: Optional[int] = None,
+    offset: int = 0,
 ) -> List[Dict[str, Any]]:
     out = rows
     if store_id and str(store_id).lower() != "all":
@@ -128,8 +129,11 @@ def _filter_local_orders(
     if to_date:
         out = [row for row in out if str(row.get("createdAt") or row.get("created_at") or "") <= to_date]
     out.sort(key=lambda x: x.get("createdAt") or x.get("created_at") or "", reverse=True)
+    offset = max(0, int(offset or 0))
     if isinstance(limit, int) and limit > 0:
-        out = out[:limit]
+        out = out[offset : offset + limit]
+    elif offset:
+        out = out[offset:]
     return out
 
 
@@ -139,6 +143,7 @@ def _build_local_order_summaries(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
     limit: Optional[int] = None,
+    offset: int = 0,
 ) -> List[Dict]:
     """
     Build order summaries from optional normalized local transfer JSON files.
@@ -256,8 +261,11 @@ def _build_local_order_summaries(
         status_norm = str(status).strip().lower()
         out = [row for row in out if str(row.get("status") or "").strip().lower() == status_norm]
     out.sort(key=lambda x: x.get("createdAt") or x.get("created_at") or "", reverse=True)
+    offset = max(0, int(offset or 0))
     if isinstance(limit, int) and limit > 0:
-        out = out[:limit]
+        out = out[offset : offset + limit]
+    elif offset:
+        out = out[offset:]
     return out
 
 
@@ -379,11 +387,13 @@ def _fetch_transfer_orders_for_store(
     status: Optional[str],
     from_date: Optional[str],
     to_date: Optional[str],
-    limit: Optional[int],
+    start: int = 0,
+    end: int = 999,
 ) -> List[Dict]:
     """
     Fetch transfer orders using DB-side filtering. Supports schema variants for store id:
-    store_id / storeid / storeId.
+    store_id / storeid / storeId. `start`/`end` are an inclusive Supabase
+    `.range()` (real offset pagination, not just a leading-N cutoff).
     """
     id_columns = ["store_id", "storeid", "storeId"]
     status_value = str(status).strip().lower() if status else None
@@ -401,10 +411,8 @@ def _fetch_transfer_orders_for_store(
                 query = query.gte("created_at", from_date)
             if to_date:
                 query = query.lte("created_at", to_date)
-            if isinstance(limit, int) and limit > 0:
-                query = query.limit(limit)
             response = execute_with_retry(
-                lambda: query,
+                lambda: query.range(start, end),
                 f"transfer orders for store {store_id} ({id_col})",
             )
             rows = response.data or []
@@ -557,11 +565,22 @@ def get_transfer_orders(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
     limit: Optional[int] = None,
+    page: int = 1,
 ) -> Tuple[List[Dict], int]:
     """
     Get transfer orders with computed totals.
     Falls back to local orders.json cache if online fetch fails.
+
+    `limit` doubles as page size (default 1000, same as historical
+    behavior); `page` (default 1, i.e. identical to the old un-paginated
+    behavior) lets callers reach orders beyond the first page instead of
+    being hard-capped at the first `limit` rows with no way to see more.
     """
+    page = max(1, int(page or 1))
+    page_size = limit if isinstance(limit, int) and limit > 0 else 1000
+    start = (page - 1) * page_size
+    end = start + page_size - 1
+
     try:
         client = db.client
         if store_id and str(store_id).lower() != "all":
@@ -571,7 +590,8 @@ def get_transfer_orders(
                 status=status,
                 from_date=from_date,
                 to_date=to_date,
-                limit=limit,
+                start=start,
+                end=end,
             )
         else:
             query = client.table("inventory_transfer_orders").select("*").order("created_at", desc=True)
@@ -581,9 +601,7 @@ def get_transfer_orders(
                 query = query.gte("created_at", from_date)
             if to_date:
                 query = query.lte("created_at", to_date)
-            if isinstance(limit, int) and limit > 0:
-                query = query.limit(limit)
-            response = execute_with_retry(lambda: query, "transfer orders (all stores)")
+            response = execute_with_retry(lambda: query.range(start, end), "transfer orders (all stores) page")
             orders = response.data or []
 
         enriched = _enrich_orders_with_totals(client, orders, str(store_id or "all"))
@@ -601,7 +619,8 @@ def get_transfer_orders(
             status=status,
             from_date=from_date,
             to_date=to_date,
-            limit=limit,
+            offset=start,
+            limit=page_size,
         )
         if filtered:
             return filtered, 200
@@ -610,7 +629,8 @@ def get_transfer_orders(
             status=status,
             from_date=from_date,
             to_date=to_date,
-            limit=limit,
+            offset=start,
+            limit=page_size,
         ), 200
 
 
@@ -620,6 +640,7 @@ def get_store_transfer_orders(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
     limit: Optional[int] = None,
+    page: int = 1,
 ) -> Tuple[List[Dict], int]:
     return get_transfer_orders(
         store_id=store_id,
@@ -627,6 +648,7 @@ def get_store_transfer_orders(
         from_date=from_date,
         to_date=to_date,
         limit=limit,
+        page=page,
     )
 
 
