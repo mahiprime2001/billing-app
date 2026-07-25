@@ -27,22 +27,13 @@ def _parse_limit(value: str | None) -> int | None:
 
 @orders_bp.route("/orders", methods=["GET"])
 def get_orders():
-    """Get transfer orders with optional store/date/status filters.
-
-    `limit` is the page size (default 1000, same as historical behavior).
-    `page` (default 1) lets callers reach orders beyond the first page —
-    previously there was no way to see anything past the first `limit` rows.
-    """
+    """Get transfer orders with optional store/date/status filters."""
     try:
         store_id = request.args.get("storeId") or request.args.get("store_id")
         status = request.args.get("status")
         from_date = request.args.get("from")
         to_date = request.args.get("to")
         limit = _parse_limit(request.args.get("limit"))
-        try:
-            page = int(request.args.get("page", 1))
-        except (TypeError, ValueError):
-            page = 1
 
         orders, status_code = orders_service.get_transfer_orders(
             store_id=store_id,
@@ -50,7 +41,6 @@ def get_orders():
             from_date=from_date,
             to_date=to_date,
             limit=limit,
-            page=page,
         )
         return jsonify(orders), status_code
     except Exception as e:

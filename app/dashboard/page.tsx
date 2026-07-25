@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { formatDisplayDate } from "@/app/utils/formatDate"
+import { formatDisplayDate, toValidDate } from "@/app/utils/formatDate"
 import {
   BarChart3,
   TrendingUp,
@@ -23,6 +23,31 @@ interface ProductSale {
   name: string
   quantity: number
   revenue: number
+}
+
+interface BillItem {
+  productId: string
+  productName: string
+  quantity: number
+  total: number
+}
+
+interface Bill {
+  id: string
+  date: string
+  total: number
+  items?: BillItem[]
+}
+
+// Bills come straight from the API, which may carry the date under several
+// field names — toValidDate handles resolving + parsing.
+const resolveBillDate = (bill: any): Date | null => toValidDate(bill)
+
+interface Product {
+  id: string
+  name: string
+  stock: number
+  minStock: number
 }
 
 interface StoreType {
@@ -50,7 +75,7 @@ export default function DashboardPage() {
     totalStores: 0,
     totalUsers: 0,
     lowStockProducts: 0,
-    recentBills: [] as any[],
+    recentBills: [] as Bill[],
     topProducts: [] as ProductSale[],
   })
 
@@ -78,22 +103,27 @@ export default function DashboardPage() {
     try {
       const baseUrl = API_BASE
 
-      // One lightweight, server-cached call replaces the old pattern of
-      // downloading every bill (with full item/product joins) and the whole
-      // product catalog just to compute ~10 numbers and two 5-row lists.
-      const [summaryResponse, storesResponse, usersResponse] =
+      const [billsResponse, productsResponse, storesResponse, usersResponse] =
         await Promise.all([
-          fetch(`${baseUrl}/api/dashboard/summary`),
+          fetch(`${baseUrl}/api/bills`),
+          fetch(`${baseUrl}/api/products`),
           fetch(`${baseUrl}/api/stores`),
           fetch(`${baseUrl}/api/users`),
         ])
 
-      if (!summaryResponse.ok) {
-        const errorText = await summaryResponse.text()
+      if (!billsResponse.ok) {
+        const errorText = await billsResponse.text()
         console.error(
-          `Failed to fetch dashboard summary: ${summaryResponse.status} ${summaryResponse.statusText} - ${errorText}`,
+          `Failed to fetch bills: ${billsResponse.status} ${billsResponse.statusText} - ${errorText}`,
         )
-        throw new Error("Failed to fetch dashboard summary")
+        throw new Error("Failed to fetch bills data")
+      }
+      if (!productsResponse.ok) {
+        const errorText = await productsResponse.text()
+        console.error(
+          `Failed to fetch products: ${productsResponse.status} ${productsResponse.statusText} - ${errorText}`,
+        )
+        throw new Error("Failed to fetch products data")
       }
       if (!storesResponse.ok) {
         const errorText = await storesResponse.text()
@@ -110,10 +140,21 @@ export default function DashboardPage() {
         throw new Error("Failed to fetch users data")
       }
 
-      const summary = await summaryResponse.json()
+      const rawBills = await billsResponse.json()
+      const rawProducts = await productsResponse.json()
       const rawStores = await storesResponse.json()
       const rawUsers = await usersResponse.json()
 
+      const bills: Bill[] = Array.isArray(rawBills)
+        ? rawBills
+        : Array.isArray(rawBills?.data)
+        ? rawBills.data
+        : []
+      const products: Product[] = Array.isArray(rawProducts)
+        ? rawProducts
+        : Array.isArray(rawProducts?.data)
+        ? rawProducts.data
+        : []
       const stores: StoreType[] = Array.isArray(rawStores)
         ? rawStores
         : Array.isArray(rawStores?.data)
@@ -125,6 +166,20 @@ export default function DashboardPage() {
         ? rawUsers.data
         : []
 
+      console.log("📊 Dashboard data:", {
+        bills: bills.length,
+        products: products.length,
+        stores: stores.length,
+        users: users.length,
+      })
+
+      // -------- OVERALL STATS --------
+      const totalRevenue = bills.reduce(
+        (sum, bill) => sum + (bill.total || 0),
+        0,
+      )
+      const totalBills = bills.length
+      const totalProducts = products.length
       const totalStores = stores.filter(
         (store) => store.status === "active",
       ).length
@@ -138,17 +193,85 @@ export default function DashboardPage() {
       )
       const totalUsers = activeUsers.length
 
-      setStats((prev) => ({
-        ...prev,
-        totalRevenue: summary.totalRevenue || 0,
-        totalBills: summary.totalBills || 0,
-        totalProducts: summary.totalProducts || 0,
-        totalStores,
-        totalUsers,
-        lowStockProducts: summary.lowStockProducts || 0,
-        recentBills: Array.isArray(summary.recentBills) ? summary.recentBills : [],
-        topProducts: Array.isArray(summary.topProducts) ? summary.topProducts : [],
-      }))
+      const lowStockProducts = products.filter(
+        (product) => product.stock <= product.minStock,
+      ).length
+
+      // -------- RECENT BILLS --------
+      const recentBills = [...bills]
+        .sort(
+          (a, b) =>
+            (resolveBillDate(b)?.getTime() ?? 0) -
+            (resolveBillDate(a)?.getTime() ?? 0),
+        )
+        .slice(0, 5)
+
+// -------- TOP PRODUCTS (by quantity sold) --------
+const productSales: Record<string, ProductSale> = {}
+
+bills.forEach((bill: any) => {
+  // bill.items may be nested or named differently; normalize a bit
+  const rawItems =
+    bill.items ||
+    bill.bill_items ||
+    bill.BillItems ||
+    bill.items_json ||
+    []
+
+  if (!Array.isArray(rawItems)) return
+
+  rawItems.forEach((raw: any) => {
+    const productId =
+      raw.productId || raw.product_id || raw.productid || raw.id
+    if (!productId) return
+
+    const quantity = Number(raw.quantity ?? raw.qty ?? 0)
+    const lineTotal = Number(
+      raw.total ??
+        raw.line_total ??
+        raw.amount ??
+        (raw.price ?? 0) * quantity,
+    )
+    const name =
+      raw.productName ||
+      raw.product_name ||
+      raw.productname ||
+      raw.name ||
+      "Unknown product"
+
+    if (productSales[productId]) {
+      productSales[productId].quantity += quantity
+      productSales[productId].revenue += lineTotal
+    } else {
+      productSales[productId] = {
+        name,
+        quantity,
+        revenue: lineTotal,
+      }
+    }
+  })
+})
+
+const topProducts = Object.values(productSales)
+  .sort((a, b) => b.quantity - a.quantity)
+  .slice(0, 5)
+
+console.log("✅ Aggregated:", {
+  topProducts,
+})
+
+setStats((prev) => ({
+  ...prev,
+  totalRevenue,
+  totalBills,
+  totalProducts,
+  totalStores,
+  totalUsers,
+  lowStockProducts,
+  recentBills,
+  topProducts,
+}))
+
     } catch (error) {
       console.error("Error loading dashboard data:", error)
       throw error
