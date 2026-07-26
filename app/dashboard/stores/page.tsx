@@ -369,6 +369,7 @@ function StoreInsightModal({
   if (!open || !store) return null;
 
   const totalStock = inventoryRows.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
+  const filteredTotalStock = filteredInventoryRows.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
   const totalSellingValue = inventoryRows.reduce((sum, row) => {
     const p = row.products || {};
     const sellingPrice = Number(
@@ -487,9 +488,14 @@ function StoreInsightModal({
               <CardHeader className="pb-3 space-y-2 shrink-0">
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-sm font-medium">Products in store</CardTitle>
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    {filteredInventoryRows.length}/{inventoryRows.length}
-                  </span>
+                  <div className="text-right text-xs text-muted-foreground leading-tight shrink-0">
+                    <div>
+                      Total items: <span className="font-semibold text-foreground tabular-nums">{filteredInventoryRows.length}</span>
+                    </div>
+                    <div>
+                      Total stock: <span className="font-semibold text-foreground tabular-nums">{filteredTotalStock}</span>
+                    </div>
+                  </div>
                 </div>
                 <div className="relative">
                   <Search className="h-4 w-4 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
