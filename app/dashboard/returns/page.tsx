@@ -21,6 +21,9 @@ const API = API_BASE
 // instead of sending them to a store. No store verification step.
 const WAREHOUSE_ID = "__warehouse__"
 
+// Sentinel for the top store filter's "All stores" option (Radix Select can't use "").
+const ALL_STORES_ID = "__all_stores__"
+
 const REASONS = [
   { value: "damaged", label: "Damaged" },
   { value: "low_sales", label: "Low Sales" },
@@ -82,6 +85,9 @@ export default function AdminReturnsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Top-of-page store filter — applies to the order-card tabs (Incoming/All).
+  const [storeFilter, setStoreFilter] = useState<string>("")
+
   // verify dialog
   const [activeOrder, setActiveOrder] = useState<ReturnOrder | null>(null)
   const [decisions, setDecisions] = useState<Record<string, Decision>>({})
@@ -120,6 +126,15 @@ export default function AdminReturnsPage() {
       setLoading(false)
     }
   }
+
+  const filteredOrders = useMemo(
+    () => (storeFilter ? orders.filter((o) => o.store_id === storeFilter) : orders),
+    [orders, storeFilter],
+  )
+  const filteredAllOrders = useMemo(
+    () => (storeFilter ? allOrders.filter((o) => o.store_id === storeFilter) : allOrders),
+    [allOrders, storeFilter],
+  )
 
   const selectedIds = useMemo(() => Object.keys(selected).filter((id) => selected[id]), [selected])
 
@@ -303,23 +318,41 @@ export default function AdminReturnsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6 p-1">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h1 className="flex items-center gap-2 text-2xl font-bold">
             <PackageCheck className="h-6 w-6" />
             Returns
           </h1>
-          <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select
+              value={storeFilter || ALL_STORES_ID}
+              onValueChange={(v) => setStoreFilter(v === ALL_STORES_ID ? "" : v)}
+            >
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="All stores" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_STORES_ID}>All stores</SelectItem>
+                {stores.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name || s.id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Tabs defaultValue="incoming" className="w-full">
           <TabsList>
-            <TabsTrigger value="incoming">Incoming Orders ({orders.length})</TabsTrigger>
-            <TabsTrigger value="all">All Orders ({allOrders.length})</TabsTrigger>
+            <TabsTrigger value="incoming">Incoming Orders ({filteredOrders.length})</TabsTrigger>
+            <TabsTrigger value="all">All Orders ({filteredAllOrders.length})</TabsTrigger>
             <TabsTrigger value="with_admin">With Admin ({withAdmin.length})</TabsTrigger>
             <TabsTrigger value="sent_out">Sent Out ({sentOut.length})</TabsTrigger>
           </TabsList>
@@ -328,10 +361,12 @@ export default function AdminReturnsPage() {
           <TabsContent value="incoming" className="mt-4 space-y-3">
             {loading ? (
               <p className="text-sm text-muted-foreground py-8 text-center">Loading...</p>
-            ) : orders.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">No incoming return orders.</p>
+            ) : filteredOrders.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                {storeFilter ? "No incoming return orders for this store." : "No incoming return orders."}
+              </p>
             ) : (
-              orders.map((order) => (
+              filteredOrders.map((order) => (
                 <OrderRow key={order.return_id} order={order} onClick={() => openOrder(order)} />
               ))
             )}
@@ -341,10 +376,12 @@ export default function AdminReturnsPage() {
           <TabsContent value="all" className="mt-4 space-y-3">
             {loading ? (
               <p className="text-sm text-muted-foreground py-8 text-center">Loading...</p>
-            ) : allOrders.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">No return orders yet.</p>
+            ) : filteredAllOrders.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                {storeFilter ? "No return orders for this store." : "No return orders yet."}
+              </p>
             ) : (
-              allOrders.map((order) => (
+              filteredAllOrders.map((order) => (
                 <OrderRow key={order.return_id} order={order} onClick={() => openOrder(order)} />
               ))
             )}
@@ -798,6 +835,10 @@ function OrderRow({ order, onClick }: { order: ReturnOrder; onClick: () => void 
   const lines = order.return_products || []
   const totalQty =
     Number(order.return_quantity || 0) || lines.reduce((s, l) => s + Number(l.quantity || 0), 0)
+  const totalAmount = lines.reduce(
+    (sum, l) => sum + Number(l.quantity || 0) * Number(l.products?.selling_price || 0),
+    0,
+  )
   return (
     <Card
       role="button"
@@ -822,6 +863,7 @@ function OrderRow({ order, onClick }: { order: ReturnOrder; onClick: () => void 
           <Badge variant="outline">{titleCase(order.admin_status)}</Badge>
           <Badge variant="secondary">{lines.length} item(s)</Badge>
           <Badge variant="secondary">Qty {totalQty}</Badge>
+          <Badge className="font-semibold">{money(totalAmount)}</Badge>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </div>
       </CardContent>

@@ -283,16 +283,46 @@ function StoreInsightModal({
     setBillsLoadProgress(null);
   }, [open, store?.id]);
 
+  // Strips whitespace entirely (not just collapses it) so search is resilient to
+  // inconsistent spacing in stored names — e.g. "RG BANGLES  [2.4]" (double space,
+  // renders identically to a single space in the browser) vs a normally-typed query.
+  const normalizeForSearch = (value: string) => value.toLowerCase().replace(/\s+/g, "");
+
+  const matchesTerm = (row: StoreLiveInventoryRow, normalizedTerm: string) => {
+    const productObj = row.products || {};
+    const barcode = normalizeForSearch(String(productObj.barcode || row.barcode || ""));
+    const name = normalizeForSearch(String(productObj.name || row.name || ""));
+    return barcode.includes(normalizedTerm) || name.includes(normalizedTerm);
+  };
+
+  // "," separates multiple lookups in one go, e.g. "bangles,chain,ring" — each
+  // term is matched independently and the table shows the union of all of them.
+  const searchTerms = useMemo(
+    () => liveProductSearch.split(",").map((t) => t.trim()).filter(Boolean),
+    [liveProductSearch],
+  );
+
   const filteredInventoryRows = useMemo(() => {
-    const search = liveProductSearch.trim().toLowerCase();
-    if (!search) return inventoryRows;
-    return inventoryRows.filter((row) => {
-      const productObj = row.products || {};
-      const barcode = String(productObj.barcode || row.barcode || "").toLowerCase();
-      const name = String(productObj.name || row.name || "").toLowerCase();
-      return barcode.includes(search) || name.includes(search);
+    if (searchTerms.length === 0) return inventoryRows;
+    const normalizedTerms = searchTerms.map(normalizeForSearch).filter(Boolean);
+    if (normalizedTerms.length === 0) return inventoryRows;
+    return inventoryRows.filter((row) => normalizedTerms.some((term) => matchesTerm(row, term)));
+  }, [inventoryRows, searchTerms]);
+
+  // Per-term breakdown shown at the top of the panel once you're searching for
+  // more than one product at a time — name/item-count/stock for each term.
+  const searchTermBreakdown = useMemo(() => {
+    if (searchTerms.length < 2) return [];
+    return searchTerms.map((term) => {
+      const normalized = normalizeForSearch(term);
+      const matches = normalized ? inventoryRows.filter((row) => matchesTerm(row, normalized)) : [];
+      return {
+        term,
+        items: matches.length,
+        stock: matches.reduce((sum, row) => sum + Number(row.quantity || 0), 0),
+      };
     });
-  }, [inventoryRows, liveProductSearch]);
+  }, [inventoryRows, searchTerms]);
 
   const liveBillTabs = useMemo(() => {
     if (liveBills.length === 0) return [] as Array<{ key: string; label: string; bills: any[] }>;
@@ -500,12 +530,28 @@ function StoreInsightModal({
                 <div className="relative">
                   <Search className="h-4 w-4 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
                   <Input
-                    placeholder="Search barcode or name…"
+                    placeholder="Search barcode or name… separate multiple with a comma, e.g. bangles,chain"
                     value={liveProductSearch}
                     onChange={(e) => setLiveProductSearch(e.target.value)}
                     className="pl-8 h-9"
                   />
                 </div>
+                {searchTermBreakdown.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {searchTermBreakdown.map(({ term, items, stock }) => (
+                      <div
+                        key={term}
+                        className="flex items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-1 text-xs"
+                      >
+                        <span className="font-medium truncate max-w-[140px]" title={term}>{term}</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="tabular-nums">{items} item{items === 1 ? "" : "s"}</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="tabular-nums">{stock} stock</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="p-0 flex-1 min-h-0 overflow-hidden">
                 <div className="h-full overflow-y-auto overflow-x-hidden [&>div]:overflow-visible pb-2">
