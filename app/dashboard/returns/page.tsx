@@ -248,7 +248,7 @@ export default function AdminReturnsPage() {
       for (const line of order.return_products || []) {
         init[line.id] = {
           verifyStatus: "pending",
-          verifiedQty: Number(line.quantity || 0),
+          verifiedQty: 0,
           // Blank on purpose — a reason must be explicitly chosen (or bulk-applied)
           // before verification is accepted, it doesn't just inherit a default.
           reasonType: line.reason_type || "",
@@ -318,7 +318,16 @@ export default function AdminReturnsPage() {
       alert(`No product in this order matches barcode: ${scanInput}`)
       return
     }
-    setDecision(line.id, { verifyStatus: "verified", verifiedQty: Number(line.quantity || 0) })
+
+    const maxQty = Number(line.quantity || 0)
+    const currentQty = Number(decisions[line.id]?.verifiedQty || 0)
+    const nextQty = Math.min(maxQty, currentQty + 1)
+
+    setDecision(line.id, {
+      verifyStatus: "pending",
+      verifiedQty: nextQty,
+      reasonType: decisions[line.id]?.reasonType || line.reason_type || "",
+    })
     setScanInput("")
   }
 
@@ -367,10 +376,9 @@ export default function AdminReturnsPage() {
 
   // Send a line back to "Unscanned" — full reset, not just a status change.
   const clearDecision = (lineId: string) => {
-    const line = verifyLines.find((l) => l.id === lineId)
     setDecisions((prev) => ({
       ...prev,
-      [lineId]: { verifyStatus: "pending", verifiedQty: Number(line?.quantity || 0), reasonType: "" },
+      [lineId]: { verifyStatus: "pending", verifiedQty: 0, reasonType: "" },
     }))
     setVerifySelected((prev) => {
       const next = { ...prev }
@@ -382,7 +390,7 @@ export default function AdminReturnsPage() {
     setDecisions((prev) => {
       const next = { ...prev }
       for (const line of decidedLines) {
-        next[line.id] = { verifyStatus: "pending", verifiedQty: Number(line.quantity || 0), reasonType: "" }
+        next[line.id] = { verifyStatus: "pending", verifiedQty: 0, reasonType: "" }
       }
       return next
     })
@@ -626,7 +634,7 @@ export default function AdminReturnsPage() {
                                     type="number"
                                     min={1}
                                     max={held}
-                                    className="h-8 w-14 text-right"
+                                    className="h-8 w-14 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     value={qty}
                                     onChange={(e) =>
                                       setSendQty((p) => ({
@@ -703,11 +711,12 @@ export default function AdminReturnsPage() {
                               const held = Number(line.verified_qty || line.quantity || 0)
                               const price = Number(line.products?.selling_price || 0)
                               const inCart = !!selected[line.id]
+                              const qty = sendQty[line.id] ?? held
                               return (
                                 <TableRow
                                   key={line.id}
                                   className={`cursor-pointer ${inCart ? "bg-muted/40" : ""}`}
-                                  onClick={() => setSelected((p) => ({ ...p, [line.id]: !p[line.id] }))}
+                                  onClick={() => setSelected((p) => ({ ...p, [line.id]: true }))}
                                 >
                                   <TableCell>
                                     <input type="checkbox" className="h-4 w-4" checked={inCart} readOnly />
@@ -717,7 +726,20 @@ export default function AdminReturnsPage() {
                                     {line.products?.barcode || "-"}
                                   </TableCell>
                                   <TableCell>{reasonLabel(line.reason_type)}</TableCell>
-                                  <TableCell className="text-right">{held}</TableCell>
+                                  <TableCell className="text-right">
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      max={held}
+                                      className="ml-auto h-8 w-16 text-right"
+                                      value={qty}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => {
+                                        const value = Math.min(held, Math.max(1, Number(e.target.value) || 1))
+                                        setSendQty((p) => ({ ...p, [line.id]: value }))
+                                      }}
+                                    />
+                                  </TableCell>
                                   <TableCell className="text-right">{money(price)}</TableCell>
                                 </TableRow>
                               )
@@ -802,29 +824,72 @@ export default function AdminReturnsPage() {
                         Everything has been scanned or decided.
                       </div>
                     ) : (
-                      pendingLines.map((line) => (
-                        <button
-                          key={line.id}
-                          type="button"
-                          onClick={() =>
-                            setDecision(line.id, { verifyStatus: "verified", verifiedQty: Number(line.quantity || 0) })
-                          }
-                          className="w-full flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors hover:border-primary/50 hover:bg-muted/40"
-                        >
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium">{line.products?.name || "—"}</div>
-                            <div className="truncate text-xs text-muted-foreground font-mono">
-                              {line.products?.barcode || "-"}
+                      pendingLines.map((line) => {
+                        const maxQty = Number(line.quantity || 0)
+                        const currentQty = Number(decisions[line.id]?.verifiedQty || 0)
+                        const isDisabled = maxQty <= 0 || currentQty >= maxQty
+
+                        return (
+                          <div
+                            key={line.id}
+                            className={cn(
+                              "flex items-center justify-between gap-3 rounded-md border px-3 py-2 transition-colors",
+                              isDisabled
+                                ? "cursor-not-allowed opacity-45"
+                                : "hover:border-primary/50 hover:bg-muted/40",
+                            )}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-medium">{line.products?.name || "—"}</div>
+                              <div className="truncate text-xs text-muted-foreground font-mono">
+                                {line.products?.barcode || "-"}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                disabled={isDisabled || currentQty <= 0}
+                                onClick={() => {
+                                  if (isDisabled || currentQty <= 0) return
+                                  const nextQty = Math.max(0, currentQty - 1)
+                                  setDecision(line.id, {
+                                    verifyStatus: nextQty === 0 ? "pending" : "pending",
+                                    verifiedQty: nextQty,
+                                    reasonType: decisions[line.id]?.reasonType || line.reason_type || "",
+                                  })
+                                }}
+                                className="flex h-7 w-7 items-center justify-center rounded border text-lg leading-none disabled:cursor-not-allowed disabled:opacity-40"
+                                aria-label={`Decrease quantity for ${line.products?.name || "product"}`}
+                              >
+                                −
+                              </button>
+
+                              <div className="min-w-10 text-center text-xs font-semibold tabular-nums">
+                                {currentQty}/{line.quantity}
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={isDisabled || currentQty >= maxQty}
+                                onClick={() => {
+                                  if (isDisabled || currentQty >= maxQty) return
+                                  const nextQty = Math.min(maxQty, currentQty + 1)
+                                  setDecision(line.id, {
+                                    verifyStatus: "pending",
+                                    verifiedQty: nextQty,
+                                    reasonType: decisions[line.id]?.reasonType || line.reason_type || "",
+                                  })
+                                }}
+                                className="flex h-7 w-7 items-center justify-center rounded border text-lg leading-none disabled:cursor-not-allowed disabled:opacity-40"
+                                aria-label={`Increase quantity for ${line.products?.name || "product"}`}
+                              >
+                                +
+                              </button>
                             </div>
                           </div>
-                          <div className="text-right text-xs shrink-0">
-                            <div className="font-semibold tabular-nums">Qty {line.quantity}</div>
-                            <div className="text-muted-foreground tabular-nums">
-                              {money(Number(line.products?.selling_price || 0))}
-                            </div>
-                          </div>
-                        </button>
-                      ))
+                        )
+                      })
                     )}
                   </div>
                 </div>
@@ -937,7 +1002,10 @@ export default function AdminReturnsPage() {
                                   <Input
                                     type="number"
                                     min={0}
-                                    className={cn("h-8 w-16", qtyMismatch && "border-amber-400 text-amber-700")}
+                                    className={cn(
+                                      "h-8 w-16 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                      qtyMismatch && "border-amber-400 text-amber-700",
+                                    )}
                                     value={d.verifiedQty}
                                     onChange={(e) =>
                                       setDecision(line.id, { verifiedQty: Math.max(0, Number(e.target.value)) })
