@@ -365,6 +365,30 @@ export default function AdminReturnsPage() {
     })
   }
 
+  // Send a line back to "Unscanned" — full reset, not just a status change.
+  const clearDecision = (lineId: string) => {
+    const line = verifyLines.find((l) => l.id === lineId)
+    setDecisions((prev) => ({
+      ...prev,
+      [lineId]: { verifyStatus: "pending", verifiedQty: Number(line?.quantity || 0), reasonType: "" },
+    }))
+    setVerifySelected((prev) => {
+      const next = { ...prev }
+      delete next[lineId]
+      return next
+    })
+  }
+  const clearAllDecisions = () => {
+    setDecisions((prev) => {
+      const next = { ...prev }
+      for (const line of decidedLines) {
+        next[line.id] = { verifyStatus: "pending", verifiedQty: Number(line.quantity || 0), reasonType: "" }
+      }
+      return next
+    })
+    setVerifySelected({})
+  }
+
   // Every decided (non-pending) line needs an explicit reason before the
   // verification can be confirmed — a blank/default reason blocks submission.
   const allDecided = useMemo(() => {
@@ -809,8 +833,20 @@ export default function AdminReturnsPage() {
                 <div className="flex flex-col min-h-0 border rounded-lg overflow-hidden">
                   <div className="border-b bg-muted/40 shrink-0">
                     <div className="px-3 py-2 flex items-center justify-between">
-                      <span className="text-sm font-medium">Scanned</span>
-                      <Badge variant="secondary">{decidedLines.length}</Badge>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Scanned</span>
+                        <Badge variant="secondary">{decidedLines.length}</Badge>
+                      </div>
+                      {decidedLines.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={clearAllDecisions}
+                        >
+                          Clear all
+                        </Button>
+                      )}
                     </div>
                     {/* Bulk reason — check several rows, pick one reason, apply to all of them */}
                     <div className="flex flex-wrap items-center gap-2 px-3 pb-2">
@@ -861,12 +897,13 @@ export default function AdminReturnsPage() {
                           <TableHead className="w-20 text-right">Value</TableHead>
                           <TableHead className="w-32">Reason</TableHead>
                           <TableHead className="w-36">Status</TableHead>
+                          <TableHead className="w-8"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {decidedLines.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                            <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
                               Scan or click an item on the left to start.
                             </TableCell>
                           </TableRow>
@@ -945,6 +982,16 @@ export default function AdminReturnsPage() {
                                       <SelectItem value="oversend">Over-sent (extra)</SelectItem>
                                     </SelectContent>
                                   </Select>
+                                </TableCell>
+                                <TableCell>
+                                  <button
+                                    type="button"
+                                    onClick={() => clearDecision(line.id)}
+                                    className="text-muted-foreground hover:text-destructive"
+                                    title="Clear — send back to Unscanned"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
                                 </TableCell>
                               </TableRow>
                             )
