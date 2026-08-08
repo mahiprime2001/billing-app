@@ -287,9 +287,12 @@ export default function AdminReturnsPage() {
         .includes(code),
     )
     if (match) {
-      setSelected((p) => ({ ...p, [match.id]: true }))
+      setSelected((p) => ({ ...p, [match.id]: !p[match.id] }))
       setWithAdminSearch("")
     }
+  }
+  const toggleSelectedLine = (lineId: string) => {
+    setSelected((p) => ({ ...p, [lineId]: !p[lineId] }))
   }
   const toggleSelectAll = (lines: ReturnLine[], currentlyAll: boolean) => {
     const target = !currentlyAll
@@ -307,7 +310,11 @@ export default function AdminReturnsPage() {
   const handleScan = () => {
     if (!activeOrder) return
     const code = normalizeBarcode(scanInput)
-    if (!code) return
+    if (!code) {
+      alert("Please scan a valid barcode.")
+      return
+    }
+
     const line = (activeOrder.return_products || []).find((l) => {
       const barcodes = String(l.products?.barcode || "")
         .split(",")
@@ -320,14 +327,35 @@ export default function AdminReturnsPage() {
     }
 
     const maxQty = Number(line.quantity || 0)
-    const currentQty = Number(decisions[line.id]?.verifiedQty || 0)
-    const nextQty = Math.min(maxQty, currentQty + 1)
+    if (maxQty <= 0) {
+      alert(`This product has zero quantity in the order: ${line.products?.name || scanInput}`)
+      return
+    }
 
-    setDecision(line.id, {
-      verifyStatus: "pending",
-      verifiedQty: nextQty,
-      reasonType: decisions[line.id]?.reasonType || line.reason_type || "",
+    // Increment is computed from the live state inside the updater — not from
+    // a value read earlier — so back-to-back scans always stack correctly
+    // instead of two scans racing off the same stale "current" number.
+    let alreadyComplete = false
+    setDecisions((prev) => {
+      const prevQty = Number(prev[line.id]?.verifiedQty || 0)
+      if (prevQty >= maxQty) {
+        alreadyComplete = true
+        return prev
+      }
+      const nextQty = Math.min(maxQty, prevQty + 1)
+      const isComplete = nextQty >= maxQty
+      return {
+        ...prev,
+        [line.id]: {
+          verifyStatus: isComplete ? "verified" : "pending",
+          verifiedQty: nextQty,
+          reasonType: prev[line.id]?.reasonType || line.reason_type || "",
+        },
+      }
     })
+    if (alreadyComplete) {
+      alert(`${line.products?.name || "This item"} is already fully scanned (${maxQty}/${maxQty}).`)
+    }
     setScanInput("")
   }
 
@@ -345,10 +373,27 @@ export default function AdminReturnsPage() {
   }
 
   const verifyLines = activeOrder?.return_products || []
-  // Left panel = not yet decided; right panel = decided (however it got that
-  // way — scanned, clicked, or manually set via the status dropdown).
-  const pendingLines = verifyLines.filter((l) => (decisions[l.id]?.verifyStatus || "pending") === "pending")
-  const decidedLines = verifyLines.filter((l) => decisions[l.id] && decisions[l.id].verifyStatus !== "pending")
+  // Left = every line that isn't a deliberate manual exception (unsent/oversend
+  // stay off the left entirely). Right = has any progress at all (shows from the
+  // very first click/scan) — so a partially-scanned line appears on BOTH sides at
+  // once, and a fully-scanned one stays on the left too, just rendered disabled,
+  // instead of vanishing the instant it completes.
+  const pendingLines = verifyLines
+    .filter((l) => {
+      const status = decisions[l.id]?.verifyStatus || "pending"
+      return status === "pending" || status === "verified"
+    })
+    // Still-unscanned products on top, fully-scanned (disabled) ones below.
+    .sort((a, b) => {
+      const aDone = Number(decisions[a.id]?.verifiedQty || 0) >= Number(a.quantity || 0) ? 1 : 0
+      const bDone = Number(decisions[b.id]?.verifiedQty || 0) >= Number(b.quantity || 0) ? 1 : 0
+      return aDone - bDone
+    })
+  const decidedLines = verifyLines.filter((l) => {
+    const d = decisions[l.id]
+    if (!d) return false
+    return d.verifyStatus !== "pending" || Number(d.verifiedQty || 0) > 0
+  })
 
   const verifySelectedIds = useMemo(
     () => Object.keys(verifySelected).filter((id) => verifySelected[id]),
@@ -716,10 +761,16 @@ export default function AdminReturnsPage() {
                                 <TableRow
                                   key={line.id}
                                   className={`cursor-pointer ${inCart ? "bg-muted/40" : ""}`}
-                                  onClick={() => setSelected((p) => ({ ...p, [line.id]: true }))}
+                                  onClick={() => toggleSelectedLine(line.id)}
                                 >
                                   <TableCell>
-                                    <input type="checkbox" className="h-4 w-4" checked={inCart} readOnly />
+                                    <input
+                                      type="checkbox"
+                                      className="h-4 w-4"
+                                      checked={inCart}
+                                      onChange={() => toggleSelectedLine(line.id)}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
                                   </TableCell>
                                   <TableCell className="font-medium">{line.products?.name || "—"}</TableCell>
                                   <TableCell className="text-xs text-muted-foreground">
@@ -763,7 +814,7 @@ export default function AdminReturnsPage() {
 
       {/* Order dialog: verify (pending) or details + send (verified) */}
       <Dialog open={!!activeOrder} onOpenChange={(open) => !open && setActiveOrder(null)}>
-        <DialogContent className={isUnverified ? "max-w-[1400px] w-[95vw] h-[88vh] flex flex-col" : "max-w-3xl"}>
+        <DialogContent className={isUnverified ? "max-w-[1600px] w-[95vw] max-h-[90vh] h-[88vh] flex flex-col overflow-hidden" : "max-w-3xl"}>
           <DialogHeader className="shrink-0">
             <DialogTitle>{isUnverified ? "Verify Return Order" : "Return Order"}</DialogTitle>
             <DialogDescription>
@@ -811,12 +862,14 @@ export default function AdminReturnsPage() {
               </div>
 
               {/* Two halves: not-yet-decided items on the left, decided ones on the right */}
-              <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
+              <div className="flex-1 grid grid-cols-1 lg:grid-cols-[minmax(320px,1fr)_1.8fr] gap-4 min-h-0">
                 {/* LEFT: Unscanned */}
                 <div className="flex flex-col min-h-0 border rounded-lg overflow-hidden">
                   <div className="px-3 py-2 border-b bg-muted/40 flex items-center justify-between shrink-0">
-                    <span className="text-sm font-medium">Unscanned</span>
-                    <Badge variant="secondary">{pendingLines.length}</Badge>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">Unscanned</span>
+                      <Badge variant="secondary">{pendingLines.length}</Badge>
+                    </div>
                   </div>
                   <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
                     {pendingLines.length === 0 ? (
@@ -827,67 +880,61 @@ export default function AdminReturnsPage() {
                       pendingLines.map((line) => {
                         const maxQty = Number(line.quantity || 0)
                         const currentQty = Number(decisions[line.id]?.verifiedQty || 0)
-                        const isDisabled = maxQty <= 0 || currentQty >= maxQty
-
+                        const remaining = Math.max(0, maxQty - currentQty)
+                        const isDone = remaining <= 0
+                        const price = Number(line.products?.selling_price || 0)
                         return (
-                          <div
+                          <button
                             key={line.id}
+                            type="button"
+                            disabled={isDone}
                             className={cn(
-                              "flex items-center justify-between gap-3 rounded-md border px-3 py-2 transition-colors",
-                              isDisabled
-                                ? "cursor-not-allowed opacity-45"
-                                : "hover:border-primary/50 hover:bg-muted/40",
+                              "grid w-full grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors disabled:cursor-not-allowed",
+                              isDone ? "opacity-50 bg-muted/30" : "hover:bg-muted/40",
                             )}
+                            onClick={() => {
+                              if (maxQty <= 0) {
+                                alert(`This product has zero quantity in the order: ${line.products?.name || "unknown item"}`)
+                                return
+                              }
+                              // Computed inside the updater from the live state, not the
+                              // `currentQty` closed over at render time — see handleScan.
+                              setDecisions((prev) => {
+                                const prevQty = Number(prev[line.id]?.verifiedQty || 0)
+                                if (prevQty >= maxQty) return prev
+                                const nextQty = Math.min(maxQty, prevQty + 1)
+                                const isComplete = nextQty >= maxQty
+                                return {
+                                  ...prev,
+                                  [line.id]: {
+                                    verifyStatus: isComplete ? "verified" : "pending",
+                                    verifiedQty: nextQty,
+                                    reasonType: prev[line.id]?.reasonType || line.reason_type || "",
+                                  },
+                                }
+                              })
+                            }}
                           >
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 justify-self-start">
                               <div className="truncate text-sm font-medium">{line.products?.name || "—"}</div>
                               <div className="truncate text-xs text-muted-foreground font-mono">
                                 {line.products?.barcode || "-"}
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 shrink-0">
-                              <button
-                                type="button"
-                                disabled={isDisabled || currentQty <= 0}
-                                onClick={() => {
-                                  if (isDisabled || currentQty <= 0) return
-                                  const nextQty = Math.max(0, currentQty - 1)
-                                  setDecision(line.id, {
-                                    verifyStatus: nextQty === 0 ? "pending" : "pending",
-                                    verifiedQty: nextQty,
-                                    reasonType: decisions[line.id]?.reasonType || line.reason_type || "",
-                                  })
-                                }}
-                                className="flex h-7 w-7 items-center justify-center rounded border text-lg leading-none disabled:cursor-not-allowed disabled:opacity-40"
-                                aria-label={`Decrease quantity for ${line.products?.name || "product"}`}
-                              >
-                                −
-                              </button>
-
-                              <div className="min-w-10 text-center text-xs font-semibold tabular-nums">
-                                {currentQty}/{line.quantity}
-                              </div>
-
-                              <button
-                                type="button"
-                                disabled={isDisabled || currentQty >= maxQty}
-                                onClick={() => {
-                                  if (isDisabled || currentQty >= maxQty) return
-                                  const nextQty = Math.min(maxQty, currentQty + 1)
-                                  setDecision(line.id, {
-                                    verifyStatus: "pending",
-                                    verifiedQty: nextQty,
-                                    reasonType: decisions[line.id]?.reasonType || line.reason_type || "",
-                                  })
-                                }}
-                                className="flex h-7 w-7 items-center justify-center rounded border text-lg leading-none disabled:cursor-not-allowed disabled:opacity-40"
-                                aria-label={`Increase quantity for ${line.products?.name || "product"}`}
-                              >
-                                +
-                              </button>
+                            <div className="justify-self-center text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                              {money(price)}
                             </div>
-                          </div>
+
+                            <div className="text-right justify-self-end">
+                              {isDone ? (
+                                <CheckCircle2 className="h-5 w-5 text-emerald-600 ml-auto" />
+                              ) : (
+                                <div className="text-base font-bold tabular-nums leading-tight">{remaining}</div>
+                              )}
+                              <div className="text-[11px] text-muted-foreground">of {maxQty} left</div>
+                            </div>
+                          </button>
                         )
                       })
                     )}
@@ -915,11 +962,16 @@ export default function AdminReturnsPage() {
                     </div>
                     {/* Bulk reason — check several rows, pick one reason, apply to all of them */}
                     <div className="flex flex-wrap items-center gap-2 px-3 pb-2">
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {verifySelectedIds.length > 0
-                          ? `${verifySelectedIds.length} selected`
-                          : "Select rows to apply one reason to several at once"}
-                      </span>
+                      <label className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4"
+                          checked={allVerifyRowsSelected}
+                          disabled={decidedLines.length === 0}
+                          onChange={toggleVerifySelectAll}
+                        />
+                        {verifySelectedIds.length > 0 ? `${verifySelectedIds.length} selected` : "Select all"}
+                      </label>
                       <Select value={bulkReasonType} onValueChange={setBulkReasonType}>
                         <SelectTrigger className="h-8 w-40">
                           <SelectValue placeholder="Choose reason" />
@@ -942,131 +994,132 @@ export default function AdminReturnsPage() {
                       </Button>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-auto">
-                    <Table className="min-w-[720px]">
-                      <TableHeader className="sticky top-0 bg-background z-10">
-                        <TableRow>
-                          <TableHead className="w-10">
+                  {/* Cards, not a table — reflows to whatever width this panel has instead of scrolling sideways */}
+                  <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                    {decidedLines.length === 0 ? (
+                      <div className="py-10 text-center text-sm text-muted-foreground">
+                        Scan or click an item on the left to start.
+                      </div>
+                    ) : (
+                      decidedLines.map((line) => {
+                        const d = decisions[line.id]
+                        const meta = VERIFY_STATUS_META[d.verifyStatus]
+                        const StatusIcon = meta.icon
+                        const price = Number(line.products?.selling_price || 0)
+                        const value = Number(d.verifiedQty || 0) * price
+                        const qtyMismatch = Number(d.verifiedQty || 0) !== Number(line.quantity || 0)
+                        const missingReason = !d.reasonType
+                        return (
+                          <div
+                            key={line.id}
+                            className={cn("flex flex-wrap items-center gap-2 rounded-md border p-2.5", meta.rowClass)}
+                          >
                             <input
                               type="checkbox"
-                              className="h-4 w-4"
-                              checked={allVerifyRowsSelected}
-                              disabled={decidedLines.length === 0}
-                              onChange={toggleVerifySelectAll}
-                              title="Select all"
+                              className="h-4 w-4 shrink-0"
+                              checked={!!verifySelected[line.id]}
+                              onChange={() => setVerifySelected((p) => ({ ...p, [line.id]: !p[line.id] }))}
                             />
-                          </TableHead>
-                          <TableHead>Product</TableHead>
-                          <TableHead className="w-16 text-right">Sent</TableHead>
-                          <TableHead className="w-20">Got</TableHead>
-                          <TableHead className="w-20 text-right">Value</TableHead>
-                          <TableHead className="w-32">Reason</TableHead>
-                          <TableHead className="w-36">Status</TableHead>
-                          <TableHead className="w-8"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {decidedLines.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
-                              Scan or click an item on the left to start.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          decidedLines.map((line) => {
-                            const d = decisions[line.id]
-                            const meta = VERIFY_STATUS_META[d.verifyStatus]
-                            const StatusIcon = meta.icon
-                            const price = Number(line.products?.selling_price || 0)
-                            const value = Number(d.verifiedQty || 0) * price
-                            const qtyMismatch = Number(d.verifiedQty || 0) !== Number(line.quantity || 0)
-                            const missingReason = !d.reasonType
-                            return (
-                              <TableRow key={line.id} className={meta.rowClass}>
-                                <TableCell>
-                                  <input
-                                    type="checkbox"
-                                    className="h-4 w-4"
-                                    checked={!!verifySelected[line.id]}
-                                    onChange={() => setVerifySelected((p) => ({ ...p, [line.id]: !p[line.id] }))}
-                                  />
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                  {line.products?.name || "—"}
-                                  <div className="text-xs text-muted-foreground font-normal font-mono">
-                                    {line.products?.barcode || ""}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">{line.quantity}</TableCell>
-                                <TableCell>
-                                  <Input
-                                    type="number"
-                                    min={0}
-                                    className={cn(
-                                      "h-8 w-16 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
-                                      qtyMismatch && "border-amber-400 text-amber-700",
-                                    )}
-                                    value={d.verifiedQty}
-                                    onChange={(e) =>
-                                      setDecision(line.id, { verifiedQty: Math.max(0, Number(e.target.value)) })
-                                    }
-                                  />
-                                </TableCell>
-                                <TableCell className="text-right text-sm tabular-nums">{money(value)}</TableCell>
-                                <TableCell>
-                                  <Select
-                                    value={d.reasonType}
-                                    onValueChange={(v) => setDecision(line.id, { reasonType: v })}
-                                  >
-                                    <SelectTrigger
-                                      className={cn("h-8", missingReason && "border-rose-400 text-rose-700")}
-                                    >
-                                      <SelectValue placeholder="Choose reason" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {REASONS.map((r) => (
-                                        <SelectItem key={r.value} value={r.value}>
-                                          {r.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </TableCell>
-                                <TableCell>
-                                  <Select
-                                    value={d.verifyStatus}
-                                    onValueChange={(v) =>
-                                      setDecision(line.id, { verifyStatus: v as Decision["verifyStatus"] })
-                                    }
-                                  >
-                                    <SelectTrigger className={cn("h-8 gap-1.5 border", meta.badgeClass)}>
-                                      <StatusIcon className="h-3.5 w-3.5 shrink-0" />
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="pending">Pending</SelectItem>
-                                      <SelectItem value="verified">Verified</SelectItem>
-                                      <SelectItem value="unsent">Not sent (missing)</SelectItem>
-                                      <SelectItem value="oversend">Over-sent (extra)</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </TableCell>
-                                <TableCell>
-                                  <button
-                                    type="button"
-                                    onClick={() => clearDecision(line.id)}
-                                    className="text-muted-foreground hover:text-destructive"
-                                    title="Clear — send back to Unscanned"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </button>
-                                </TableCell>
-                              </TableRow>
-                            )
-                          })
-                        )}
-                      </TableBody>
-                    </Table>
+
+                            <div className="min-w-[140px] max-w-[220px] flex-1">
+                              <div className="truncate text-sm font-medium">{line.products?.name || "—"}</div>
+                              <div className="truncate text-xs text-muted-foreground font-mono">
+                                {line.products?.barcode || ""}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                className="flex h-7 w-7 items-center justify-center rounded border text-lg leading-none disabled:cursor-not-allowed disabled:opacity-40"
+                                disabled={Number(d.verifiedQty || 0) <= 0}
+                                onClick={() =>
+                                  setDecision(line.id, {
+                                    ...d,
+                                    verifiedQty: Math.max(0, Number(d.verifiedQty || 0) - 1),
+                                  })
+                                }
+                              >
+                                −
+                              </button>
+                              <Input
+                                type="number"
+                                min={0}
+                                className={cn(
+                                  "h-8 w-14 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                                  qtyMismatch && "border-amber-400 text-amber-700",
+                                )}
+                                value={d.verifiedQty}
+                                onChange={(e) =>
+                                  setDecision(line.id, { verifiedQty: Math.max(0, Number(e.target.value)) })
+                                }
+                              />
+                              <button
+                                type="button"
+                                className="flex h-7 w-7 items-center justify-center rounded border text-lg leading-none disabled:cursor-not-allowed disabled:opacity-40"
+                                disabled={Number(d.verifiedQty || 0) >= Number(line.quantity || 0)}
+                                onClick={() =>
+                                  setDecision(line.id, {
+                                    ...d,
+                                    verifiedQty: Math.min(Number(line.quantity || 0), Number(d.verifiedQty || 0) + 1),
+                                  })
+                                }
+                              >
+                                +
+                              </button>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">of {line.quantity} sent</span>
+                            </div>
+
+                            <span className="w-20 shrink-0 text-right text-xs font-semibold tabular-nums">
+                              {money(value)}
+                            </span>
+
+                            <Select value={d.reasonType} onValueChange={(v) => setDecision(line.id, { reasonType: v })}>
+                              <SelectTrigger
+                                className={cn(
+                                  "h-8 w-52 shrink-0",
+                                  missingReason && "border-rose-400 text-rose-700",
+                                )}
+                              >
+                                <SelectValue placeholder="Choose reason" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {REASONS.map((r) => (
+                                  <SelectItem key={r.value} value={r.value}>
+                                    {r.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+
+                            <Select
+                              value={d.verifyStatus}
+                              onValueChange={(v) => setDecision(line.id, { verifyStatus: v as Decision["verifyStatus"] })}
+                            >
+                              <SelectTrigger className={cn("h-8 w-56 shrink-0 gap-1.5 border", meta.badgeClass)}>
+                                <StatusIcon className="h-3.5 w-3.5 shrink-0" />
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="verified">Verified</SelectItem>
+                                <SelectItem value="unsent">Not sent (missing)</SelectItem>
+                                <SelectItem value="oversend">Over-sent (extra)</SelectItem>
+                              </SelectContent>
+                            </Select>
+
+                            <button
+                              type="button"
+                              onClick={() => clearDecision(line.id)}
+                              className="text-muted-foreground hover:text-destructive shrink-0"
+                              title="Clear — send back to Unscanned"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )
+                      })
+                    )}
                   </div>
                 </div>
               </div>
