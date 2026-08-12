@@ -9,6 +9,7 @@ from typing import Any
 # Adjust imports to your structure
 from utils.supabase_db import db as SupabaseDBInstance
 from config import Config
+from utils.json_helpers import _safe_json_dump
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +26,11 @@ def custom_json_serializer(obj: Any) -> Any:
     raise TypeError(f"Type {type(obj)} not serializable")
 
 def save_json(filename: str, data: Any):
-    """Write data to data/json/<filename>."""
+    """Write data to data/json/<filename>, via the shared locked/atomic helper
+    -- this used to be a raw, non-atomic open()+json.dump that raced with
+    live request threads and the background sync thread over the same files."""
     filepath = os.path.join(Config.JSON_DIR, filename)
-    with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False, default=custom_json_serializer)
+    _safe_json_dump(filepath, data, default=custom_json_serializer)
     logger.info(f"Exported {filepath} ({len(data) if isinstance(data, list) else 'N/A'} records)")
 
 def export_all_data_from_supabase():

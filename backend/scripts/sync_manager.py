@@ -47,6 +47,7 @@ if PROJECT_ROOT not in sys.path:
 from utils.supabase_db import SupabaseDB
 from scripts.sync import apply_change_to_db
 from utils.json_utils import convert_camel_to_snake
+from utils.json_helpers import _safe_json_load as _shared_safe_json_load, _safe_json_dump as _shared_safe_json_dump
 
 class EnhancedSyncManager:
     """
@@ -88,24 +89,16 @@ class EnhancedSyncManager:
                 logger.error(f"Failed to create directory {path}: {e}")
 
     def _safe_json_load(self, path: str, default_value: Any) -> Any:
-        """Safely load JSON data from file"""
-        if not os.path.exists(path):
-            return default_value
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception as e:
-            logger.error(f"Error loading JSON from {path}: {e}")
-            return default_value
+        """Load JSON via the shared, locked, atomic-write-safe helper --
+        this used to be a private non-atomic duplicate that raced with live
+        request threads over the same files; now both go through one
+        coordinated implementation (utils/json_helpers.py)."""
+        return _shared_safe_json_load(path, default_value)
 
     def _safe_json_dump(self, path: str, data: Any) -> None:
-        """Safely dump JSON data to file"""
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        try:
-            with open(path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            logger.error(f"Error saving JSON to {path}: {e}")
+        """Write JSON via the shared, locked, atomic-write-safe helper --
+        see _safe_json_load's note above."""
+        _shared_safe_json_dump(path, data)
 
     @staticmethod
     def _get_postgrest_error_code(error: Exception) -> Optional[str]:

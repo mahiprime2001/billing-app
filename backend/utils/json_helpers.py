@@ -7,48 +7,55 @@ import json
 import logging
 from typing import Any, Dict, List, Union
 from config import Config
+from utils.file_write_lock import file_write_lock
 
 logger = logging.getLogger(__name__)
 
 def _safe_json_load(path: str, default: Any) -> Any:
     """
     Safely load JSON data from a file.
-    
+
     Args:
         path: Path to the JSON file
         default: Default value to return if file doesn't exist or is invalid
-        
+
     Returns:
         Loaded data or default value
     """
     if not os.path.exists(path):
         return default
-    
-    try:
-        # utf-8-sig tolerates BOM-prefixed files (common when edited by Windows tools)
-        with open(path, 'r', encoding='utf-8-sig') as f:
-            data = json.load(f)
-        
-        # Ensure top-level dictionary keys are strings to prevent TypeError with jsonify
-        if isinstance(data, dict):
-            return {str(k): v for k, v in data.items()}
-        return data
-    except json.JSONDecodeError:
-        logger.error(f"JSON decode error in {path}, returning default")
-        return default
-    except Exception as e:
-        logger.error(f"Error loading JSON from {path}: {e}")
-        return default
+
+    # Locking the read too (not just the write) means a save-then-read-back
+    # call pattern elsewhere can never observe a torn intermediate state from
+    # a *different* writer racing on the same path.
+    with file_write_lock(path):
+        try:
+            # utf-8-sig tolerates BOM-prefixed files (common when edited by Windows tools)
+            with open(path, 'r', encoding='utf-8-sig') as f:
+                data = json.load(f)
+
+            # Ensure top-level dictionary keys are strings to prevent TypeError with jsonify
+            if isinstance(data, dict):
+                return {str(k): v for k, v in data.items()}
+            return data
+        except json.JSONDecodeError:
+            logger.error(f"JSON decode error in {path}, returning default")
+            return default
+        except Exception as e:
+            logger.error(f"Error loading JSON from {path}: {e}")
+            return default
 
 
-def _safe_json_dump(path: str, data: Any) -> bool:
+def _safe_json_dump(path: str, data: Any, default=None) -> bool:
     """
     Safely write JSON data to a file.
-    
+
     Args:
         path: Path to the JSON file
         data: Data to write
-        
+        default: optional json.dump-style serializer for non-JSON-native
+            types (e.g. datetime) -- passed straight through to json.dump
+
     Returns:
         True if successful, False otherwise
     """
@@ -61,26 +68,30 @@ def _safe_json_dump(path: str, data: Any) -> bool:
         except Exception as e:
             logger.error(f"Failed to create directory {parent_dir}: {e}")
             return False
-    
+
     # Atomic write: serialize to a temp file, fsync, then os.replace. This
     # guarantees readers never see a half-written/truncated file (which a crash
     # mid-write would otherwise leave behind and corrupt the local cache).
+    # The lock additionally prevents two concurrent writers (a live request
+    # thread and the background sync thread) from racing a read-modify-write
+    # cycle and silently losing one side's update.
     tmp = f"{path}.tmp"
-    try:
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, path)
-        return True
-    except Exception as e:
-        logger.error(f"Failed to write JSON to {path}: {e}")
+    with file_write_lock(path):
         try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        except OSError:
-            pass
-        return False
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False, default=default)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to write JSON to {path}: {e}")
+            try:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+            except OSError:
+                pass
+            return False
 
 
 # ============================================
