@@ -1,6 +1,7 @@
 "use client"
 
 import { API_BASE } from "@/lib/api-base"
+import { announceLoginSuccess } from "@/lib/auth-events"
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -9,15 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Eye, EyeOff, Lock, Mail, AlertCircle, CheckCircle, ArrowLeft, Shield, User, Clock } from "lucide-react"
+import { Eye, EyeOff, Lock, AlertCircle, CheckCircle, Shield, User, Clock } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import Image from "next/image"
 
@@ -37,17 +30,23 @@ interface AdminUser {
   password?: string
 }
 
-interface ForgotPasswordState {
-  email: string
-  loading: boolean
-  error: string
-  success: boolean
-  message: string
-}
-
 const ADMIN_ROLE = "super_admin" as const
 
 const normalizeEmail = (value: string): string => value.trim().toLowerCase()
+
+// Offline login needs *something* to compare the next-typed password
+// against without a network round-trip -- but storing the real password in
+// localStorage (as this used to) means it sits in plaintext in the Tauri
+// webview's on-disk storage for as long as the user stays logged in. A
+// SHA-256 hash serves the same comparison purpose without ever persisting
+// the actual password to disk.
+async function sha256Hex(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text)
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data)
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+}
 
 export default function LoginPage() {
   console.log("LoginPage component rendered");
@@ -61,16 +60,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [rememberEmail, setRememberEmail] = useState(false)
-
-  // Forgot password state (same as billing app)
-  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
-  const [forgotPassword, setForgotPassword] = useState<ForgotPasswordState>({
-    email: "",
-    loading: false,
-    error: "",
-    success: false,
-    message: ""
-  })
 
   useEffect(() => {
     // Load remembered email
@@ -88,7 +77,7 @@ export default function LoginPage() {
     setSuccess("")
     const normalizedEmail = normalizeEmail(email)
 
-    const saveLoginSession = (userData: AdminUser, isOffline = false) => {
+    const saveLoginSession = async (userData: AdminUser, isOffline = false, token?: string) => {
       if (rememberEmail) {
         localStorage.setItem("rememberedAdminEmail", normalizedEmail)
       } else {
@@ -96,7 +85,26 @@ export default function LoginPage() {
       }
 
       localStorage.setItem("adminLoggedIn", "true")
-      localStorage.setItem("adminUser", JSON.stringify({ ...userData, role: ADMIN_ROLE }))
+      // Never persist the real password -- only its hash, so the offline-
+      // login comparison below has something to check against without
+      // leaving the actual password sitting in plaintext on disk. On an
+      // offline login, userData.password is already a hash (it came from a
+      // previous online login's saved session), so this is a no-op re-hash
+      // of a hash -- harmless, since it's never compared against a raw
+      // password directly, only against another freshly-hashed one.
+      const storedPassword = isOffline ? userData.password : await sha256Hex(password)
+      localStorage.setItem(
+        "adminUser",
+        JSON.stringify({ ...userData, password: storedPassword, role: ADMIN_ROLE })
+      )
+      // Offline (cached-credentials) login has no fresh token to save --
+      // leave whatever token is already stored from the last real login in
+      // place, since it may still be valid once connectivity returns.
+      if (token) {
+        localStorage.setItem("adminToken", token)
+      }
+
+      announceLoginSuccess()
 
       setSuccess(isOffline ? "Offline login successful! Redirecting..." : "Login successful! Redirecting...")
       toast({
@@ -142,9 +150,7 @@ export default function LoginPage() {
         return
       }
 
-      const { user: userData, auth_ok, user_role } = await response.json()
-      console.log("handleLogin - User data from API:", userData);
-      console.log("handleLogin - Auth status:", auth_ok, "User role:", user_role);
+      const { user: userData, auth_ok, user_role, access_token } = await response.json()
 
       if (!auth_ok) {
         setError("Authentication failed. Please try again.")
@@ -158,7 +164,7 @@ export default function LoginPage() {
         return
       }
 
-      saveLoginSession(userData)
+      await saveLoginSession(userData, false, access_token)
     } catch (error) {
       console.error("Login error:", error)
       const cachedUserRaw = localStorage.getItem("adminUser")
@@ -167,10 +173,15 @@ export default function LoginPage() {
         try {
           const cachedUser = JSON.parse(cachedUserRaw) as AdminUser
           const cachedEmail = normalizeEmail(cachedUser.email || "")
-          const cachedPassword = cachedUser.password || ""
+          const cachedPasswordHash = cachedUser.password || ""
+          const enteredPasswordHash = await sha256Hex(password)
 
-          if (cachedEmail === normalizedEmail && cachedPassword === password && cachedUser.role === ADMIN_ROLE) {
-            saveLoginSession(cachedUser, true)
+          if (
+            cachedEmail === normalizedEmail &&
+            cachedPasswordHash === enteredPasswordHash &&
+            cachedUser.role === ADMIN_ROLE
+          ) {
+            await saveLoginSession(cachedUser, true)
             return
           }
         } catch (parseError) {
@@ -186,113 +197,6 @@ export default function LoginPage() {
       })
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
-  }
-
-  // Same forgot password logic as billing app
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!forgotPassword.email) {
-      setForgotPassword(prev => ({ 
-        ...prev, 
-        error: "Email is required" 
-      }))
-      return
-    }
-
-    if (!validateEmail(forgotPassword.email)) {
-      setForgotPassword(prev => ({ 
-        ...prev, 
-        error: "Please enter a valid email address" 
-      }))
-      return
-    }
-
-    setForgotPassword(prev => ({ 
-      ...prev, 
-      loading: true, 
-      error: "", 
-      message: "" 
-    }))
-
-    try {
-      // Use the Flask backend URL directly for forgot password
-      const response = await fetch(`${API_BASE}/api/auth/forgot-password-proxy`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: forgotPassword.email }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setForgotPassword(prev => ({
-          ...prev,
-          success: true,
-          message: data.message,
-          email: "" // Clear email for security
-        }))
-
-        toast({
-          title: "📧 Reset Link Sent",
-          description: "Check your email for password reset instructions.",
-        })
-      } else {
-        setForgotPassword(prev => ({ 
-          ...prev, 
-          error: data.message 
-        }))
-        
-        toast({
-          title: "❌ Request Failed",
-          description: data.message,
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      setForgotPassword(prev => ({ 
-        ...prev, 
-        error: "Network error. Please check your connection and try again." 
-      }))
-      
-      toast({
-        title: "⚠️ Connection Error",
-        description: "Please check your internet connection.",
-        variant: "destructive",
-      })
-    } finally {
-      setForgotPassword(prev => ({ 
-        ...prev, 
-        loading: false 
-      }))
-    }
-  }
-
-  const resetForgotPasswordForm = () => {
-    setForgotPassword({
-      email: "",
-      loading: false,
-      error: "",
-      success: false,
-      message: ""
-    })
-  }
-
-  const handleForgotPasswordModalChange = (open: boolean) => {
-    setForgotPasswordOpen(open)
-    if (!open) {
-      // Reset form when modal closes
-      setTimeout(() => {
-        resetForgotPasswordForm()
-      }, 200) // Small delay to allow modal animation
     }
   }
 
@@ -339,126 +243,7 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <Dialog open={forgotPasswordOpen} onOpenChange={handleForgotPasswordModalChange}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="link" 
-                        className="p-0 h-auto text-sm text-blue-600 hover:text-blue-800"
-                      >
-                        Forgot Password?
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                          <Mail className="h-5 w-5 text-blue-600" />
-                          Reset Password
-                        </DialogTitle>
-                        <DialogDescription>
-                          {forgotPassword.success 
-                            ? "Check your email for reset instructions"
-                            : "Enter your email address to receive a password reset link"
-                          }
-                        </DialogDescription>
-                      </DialogHeader>
-
-                      {forgotPassword.success ? (
-                        // Success State (same as billing app)
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-center p-6">
-                            <div className="text-center space-y-3">
-                              <div className="mx-auto flex items-center justify-center w-12 h-12 bg-green-100 rounded-full">
-                                <CheckCircle className="w-6 h-6 text-green-600" />
-                              </div>
-                              <div>
-                                <h3 className="text-lg font-medium text-gray-900">Email Sent!</h3>
-                                <p className="text-sm text-gray-600 mt-1">
-                                  {forgotPassword.message}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={resetForgotPasswordForm}
-                              className="flex-1"
-                            >
-                              <ArrowLeft className="w-4 h-4 mr-2" />
-                              Send Another
-                            </Button>
-                            <Button
-                              type="button"
-                              onClick={() => setForgotPasswordOpen(false)}
-                              className="flex-1"
-                            >
-                              Close
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        // Form State (same as billing app)
-                        <form onSubmit={handleForgotPassword} className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="forgot-email">Email Address</Label>
-                            <Input
-                              id="forgot-email"
-                              type="email"
-                              value={forgotPassword.email}
-                              onChange={(e) => setForgotPassword(prev => ({ 
-                                ...prev, 
-                                email: e.target.value, 
-                                error: "" 
-                              }))}
-                              placeholder="Enter your email address"
-                              disabled={forgotPassword.loading}
-                              className="w-full"
-                            />
-                          </div>
-
-                          {forgotPassword.error && (
-                            <Alert variant="destructive">
-                              <AlertCircle className="h-4 w-4" />
-                              <AlertDescription>{forgotPassword.error}</AlertDescription>
-                            </Alert>
-                          )}
-
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => setForgotPasswordOpen(false)}
-                              disabled={forgotPassword.loading}
-                              className="flex-1"
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              type="submit"
-                              disabled={forgotPassword.loading || !forgotPassword.email}
-                              className="flex-1"
-                            >
-                              {forgotPassword.loading ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                  Sending...
-                                </>
-                              ) : (
-                                <>
-                                  <Mail className="w-4 h-4 mr-2" />
-                                  Send Link
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </form>
-                      )}
-                    </DialogContent>
-                  </Dialog>
-                </div>
+                <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -486,33 +271,18 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="remember"
-                    checked={rememberEmail}
-                    onChange={(e) => setRememberEmail(e.target.checked)}
-                    className="rounded"
-                    disabled={isLoading}
-                  />
-                  <Label htmlFor="remember" className="text-sm">
-                    Remember email
-                  </Label>
-                </div>
-
-                <Dialog open={forgotPasswordOpen} onOpenChange={handleForgotPasswordModalChange}>
-                  <DialogTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="text-sm text-blue-600 hover:text-blue-800 p-0"
-                      onClick={resetForgotPasswordForm}
-                    >
-                      Reset your password
-                    </Button>
-                  </DialogTrigger>
-                </Dialog>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="remember"
+                  checked={rememberEmail}
+                  onChange={(e) => setRememberEmail(e.target.checked)}
+                  className="rounded"
+                  disabled={isLoading}
+                />
+                <Label htmlFor="remember" className="text-sm">
+                  Remember email
+                </Label>
               </div>
 
               {error && (
