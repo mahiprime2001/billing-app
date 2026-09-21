@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.calculate.outputs.version }}
+      changelog: ${{ steps.calculate.outputs.changelog }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -59,6 +60,20 @@ jobs:
             NEW_VERSION="$MAJOR.$MINOR.$PATCH"
           done
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+          # Actual commit subjects since the last tag, so the release notes
+          # say what changed instead of the old static "this is an update"
+          # placeholder text. Drops the bot's own version-bump commits and
+          # merge commits since those aren't user-facing changes.
+          CHANGELOG=$(git log $RANGE --no-merges --pretty=format:"- %s" | grep -v "^- chore: bump version to" || true)
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="- Minor fixes and improvements"
+          fi
+          {
+            echo "changelog<<CHANGELOG_EOF_9f2a1"
+            echo "$CHANGELOG"
+            echo "CHANGELOG_EOF_9f2a1"
+          } >> "$GITHUB_OUTPUT"
 
 
       - name: Update version in Tauri config
@@ -186,12 +201,15 @@ jobs:
 
       - name: Prepare Updater Assets (Read Sigs, update.json, Set Bundles for Upload)
         shell: pwsh
+        env:
+          RELEASE_NOTES: ${{ needs.prepare-environment.outputs.changelog }}
         run: |
           $ErrorActionPreference = "Stop"
           $bundleDir = "src-tauri/target/release/bundle"
           $version = "${{ needs.prepare-environment.outputs.version }}"
           $repo = $env:GITHUB_REPOSITORY
           $tag = "v$version"
+          $releaseNotes = $env:RELEASE_NOTES
 
 
           # MSI only -- no NSIS/.exe build (tauri.conf.json's bundle.targets
@@ -218,7 +236,7 @@ jobs:
           # the very first lookup succeed directly.
           $updateJson = @{
             version = $version
-            notes = "Added auto-update support and fixed minor bugs."
+            notes = $releaseNotes
             pub_date = $pubDate
             platforms = @{
               "windows-x86_64" = @{
@@ -247,6 +265,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_NOTES: ${{ needs.prepare-environment.outputs.changelog }}
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -257,10 +276,15 @@ jobs:
           gh auth status
 
 
-          # Create if not exists
+          $notesFile = "release-notes.md"
+          "## What's Changed`n`n$($env:RELEASE_NOTES)" | Out-File -FilePath $notesFile -Encoding UTF8
+
+          # Create if not exists, otherwise refresh the notes on the existing release
           gh release view $tag --repo $env:GITHUB_REPOSITORY
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --title "Siri Admin App $tag" --notes "Automated Tauri Windows release with updater support for version $tag" --repo $env:GITHUB_REPOSITORY
+            gh release create $tag --title "Siri Admin App $tag" --notes-file $notesFile --repo $env:GITHUB_REPOSITORY
+          } else {
+            gh release edit $tag --notes-file $notesFile --repo $env:GITHUB_REPOSITORY
           }
 
 

@@ -52,9 +52,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ScrollText,
+  Download,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { NotificationBell } from "@/components/notification-bell"
+import { invoke } from "@tauri-apps/api/core"
 
 interface AdminUser {
   name: string
@@ -115,6 +117,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [user, setUser] = useState<AdminUser | null>(null)
   const [assignedStores, setAssignedStores] = useState<SystemStore[]>([])
   const [isSyncing, setIsSyncing] = useState(false)
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
 
   useEffect(() => {
     const userData = typeof window !== "undefined" ? localStorage.getItem("adminUser") : null
@@ -159,6 +162,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       localStorage.removeItem("adminUser")
       localStorage.removeItem("adminToken")
       router.push("/")
+    }
+  }
+
+  const handleCheckForUpdates = async () => {
+    if (isCheckingUpdate) return
+    setIsCheckingUpdate(true)
+    try {
+      const result = await invoke<string>("check_for_updates")
+      if (result.includes("Update available")) {
+        const version = result.replace("Update available: ", "")
+        if (confirm(`Version ${version} is available. Install it now? The app will restart.`)) {
+          await invoke<string>("install_update")
+        }
+      } else {
+        alert("You are already running the latest version.")
+      }
+    } catch (err) {
+      console.error("Error checking for updates:", err)
+      alert(`Failed to check for updates: ${err}`)
+    } finally {
+      setIsCheckingUpdate(false)
     }
   }
 
@@ -275,6 +299,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <DropdownMenuItem onClick={handleSync} disabled={isSyncing}>
                   <RefreshCcw className="mr-2 h-4 w-4" />
                   <span>{isSyncing ? "Syncing..." : "Sync Data"}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleCheckForUpdates} disabled={isCheckingUpdate}>
+                  <Download className="mr-2 h-4 w-4" />
+                  <span>{isCheckingUpdate ? "Checking..." : "Check for Updates"}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
