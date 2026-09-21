@@ -60,8 +60,19 @@ async fn install_update(app_handle: AppHandle) -> Result<String, String> {
                     .await
                 {
                     Ok(_) => {
-                        info!("[install_update] Installed. Restarting...");
-                        app_handle.restart();
+                        // NOT app_handle.restart() -- restart() relaunches
+                        // this same (soon-to-be-replaced) executable right
+                        // away, which can race the installer: it grabs the
+                        // exe file again before the installer gets a clean
+                        // window to overwrite it, so the install silently
+                        // fails (installMode above suppresses any error UI)
+                        // and the user is left on the old version with no
+                        // indication anything went wrong. A plain exit lets
+                        // the installer (already spawned by
+                        // download_and_install above) finish the swap
+                        // uncontested; it relaunches the app itself once done.
+                        info!("[install_update] Installed. Exiting for installer to finish...");
+                        app_handle.exit(0);
                     }
                     Err(e) => {
                         error!("[install_update] Failed: {}", e);
