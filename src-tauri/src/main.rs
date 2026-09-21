@@ -2,7 +2,7 @@
 
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
-use tauri::{WebviewUrl, WebviewWindowBuilder, AppHandle, Manager};
+use tauri::{WebviewUrl, WebviewWindowBuilder, AppHandle};
 use warp::Filter;
 use serde::{Deserialize, Serialize};
 use log::{info, error, debug};
@@ -576,15 +576,6 @@ fn main() {
             info!("=======================================================");
             info!("  APPLICATION SETUP COMPLETE");
             info!("=======================================================");
-
-            // TEMPORARY, for testing -- opens devtools automatically on
-            // launch so there's no need to rely on right-click "Inspect"
-            // being available. Remove once testing is done (the `devtools`
-            // Cargo feature above can stay either way; this is just the
-            // auto-open behavior).
-            if let Some(window) = app.get_webview_window("main") {
-                window.open_devtools();
-            }
 
             Ok(())
         })

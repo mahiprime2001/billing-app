@@ -167,7 +167,15 @@ export default function AppProviders({
 
         clearTimeout(timeoutId);
 
-        if (!response.ok) {
+        if (response.status === 401) {
+          // The server answered -- it's online. A 401 just means no token
+          // yet (sitting on the login page) or an expired one (the fetch
+          // interceptor above already redirects to login for that case).
+          // Either way this isn't a connectivity problem, so it shouldn't
+          // log as an error or flip the backend status to "offline".
+          setBackendStatus('online');
+          setRetryCount(0);
+        } else if (!response.ok) {
           console.error(`Heartbeat failed: ${response.status} ${response.statusText}`);
           setBackendStatus('offline');
           previousBackendStatusRef.current = 'offline';
