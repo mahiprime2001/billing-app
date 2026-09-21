@@ -7,6 +7,14 @@ const api = axios.create({
   withCredentials: true, // Crucial for sending HttpOnly cookies with cross-origin requests
 });
 
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = localStorage.getItem('adminToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
@@ -16,6 +24,7 @@ api.interceptors.response.use(
       // Clear any stored client-side user data
       localStorage.removeItem('adminLoggedIn');
       localStorage.removeItem('adminUser');
+      localStorage.removeItem('adminToken');
       // Force a full page reload to the login page
       window.location.href = '/';
     }

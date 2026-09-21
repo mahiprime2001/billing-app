@@ -1,6 +1,8 @@
 'use client'
 
 import { API_BASE } from "@/lib/api-base"
+import { fetchWithBackgroundRefresh, withResolvers } from "@/lib/api-cache"
+import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { differenceInCalendarDays, endOfDay, format, startOfDay, subDays } from 'date-fns'
@@ -898,6 +900,7 @@ export default function AnalyticsPage() {
   const [exportStore, setExportStore] = useState('all')
   const [activeTab, setActiveTab] = useState<TabValue>('overview')
   const [loading, setLoading] = useState(true)
+  const [isOfflineFallback, setIsOfflineFallback] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [productSearch, setProductSearch] = useState('')
@@ -921,29 +924,40 @@ export default function AnalyticsPage() {
     setAuthChecked(true)
   }, [router])
 
-  const fetchAllData = useCallback(async () => {
-    setLoading(true)
+  const fetchAllData = useCallback(async (isBackground = false) => {
+    if (!isBackground) setLoading(true)
 
+    // Each endpoint paints instantly from cache (if any) then refreshes
+    // from the network in the background, independently. staleBy collapses
+    // per-endpoint staleness into one isOfflineFallback flag.
+    const staleBy = withResolvers(setIsOfflineFallback)
     try {
-      const [billsRes, storesRes, productsRes, returnsRes, batchesRes] = await Promise.all([
-        fetch(`${backendUrl}/api/bills`).then((res) => res.json()),
-        fetch(`${backendUrl}/api/stores`).then((res) => res.json()),
-        fetch(`${backendUrl}/api/products`).then((res) => res.json()),
-        fetch(`${backendUrl}/api/returns`).then((res) => res.json()),
-        fetch(`${backendUrl}/api/batches`)
-          .then((res) => (res.ok ? res.json() : []))
-          .catch(() => []),
+      await Promise.all([
+        fetchWithBackgroundRefresh<any>("/api/bills", (r) => {
+          const normalized = normalizeBills(Array.isArray(r.data) ? r.data : [])
+          // Sales metrics use only non-cancelled bills; cancelled bills are
+          // tracked separately so they can be surfaced without inflating revenue.
+          setBills(normalized.filter((bill) => !isCancelledBill(bill)))
+          setCancelledBills(normalized.filter((bill) => isCancelledBill(bill)))
+          staleBy.set("bills", r.source === "cache")
+        }, () => staleBy.set("bills", true)),
+        fetchWithBackgroundRefresh<any>("/api/stores", (r) => {
+          setStores(normalizeStores(Array.isArray(r.data) ? r.data : []))
+          staleBy.set("stores", r.source === "cache")
+        }, () => staleBy.set("stores", true)),
+        fetchWithBackgroundRefresh<any>("/api/products", (r) => {
+          setProducts(normalizeProducts(Array.isArray(r.data) ? r.data : []))
+          staleBy.set("products", r.source === "cache")
+        }, () => staleBy.set("products", true)),
+        fetchWithBackgroundRefresh<any>("/api/returns", (r) => {
+          setReturns(normalizeReturns(Array.isArray(r.data) ? r.data : []))
+          staleBy.set("returns", r.source === "cache")
+        }, () => staleBy.set("returns", true)),
+        fetchWithBackgroundRefresh<any>("/api/batches", (r) => {
+          setBatches(normalizeBatches(Array.isArray(r.data) ? r.data : []))
+          staleBy.set("batches", r.source === "cache")
+        }, () => staleBy.set("batches", true)).catch(() => {}),
       ])
-
-      const normalizedBills = normalizeBills(Array.isArray(billsRes) ? billsRes : [])
-      // Sales metrics use only non-cancelled bills; cancelled bills are tracked
-      // separately so they can be surfaced without inflating revenue.
-      setBills(normalizedBills.filter((bill) => !isCancelledBill(bill)))
-      setCancelledBills(normalizedBills.filter((bill) => isCancelledBill(bill)))
-      setStores(normalizeStores(Array.isArray(storesRes) ? storesRes : []))
-      setProducts(normalizeProducts(Array.isArray(productsRes) ? productsRes : []))
-      setReturns(normalizeReturns(Array.isArray(returnsRes) ? returnsRes : []))
-      setBatches(normalizeBatches(Array.isArray(batchesRes) ? batchesRes : []))
       setLastUpdated(new Date())
     } catch (error) {
       console.error('Failed to load analytics data', error)
@@ -957,6 +971,7 @@ export default function AnalyticsPage() {
       fetchAllData()
     }
   }, [authChecked, fetchAllData])
+  useBackgroundPoll(() => fetchAllData(true), 60_000, authChecked)
 
   const dateWindows = useMemo(() => {
     const now = new Date()
@@ -1542,6 +1557,26 @@ export default function AnalyticsPage() {
       marginPct: revenue > 0 ? (profit / revenue) * 100 : 0,
     }
   }, [currentSalesMap])
+
+  // Inventory turnover: how many times stock "turned over" (sold and was
+  // replaced) during the selected date range. No historical stock snapshots
+  // exist, so this uses CURRENT stock value as a stand-in for the period's
+  // average inventory -- a standard simplification when you don't track
+  // period-start/end inventory separately, but it does mean a big recent
+  // restock will understate turnover for the period just gone. Annualized
+  // so a 7-day and a 90-day selection produce comparable figures.
+  const turnoverMetrics = useMemo(() => {
+    const cogs = currentProfitSummary.cogs
+    const stockValue = inventorySummary.totalCostValue
+    const days = dateWindows.selectedRangeDays
+
+    const periodTurnover = stockValue > 0 ? cogs / stockValue : null
+    const annualizedTurnover = periodTurnover !== null ? periodTurnover * (365 / days) : null
+    const dailyCogsRate = cogs / days
+    const daysOfStockRemaining = dailyCogsRate > 0 ? stockValue / dailyCogsRate : null
+
+    return { periodTurnover, annualizedTurnover, daysOfStockRemaining }
+  }, [currentProfitSummary, inventorySummary, dateWindows])
 
   const previousProfitSummary = useMemo(() => {
     let revenue = 0
@@ -2905,6 +2940,11 @@ export default function AnalyticsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6 p-6 max-w-full overflow-x-auto bg-gradient-to-b from-slate-50/70 to-white">
+        {isOfflineFallback && (
+          <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800" aria-live="polite">
+            Showing analytics data from the last sync — no connection right now.
+          </div>
+        )}
         <Card className="border-slate-200/80 bg-gradient-to-r from-sky-50 to-emerald-50 shadow-md">
           <CardContent className="p-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -2983,7 +3023,7 @@ export default function AnalyticsPage() {
 
                 <Button
                   variant="outline"
-                  onClick={fetchAllData}
+                  onClick={() => fetchAllData()}
                   className="border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
@@ -3996,9 +4036,28 @@ export default function AnalyticsPage() {
                 <span className="text-muted-foreground">Low stock</span>
                 <span className="font-medium text-amber-700">{inventorySummary.lowStockCount}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-muted-foreground">Out of stock</span>
                 <span className="font-medium text-red-600">{inventorySummary.outOfStockCount}</span>
+              </div>
+              <div
+                className="flex justify-between border-b border-slate-100 pb-1.5"
+                title="Estimated from current stock value vs. cost of goods sold in the selected range, annualized. Not based on a period-average inventory snapshot."
+              >
+                <span className="text-muted-foreground">Inventory turnover (annualized)</span>
+                <span className="font-medium">
+                  {turnoverMetrics.annualizedTurnover !== null
+                    ? `${turnoverMetrics.annualizedTurnover.toFixed(1)}x / yr`
+                    : 'N/A'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Days of stock remaining</span>
+                <span className="font-medium">
+                  {turnoverMetrics.daysOfStockRemaining !== null
+                    ? `${turnoverMetrics.daysOfStockRemaining.toFixed(0)}d`
+                    : 'N/A'}
+                </span>
               </div>
             </CardContent>
           </Card>

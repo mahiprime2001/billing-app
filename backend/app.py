@@ -86,7 +86,13 @@ def create_app(config_name='default'):
     
     # Ensure data directories exist
     ensure_data_directories(app)
-    
+
+    # Move local storage off the old per-domain JSON files onto SQLite
+    # (utils/sqlite_store.py) -- one-time per table, safe to call on every
+    # startup. Must run before anything else touches local storage.
+    from utils import sqlite_store
+    sqlite_store.migrate_json_files_if_needed()
+
     # Initialize sync manager
     if ENHANCED_SYNC_AVAILABLE:
         app.sync_manager = get_sync_manager(app.config['BASE_DIR'])

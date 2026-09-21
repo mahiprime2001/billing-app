@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from utils.supabase_db import db
 from utils.supabase_resilience import execute_with_retry, is_transient_supabase_error
+from utils import sqlite_store
 from config import Config
 from services import stores_service
 
@@ -29,25 +30,30 @@ SURPLUS_ACTIONS = {"add_to_store", "allocate_from_owner", "create_order", "flag_
 # LOCAL JSON HELPERS
 # ============================================
 
+# _read_local/_write_local keep taking a `path`-shaped argument on purpose
+# (every call site below still passes Config.STORE_AUDITS_FILE / _ITEMS_FILE)
+# -- only what's underneath moved to sqlite_store, so none of those 11 call
+# sites needed to change.
+_PATH_TO_TABLE = {
+    Config.STORE_AUDITS_FILE: "store_audits",
+    Config.STORE_AUDIT_ITEMS_FILE: "store_audit_items",
+}
+
+
 def _read_local(path: str) -> List[Dict]:
-    if not os.path.exists(path):
+    table_name = _PATH_TO_TABLE.get(path)
+    if table_name is None:
+        logger.warning(f"_read_local: unrecognized path {path}")
         return []
-    try:
-        with open(path, "r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        return data if isinstance(data, list) else []
-    except Exception as e:
-        logger.warning(f"Failed reading local file {path}: {e}")
-        return []
+    return sqlite_store.get_table_data(table_name, [])
 
 
 def _write_local(path: str, data: List[Dict]) -> None:
-    try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False, default=str)
-    except Exception as e:
-        logger.warning(f"Failed writing local file {path}: {e}")
+    table_name = _PATH_TO_TABLE.get(path)
+    if table_name is None:
+        logger.warning(f"_write_local: unrecognized path {path}")
+        return
+    sqlite_store.save_table_data(table_name, data)
 
 
 # ============================================

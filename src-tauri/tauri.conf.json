@@ -27,7 +27,8 @@
       "csp": null,
       "capabilities": [
         "default-capabilities",
-        "main-capability"
+        "main-capability",
+        "sql-capability"
       ]
     },
     "withGlobalTauri": true
@@ -61,9 +62,6 @@
       "icons/icon.icns",
       "icons/icon.ico",
       "icons/icon.png"
-    ],
-    "externalBin": [
-      "binaries/Siriadmin-backend"
     ],
     "windows": {
       "certificateThumbprint": null,

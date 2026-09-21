@@ -1,6 +1,7 @@
 "use client"
 
 import { API_BASE } from "@/lib/api-base"
+import { readCache, writeCache } from "@/lib/api-cache"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
@@ -50,6 +51,9 @@ const MAX_POLL_INTERVAL = 120_000      // 2min max backoff
 const BACKOFF_MULTIPLIER = 2
 const USERS_REFRESH_INTERVAL = 300_000 // 5min — users list rarely changes
 const DISCOUNTS_FETCH_LIMIT = 500
+// Stable cache key -- the actual request URL includes a `t=${Date.now()}`
+// cache-buster that would otherwise make every call a unique cache key.
+const DISCOUNTS_CACHE_KEY = `/api/discounts?mode=merged&limit=${DISCOUNTS_FETCH_LIMIT}`
 
 export default function DiscountsPage() {
   const [requests, setRequests] = useState<DiscountRequest[]>([])
@@ -58,6 +62,7 @@ export default function DiscountsPage() {
   const [error, setError] = useState<string | null>(null)
   const [adminUser, setAdminUser] = useState<{ id?: string; userId?: string; name?: string }>({})
   const [selectedDiscountIds, setSelectedDiscountIds] = useState<string[]>([])
+  const [isOfflineFallback, setIsOfflineFallback] = useState(false)
 
   // Polling refs
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -88,6 +93,16 @@ export default function DiscountsPage() {
         // ignore parse errors and continue without admin context
       }
     }
+
+    // Instant paint from cache (if any) while the real fetch is in flight
+    // below, so revisiting this page doesn't sit on a blank spinner --
+    // loadDiscounts() overwrites this with live data moments later either way.
+    readCache<DiscountRequest[]>(DISCOUNTS_CACHE_KEY).then((cached) => {
+      if (cached) {
+        setRequests(Array.isArray(cached.data) ? cached.data : [])
+        setLoading(false)
+      }
+    })
 
     // Initial loads
     loadDiscounts()
@@ -138,6 +153,8 @@ export default function DiscountsPage() {
       }
       const data: DiscountRequest[] = await response.json()
       setRequests(Array.isArray(data) ? data : [])
+      setIsOfflineFallback(false)
+      void writeCache(DISCOUNTS_CACHE_KEY, data)
 
       // Reset backoff on success
       consecutiveErrorsRef.current = 0
@@ -145,7 +162,18 @@ export default function DiscountsPage() {
     } catch (err) {
       if (signal.aborted) return
       console.error("Error loading discounts:", err)
-      setError("Failed to load discounts. Please try again later.")
+
+      // Genuinely offline -- both the merged and /local endpoints need a
+      // live connection on siri-api. Fall back to the last cached response
+      // instead of leaving the (possibly empty) list up with just an error.
+      const cached = await readCache<DiscountRequest[]>(DISCOUNTS_CACHE_KEY)
+      if (cached) {
+        setRequests(Array.isArray(cached.data) ? cached.data : [])
+        setIsOfflineFallback(true)
+        setError(null)
+      } else {
+        setError("Failed to load discounts. Please try again later.")
+      }
 
       // Exponential backoff on error: 30s -> 60s -> 120s
       consecutiveErrorsRef.current += 1
@@ -333,6 +361,11 @@ export default function DiscountsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {isOfflineFallback && (
+          <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800" aria-live="polite">
+            Showing {requests.length.toLocaleString()} discount requests from the last sync — no connection right now.
+          </div>
+        )}
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Discount Requests</h1>
           <p className="text-muted-foreground">Approve or decline discount requests tied to invoices.</p>

@@ -1,6 +1,7 @@
 "use client"
 
 import { API_BASE } from "@/lib/api-base"
+import { createProductOffline, updateProductOffline } from "@/lib/product-write"
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { getBarcode } from "@/app/utils/getBarcode";
 import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate";
@@ -122,6 +123,7 @@ export default function ProductsPage() {
     progress: productsProgress,
     loadedPages: productsLoadedPages,
     totalCount: productsTotalCount,
+    isOfflineFallback: productsOfflineFallback,
     mutate,
   } = useIncrementalProducts(200);
   const { data: batches = [], error: batchesError, isLoading: batchesLoading, mutate: mutateBatches } = useSWR<Batch[]>(
@@ -553,25 +555,48 @@ export default function ProductsPage() {
     };
 
     try {
-      const response = await fetch(`${API_BASE}/api/products`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newProduct),
-      });
+      let createdId: string | undefined;
+      let usedOfflineFallback = false;
 
-      if (!response.ok) {
-        throw new Error("Failed to add product");
+      try {
+        const response = await fetch(`${API_BASE}/api/products`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newProduct),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to add product");
+        }
+
+        try {
+          const body = await response.clone().json();
+          createdId = body?.id;
+        } catch {
+          // ignore — backend may not include body in all cases
+        }
+      } catch (fetchError) {
+        // fetch() itself rejects with a TypeError ("Failed to fetch") only
+        // when the request never reached the server -- a real network
+        // failure. The `!response.ok` branch above throws a plain Error
+        // instead, so checking for TypeError specifically is what tells
+        // "never reached the server" (fall back offline) apart from "server
+        // reached and explicitly rejected it" (surface as a real error,
+        // same as the axios `.response` check billing/page.tsx uses).
+        if (fetchError instanceof TypeError) {
+          const offlineResult = await createProductOffline(newProduct);
+          if (!offlineResult.success) {
+            throw new Error(offlineResult.error || "Failed to save product offline");
+          }
+          createdId = offlineResult.productId;
+          usedOfflineFallback = true;
+        } else {
+          throw fetchError;
+        }
       }
 
       // Inject the new product into local state immediately. No catalog refetch
       // — that's what made Add feel slow before.
-      let createdId: string | undefined;
-      try {
-        const body = await response.clone().json();
-        createdId = body?.id;
-      } catch {
-        // ignore — backend may not include body in all cases
-      }
       const nowIso = new Date().toISOString();
       const optimisticProduct: ProductType = {
         ...newProduct,
@@ -589,6 +614,10 @@ export default function ProductsPage() {
 
       resetForm();
       setIsAddDialogOpen(false);
+
+      if (usedOfflineFallback) {
+        alert("No connection detected. Product saved locally and will sync automatically once you're back online.");
+      }
     } catch (error) {
       console.error("Error adding product:", error);
       alert("Failed to add product.");
@@ -654,28 +683,46 @@ export default function ProductsPage() {
     };
 
     try {
-      const response = await fetch(`${API_BASE}/api/products/${editingProduct.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedProduct),
-      });
+      let usedOfflineFallback = false;
 
-      if (!response.ok) {
-        let serverDetail = "";
-        try {
-          const body = await response.clone().json();
-          serverDetail = body?.error || body?.message || JSON.stringify(body);
-        } catch {
+      try {
+        const response = await fetch(`${API_BASE}/api/products/${editingProduct.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedProduct),
+        });
+
+        if (!response.ok) {
+          let serverDetail = "";
           try {
-            serverDetail = await response.text();
+            const body = await response.clone().json();
+            serverDetail = body?.error || body?.message || JSON.stringify(body);
           } catch {
-            serverDetail = "";
+            try {
+              serverDetail = await response.text();
+            } catch {
+              serverDetail = "";
+            }
           }
+          const detailLine = serverDetail ? `\n${serverDetail}` : "";
+          throw new Error(
+            `Failed to update product (HTTP ${response.status} ${response.statusText})${detailLine}`,
+          );
         }
-        const detailLine = serverDetail ? `\n${serverDetail}` : "";
-        throw new Error(
-          `Failed to update product (HTTP ${response.status} ${response.statusText})${detailLine}`,
-        );
+      } catch (fetchError) {
+        // Same distinction as handleAddProduct: a TypeError from fetch()
+        // itself means the request never reached the server -- fall back
+        // offline. Anything else (the !response.ok branch above) means the
+        // server was reached and explicitly rejected it -- surface as-is.
+        if (fetchError instanceof TypeError) {
+          const offlineResult = await updateProductOffline(editingProduct.id, updatedProduct as any);
+          if (!offlineResult.success) {
+            throw new Error(offlineResult.error || "Failed to save product offline");
+          }
+          usedOfflineFallback = true;
+        } else {
+          throw fetchError;
+        }
       }
 
       const editingId = editingProduct.id;
@@ -695,6 +742,10 @@ export default function ProductsPage() {
       resetForm();
       setEditingProduct(null);
       setIsEditDialogOpen(false);
+
+      if (usedOfflineFallback) {
+        alert("No connection detected. Product changes saved locally and will sync automatically once you're back online.");
+      }
     } catch (error) {
       console.error("Error updating product:", error);
       const message = error instanceof Error ? error.message : String(error);
@@ -2280,6 +2331,9 @@ const handleDeleteProduct = async (productId: string) => {
               loaded={productsData.length}
               total={productsTotalCount}
               loadedPages={productsLoadedPages}
+              error={productsError}
+              onRetry={() => mutate()}
+              isOfflineFallback={productsOfflineFallback}
             />
 
             {/* Products Table */}

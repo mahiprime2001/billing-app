@@ -1,0 +1,10 @@
+{
+  "identifier": "sql-capability",
+  "description": "Local SQLite access for desktop offline storage (Phase 2 of retiring the Flask sidecar). Desktop-only on purpose -- Android is a frozen 'VPS-only, no offline mode' decision and has no reason to touch this. sql:default only grants read/connection ops (close/load/select); sql:allow-execute is added explicitly for writes.",
+  "windows": ["main"],
+  "platforms": ["windows", "macOS", "linux"],
+  "permissions": [
+    "sql:default",
+    "sql:allow-execute"
+  ]
+}

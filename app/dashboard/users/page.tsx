@@ -1,6 +1,8 @@
 "use client"
 
 import { API_BASE } from "@/lib/api-base"
+import { getLocalUsers } from "@/lib/resilient-client"
+import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
@@ -68,6 +70,7 @@ export default function UsersPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+  const [isUsersOfflineFallback, setIsUsersOfflineFallback] = useState(false)
 
   // Form states
   const [formData, setFormData] = useState({
@@ -95,17 +98,44 @@ export default function UsersPage() {
     loadUsers()
     loadStores()
   }, [router])
+  useBackgroundPoll(() => { loadUsers(); loadStores() })
 
   const loadUsers = async () => {
+  // Instant paint from the local mirror (kept fresh in the background by
+  // lib/periodic-refresh.ts) while the network fetch below is in flight --
+  // only takes effect if it resolves first, and only if nothing's on
+  // screen yet, so a background poll re-running loadUsers() doesn't flash
+  // the (now-stale-by-comparison) mirror snapshot over live data.
+  if (users.length === 0) {
+    getLocalUsers()
+      .then((localUsers) => {
+        if (users.length > 0 || localUsers.length === 0) return
+        setUsers(
+          localUsers.map((u) => ({
+            id: u.id,
+            name: u.name ?? "",
+            email: u.email ?? "",
+            password: "",
+            role: (u.role as AdminUser["role"]) ?? "billing_user",
+            assignedStores: [],
+            sessionDuration: 0,
+            createdat: "",
+            updatedAt: "",
+            status: (u.status === "inactive" ? "inactive" : "active") as AdminUser["status"],
+          }))
+        )
+      })
+      .catch(() => {})
+  }
   try {
     console.log("[FRONTEND] loadUsers - Fetching users...");
     const response = await fetch(API_BASE + "/api/users");
-    
+
     if (response.ok) {
       const data = await response.json();
       console.log("[FRONTEND] loadUsers - Received data:", data);
       console.log("[FRONTEND] loadUsers - Number of users:", data.length);
-      
+
       // Log each user's assignedStores
       data.forEach((user: AdminUser, index: number) => {
         console.log(`[FRONTEND] User ${index + 1} (${user.name}):`, {
@@ -117,13 +147,41 @@ export default function UsersPage() {
           assignedStoresIsArray: Array.isArray(user.assignedStores),
         });
       });
-      
+
       setUsers(data);
+      setIsUsersOfflineFallback(false);
     } else {
       console.error("[FRONTEND] Failed to fetch users - Status:", response.status);
     }
   } catch (error) {
-    console.error("[FRONTEND] Error fetching users:", error);
+    console.error("[FRONTEND] Error fetching users, trying local mirror:", error);
+    // The local mirror (lib/resilient-client.ts's pullAllUsers()) only
+    // stores id/name/email/role/status -- password/assignedStores/
+    // sessionDuration aren't mirrored, so this is a read-only, partial
+    // fallback view (fine for "who are the users" while offline; editing
+    // still needs a connection).
+    try {
+      const localUsers = await getLocalUsers();
+      if (localUsers.length > 0) {
+        setUsers(
+          localUsers.map((u) => ({
+            id: u.id,
+            name: u.name ?? "",
+            email: u.email ?? "",
+            password: "",
+            role: (u.role as AdminUser["role"]) ?? "billing_user",
+            assignedStores: [],
+            sessionDuration: 0,
+            createdat: "",
+            updatedAt: "",
+            status: (u.status === "inactive" ? "inactive" : "active") as AdminUser["status"],
+          }))
+        );
+        setIsUsersOfflineFallback(true);
+      }
+    } catch {
+      // Not running in Tauri / no local mirror -- nothing more to do.
+    }
   }
 };
 
@@ -449,6 +507,12 @@ const handleOpenEditDialog = (user: AdminUser) => {
   return (
     <DashboardLayout>
       <div className="space-y-8">
+        {isUsersOfflineFallback && (
+          <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800" aria-live="polite">
+            Showing {users.length.toLocaleString()} users from the last sync — no connection right now.
+            Editing requires a connection.
+          </div>
+        )}
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">User Management</h1>

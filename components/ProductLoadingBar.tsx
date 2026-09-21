@@ -6,6 +6,9 @@ interface ProductLoadingBarProps {
   loaded: number
   total: number | null
   loadedPages: number
+  error?: Error | null
+  onRetry?: () => void
+  isOfflineFallback?: boolean
 }
 
 /**
@@ -19,9 +22,62 @@ export function ProductLoadingBar({
   loaded,
   total,
   loadedPages,
+  error,
+  onRetry,
+  isOfflineFallback,
 }: ProductLoadingBarProps) {
+  if (isOfflineFallback) {
+    return (
+      <div className="w-full mb-3 rounded border border-blue-200 bg-blue-50 px-3 py-2" aria-live="polite">
+        <div className="flex items-center justify-between text-xs text-blue-800">
+          <span>
+            Showing {loaded.toLocaleString()} products from the last sync — no connection right now.
+          </span>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="ml-3 shrink-0 rounded bg-blue-600 px-2 py-1 text-white hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   if (!isStreaming && progress >= 1 && loaded > 0) {
     return null
+  }
+
+  // !isStreaming with progress < 1 means the load loop already stopped
+  // (its finally already ran) without finishing -- that's a failure, not
+  // "still finalizing". Previously this state showed "Finalizing" forever
+  // with no indication anything had gone wrong or any way to retry.
+  const isStuck = !isStreaming && progress < 1
+
+  if (isStuck) {
+    return (
+      <div className="w-full mb-3 rounded border border-amber-300 bg-amber-50 px-3 py-2" aria-live="polite">
+        <div className="flex items-center justify-between text-xs text-amber-800">
+          <span>
+            Stopped after loading {loaded.toLocaleString()}
+            {total ? ` of ${total.toLocaleString()}` : ""} products
+            {error ? ` — ${error.message}` : ""}.
+          </span>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="ml-3 shrink-0 rounded bg-amber-600 px-2 py-1 text-white hover:bg-amber-700"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      </div>
+    )
   }
 
   const pct = Math.max(0, Math.min(100, progress * 100))
@@ -30,7 +86,7 @@ export function ProductLoadingBar({
     <div className="w-full mb-3" aria-live="polite">
       <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
         <span>
-          {isStreaming ? "Loading products" : loaded === 0 ? "Preparing products" : "Finalizing"}
+          {isStreaming ? "Loading products" : "Preparing products"}
           {loadedPages > 0 ? ` · page ${loadedPages}` : ""}
         </span>
         <span className="tabular-nums">

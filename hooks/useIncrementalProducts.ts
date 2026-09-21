@@ -3,6 +3,28 @@
 import { API_BASE } from "@/lib/api-base"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { Product as ProductType } from "@/lib/types"
+import { getLocalProducts, type LocalProduct } from "@/lib/resilient-client"
+
+// The local mirror only stores what lib/local-db.ts's products table has --
+// no createdAt/updatedAt/batchid. synced_at (when this row was last pulled)
+// stands in for both timestamps rather than leaving them blank; this is a
+// deliberately partial view for the offline fallback, not the full record.
+function localProductToProductType(p: LocalProduct & { global_stock?: number | null; synced_at?: string }): ProductType {
+  const asOf = p.synced_at ?? new Date(0).toISOString()
+  return {
+    id: p.id,
+    name: p.name,
+    price: p.price ?? 0,
+    barcode: p.barcode ?? undefined,
+    stock: p.global_stock ?? p.stock ?? 0,
+    globalStock: p.global_stock ?? undefined,
+    sellingPrice: p.selling_price ?? undefined,
+    createdAt: asOf,
+    updatedAt: asOf,
+    tax: p.tax ?? undefined,
+    hsnCodeId: p.hsn_code_id ?? undefined,
+  }
+}
 
 type Updater<T> = T | ((prev: T) => T)
 
@@ -16,6 +38,7 @@ export interface IncrementalProductsResult {
   loadedPages: number
   totalCount: number | null
   progress: number
+  isOfflineFallback: boolean
   mutate: (
     updater?: Updater<ProductType[]> | undefined,
     options?: MutateOptions,
@@ -43,17 +66,35 @@ function shouldRevalidate(options?: MutateOptions): boolean {
   return options.revalidate !== false
 }
 
+// A page can hang instead of erroring (e.g. a cold aggregation cache on the
+// server doing a slow first-time computation under real production-scale
+// data) -- with no timeout, fetch() just waits forever, the progress bar
+// gets stuck at "Finalizing" with no error and no way to know why. This
+// turns a silent hang into a real, catchable, retryable failure.
+const PAGE_FETCH_TIMEOUT_MS = 30000
+
 async function fetchProductsPage(
   baseUrl: string,
   page: number,
   pageSize: number,
 ): Promise<PageResponse> {
   const url = `${baseUrl}/api/products/page?page=${page}&page_size=${pageSize}`
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error(`Failed to load products page ${page} (${response.status})`)
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), PAGE_FETCH_TIMEOUT_MS)
+  try {
+    const response = await fetch(url, { signal: controller.signal })
+    if (!response.ok) {
+      throw new Error(`Failed to load products page ${page} (${response.status})`)
+    }
+    return (await response.json()) as PageResponse
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(`Timed out loading products page ${page} after ${PAGE_FETCH_TIMEOUT_MS / 1000}s`)
+    }
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
   }
-  return (await response.json()) as PageResponse
 }
 
 export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): IncrementalProductsResult {
@@ -63,6 +104,7 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
   const [isStreaming, setIsStreaming] = useState(false)
   const [loadedPages, setLoadedPages] = useState(0)
   const [totalCount, setTotalCount] = useState<number | null>(null)
+  const [isOfflineFallback, setIsOfflineFallback] = useState(false)
 
   const fetchVersionRef = useRef(0)
   const isMountedRef = useRef(false)
@@ -74,6 +116,7 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
     setIsStreaming(true)
     setLoadedPages(0)
     setTotalCount(null)
+    setIsOfflineFallback(false)
 
     const baseUrl = API_BASE
     const pageBuckets: ProductType[][] = []
@@ -97,6 +140,18 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
         setIsLoading(false)
       }
     }
+
+    // Instant paint from the local mirror (kept fresh in the background by
+    // lib/periodic-refresh.ts) while page 1 loads over the network -- only
+    // takes effect if it resolves before page 1 does, and doesn't set the
+    // offline-fallback flag since this isn't a failure, just a head start.
+    getLocalProducts()
+      .then((localProducts) => {
+        if (fetchVersionRef.current !== myVersion || firstPageApplied || localProducts.length === 0) return
+        setData(localProducts.map(localProductToProductType))
+        setIsLoading(false)
+      })
+      .catch(() => {})
 
     try {
       // Step 1: fetch page 1 to learn `total` and `hasMore`.
@@ -159,11 +214,32 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
       for (const bucket of pageBuckets) if (bucket) final.push(...bucket)
       return final
     } catch (err) {
+      const fallback: ProductType[] = []
+      for (const bucket of pageBuckets) if (bucket) fallback.push(...bucket)
+
+      // Nothing at all loaded (not even page 1) -- this is the "genuinely
+      // offline" case, not a mid-stream hiccup after partial success. Fall
+      // back to the local mirror (kept fresh in the background by
+      // lib/periodic-refresh.ts) instead of leaving the page blank.
+      if (fallback.length === 0) {
+        try {
+          const localProducts = await getLocalProducts()
+          if (fetchVersionRef.current === myVersion && localProducts.length > 0) {
+            const mapped = localProducts.map(localProductToProductType)
+            setData(mapped)
+            setIsOfflineFallback(true)
+            setTotalCount(mapped.length)
+            return mapped
+          }
+        } catch {
+          // No local mirror available either (e.g. not running in Tauri) --
+          // fall through to the normal error path below.
+        }
+      }
+
       if (fetchVersionRef.current === myVersion) {
         setError(err as Error)
       }
-      const fallback: ProductType[] = []
-      for (const bucket of pageBuckets) if (bucket) fallback.push(...bucket)
       return fallback
     } finally {
       if (fetchVersionRef.current === myVersion) {
@@ -218,6 +294,7 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
     loadedPages,
     totalCount,
     progress,
+    isOfflineFallback,
     mutate,
   }
 }

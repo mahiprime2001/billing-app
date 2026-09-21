@@ -1,6 +1,14 @@
 "use client";
 
 import { API_BASE } from "@/lib/api-base"
+import { createBillOffline, type CreateBillInput } from "@/lib/bill-creation"
+import {
+  pullProductsForBilling,
+  pullTaxPercentage,
+  getLocalBills,
+  getLocalBillItems,
+  getLocalCustomers,
+} from "@/lib/resilient-client"
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -172,14 +180,18 @@ const WALK_IN_CUSTOMER_ID = "CUST-1754821420265";
 const WALK_IN_CUSTOMER_NAME = "Walk-in Customer";
 const BILL_EDIT_WINDOW_HOURS = 24;
 const BILL_EDIT_WINDOW_MS = BILL_EDIT_WINDOW_HOURS * 60 * 60 * 1000;
-const BILLING_POLL_INTERVAL_MS = 300000;
-// Bills update much more often than products/customers, so they get a tighter
-// poll. The other resources stay at the slower cadence to limit backend load.
+// Matches siri-api's own 60s response cache (siri-api/cache.py) -- polling
+// this often used to mean hammering Supabase directly on every tick, but
+// now most of these land on the server-side cache instead, so there's no
+// real cost to keeping products/customers on the same cadence as bills.
+const BILLING_POLL_INTERVAL_MS = 60000;
 const BILLS_POLL_INTERVAL_MS = 60000;
 const BILLS_CACHE_KEY = "billing:firstPageBills:v1";
-// Stale-while-revalidate window: cached bills are shown immediately on mount,
-// then the 60s poll replaces them with fresh data.
+const CUSTOMERS_CACHE_KEY = "billing:customers:v1";
+// Stale-while-revalidate window: cached bills/customers are shown
+// immediately on mount, then the 60s poll replaces them with fresh data.
 const BILLS_CACHE_TTL_MS = 10 * 60 * 1000;
+const CUSTOMERS_CACHE_TTL_MS = 10 * 60 * 1000;
 const CANCELLED_BILL_STATUSES = new Set(["cancelled", "canceled", "void", "voided"]);
 const isBillCancelled = (bill: { status?: string } | null | undefined): boolean =>
   CANCELLED_BILL_STATUSES.has(String(bill?.status || "").trim().toLowerCase());
@@ -205,6 +217,34 @@ const writeBillsCache = (data: unknown) => {
   try {
     window.localStorage.setItem(
       BILLS_CACHE_KEY,
+      JSON.stringify({ savedAt: Date.now(), data }),
+    );
+  } catch {
+    // Quota / privacy mode — swallow; cache is best-effort.
+  }
+};
+
+const readCustomersCache = (): any[] | undefined => {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(CUSTOMERS_CACHE_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.data)) return undefined;
+    if (typeof parsed.savedAt !== "number") return undefined;
+    if (Date.now() - parsed.savedAt > CUSTOMERS_CACHE_TTL_MS) return undefined;
+    return parsed.data;
+  } catch {
+    return undefined;
+  }
+};
+
+const writeCustomersCache = (data: unknown) => {
+  if (typeof window === "undefined") return;
+  if (!Array.isArray(data)) return;
+  try {
+    window.localStorage.setItem(
+      CUSTOMERS_CACHE_KEY,
       JSON.stringify({ savedAt: Date.now(), data }),
     );
   } catch {
@@ -245,6 +285,8 @@ export default function BillingPage() {
     }
   };
   const [isOnline, setIsOnline] = useState(true);
+  const [isBillsOfflineFallback, setIsBillsOfflineFallback] = useState(false);
+  const [isCustomersOfflineFallback, setIsCustomersOfflineFallback] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
@@ -470,6 +512,22 @@ export default function BillingPage() {
     };
   }, [router]);
 
+  // Keep the local SQLite mirror's BILLING-AVAILABLE stock number fresh --
+  // pullProductsForBilling() writes a different `stock` semantics
+  // (post-allocation availability) than the app-wide pullAllProducts() pull
+  // (raw global stock, into `global_stock`), so this stays billing-page-
+  // specific rather than folding into the app-wide sync in AppProviders.tsx.
+  // The sync_queue drain loop and periodic refresh are now started
+  // app-wide from there instead (see lib/initial-sync.ts) -- no longer
+  // started here. Best-effort only -- if this isn't running inside the
+  // Tauri desktop shell (e.g. plain browser dev), it fails silently and the
+  // page behaves exactly as it did before this wiring existed.
+  useEffect(() => {
+    Promise.all([pullProductsForBilling(), pullTaxPercentage()]).catch((err) => {
+      console.warn("Offline product/tax mirror pull skipped:", err);
+    });
+  }, []);
+
   useEffect(() => {
     const loadUsers = async () => {
       try {
@@ -601,35 +659,69 @@ export default function BillingPage() {
         // Silent background update
         api.post(updateLocalStorageEndpoint, processedData).catch(() => {});
 
+        if (dataType === "customers") {
+          setIsCustomersOfflineFallback(false);
+          writeCustomersCache(processedData);
+        }
         return processedData;
       } catch (error) {
         console.warn(`Failed to fetch ${dataType} from Supabase, falling back to local`, error);
-        const localResponse = await api.get(localStorageEndpoint);
+        try {
+          const localResponse = await api.get(localStorageEndpoint);
 
-        if (dataType === "products") {
-          return localResponse.data.map((product: any) => ({
-            ...product,
-            stock: product.stock || 0,
-            sellingPrice:
-              product.sellingPrice ??
-              product.selling_price ??
-              product.displayPrice ??
-              product.price ??
-              0,
-          }));
-        } else if (dataType === "customers") {
-          // FIX: Normalize customer field names from local storage too
-          return localResponse.data.map((customer: any) => ({
-            id: customer.id,
-            name: customer.name,
-            email: customer.email,
-            phone: customer.phone,
-            address: customer.address,
-            createdAt: customer.createdat || customer.createdAt,
-            updatedAt: customer.updatedat || customer.updatedAt,
-          }));
+          if (dataType === "products") {
+            setIsCustomersOfflineFallback(false);
+            return localResponse.data.map((product: any) => ({
+              ...product,
+              stock: product.stock || 0,
+              sellingPrice:
+                product.sellingPrice ??
+                product.selling_price ??
+                product.displayPrice ??
+                product.price ??
+                0,
+            }));
+          } else if (dataType === "customers") {
+            // FIX: Normalize customer field names from local storage too
+            setIsCustomersOfflineFallback(false);
+            return localResponse.data.map((customer: any) => ({
+              id: customer.id,
+              name: customer.name,
+              email: customer.email,
+              phone: customer.phone,
+              address: customer.address,
+              createdAt: customer.createdat || customer.createdAt,
+              updatedAt: customer.updatedat || customer.updatedAt,
+            }));
+          }
+          return localResponse.data;
+        } catch {
+          // Genuinely offline -- localStorageEndpoint needs a live
+          // connection too on siri-api. Customers has a real SQLite mirror
+          // (lib/resilient-client.ts's pullAllCustomers()); Products doesn't
+          // go through this path for its own offline fallback (see
+          // hooks/useIncrementalProducts.ts for the admin Products page,
+          // and pullProductsForBilling() for this page's own cart picker),
+          // so only handle customers here.
+          if (dataType === "customers") {
+            try {
+              const localCustomers = await getLocalCustomers();
+              setIsCustomersOfflineFallback(localCustomers.length > 0);
+              return localCustomers.map((customer) => ({
+                id: customer.id,
+                name: customer.name,
+                email: customer.email,
+                phone: customer.phone,
+                address: customer.address,
+                createdAt: customer.createdat,
+                updatedAt: customer.updatedat,
+              }));
+            } catch {
+              return [];
+            }
+          }
+          throw error;
         }
-        return localResponse.data;
       }
     },
     []
@@ -751,14 +843,62 @@ export default function BillingPage() {
       // Silent background update
       api.post("/api/local/bills/update", processedData).catch(() => {});
       writeBillsCache(processedData);
+      setIsBillsOfflineFallback(false);
       return processedData;
     } catch (error) {
       console.error("fetchBills: Error fetching from backend, falling back to local", error);
-      const localResponse = await api.get("/api/local/bills");
-      const localData = extractBillsArray(localResponse.data);
-      const fallback = mapBills(localData);
-      writeBillsCache(fallback);
-      return fallback;
+      try {
+        const localResponse = await api.get("/api/local/bills");
+        const localData = extractBillsArray(localResponse.data);
+        const fallback = mapBills(localData);
+        writeBillsCache(fallback);
+        setIsBillsOfflineFallback(false);
+        return fallback;
+      } catch {
+        // Genuinely offline -- /api/local/bills needs a live connection to
+        // siri-api too (it's not a real local file anymore, just another
+        // Supabase-backed route). Fall back to the actual SQLite mirror
+        // (lib/resilient-client.ts's pullRecentBills(), kept fresh in the
+        // background) instead of throwing and leaving the page blank.
+        try {
+          const mirrorBills = await getLocalBills();
+          const withItems = await Promise.all(
+            mirrorBills.map(async (b) => {
+              const items = await getLocalBillItems(b.id);
+              return {
+                id: b.id,
+                storeId: b.store_id,
+                customerId: b.customer_id,
+                userId: b.user_id,
+                subtotal: b.subtotal,
+                discountpercentage: b.discount_percentage,
+                discountamount: b.discount_amount,
+                taxpercentage: b.tax_percentage,
+                tax: b.tax,
+                total: b.total,
+                paymentmethod: b.payment_method,
+                status: b.status,
+                timestamp: b.timestamp,
+                createdAt: b.created_at,
+                items: items.map((item: any) => ({
+                  productId: item.product_id,
+                  productName: item.product_name,
+                  quantity: item.quantity,
+                  price: item.price,
+                  total: item.total,
+                  hsnCode: item.hsn_code,
+                  taxPercentage: item.tax_percentage,
+                })),
+              };
+            })
+          );
+          const fallback = mapBills(withItems);
+          setIsBillsOfflineFallback(fallback.length > 0);
+          return fallback;
+        } catch {
+          return [];
+        }
+      }
     }
   }, [adminUser, buildBillsQuery]);
 
@@ -773,7 +913,10 @@ export default function BillingPage() {
     interval: BILLS_POLL_INTERVAL_MS,
     initialData: () => readBillsCache() as Bill[] | undefined,
   });
-  const { data: customersData, loading: customersLoading, error: customersError, refetch: refetchCustomers } = usePolling<Customer[]>(fetchCustomers, { interval: BILLING_POLL_INTERVAL_MS });
+  const { data: customersData, loading: customersLoading, error: customersError, refetch: refetchCustomers } = usePolling<Customer[]>(fetchCustomers, {
+    interval: BILLING_POLL_INTERVAL_MS,
+    initialData: () => readCustomersCache() as Customer[] | undefined,
+  });
 
   // Manual refresh function
   const handleManualRefresh = async () => {
@@ -1656,14 +1799,63 @@ export default function BillingPage() {
         createdBy: createdBy || undefined,
       };
 
-      const response = await api.post("/api/bills", newBill);
+      let usedOfflineFallback = false;
+      try {
+        const response = await api.post("/api/bills", newBill);
+        if (!response.status.toString().startsWith("2")) {
+          throw new Error("Failed to create bill");
+        }
+      } catch (billPostError: any) {
+        // Only fall back when the request never reached the server (a real
+        // network failure) -- a genuine 4xx/5xx means we ARE online and the
+        // server rejected it, which should surface as a normal error rather
+        // than silently queuing a bill the server explicitly refused.
+        if (billPostError?.response) {
+          throw billPostError;
+        }
 
-      if (!response.status.toString().startsWith("2")) {
-        throw new Error("Failed to create bill");
+        const offlineInput: CreateBillInput = {
+          // Admin bill creation has no store selector today (matches the
+          // online payload above, which never sets storeId either) --
+          // siri-api's own _get_store_code() falls back to "STR" when no
+          // store is found, so the offline path mirrors that here too.
+          storeId: newBill.storeId || "",
+          storeCode: "STR",
+          customerId: newBill.customerId,
+          createdBy: newBill.createdBy,
+          paymentMethod: "cash",
+          items: newBill.items.map((item) => ({
+            productId: item.productId,
+            productName: item.productName,
+            price: item.price,
+            quantity: item.quantity,
+            hsnCode: item.hsnCode,
+            taxPercentage: item.taxPercentage,
+          })),
+          subtotal: newBill.subtotal,
+          discountAmount: newBill.discountAmount,
+          discountPercentage: newBill.discountPercentage,
+          tax: newBill.tax,
+          taxPercentage: newBill.taxPercentage ?? taxRate,
+          total: newBill.total,
+        };
+
+        const offlineResult = await createBillOffline(offlineInput);
+        if (!offlineResult.success) {
+          throw new Error(offlineResult.error || "Failed to save bill offline");
+        }
+        usedOfflineFallback = true;
       }
 
       resetBillFormForCreate();
       setIsCreateDialogOpen(false);
+
+      if (usedOfflineFallback) {
+        // Not yet on the server -- won't show up in the bills list (which
+        // reads siri-api/local mirror, not this Tauri SQLite DB) until
+        // lib/sync-processor.ts drains it after connectivity returns.
+        alert("No connection detected. Bill saved locally and will sync automatically once you're back online.");
+      }
 
       // Immediate refresh after creating bill
       await Promise.all([refetchBills(), refetchCustomers()]);
@@ -2598,6 +2790,14 @@ export default function BillingPage() {
     <DashboardLayout>
       <div className="space-y-6 max-w-full overflow-x-auto">
         {!isOnline && <OfflineBanner />}
+        {(isBillsOfflineFallback || isCustomersOfflineFallback) && (
+          <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800" aria-live="polite">
+            Showing {[
+              isBillsOfflineFallback && "bills",
+              isCustomersOfflineFallback && "customers",
+            ].filter(Boolean).join(" and ")} from the last sync — no connection right now.
+          </div>
+        )}
 
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

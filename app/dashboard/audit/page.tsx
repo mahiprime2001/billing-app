@@ -1,6 +1,8 @@
 "use client"
 
 import { API_BASE } from "@/lib/api-base"
+import { fetchWithBackgroundRefresh } from "@/lib/api-cache"
+import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
@@ -35,28 +37,40 @@ export default function AuditPage() {
   const [searchTerm, setSearchTerm] = useState("")
   // Per-store audit meta: last completed audit + an in-progress draft flag.
   const [auditMeta, setAuditMeta] = useState<Record<string, { last: AuditRecord | null; inProgress: boolean }>>({})
+  const [isOfflineFallback, setIsOfflineFallback] = useState(false)
+
+  const loadStores = async (isBackground = false) => {
+    try {
+      await fetchWithBackgroundRefresh<any[]>(
+        "/api/stores",
+        async (r) => {
+          const list = (Array.isArray(r.data) ? r.data : []) as StoreType[]
+          setStores(list)
+          setIsOfflineFallback(r.source === "cache")
+
+          // Load last-audit + draft state for each store (client-side for now).
+          const meta: Record<string, { last: AuditRecord | null; inProgress: boolean }> = {}
+          await Promise.all(
+            list.map(async (s) => {
+              const audits = await listAudits(s.id)
+              meta[s.id] = { last: audits[0] || null, inProgress: hasDraft(s.id) }
+            }),
+          )
+          setAuditMeta(meta)
+        },
+        () => setIsOfflineFallback(true)
+      )
+    } catch (err) {
+      console.error("Error loading stores:", err)
+    } finally {
+      if (!isBackground) setIsLoading(false)
+    }
+  }
 
   useEffect(() => {
-    fetch(`${API}/api/stores`)
-      .then(async (res) => {
-        if (!res.ok) return
-        const data: any[] = await res.json()
-        const list = data as StoreType[]
-        setStores(list)
-
-        // Load last-audit + draft state for each store (client-side for now).
-        const meta: Record<string, { last: AuditRecord | null; inProgress: boolean }> = {}
-        await Promise.all(
-          list.map(async (s) => {
-            const audits = await listAudits(s.id)
-            meta[s.id] = { last: audits[0] || null, inProgress: hasDraft(s.id) }
-          }),
-        )
-        setAuditMeta(meta)
-      })
-      .catch((err) => console.error("Error loading stores:", err))
-      .finally(() => setIsLoading(false))
+    loadStores()
   }, [])
+  useBackgroundPoll(() => loadStores(true))
 
   const filteredStores = stores.filter((store) => {
     const q = searchTerm.toLowerCase()
@@ -71,6 +85,11 @@ export default function AuditPage() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
+        {isOfflineFallback && (
+          <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800" aria-live="polite">
+            Showing stores from the last sync — no connection right now.
+          </div>
+        )}
         <div>
           <h1 className="text-2xl font-semibold">Audit</h1>
           <p className="mt-1 text-muted-foreground">

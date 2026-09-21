@@ -5,7 +5,8 @@ Flask blueprint for administrative API endpoints
 from flask import Blueprint, jsonify, request
 import logging
 import os
-import json
+
+from utils import sqlite_store
 
 logger = logging.getLogger(__name__)
 
@@ -35,23 +36,15 @@ def _is_super_admin(payload):
     return role == "super_admin"
 
 
-def _flush_users_with_keep(file_path, admin_users_to_keep):
-    """Flush users file while optionally preserving selected admin emails."""
+def _flush_users_with_keep(admin_users_to_keep):
+    """Flush the users table while optionally preserving selected admin emails."""
     keep_emails = {
         email.strip().lower()
         for email in admin_users_to_keep
         if isinstance(email, str) and email.strip()
     }
 
-    existing_users = []
-    if os.path.exists(file_path):
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                loaded = json.load(f)
-            if isinstance(loaded, list):
-                existing_users = loaded
-        except Exception as e:
-            logger.warning(f"Failed to read existing users from {file_path}: {e}")
+    existing_users = sqlite_store.get_table_data("users", [])
 
     if keep_emails:
         kept_users = []
@@ -66,9 +59,7 @@ def _flush_users_with_keep(file_path, admin_users_to_keep):
     else:
         output_users = []
 
-    with open(file_path, 'w', encoding='utf-8') as f:
-        json.dump(output_users, f, indent=2, ensure_ascii=False)
-
+    sqlite_store.save_table_data("users", output_users)
     return len(output_users)
 
 
@@ -104,50 +95,49 @@ def flush_data():
         admin_users_to_keep = payload.get("adminUsersToKeep", [])
         if not isinstance(admin_users_to_keep, list):
             return jsonify({"error": "adminUsersToKeep must be an array"}), 400
-        
-        files_to_flush = []
-        
+
+        tables_to_flush = []
+
         if data_type == 'all' or data_type == 'products':
-            files_to_flush.append(Config.PRODUCTS_FILE)
-        
+            tables_to_flush.append('products')
+
         if data_type == 'all' or data_type == 'customers':
-            files_to_flush.append(Config.CUSTOMERS_FILE)
-        
+            tables_to_flush.append('customers')
+
         if data_type == 'all' or data_type == 'bills':
-            files_to_flush.append(Config.BILLS_FILE)
-        
+            tables_to_flush.append('bills')
+
         if data_type == 'all' or data_type == 'users':
-            files_to_flush.append(Config.USERS_FILE)
-        
+            tables_to_flush.append('users')
+
         if data_type == 'all' or data_type == 'stores':
-            files_to_flush.append(Config.STORES_FILE)
-        
+            tables_to_flush.append('stores')
+
         if data_type == 'all' or data_type == 'batches':
-            files_to_flush.append(Config.BATCHES_FILE)
-        
+            tables_to_flush.append('batches')
+
         if data_type == 'all' or data_type == 'returns':
-            files_to_flush.append(Config.RETURNS_FILE)
-        
+            tables_to_flush.append('returns')
+
         if data_type == 'all' or data_type == 'notifications':
-            files_to_flush.append(Config.NOTIFICATIONS_FILE)
-        
-        # Reset files to empty
+            tables_to_flush.append('notifications')
+
+        # Reset tables to empty
         kept_users = 0
-        for file_path in files_to_flush:
+        for table_name in tables_to_flush:
             try:
-                if file_path == Config.USERS_FILE:
-                    kept_users = _flush_users_with_keep(file_path, admin_users_to_keep)
+                if table_name == 'users':
+                    kept_users = _flush_users_with_keep(admin_users_to_keep)
                 else:
-                    with open(file_path, 'w', encoding='utf-8') as f:
-                        json.dump([], f, indent=2, ensure_ascii=False)
-                logger.info(f"Flushed {file_path}")
+                    sqlite_store.save_table_data(table_name, [])
+                logger.info(f"Flushed '{table_name}'")
             except Exception as e:
-                logger.error(f"Error flushing {file_path}: {e}")
-        
+                logger.error(f"Error flushing '{table_name}': {e}")
+
         return jsonify({
             "message": f"Data flushed successfully",
             "type": data_type,
-            "files_affected": len(files_to_flush),
+            "files_affected": len(tables_to_flush),
             "kept_users": kept_users
         }), 200
             

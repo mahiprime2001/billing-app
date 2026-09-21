@@ -1,6 +1,6 @@
 "use client";
 
-import { API_BASE } from "@/lib/api-base"
+import { invoke } from "@tauri-apps/api/core";
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -108,11 +108,6 @@ interface PrintDialogProps {
   }>;
 }
 
-function getBackendBase(): string {
-  const envBase = (API_BASE).trim();
-  return envBase.replace(/\/+$/, "");
-}
-
 export default function PrintDialog({
   products,
   isOpen,
@@ -170,24 +165,24 @@ export default function PrintDialog({
     return result;
   };
 
-  // Load printers when dialog opens
+  // Load printers when dialog opens. Was a fetch() to the backend's
+  // /api/printers -- meaningless now that printing is fully local (a
+  // remote siri-api VPS has no way to enumerate a printer plugged into
+  // this machine). Enumerate directly via the same Tauri Rust command
+  // unifiedPrint's own send_tspl_to_printer call already relies on
+  // (src-tauri/src/main.rs's get_available_printers).
   useEffect(() => {
     if (!isOpen) return;
 
-    const backendBase = getBackendBase();
-    const printersUrl = `${backendBase}/api/printers`;
-
     const fetchPrinters = async () => {
       try {
-        const res = await fetch(printersUrl, { method: "GET" });
-        const data = await res.json();
-
-        if (res.ok && data.status === "success" && Array.isArray(data.printers)) {
-          setAvailablePrinters(data.printers);
-          if (data.printers.length > 0) {
+        const printers = await invoke<string[]>("get_available_printers");
+        if (Array.isArray(printers)) {
+          setAvailablePrinters(printers);
+          if (printers.length > 0) {
             const preferred = "SNBC TVSE LP46 Dlite BPLE";
             setSelectedPrinter(
-              data.printers.includes(preferred) ? preferred : data.printers[0]
+              printers.includes(preferred) ? preferred : printers[0]
             );
           }
         }

@@ -1,97 +1,19 @@
 """
-JSON file operations helper functions
-Handles reading and writing to local JSON files (offline-first storage)
+Local-storage accessors for every domain this backend keeps a local copy of.
+
+Was file-based (one JSON file per domain, via _safe_json_load/_safe_json_dump
+below); now backed by utils/sqlite_store.py's SQLite store instead -- see
+that module's docstring for why. Every function here keeps its exact old
+name and signature on purpose: every route and service in this backend
+calls get_X_data()/save_X_data(), never the storage layer directly, so
+swapping what's underneath didn't require touching any of them.
 """
-import os
-import json
 import logging
-from typing import Any, Dict, List, Union
-from config import Config
-from utils.file_write_lock import file_write_lock
+from typing import Any, Dict, List
+
+from utils import sqlite_store
 
 logger = logging.getLogger(__name__)
-
-def _safe_json_load(path: str, default: Any) -> Any:
-    """
-    Safely load JSON data from a file.
-
-    Args:
-        path: Path to the JSON file
-        default: Default value to return if file doesn't exist or is invalid
-
-    Returns:
-        Loaded data or default value
-    """
-    if not os.path.exists(path):
-        return default
-
-    # Locking the read too (not just the write) means a save-then-read-back
-    # call pattern elsewhere can never observe a torn intermediate state from
-    # a *different* writer racing on the same path.
-    with file_write_lock(path):
-        try:
-            # utf-8-sig tolerates BOM-prefixed files (common when edited by Windows tools)
-            with open(path, 'r', encoding='utf-8-sig') as f:
-                data = json.load(f)
-
-            # Ensure top-level dictionary keys are strings to prevent TypeError with jsonify
-            if isinstance(data, dict):
-                return {str(k): v for k, v in data.items()}
-            return data
-        except json.JSONDecodeError:
-            logger.error(f"JSON decode error in {path}, returning default")
-            return default
-        except Exception as e:
-            logger.error(f"Error loading JSON from {path}: {e}")
-            return default
-
-
-def _safe_json_dump(path: str, data: Any, default=None) -> bool:
-    """
-    Safely write JSON data to a file.
-
-    Args:
-        path: Path to the JSON file
-        data: Data to write
-        default: optional json.dump-style serializer for non-JSON-native
-            types (e.g. datetime) -- passed straight through to json.dump
-
-    Returns:
-        True if successful, False otherwise
-    """
-    # Only create directory if parent doesn't exist
-    parent_dir = os.path.dirname(path)
-    if not os.path.exists(parent_dir):
-        try:
-            os.makedirs(parent_dir, exist_ok=True)
-            logger.debug(f"Created parent directory: {parent_dir}")
-        except Exception as e:
-            logger.error(f"Failed to create directory {parent_dir}: {e}")
-            return False
-
-    # Atomic write: serialize to a temp file, fsync, then os.replace. This
-    # guarantees readers never see a half-written/truncated file (which a crash
-    # mid-write would otherwise leave behind and corrupt the local cache).
-    # The lock additionally prevents two concurrent writers (a live request
-    # thread and the background sync thread) from racing a read-modify-write
-    # cycle and silently losing one side's update.
-    tmp = f"{path}.tmp"
-    with file_write_lock(path):
-        try:
-            with open(tmp, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False, default=default)
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(tmp, path)
-            return True
-        except Exception as e:
-            logger.error(f"Failed to write JSON to {path}: {e}")
-            try:
-                if os.path.exists(tmp):
-                    os.remove(tmp)
-            except OSError:
-                pass
-            return False
 
 
 # ============================================
@@ -99,13 +21,13 @@ def _safe_json_dump(path: str, data: Any, default=None) -> bool:
 # ============================================
 
 def get_products_data() -> List[Dict]:
-    """Get products from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.PRODUCTS_FILE, [])
+    """Get products from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("products", [])
 
 
 def save_products_data(products: List[Dict]) -> bool:
-    """Save products to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.PRODUCTS_FILE, products)
+    """Save products to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("products", products)
 
 
 # ============================================
@@ -113,13 +35,13 @@ def save_products_data(products: List[Dict]) -> bool:
 # ============================================
 
 def get_customers_data() -> List[Dict]:
-    """Get customers from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.CUSTOMERS_FILE, [])
+    """Get customers from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("customers", [])
 
 
 def save_customers_data(customers: List[Dict]) -> bool:
-    """Save customers to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.CUSTOMERS_FILE, customers)
+    """Save customers to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("customers", customers)
 
 
 # ============================================
@@ -127,18 +49,23 @@ def save_customers_data(customers: List[Dict]) -> bool:
 # ============================================
 
 def get_bills_data() -> List[Dict]:
-    """Get bills from local JSON"""
-    return _safe_json_load(Config.BILLS_FILE, [])
+    """Get bills from local storage"""
+    return sqlite_store.get_table_data("bills", [])
 
 
 def save_bills_data(bills: List[Dict]) -> bool:
-    """Save bills to local JSON"""
-    return _safe_json_dump(Config.BILLS_FILE, bills)
+    """Save bills to local storage"""
+    return sqlite_store.save_table_data("bills", bills)
 
 
 def get_bill_items_data() -> List[Dict]:
-    """Get bill items from local JSON"""
-    return _safe_json_load(Config.BILL_ITEMS_FILE, [])
+    """Get bill items from local storage"""
+    return sqlite_store.get_table_data("billitems", [])
+
+
+def save_bill_items_data(bill_items: List[Dict]) -> bool:
+    """Save bill items to local storage"""
+    return sqlite_store.save_table_data("billitems", bill_items)
 
 
 # ============================================
@@ -146,13 +73,13 @@ def get_bill_items_data() -> List[Dict]:
 # ============================================
 
 def get_users_data() -> List[Dict]:
-    """Get users from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.USERS_FILE, [])
+    """Get users from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("users", [])
 
 
 def save_users_data(users: List[Dict]) -> bool:
-    """Save users to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.USERS_FILE, users)
+    """Save users to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("users", users)
 
 
 # ============================================
@@ -160,13 +87,13 @@ def save_users_data(users: List[Dict]) -> bool:
 # ============================================
 
 def get_stores_data() -> List[Dict]:
-    """Get stores from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.STORES_FILE, [])
+    """Get stores from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("stores", [])
 
 
 def save_stores_data(stores: List[Dict]) -> bool:
-    """Save stores to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.STORES_FILE, stores)
+    """Save stores to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("stores", stores)
 
 
 # ============================================
@@ -174,13 +101,13 @@ def save_stores_data(stores: List[Dict]) -> bool:
 # ============================================
 
 def get_batches_data() -> List[Dict]:
-    """Get batches from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.BATCHES_FILE, [])
+    """Get batches from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("batches", [])
 
 
 def save_batches_data(batches: List[Dict]) -> bool:
-    """Save batches to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.BATCHES_FILE, batches)
+    """Save batches to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("batches", batches)
 
 
 # ============================================
@@ -188,13 +115,13 @@ def save_batches_data(batches: List[Dict]) -> bool:
 # ============================================
 
 def get_hsn_codes_data() -> List[Dict]:
-    """Get HSN codes from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.HSN_CODES_FILE, [])
+    """Get HSN codes from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("hsn_codes", [])
 
 
 def save_hsn_codes_data(hsn_codes: List[Dict]) -> bool:
-    """Save HSN codes to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.HSN_CODES_FILE, hsn_codes)
+    """Save HSN codes to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("hsn_codes", hsn_codes)
 
 
 # ============================================
@@ -202,13 +129,13 @@ def save_hsn_codes_data(hsn_codes: List[Dict]) -> bool:
 # ============================================
 
 def get_returns_data() -> List[Dict]:
-    """Get returns from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.RETURNS_FILE, [])
+    """Get returns from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("returns", [])
 
 
 def save_returns_data(returns: List[Dict]) -> bool:
-    """Save returns to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.RETURNS_FILE, returns)
+    """Save returns to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("returns", returns)
 
 
 # ============================================
@@ -216,13 +143,13 @@ def save_returns_data(returns: List[Dict]) -> bool:
 # ============================================
 
 def get_store_damage_returns_data() -> List[Dict]:
-    """Get store damaged-return rows from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.STORE_DAMAGE_RETURNS_FILE, [])
+    """Get store damaged-return rows from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("store_damage_returns", [])
 
 
 def save_store_damage_returns_data(rows: List[Dict]) -> bool:
-    """Save store damaged-return rows to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.STORE_DAMAGE_RETURNS_FILE, rows)
+    """Save store damaged-return rows to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("store_damage_returns", rows)
 
 
 # ============================================
@@ -230,13 +157,13 @@ def save_store_damage_returns_data(rows: List[Dict]) -> bool:
 # ============================================
 
 def get_discounts_data() -> List[Dict]:
-    """Get discounts from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.DISCOUNTS_FILE, [])
+    """Get discounts from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("discounts", [])
 
 
 def save_discounts_data(discounts: List[Dict]) -> bool:
-    """Save discounts to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.DISCOUNTS_FILE, discounts)
+    """Save discounts to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("discounts", discounts)
 
 
 # ============================================
@@ -244,13 +171,13 @@ def save_discounts_data(discounts: List[Dict]) -> bool:
 # ============================================
 
 def get_notifications_data() -> List[Dict]:
-    """Get notifications from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.NOTIFICATIONS_FILE, [])
+    """Get notifications from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("notifications", [])
 
 
 def save_notifications_data(notifications: List[Dict]) -> bool:
-    """Save notifications to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.NOTIFICATIONS_FILE, notifications)
+    """Save notifications to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("notifications", notifications)
 
 
 # ============================================
@@ -258,13 +185,13 @@ def save_notifications_data(notifications: List[Dict]) -> bool:
 # ============================================
 
 def get_settings_data() -> Dict:
-    """Get settings from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.SETTINGS_FILE, {})
+    """Get settings from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("settings", {})
 
 
 def save_settings_data(settings: Dict) -> bool:
-    """Save settings to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.SETTINGS_FILE, settings)
+    """Save settings to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("settings", settings)
 
 
 # ============================================
@@ -272,13 +199,13 @@ def save_settings_data(settings: Dict) -> bool:
 # ============================================
 
 def get_user_stores_data() -> List[Dict]:
-    """Get user stores from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.USERSTORES_FILE, [])
+    """Get user stores from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("userstores", [])
 
 
 def save_user_stores_data(userstores: List[Dict]) -> bool:
-    """Save user stores to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.USERSTORES_FILE, userstores)
+    """Save user stores to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("userstores", userstores)
 
 
 # ============================================
@@ -286,13 +213,13 @@ def save_user_stores_data(userstores: List[Dict]) -> bool:
 # ============================================
 
 def get_gst_registrations_data() -> List[Dict]:
-    """Get GST registrations from local JSON (PRIMARY source)"""
-    return _safe_json_load(Config.GST_REGISTRATIONS_FILE, [])
+    """Get GST registrations from local storage (PRIMARY source)"""
+    return sqlite_store.get_table_data("gst_registrations", [])
 
 
 def save_gst_registrations_data(rows: List[Dict]) -> bool:
-    """Save GST registrations to local JSON (PRIMARY storage)"""
-    return _safe_json_dump(Config.GST_REGISTRATIONS_FILE, rows)
+    """Save GST registrations to local storage (PRIMARY storage)"""
+    return sqlite_store.save_table_data("gst_registrations", rows)
 
 
 # ============================================
@@ -300,13 +227,13 @@ def save_gst_registrations_data(rows: List[Dict]) -> bool:
 # ============================================
 
 def get_store_inventory_data() -> List[Dict]:
-    """Get store inventory from local JSON"""
-    return _safe_json_load(Config.STOREINVENTORY_FILE, [])
+    """Get store inventory from local storage"""
+    return sqlite_store.get_table_data("storeinventory", [])
 
 
 def save_store_inventory_data(inventory: List[Dict]) -> bool:
-    """Save store inventory to local JSON"""
-    return _safe_json_dump(Config.STOREINVENTORY_FILE, inventory)
+    """Save store inventory to local storage"""
+    return sqlite_store.save_table_data("storeinventory", inventory)
 
 
 # ============================================
@@ -314,13 +241,13 @@ def save_store_inventory_data(inventory: List[Dict]) -> bool:
 # ============================================
 
 def get_orders_data() -> List[Dict]:
-    """Get transfer orders from local JSON"""
-    return _safe_json_load(Config.ORDERS_FILE, [])
+    """Get transfer orders from local storage"""
+    return sqlite_store.get_table_data("orders", [])
 
 
 def save_orders_data(orders: List[Dict]) -> bool:
-    """Save transfer orders to local JSON"""
-    return _safe_json_dump(Config.ORDERS_FILE, orders)
+    """Save transfer orders to local storage"""
+    return sqlite_store.save_table_data("orders", orders)
 
 
 # ============================================
@@ -328,43 +255,43 @@ def save_orders_data(orders: List[Dict]) -> bool:
 # ============================================
 
 def get_inventory_transfer_orders_data() -> List[Dict]:
-    """Get inventory transfer orders from local JSON"""
-    return _safe_json_load(Config.INVENTORY_TRANSFER_ORDERS_FILE, [])
+    """Get inventory transfer orders from local storage"""
+    return sqlite_store.get_table_data("inventory_transfer_orders", [])
 
 
 def save_inventory_transfer_orders_data(rows: List[Dict]) -> bool:
-    """Save inventory transfer orders to local JSON"""
-    return _safe_json_dump(Config.INVENTORY_TRANSFER_ORDERS_FILE, rows)
+    """Save inventory transfer orders to local storage"""
+    return sqlite_store.save_table_data("inventory_transfer_orders", rows)
 
 
 def get_inventory_transfer_items_data() -> List[Dict]:
-    """Get inventory transfer items from local JSON"""
-    return _safe_json_load(Config.INVENTORY_TRANSFER_ITEMS_FILE, [])
+    """Get inventory transfer items from local storage"""
+    return sqlite_store.get_table_data("inventory_transfer_items", [])
 
 
 def save_inventory_transfer_items_data(rows: List[Dict]) -> bool:
-    """Save inventory transfer items to local JSON"""
-    return _safe_json_dump(Config.INVENTORY_TRANSFER_ITEMS_FILE, rows)
+    """Save inventory transfer items to local storage"""
+    return sqlite_store.save_table_data("inventory_transfer_items", rows)
 
 
 def get_inventory_transfer_verifications_data() -> List[Dict]:
-    """Get inventory transfer verifications from local JSON"""
-    return _safe_json_load(Config.INVENTORY_TRANSFER_VERIFICATIONS_FILE, [])
+    """Get inventory transfer verifications from local storage"""
+    return sqlite_store.get_table_data("inventory_transfer_verifications", [])
 
 
 def save_inventory_transfer_verifications_data(rows: List[Dict]) -> bool:
-    """Save inventory transfer verifications to local JSON"""
-    return _safe_json_dump(Config.INVENTORY_TRANSFER_VERIFICATIONS_FILE, rows)
+    """Save inventory transfer verifications to local storage"""
+    return sqlite_store.save_table_data("inventory_transfer_verifications", rows)
 
 
 def get_inventory_transfer_scans_data() -> List[Dict]:
-    """Get inventory transfer scans from local JSON"""
-    return _safe_json_load(Config.INVENTORY_TRANSFER_SCANS_FILE, [])
+    """Get inventory transfer scans from local storage"""
+    return sqlite_store.get_table_data("inventory_transfer_scans", [])
 
 
 def save_inventory_transfer_scans_data(rows: List[Dict]) -> bool:
-    """Save inventory transfer scans to local JSON"""
-    return _safe_json_dump(Config.INVENTORY_TRANSFER_SCANS_FILE, rows)
+    """Save inventory transfer scans to local storage"""
+    return sqlite_store.save_table_data("inventory_transfer_scans", rows)
 
 
 # ============================================
@@ -372,10 +299,10 @@ def save_inventory_transfer_scans_data(rows: List[Dict]) -> bool:
 # ============================================
 
 def get_user_sessions() -> List[Dict]:
-    """Get user sessions from local JSON"""
-    return _safe_json_load(Config.SESSIONS_FILE, [])
+    """Get user sessions from local storage"""
+    return sqlite_store.get_table_data("user_sessions", [])
 
 
 def save_user_sessions(sessions: List[Dict]) -> bool:
-    """Save user sessions to local JSON"""
-    return _safe_json_dump(Config.SESSIONS_FILE, sessions)
+    """Save user sessions to local storage"""
+    return sqlite_store.save_table_data("user_sessions", sessions)

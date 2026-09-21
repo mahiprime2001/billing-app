@@ -1,6 +1,8 @@
 "use client"
 
 import { API_BASE } from "@/lib/api-base"
+import { readCache, writeCache } from "@/lib/api-cache"
+import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
@@ -83,11 +85,26 @@ export default function DashboardPage() {
     // dummy user for now
     setUser({ name: "Admin", role: "super_admin" })
 
+    // Instant paint from whatever's cached (if anything) so revisiting the
+    // dashboard doesn't sit on the spinner while all 4 endpoints re-fetch --
+    // loadDashboardData() below overwrites this with live data moments later.
+    const paintFromCache = async () => {
+      const baseUrl = API_BASE
+      const [bills, products, stores, users] = await Promise.all([
+        readCache<Bill[]>(`${baseUrl}/api/bills`),
+        readCache<Product[]>(`${baseUrl}/api/products`),
+        readCache<StoreType[]>(`${baseUrl}/api/stores`),
+        readCache<User[]>(`${baseUrl}/api/users`),
+      ])
+      if (!bills && !products && !stores && !users) return
+      applyStats(bills?.data ?? [], products?.data ?? [], stores?.data ?? [], users?.data ?? [])
+      setLoading(false)
+    }
+
     const loadData = async () => {
       try {
-        setLoading(true)
         setError(null)
-        await loadDashboardData()
+        await Promise.all([paintFromCache(), loadDashboardData()])
       } catch (err) {
         console.error("Error loading dashboard data:", err)
         setError("Failed to load dashboard data. Please try again later.")
@@ -99,72 +116,51 @@ export default function DashboardPage() {
     loadData()
   }, [router])
 
-  const loadDashboardData = async () => {
+  useBackgroundPoll(() => loadDashboardData(true))
+
+  // Without a timeout, a slow/stalled response on any one of these (e.g. a
+  // cold server-side aggregation cache under real production data volume)
+  // leaves the dashboard spinning forever with no error -- same failure
+  // mode fixed on the Products page's loader.
+  const fetchWithTimeout = (url: string, timeoutMs = 30000) => {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+    return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timeoutId))
+  }
+
+  // Each of the 4 is fetched independently and defaults to an empty list on
+  // its OWN failure -- previously a single failing endpoint (bills'
+  // unbounded enrichment is the heaviest and most likely to still hiccup
+  // under real data volume) threw and blanked the WHOLE dashboard, even
+  // when the other 3 had already succeeded. Successful fetches are cached
+  // for the next visit's instant paint (see paintFromCache above).
+  const fetchListSafe = async <T,>(label: string, url: string): Promise<T[]> => {
+    try {
+      const response = await fetchWithTimeout(url)
+      if (!response.ok) {
+        console.error(`Failed to fetch ${label}: ${response.status} ${response.statusText}`)
+        return []
+      }
+      const raw = await response.json()
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : []
+      void writeCache(url, list)
+      return list
+    } catch (err) {
+      console.error(`Error fetching ${label}:`, err)
+      return []
+    }
+  }
+
+  const loadDashboardData = async (isBackground = false) => {
     try {
       const baseUrl = API_BASE
 
-      const [billsResponse, productsResponse, storesResponse, usersResponse] =
-        await Promise.all([
-          fetch(`${baseUrl}/api/bills`),
-          fetch(`${baseUrl}/api/products`),
-          fetch(`${baseUrl}/api/stores`),
-          fetch(`${baseUrl}/api/users`),
-        ])
-
-      if (!billsResponse.ok) {
-        const errorText = await billsResponse.text()
-        console.error(
-          `Failed to fetch bills: ${billsResponse.status} ${billsResponse.statusText} - ${errorText}`,
-        )
-        throw new Error("Failed to fetch bills data")
-      }
-      if (!productsResponse.ok) {
-        const errorText = await productsResponse.text()
-        console.error(
-          `Failed to fetch products: ${productsResponse.status} ${productsResponse.statusText} - ${errorText}`,
-        )
-        throw new Error("Failed to fetch products data")
-      }
-      if (!storesResponse.ok) {
-        const errorText = await storesResponse.text()
-        console.error(
-          `Failed to fetch stores: ${storesResponse.status} ${storesResponse.statusText} - ${errorText}`,
-        )
-        throw new Error("Failed to fetch stores data")
-      }
-      if (!usersResponse.ok) {
-        const errorText = await usersResponse.text()
-        console.error(
-          `Failed to fetch users: ${usersResponse.status} ${usersResponse.statusText} - ${errorText}`,
-        )
-        throw new Error("Failed to fetch users data")
-      }
-
-      const rawBills = await billsResponse.json()
-      const rawProducts = await productsResponse.json()
-      const rawStores = await storesResponse.json()
-      const rawUsers = await usersResponse.json()
-
-      const bills: Bill[] = Array.isArray(rawBills)
-        ? rawBills
-        : Array.isArray(rawBills?.data)
-        ? rawBills.data
-        : []
-      const products: Product[] = Array.isArray(rawProducts)
-        ? rawProducts
-        : Array.isArray(rawProducts?.data)
-        ? rawProducts.data
-        : []
-      const stores: StoreType[] = Array.isArray(rawStores)
-        ? rawStores
-        : Array.isArray(rawStores?.data)
-        ? rawStores.data
-        : []
-      const users: User[] = Array.isArray(rawUsers)
-        ? rawUsers
-        : Array.isArray(rawUsers?.data)
-        ? rawUsers.data
-        : []
+      const [bills, products, stores, users] = await Promise.all([
+        fetchListSafe<Bill>("bills", `${baseUrl}/api/bills`),
+        fetchListSafe<Product>("products", `${baseUrl}/api/products`),
+        fetchListSafe<StoreType>("stores", `${baseUrl}/api/stores`),
+        fetchListSafe<User>("users", `${baseUrl}/api/users`),
+      ])
 
       console.log("📊 Dashboard data:", {
         bills: bills.length,
@@ -173,6 +169,14 @@ export default function DashboardPage() {
         users: users.length,
       })
 
+      applyStats(bills, products, stores, users)
+    } catch (error) {
+      console.error("Error loading dashboard data:", error)
+      if (!isBackground) throw error
+    }
+  }
+
+  const applyStats = (bills: Bill[], products: Product[], stores: StoreType[], users: User[]) => {
       // -------- OVERALL STATS --------
       const totalRevenue = bills.reduce(
         (sum, bill) => sum + (bill.total || 0),
@@ -271,11 +275,6 @@ setStats((prev) => ({
   recentBills,
   topProducts,
 }))
-
-    } catch (error) {
-      console.error("Error loading dashboard data:", error)
-      throw error
-    }
   }
 
   if (loading) {

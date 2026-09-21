@@ -1,14 +1,8 @@
 {
   "identifier": "default-capabilities",
-  "description": "Default capabilities including shell spawn and webview print permissions",
+  "description": "Default capabilities for webview print permissions",
   "windows": ["main"],
   "permissions": [
-    {
-      "identifier": "shell:allow-spawn",
-      "allow": [
-        { "name": "binaries/Siriadmin-backend", "sidecar": true }
-      ]
-    },
     {
       "identifier": "core:webview:allow-print"
     },

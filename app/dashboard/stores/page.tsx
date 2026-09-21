@@ -1,7 +1,10 @@
 "use client"
 import { API_BASE } from "@/lib/api-base"
+import { createStoreOffline, updateStoreOffline } from "@/lib/store-write"
+import { getLocalStores, type LocalStore } from "@/lib/resilient-client"
+import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import type React from "react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
 
@@ -920,6 +923,7 @@ function BillDetailsDialog({
 export default function StoresPage() {
   const router = useRouter()
   const [stores, setStores] = useState<StoreType[]>([])
+  const [isStoresOfflineFallback, setIsStoresOfflineFallback] = useState(false)
   const [bills, setBills] = useState<any[]>([])
   const [gstRegistrations, setGstRegistrations] = useState<GstRegistration[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -940,6 +944,8 @@ export default function StoresPage() {
   const [selectedStore, setSelectedStore] = useState<StoreType | null>(null)
 
   
+  const assignedStoreIdRef = useRef<string | undefined | null>(undefined)
+
   useEffect(() => {
     const isLoggedIn = localStorage.getItem("adminLoggedIn")
     const userData = localStorage.getItem("adminUser")
@@ -959,14 +965,52 @@ export default function StoresPage() {
       return
     }
 
+    assignedStoreIdRef.current = assignedStoreId
     loadData(assignedStoreId)
   }, [router])
+  useBackgroundPoll(() => loadData(assignedStoreIdRef.current))
+
+  // Local mirror only has what lib/local-db.ts's stores table stores --
+  // no server-computed totalRevenue/totalBills/lastBillDate/productCount,
+  // and no `manager` (siri-api drops it server-side, see lib/store-write.ts).
+  // Those default to empty/zero when falling back offline rather than being
+  // silently wrong -- an offline store list is for identifying/finding a
+  // store, not for trusting its revenue stats.
+  const localStoreToStoreType = (s: LocalStore): StoreType => ({
+    id: s.id,
+    name: s.name,
+    address: s.address ?? "",
+    phone: s.phone ?? "",
+    manager: "",
+    storecode: s.storecode,
+    status: (s.status === "inactive" ? "inactive" : "active") as "active" | "inactive",
+    createdAt: s.createdat ?? s.synced_at ?? "",
+    totalRevenue: 0,
+    totalBills: 0,
+    lastBillDate: "",
+    gstRegistrationId: s.gst_registration_id ?? undefined,
+  })
 
   const loadData = async (assignedStoreId?: string | null) => {
+    // Instant paint from the local mirror (kept fresh in the background by
+    // lib/periodic-refresh.ts) while the network fetch below is in flight --
+    // only takes effect if it resolves first, and only if nothing's on
+    // screen yet, so a background poll's re-run of loadData() doesn't
+    // flash the (now-stale-by-comparison) mirror snapshot over live data.
+    if (stores.length === 0) {
+      getLocalStores()
+        .then((localStores) => {
+          if (stores.length > 0 || localStores.length === 0) return
+          const mapped = localStores.map(localStoreToStoreType)
+          setStores(assignedStoreId ? mapped.filter((s) => normalizeStoreId(s.id) === assignedStoreId) : mapped)
+        })
+        .catch(() => {})
+    }
+
     // Fetch stores immediately — don't block on bills
     fetch(`${API}/api/stores`)
       .then(async (storesResponse) => {
-        if (!storesResponse.ok) return;
+        if (!storesResponse.ok) throw new Error(`HTTP ${storesResponse.status}`);
         const storesData: any[] = await storesResponse.json();
         const seenIds = new Set<string>();
         const uniqueStores = storesData.map((store: any) => {
@@ -978,6 +1022,7 @@ export default function StoresPage() {
           return { ...store, id: uniqueId } as StoreType;
         });
 
+        setIsStoresOfflineFallback(false)
         if (assignedStoreId) {
           const filtered = uniqueStores.filter(store => normalizeStoreId(store.id) === assignedStoreId);
           setStores(filtered);
@@ -985,7 +1030,22 @@ export default function StoresPage() {
           setStores(uniqueStores);
         }
       })
-      .catch((error) => console.error("Error loading stores:", error));
+      .catch(async (error) => {
+        console.error("Error loading stores, trying local mirror:", error);
+        try {
+          const localStores = await getLocalStores();
+          if (localStores.length > 0) {
+            const mapped = localStores.map(localStoreToStoreType);
+            const filtered = assignedStoreId
+              ? mapped.filter((store) => normalizeStoreId(store.id) === assignedStoreId)
+              : mapped;
+            setStores(filtered);
+            setIsStoresOfflineFallback(true);
+          }
+        } catch {
+          // Not running in Tauri / no local mirror -- nothing more to do.
+        }
+      });
 
     // Fetch bills separately — slow Supabase retries won't block the stores list
     fetch(`${API}/api/bills`)
@@ -1067,6 +1127,35 @@ export default function StoresPage() {
         alert(`Failed to save store: ${errorData.error || errorData.message || "Unknown error"}`)
       }
     } catch (error) {
+      // fetch() only throws here when the request never reached the server
+      // (a real network failure) -- a server-reached-but-rejected response
+      // is handled in the `else` branch above without throwing, so this
+      // catch is already exactly the "we're offline" case.
+      if (error instanceof TypeError) {
+        try {
+          const { manager, ...offlineInput } = storeData
+          const offlineResult = editingStore
+            ? await updateStoreOffline(editingStore.id, offlineInput)
+            : await createStoreOffline(offlineInput)
+          if (!offlineResult.success) {
+            throw new Error(offlineResult.error || "Failed to save store offline")
+          }
+          // Known limitation: loadData() only reads from the network, so the
+          // just-created/edited store won't actually appear in the on-screen
+          // list until it syncs and a real refetch succeeds -- same
+          // disclosed gap as offline-created bills not showing in the bills
+          // list until synced. The alert below is the only feedback for now.
+          await loadData()
+          resetForm()
+          setIsDialogOpen(false)
+          alert("No connection detected. Store saved locally and will sync automatically once you're back online.")
+          return
+        } catch (offlineError) {
+          console.error("Error saving store offline:", offlineError)
+          alert(offlineError instanceof Error ? offlineError.message : "Failed to save store offline.")
+          return
+        }
+      }
       console.error("Error saving store:", error)
       alert("An error occurred while saving the store.")
     }
@@ -1177,6 +1266,12 @@ export default function StoresPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
+        {isStoresOfflineFallback && (
+          <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800" aria-live="polite">
+            Showing {stores.length.toLocaleString()} stores from the last sync — no connection right now
+            (revenue/bill stats unavailable until reconnected).
+          </div>
+        )}
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-4xl font-bold text-gray-900">Store Management</h1>

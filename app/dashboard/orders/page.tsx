@@ -1,6 +1,8 @@
 "use client"
 
 import { API_BASE } from "@/lib/api-base"
+import { fetchWithBackgroundRefresh } from "@/lib/api-cache"
+import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import type React from "react"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -302,6 +304,7 @@ export default function OrdersPage() {
   const [stores, setStores] = useState<StoreType[]>([])
   const [selectedStoreId, setSelectedStoreId] = useState<string>("all")
   const [storesLoading, setStoresLoading] = useState(true)
+  const [isOfflineFallback, setIsOfflineFallback] = useState(false)
 
   // Transfer orders
   const [orders, setOrders] = useState<TransferOrder[]>([])
@@ -362,21 +365,24 @@ export default function OrdersPage() {
     fetchStores()
   }, [router])
 
-  const fetchStores = async () => {
-    setStoresLoading(true)
+  const fetchStores = async (isBackground = false) => {
+    if (!isBackground) setStoresLoading(true)
     try {
-      const res = await fetch(`${API}/api/stores`)
-      if (res.ok) {
-        const data = await res.json()
-        const activeStores = (Array.isArray(data) ? data : []).filter(
-          (s: any) => s.status === "active"
-        ) as StoreType[]
-        setStores(activeStores)
-      }
+      await fetchWithBackgroundRefresh<any[]>(
+        "/api/stores",
+        (r) => {
+          const activeStores = (Array.isArray(r.data) ? r.data : []).filter(
+            (s: any) => s.status === "active"
+          ) as StoreType[]
+          setStores(activeStores)
+          setIsOfflineFallback(r.source === "cache")
+        },
+        () => setIsOfflineFallback(true)
+      )
     } catch (e) {
       console.error("Error loading stores:", e)
     } finally {
-      setStoresLoading(false)
+      if (!isBackground) setStoresLoading(false)
     }
   }
 
@@ -390,52 +396,77 @@ export default function OrdersPage() {
     }
   }, [selectedStoreId, storesLoading, stores.length])
 
-  const fetchAllTransferOrders = async () => {
-    setIsLoadingOrders(true)
-    setOrders([])
-    setDates([])
-    setSelectedDate(null)
+  // Re-pulls stores + whichever order view is currently selected, in the
+  // background, so the page stays current without the user having to
+  // navigate away and back.
+  useBackgroundPoll(() => {
+    fetchStores(true)
+    if (storesLoading) return
+    if (selectedStoreId === "all") {
+      if (stores.length > 0) fetchAllTransferOrders(true)
+    } else if (selectedStoreId) {
+      fetchTransferOrders(selectedStoreId, true)
+    }
+  })
+
+  const fetchAllTransferOrders = async (isBackground = false) => {
+    if (!isBackground) {
+      setIsLoadingOrders(true)
+      setOrders([])
+      setDates([])
+      setSelectedDate(null)
+    }
 
     try {
-      const res = await fetch(`${API}/api/orders?storeId=all&limit=1000`)
-      const payload = res.ok ? await res.json() : []
-      const allOrders: TransferOrder[] = (Array.isArray(payload) ? payload : []).map((order: any) => ({
-        ...order,
-        createdAt: order.createdAt || order.created_at,
-      }))
-      const enriched = await enrichOrdersWithValue(allOrders)
-      processOrders(enriched)
+      await fetchWithBackgroundRefresh<any[]>(
+        "/api/orders?storeId=all&limit=1000",
+        async (r) => {
+          const allOrders: TransferOrder[] = (Array.isArray(r.data) ? r.data : []).map((order: any) => ({
+            ...order,
+            createdAt: order.createdAt || order.created_at,
+          }))
+          setIsOfflineFallback(r.source === "cache")
+          const enriched = await enrichOrdersWithValue(allOrders)
+          processOrders(enriched)
+        },
+        () => setIsOfflineFallback(true)
+      )
     } catch (e) {
       console.error("Error fetching all transfer orders:", e)
     } finally {
-      setIsLoadingOrders(false)
+      if (!isBackground) setIsLoadingOrders(false)
     }
   }
 
-  const fetchTransferOrders = async (storeId: string) => {
-    setIsLoadingOrders(true)
-    setOrders([])
-    setDates([])
-    setSelectedDate(null)
+  const fetchTransferOrders = async (storeId: string, isBackground = false) => {
+    if (!isBackground) {
+      setIsLoadingOrders(true)
+      setOrders([])
+      setDates([])
+      setSelectedDate(null)
+    }
 
     try {
       const normalizedId = normalizeStoreId(storeId) || storeId
-      const res = await fetch(`${API}/api/orders?storeId=${encodeURIComponent(normalizedId)}&limit=1000`)
-      if (res.ok) {
-        const payload = await res.json()
-        const list = Array.isArray(payload) ? payload : []
-        const normalized: TransferOrder[] = list.map((order: any) => ({
-          ...order,
-          storeId,
-          createdAt: order.createdAt || order.created_at,
-        }))
-        const enriched = await enrichOrdersWithValue(normalized)
-        processOrders(enriched)
-      }
+      await fetchWithBackgroundRefresh<any[]>(
+        `/api/orders?storeId=${encodeURIComponent(normalizedId)}&limit=1000`,
+        async (r) => {
+          const list = Array.isArray(r.data) ? r.data : []
+          const normalized: TransferOrder[] = list.map((order: any) => ({
+            ...order,
+            storeId,
+            createdAt: order.createdAt || order.created_at,
+          }))
+          setIsOfflineFallback(r.source === "cache")
+          const enriched = await enrichOrdersWithValue(normalized)
+          processOrders(enriched)
+        },
+        () => setIsOfflineFallback(true)
+      )
     } catch (e) {
       console.error("Error fetching transfer orders:", e)
     } finally {
-      setIsLoadingOrders(false)
+      if (!isBackground) setIsLoadingOrders(false)
     }
   }
 
@@ -989,6 +1020,11 @@ export default function OrdersPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {isOfflineFallback && (
+          <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800" aria-live="polite">
+            Showing orders/stores data from the last sync — no connection right now. Creating/editing orders requires a connection.
+          </div>
+        )}
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>

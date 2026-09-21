@@ -12,6 +12,8 @@ import {
 } from "date-fns"
 import type { DateRange } from "react-day-picker"
 import { supabase } from "@/lib/supabase-browser"
+import { readCache, writeCache } from "@/lib/api-cache"
+import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -196,6 +198,7 @@ export default function AttendanceEmployees({
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isOfflineFallback, setIsOfflineFallback] = useState(false)
   const [search, setSearch] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
@@ -269,8 +272,25 @@ export default function AttendanceEmployees({
 
   const loadData = useCallback(async () => {
     if (!storeId) return
-    setLoading(true)
     setError(null)
+    // Read-only offline cache -- viewing only. Adding/editing employees,
+    // re-enrolling, toggling status, and device management all still
+    // require a live connection (see components/attendance-employees.tsx's
+    // write calls below, none of which go through this cache).
+    const cacheKey = `attendance:${storeId}:${fromKey}:${toKey}`
+
+    // Instant paint from cache (if any) while the Supabase query below is
+    // in flight, so switching stores/dates doesn't sit on a blank spinner
+    // -- the query result overwrites this moments later either way.
+    let paintedFromCache = false
+    const cached0 = await readCache<{ employees: AttendanceEmployeeRow[]; records: AttendanceRecord[] }>(cacheKey)
+    if (cached0) {
+      setEmployees(cached0.data.employees)
+      setRecords(cached0.data.records)
+      paintedFromCache = true
+    } else {
+      setLoading(true)
+    }
     try {
       const [empRes, recRes] = await Promise.all([
         // Roaming employees (e.g. an auditor) show up at every store they
@@ -290,14 +310,33 @@ export default function AttendanceEmployees({
       ])
       if (empRes.error) throw empRes.error
       if (recRes.error) throw recRes.error
-      setEmployees((empRes.data ?? []) as AttendanceEmployeeRow[])
-      setRecords((recRes.data ?? []) as AttendanceRecord[])
+      const employeesData = (empRes.data ?? []) as AttendanceEmployeeRow[]
+      const recordsData = (recRes.data ?? []) as AttendanceRecord[]
+      setEmployees(employeesData)
+      setRecords(recordsData)
+      setIsOfflineFallback(false)
+      void writeCache(cacheKey, { employees: employeesData, records: recordsData })
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load attendance data")
+      console.error("Error loading attendance data, trying cache:", e)
+      if (paintedFromCache) {
+        // Already showing the cached snapshot -- just flag it stale rather
+        // than re-fetching cache we already have and painted.
+        setIsOfflineFallback(true)
+      } else {
+        const cached = await readCache<{ employees: AttendanceEmployeeRow[]; records: AttendanceRecord[] }>(cacheKey)
+        if (cached) {
+          setEmployees(cached.data.employees)
+          setRecords(cached.data.records)
+          setIsOfflineFallback(true)
+        } else {
+          setError(e instanceof Error ? e.message : "Failed to load attendance data")
+        }
+      }
     } finally {
       setLoading(false)
     }
   }, [storeId, fromKey, toKey])
+  useBackgroundPoll(() => loadData(), 60_000, Boolean(storeId))
 
   useEffect(() => {
     loadData()
@@ -885,6 +924,11 @@ export default function AttendanceEmployees({
 
   return (
     <div className="space-y-4">
+      {isOfflineFallback && (
+        <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800" aria-live="polite">
+          Showing attendance data from the last sync — no connection right now. Adding/editing employees and devices requires a connection.
+        </div>
+      )}
       {/* row 1: store + search */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">

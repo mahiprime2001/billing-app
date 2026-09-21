@@ -1,6 +1,8 @@
 "use client"
 
 import { API_BASE } from "@/lib/api-base"
+import { fetchWithBackgroundRefresh, withResolvers } from "@/lib/api-cache"
+import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import DashboardLayout from "@/components/dashboard-layout"
 import { formatDisplayDate } from "@/app/utils/formatDate"
@@ -64,23 +66,32 @@ export default function DamagedProductsPage() {
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [sendStoreId, setSendStoreId] = useState<string>("")
   const [sending, setSending] = useState(false)
+  const [isOfflineFallback, setIsOfflineFallback] = useState(false)
 
-  const loadRows = async () => {
-    setLoading(true)
+  const loadRows = async (isBackground = false) => {
+    if (!isBackground) setLoading(true)
     setError(null)
+    // Each endpoint paints instantly from cache (if any) then refreshes
+    // from the network in the background, independently -- one slow/
+    // failing endpoint doesn't blank the whole page.
+    const staleBy = withResolvers(setIsOfflineFallback)
     try {
-      const [res, storesRes] = await Promise.all([
-        fetch(`${API}/api/store-damage-returns`),
-        fetch(`${API}/api/stores`),
+      await Promise.all([
+        fetchWithBackgroundRefresh<StoreDamageReturnRow[]>(
+          "/api/store-damage-returns",
+          (r) => { setRows(Array.isArray(r.data) ? r.data : []); staleBy.set("rows", r.source === "cache") },
+          () => staleBy.set("rows", true)
+        ),
+        fetchWithBackgroundRefresh<{ id: string; name?: string }[]>(
+          "/api/stores",
+          (r) => { setStores(Array.isArray(r.data) ? r.data : []); staleBy.set("stores", r.source === "cache") },
+          () => staleBy.set("stores", true)
+        ),
       ])
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      setRows(Array.isArray(data) ? data : [])
-      setStores(storesRes.ok ? await storesRes.json() : [])
-      setSelected({})
+      if (!isBackground) setSelected({})
     } catch (err) {
       console.error("Failed to load damaged stock rows:", err)
-      setError("Failed to load damaged stock records.")
+      if (!isBackground) setError("Failed to load damaged stock records.")
     } finally {
       setLoading(false)
     }
@@ -89,6 +100,7 @@ export default function DamagedProductsPage() {
   useEffect(() => {
     loadRows()
   }, [])
+  useBackgroundPoll(() => loadRows(true))
 
   const handleResolve = async (row: StoreDamageReturnRow, action: "fix" | "discard") => {
     try {
@@ -166,6 +178,11 @@ export default function DamagedProductsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {isOfflineFallback && (
+          <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800" aria-live="polite">
+            Showing damaged stock data from the last sync — no connection right now.
+          </div>
+        )}
         <div className="flex items-start justify-between">
           <div>
             <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
@@ -178,7 +195,7 @@ export default function DamagedProductsPage() {
           </div>
           <div className="flex items-center gap-2">
             {reasonFilterSelect}
-            <Button variant="outline" onClick={loadRows}>
+            <Button variant="outline" onClick={() => loadRows()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>

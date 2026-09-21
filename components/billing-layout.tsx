@@ -82,6 +82,7 @@ export default function BillingLayout({ children }: { children: React.ReactNode 
       // Clear invalid data and redirect to login
       localStorage.removeItem("adminLoggedIn")
       localStorage.removeItem("adminUser")
+      localStorage.removeItem("adminToken")
       router.push("/")
     }
   }, [router])
@@ -224,7 +225,7 @@ export default function BillingLayout({ children }: { children: React.ReactNode 
         // Regular user logout - only remove auth data
         localStorage.removeItem("adminLoggedIn")
         localStorage.removeItem("adminUser")
-        // No need to remove sessionToken from localStorage as it's now an HttpOnly cookie
+        localStorage.removeItem("adminToken")
       }
 
       router.push("/")

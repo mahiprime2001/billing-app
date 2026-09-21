@@ -51,6 +51,7 @@ import {
   ScanFace,
   ChevronLeft,
   ChevronRight,
+  ScrollText,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { NotificationBell } from "@/components/notification-bell"
@@ -88,6 +89,7 @@ const menuItems: MenuItem[] = [
   { title: "Returns", url: "/dashboard/returns", icon: PackageCheck },
   { title: "Damaged Stock", url: "/dashboard/damaged-products", icon: Undo2 },
   { title: "Discounts", url: "/dashboard/discounts", icon: Percent },
+  { title: "Logs", url: "/dashboard/logs", icon: ScrollText },
   { title: "Settings", url: "/dashboard/settings", icon: Settings },
 ]
 
@@ -139,6 +141,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       console.error("Error parsing user data from localStorage:", error)
       localStorage.removeItem("adminLoggedIn")
       localStorage.removeItem("adminUser")
+      localStorage.removeItem("adminToken")
       router.push("/")
     }
   }, [router])
@@ -154,6 +157,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (confirm("Are you sure you want to logout?")) {
       localStorage.removeItem("adminLoggedIn")
       localStorage.removeItem("adminUser")
+      localStorage.removeItem("adminToken")
       router.push("/")
     }
   }

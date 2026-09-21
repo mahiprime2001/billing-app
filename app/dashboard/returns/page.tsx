@@ -1,6 +1,8 @@
 "use client"
 
 import { API_BASE } from "@/lib/api-base"
+import { fetchWithBackgroundRefresh, withResolvers } from "@/lib/api-cache"
+import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import { cn } from "@/lib/utils"
 import type React from "react"
 import { useEffect, useMemo, useState } from "react"
@@ -148,27 +150,51 @@ export default function AdminReturnsPage() {
   const [sending, setSending] = useState(false)
   const [withAdminSearch, setWithAdminSearch] = useState("")
   const [sendQty, setSendQty] = useState<Record<string, number>>({})
+  const [isOfflineFallback, setIsOfflineFallback] = useState(false)
 
-  const loadAll = async () => {
-    setLoading(true)
+  const loadAll = async (isBackground = false) => {
+    if (!isBackground) setLoading(true)
     setError(null)
+    // Each call paints instantly from cache (if any) then refreshes from
+    // the network in the background, independently -- one slow/failing
+    // endpoint doesn't hold up the others. staleBy tracks, per endpoint,
+    // whether we're currently stuck showing cached data (background
+    // refresh failed) vs. live -- isOfflineFallback is "any of them are".
+    const staleBy = withResolvers(setIsOfflineFallback)
     try {
-      const [ordersRes, allRes, holdRes, sentRes, storesRes] = await Promise.all([
-        fetch(`${API}/api/return-orders?status=sent_to_admin`),
-        fetch(`${API}/api/return-orders`),
-        fetch(`${API}/api/return-holdings?holding_status=with_admin`),
-        fetch(`${API}/api/return-holdings?holding_status=sent_out`),
-        fetch(`${API}/api/stores`),
+      await Promise.all([
+        fetchWithBackgroundRefresh<ReturnOrder[]>(
+          "/api/return-orders?status=sent_to_admin",
+          (r) => { setOrders(Array.isArray(r.data) ? r.data : []); staleBy.set("orders", r.source === "cache") },
+          () => staleBy.set("orders", true)
+        ),
+        fetchWithBackgroundRefresh<ReturnOrder[]>(
+          "/api/return-orders",
+          (r) => { setAllOrders(Array.isArray(r.data) ? r.data : []); staleBy.set("allOrders", r.source === "cache") },
+          () => staleBy.set("allOrders", true)
+        ),
+        fetchWithBackgroundRefresh<any[]>(
+          "/api/return-holdings?holding_status=with_admin",
+          (r) => { setWithAdmin(Array.isArray(r.data) ? r.data : []); staleBy.set("withAdmin", r.source === "cache") },
+          () => staleBy.set("withAdmin", true)
+        ),
+        fetchWithBackgroundRefresh<any[]>(
+          "/api/return-holdings?holding_status=sent_out",
+          (r) => { setSentOut(Array.isArray(r.data) ? r.data : []); staleBy.set("sentOut", r.source === "cache") },
+          () => staleBy.set("sentOut", true)
+        ),
+        fetchWithBackgroundRefresh<{ id: string; name?: string }[]>(
+          "/api/stores",
+          (r) => { setStores(Array.isArray(r.data) ? r.data : []); staleBy.set("stores", r.source === "cache") },
+          () => staleBy.set("stores", true)
+        ),
       ])
-      setOrders(ordersRes.ok ? await ordersRes.json() : [])
-      setAllOrders(allRes.ok ? await allRes.json() : [])
-      setWithAdmin(holdRes.ok ? await holdRes.json() : [])
-      setSentOut(sentRes.ok ? await sentRes.json() : [])
-      setStores(storesRes.ok ? await storesRes.json() : [])
-      setSelected({})
+      // Only clear the in-progress selection on a real (foreground) load --
+      // a background poll landing mid-selection shouldn't wipe it out.
+      if (!isBackground) setSelected({})
     } catch (err) {
       console.error("Failed to load returns:", err)
-      setError("Failed to load returns.")
+      if (!isBackground) setError("Failed to load returns.")
     } finally {
       setLoading(false)
     }
@@ -239,6 +265,7 @@ export default function AdminReturnsPage() {
   useEffect(() => {
     loadAll()
   }, [])
+  useBackgroundPoll(() => loadAll(true))
 
   // Open an order in the dialog. Unverified orders open in verify mode (scan to
   // verify); already-verified orders open in details/send mode.
@@ -511,6 +538,11 @@ export default function AdminReturnsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6 p-1">
+        {isOfflineFallback && (
+          <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800" aria-live="polite">
+            Showing returns data from the last sync — no connection right now.
+          </div>
+        )}
         <div className="flex items-center justify-between gap-3">
           <h1 className="flex items-center gap-2 text-2xl font-bold">
             <PackageCheck className="h-6 w-6" />
@@ -542,7 +574,7 @@ export default function AdminReturnsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>
+            <Button variant="outline" size="sm" onClick={() => loadAll()} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>

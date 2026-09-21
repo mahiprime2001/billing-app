@@ -2,20 +2,28 @@
 
 import { useEffect, useState } from "react"
 import { WifiOff } from "lucide-react"
-import { API_BASE, isAndroid } from "@/lib/api-base"
+import { API_BASE } from "@/lib/api-base"
 
 const PING_INTERVAL_MS = 10_000
 
 /**
- * Android-only full-screen blocker shown while the device cannot reach the
- * backend server. Desktop is unaffected (it talks to the local sidecar).
+ * Small, non-blocking "offline" indicator -- same for Android and desktop.
+ *
+ * Used to be an Android-only FULL-SCREEN block: written back when desktop
+ * fell back to a local Flask sidecar while offline (so it didn't need this
+ * gate) and Android had no offline story at all (so blocking outright was
+ * the only safe option). Neither is true anymore -- the sidecar is gone
+ * (both platforms talk to siri-api directly), and every page now has its
+ * own read-only offline fallback (local SQLite mirror / cached response,
+ * see lib/resilient-client.ts and lib/api-cache.ts). A full-screen block
+ * would now just hide that work instead of protecting anything, so this is
+ * a quiet corner badge instead -- lets the user know why data might be a
+ * minute stale without stopping them from using the app.
  */
 export default function OfflineGate() {
   const [offline, setOffline] = useState(false)
 
   useEffect(() => {
-    if (!isAndroid) return
-
     let cancelled = false
 
     const ping = async () => {
@@ -54,13 +62,12 @@ export default function OfflineGate() {
   if (!offline) return null
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-4 bg-background p-8 text-center">
-      <WifiOff className="h-16 w-16 text-muted-foreground" />
-      <h1 className="text-2xl font-semibold">You&apos;re offline</h1>
-      <p className="max-w-sm text-muted-foreground">
-        This app needs an internet connection to reach the server. Please
-        check your connection — it will reconnect automatically.
-      </p>
+    <div
+      className="fixed bottom-4 right-4 z-[9999] flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-800 shadow-sm"
+      aria-live="polite"
+    >
+      <WifiOff className="h-3.5 w-3.5" />
+      Offline — showing last synced data. Reconnecting automatically.
     </div>
   )
 }

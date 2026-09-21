@@ -95,15 +95,15 @@ const isTauriRuntime = (): boolean => typeof window !== "undefined" && "__TAURI_
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
+// Was: also invoke("ensure_backend_running") first to spin the local Python
+// sidecar back up. That command no longer exists -- siri-api is a normal
+// always-on remote service now, not something this app starts/restarts --
+// so on a fetch failure there's nothing to do but wait out a transient
+// blip and let the caller retry.
 const ensureBackendReadyIfTauri = async (): Promise<void> => {
   if (!isTauriRuntime()) return
-  try {
-    await invoke<string>("ensure_backend_running")
-  } catch (error) {
-    console.error("Failed to invoke ensure_backend_running:", error)
-  }
 
-  // Wait briefly for backend startup and verify health.
+  // Wait briefly and verify health.
   for (let i = 0; i < 6; i++) {
     try {
       const health = await fetch(backendApiUrl("/health"), { cache: "no-store" })

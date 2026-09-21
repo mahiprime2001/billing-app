@@ -1,5 +1,5 @@
-import { API_BASE } from "@/lib/api-base"
 import { invoke } from "@tauri-apps/api/core";
+import { generateTspl, type LabelProfile } from "@/lib/tspl-generator";
 
 declare global {
   interface Window {
@@ -106,20 +106,6 @@ function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && Boolean((window as any).__TAURI__);
 }
 
-async function printThermalLabel(content: string, isThermalPrinter: boolean): Promise<void> {
-  if (!isThermalPrinter) {
-    console.warn("Attempted to print thermal label to a non-thermal printer.");
-    throw new Error("Not a thermal printer.");
-  }
-  try {
-    await invoke("print_thermal_document", { content });
-    console.log("Thermal label content sent to printer successfully.");
-  } catch (error) {
-    console.error("Failed to print thermal label:", error);
-    throw error;
-  }
-}
-
 // ✅ FIXED: Proper payload typing
 export async function unifiedPrint({
   htmlContent,
@@ -150,50 +136,46 @@ export async function unifiedPrint({
   labelProfile?: {
     id: string;
     name: string;
-  };
+  } & Partial<LabelProfile>;
   labelDimensions?: {
     widthMm: number;
     heightMm: number;
   };
 }): Promise<void> {
-  // ✅ FIXED: Properly typed payload
-  if (useBackendPrint && labelData && labelData.length > 0) {
+  // Label/barcode printing goes straight through the Tauri Rust command --
+  // no Flask involved, so it keeps working whether the sidecar/network is
+  // up or not. Was previously a fetch() to the Flask backend's
+  // /api/print-label (which generated TSPL server-side in Python); TSPL
+  // generation now happens locally in lib/tspl-generator.ts, a verified
+  // faithful port of that same Python logic.
+  if (useBackendPrint && labelData && labelData.length > 0 && printerName) {
     try {
-      const backendApiUrl = API_BASE.replace(/\/+$/g, "");
-      // Map labelData to only include selling_price (snake_case) and remove price
-      const labelDataForBackend = labelData.map(item => {
-        let selling_price = item.selling_price;
-        if (selling_price === undefined && item.sellingPrice !== undefined) selling_price = item.sellingPrice;
-        return {
-          id: item.id,
-          name: item.name,
-          barcode: item.barcode,
-          selling_price: selling_price ?? 0,
-           batchNumber: (item as any).batchNumber || ""
-        };
+      const labelDataForTspl = labelData.map(item => ({
+        id: item.id,
+        name: item.name,
+        barcode: item.barcode,
+        selling_price: item.selling_price ?? item.sellingPrice ?? 0,
+        batchNumber: (item as any).batchNumber || "",
+      }));
+      const tsplCommands = generateTspl(
+        labelDataForTspl,
+        copies,
+        storeName || "Company Name",
+        labelDimensions,
+        labelProfile,
+      );
+      console.log("🖨️ Sending TSPL directly to printer via Tauri:", printerName);
+      const result = await invoke<{ status: string; message: string }>("send_tspl_to_printer", {
+        printerName,
+        tsplCommands,
       });
-      const payload: any = { 
-        labelData: labelDataForBackend,
-        copies 
-      };
-      if (printerName) payload.printerName = printerName;
-      if (storeName) payload.storeName = storeName;
-      if (labelProfile) payload.labelProfile = labelProfile;
-      if (labelDimensions) payload.labelDimensions = labelDimensions;
-      console.log("📤 Sending backend print request (selling_price only):", payload);
-      const response = await fetch(`${backendApiUrl}/api/print-label`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (response.ok && data.status === "success") {
-        console.log("✅ Backend print succeeded:", data.message || "");
+      if (result.status === "success") {
+        console.log("✅ TSPL print succeeded:", result.message);
         return;
       }
-      console.warn("⚠️ Backend print returned non-success, falling back to browser print", data);
+      console.warn("⚠️ TSPL print returned non-success, falling back to browser print", result);
     } catch (err) {
-      console.error("❌ Error sending backend print request, falling back to browser print:", err);
+      console.error("❌ Error sending TSPL print, falling back to browser print:", err);
     }
   }
 
