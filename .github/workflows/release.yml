@@ -194,40 +194,28 @@ jobs:
           $tag = "v$version"
 
 
-          # Find bundles and auto-generated sigs
+          # MSI only -- no NSIS/.exe build (tauri.conf.json's bundle.targets
+          # is ["msi"] now), so there's nothing to find under bundle/nsis.
           $msi = Get-ChildItem -Path "$bundleDir/msi" -Filter "*.msi" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           $msiSig = Get-ChildItem -Path "$bundleDir/msi" -Filter "*.sig" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          $exe = Get-ChildItem -Path "$bundleDir/nsis" -Filter "*setup.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          $exeSig = Get-ChildItem -Path "$bundleDir/nsis" -Filter "*.sig" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
+          if (-not $msi) { throw "Missing bundle file (MSI not found)" }
 
-          if (-not $msi -or -not $exe) { throw "Missing bundle files (MSI/EXE not found)" }
-
-
-          # Read sig contents (or empty if missing)
           $msiSigContent = if ($msiSig) { Get-Content -Path $msiSig.FullName -Raw -Encoding UTF8 } else { Write-Host "No MSI .sig found"; "" }
-          $exeSigContent = if ($exeSig) { Get-Content -Path $exeSig.FullName -Raw -Encoding UTF8 } else { Write-Host "No EXE .sig found"; "" }
-
 
           Write-Host "Found MSI: $($msi.FullName)"
-          Write-Host "Found EXE: $($exe.FullName)"
 
-
-          # Generate update.json with direct URLs to .msi and .exe (for Tauri updater ingestion format)
+          # Generate update.json with a direct URL to the .msi (for Tauri updater ingestion format)
           $pubDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
           $msiName = [System.Uri]::EscapeDataString($(Split-Path $msi.FullName -Leaf))
-          $exeName = [System.Uri]::EscapeDataString($(Split-Path $exe.FullName -Leaf))
           $msiUrl = "https://github.com/$repo/releases/download/$tag/$msiName"
-          $exeUrl = "https://github.com/$repo/releases/download/$tag/$exeName"
-
 
           # Both "windows-x86_64" and "windows-x86_64-msi" point at the same
           # MSI artifact -- the installed app's updater log shows it
           # searching for the "-msi"-suffixed key FIRST (before falling
           # back to the bare key), and whether that fallback actually
           # succeeds isn't something to gamble on. Publishing both makes
-          # the very first lookup succeed directly, for both MSI- and
-          # NSIS-installed clients.
+          # the very first lookup succeed directly.
           $updateJson = @{
             version = $version
             notes = "Added auto-update support and fixed minor bugs."
@@ -241,10 +229,6 @@ jobs:
                 signature = $msiSigContent.Trim()
                 url = $msiUrl
               }
-              "windows-x86_64-nsis" = @{
-                signature = $exeSigContent.Trim()
-                url = $exeUrl
-              }
             }
           } | ConvertTo-Json -Depth 6
 
@@ -254,8 +238,8 @@ jobs:
           Write-Host "Generated update.json"
 
 
-          # Set assets: .msi, .exe, and update.json
-          $assets = "$($msi.FullName) $($exe.FullName) $updatePath"
+          # Set assets: .msi and update.json
+          $assets = "$($msi.FullName) $updatePath"
           echo "ASSETS=$assets" >> $env:GITHUB_ENV
 
 
@@ -280,7 +264,7 @@ jobs:
           }
 
 
-          # Upload assets (.msi, .exe, update.json)
+          # Upload assets (.msi, update.json)
           foreach ($asset in $assets) {
             if (Test-Path $asset) {
               Write-Host "Uploading $asset..."
