@@ -168,6 +168,13 @@ interface UpdateStatus {
   available: boolean
   version?: string
   message: string
+  notes?: string
+}
+
+interface UpdateCheckResult {
+  available: boolean
+  version?: string | null
+  notes?: string | null
 }
 
 export default function SettingsPage() {
@@ -370,23 +377,23 @@ export default function SettingsPage() {
 
     try {
       console.log('Calling invoke...');
-      const result = await invoke<string>('check_for_updates');
+      const result = await invoke<UpdateCheckResult>('check_for_updates');
       console.log('Invoke result:', result);
-      
-      if (result.includes('Update available')) {
-        const version = result.replace('Update available: ', '');
+
+      if (result.available && result.version) {
         setUpdateStatus({
           available: true,
-          version: version,
-          message: `Version ${version} is available!`,
+          version: result.version,
+          message: `Version ${result.version} is available!`,
+          notes: result.notes ?? undefined,
         });
         setIsUpdateDialogOpen(true);
-      } else if (result === 'No update available.') {
+      } else {
         setUpdateStatus({
           available: false,
           message: 'You are on the latest version!',
         });
-        
+
         toast({
           title: "No Updates Available",
           description: "You are already running the latest version.",
@@ -882,12 +889,17 @@ export default function SettingsPage() {
                       <AlertDialogTitle className="flex items-center">
                         🎉 Update Available!
                       </AlertDialogTitle>
-                      <AlertDialogDescription>
+                      <AlertDialogDescription asChild>
                         {updateStatus && updateStatus.available && (
                           <div className="space-y-3">
                             <p className="text-base">
                               A new version <span className="font-semibold text-blue-600">{updateStatus.version}</span> is available!
                             </p>
+                            {updateStatus.notes && (
+                              <div className="max-h-40 overflow-y-auto whitespace-pre-line rounded-md border bg-muted/50 p-3 text-left text-sm text-foreground">
+                                {updateStatus.notes}
+                              </div>
+                            )}
                             <p className="text-sm">
                               Would you like to download and install it now? The application will restart after installation.
                             </p>

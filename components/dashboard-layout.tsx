@@ -169,10 +169,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (isCheckingUpdate) return
     setIsCheckingUpdate(true)
     try {
-      const result = await invoke<string>("check_for_updates")
-      if (result.includes("Update available")) {
-        const version = result.replace("Update available: ", "")
-        if (confirm(`Version ${version} is available. Install it now? The app will restart.`)) {
+      const result = await invoke<{ available: boolean; version?: string | null; notes?: string | null }>(
+        "check_for_updates",
+      )
+      if (result.available && result.version) {
+        const notes = result.notes ? `\n\nWhat's new:\n${result.notes}` : ""
+        if (confirm(`Version ${result.version} is available.${notes}\n\nInstall it now? The app will restart.`)) {
           await invoke<string>("install_update")
         }
       } else {

@@ -17,18 +17,33 @@ use windows::Win32::Foundation::HWND;
 // UPDATER COMMANDS
 // ============================================================================
 
+#[derive(Serialize)]
+struct UpdateCheckResult {
+    available: bool,
+    version: Option<String>,
+    notes: Option<String>,
+}
+
 #[tauri::command]
-async fn check_for_updates(app_handle: AppHandle) -> Result<String, String> {
+async fn check_for_updates(app_handle: AppHandle) -> Result<UpdateCheckResult, String> {
     info!("[check_for_updates] Checking for updates...");
     match app_handle.updater() {
         Ok(updater) => match updater.check().await {
             Ok(Some(update)) => {
                 info!("[check_for_updates] Update available: {}", update.version);
-                Ok(format!("Update available: {}", update.version))
+                Ok(UpdateCheckResult {
+                    available: true,
+                    version: Some(update.version.clone()),
+                    notes: update.body.clone(),
+                })
             }
             Ok(None) => {
                 info!("[check_for_updates] No update available");
-                Ok("No update available.".to_string())
+                Ok(UpdateCheckResult {
+                    available: false,
+                    version: None,
+                    notes: None,
+                })
             }
             Err(e) => {
                 error!("[check_for_updates] Failed: {}", e);
