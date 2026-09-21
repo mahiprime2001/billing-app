@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Siri-Admin-app",
-  "version": "0.2.72",
+  "version": "0.2.73",
   "identifier": "com.siriadmin.dev",
   "build": {
     "frontendDist": "../out",
@@ -54,7 +54,9 @@
     },
     "createUpdaterArtifacts": true,
     "active": true,
-    "targets": ["msi"],
+    "targets": [
+      "msi"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
