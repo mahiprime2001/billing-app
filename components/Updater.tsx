@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { ask, message } from '@tauri-apps/plugin-dialog';
-import { relaunch } from '@tauri-apps/plugin-process';
+import { exit } from '@tauri-apps/plugin-process';
 
 interface DownloadProgress {
   chunkLength: number;
@@ -116,11 +116,14 @@ export default function Updater() {
         okLabel: 'Restart Now',
       });
 
-        // Wait a moment before restarting to ensure clean shutdown
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Restart the app
-        await relaunch();
+      // NOT relaunch() -- it relaunches this same (about to be replaced)
+      // executable immediately, which can race the installer (it grabs the
+      // exe file again before the installer gets a clean window to
+      // overwrite it -- same issue fixed on the Rust side in
+      // src-tauri/src/main.rs's install_update()). A plain exit lets the
+      // already-spawned installer finish the swap uncontested; it
+      // relaunches the app itself once done.
+      await exit(0);
     } catch (error) {
       console.error('Update installation failed:', error);
       await message('Update download failed. Please try again later.', {

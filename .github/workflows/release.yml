@@ -221,12 +221,23 @@ jobs:
           $exeUrl = "https://github.com/$repo/releases/download/$tag/$exeName"
 
 
+          # Both "windows-x86_64" and "windows-x86_64-msi" point at the same
+          # MSI artifact -- the installed app's updater log shows it
+          # searching for the "-msi"-suffixed key FIRST (before falling
+          # back to the bare key), and whether that fallback actually
+          # succeeds isn't something to gamble on. Publishing both makes
+          # the very first lookup succeed directly, for both MSI- and
+          # NSIS-installed clients.
           $updateJson = @{
             version = $version
             notes = "Added auto-update support and fixed minor bugs."
             pub_date = $pubDate
             platforms = @{
               "windows-x86_64" = @{
+                signature = $msiSigContent.Trim()
+                url = $msiUrl
+              }
+              "windows-x86_64-msi" = @{
                 signature = $msiSigContent.Trim()
                 url = $msiUrl
               }
