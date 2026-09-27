@@ -2106,8 +2106,36 @@ export default function BillingPage() {
   };
 
   const viewBill = (bill: Bill) => {
-    setSelectedBill(normalizeBillForDisplay(bill));
+    const normalized = normalizeBillForDisplay(bill);
+    setSelectedBill(normalized);
     setIsViewDialogOpen(true);
+
+    const hasItems = Array.isArray(normalized.items) && normalized.items.length > 0;
+    const isRealBill = !isBillCancelled(normalized) && Number(normalized.total || 0) > 0;
+    if (hasItems || !isRealBill) return;
+
+    // This row was likely sourced from the item-less ?details=0 summary
+    // (used for the stats tiles / letting search reach bills beyond the
+    // first loaded page) -- it has a real total but no items, so refetch
+    // just this one bill with full details instead of leaving the dialog
+    // stuck on "No items".
+    (async () => {
+      try {
+        const response = await api.get(`/api/bills?id=${encodeURIComponent(normalized.id)}`);
+        const payload = response?.data;
+        const list: any[] = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+        const full = list[0];
+        if (full) {
+          setSelectedBill((prev) => (prev?.id === normalized.id ? normalizeBillForDisplay(full) : prev));
+        }
+      } catch (err) {
+        console.error("Failed to load full bill details", normalized.id, err);
+      }
+    })();
   };
 
   const viewCustomer = (customer: Customer) => {
