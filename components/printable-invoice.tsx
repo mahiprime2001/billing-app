@@ -1,6 +1,21 @@
 "use client";
 import React, { forwardRef } from "react";
 
+// Layout mirrors Siri-billing-app/components/printable-invoice.tsx so the
+// admin panel and the POS print identical receipts -- keep the two in sync.
+
+export interface PrintableReplacementRow {
+  id?: string;
+  quantity?: number;
+  price?: number;
+  final_amount?: number;
+  credit_amount?: number;
+  original_bill_id?: string;
+  replaced_product_id?: string;
+  replaced_product?: { name?: string; barcode?: string };
+  damage_reason?: string | null;
+}
+
 export interface PrintableInvoiceData {
   id?: string;
   companyName?: string;
@@ -9,11 +24,13 @@ export interface PrintableInvoiceData {
   companyEmail?: string;
   gstin?: string;
   storeAddress?: string;
+  storePhone?: string;
   customerName?: string;
   customerPhone?: string;
   billedBy?: string;
   paymentMethod?: string;
   timestamp?: string;
+  createdAt?: string;
   subtotal?: number;
   total?: number;
   discountPercentage?: number;
@@ -28,9 +45,11 @@ export interface PrintableInvoiceData {
     total: number;
     taxPercentage?: number;
     hsnCode?: string;
+    barcode?: string;
     replacementTag?: string;
   }>;
   isReplacementBill?: boolean;
+  replacementSummary?: PrintableReplacementRow[];
 }
 
 interface PrintableInvoiceProps {
@@ -39,10 +58,64 @@ interface PrintableInvoiceProps {
 }
 
 const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
-  ({ invoice }, ref) => {
-    const formatNumber = (value: number | undefined | null | string) => {
-      if (value == null || isNaN(Number(value))) return 0;
+  ({ invoice, paperSize }, ref) => {
+    const IST_TIMEZONE = "Asia/Kolkata";
+
+    const fmt = (value: number | undefined | null | string) => {
+      if (value == null || isNaN(Number(value))) return "0";
       return Number(value).toLocaleString();
+    };
+
+    const parseServerDate = (value: string | Date | undefined | null): Date | null => {
+      if (!value) return null;
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+      }
+      const raw = String(value).trim();
+      if (!raw) return null;
+      const hasExplicitTimezone = /([zZ]|[+-]\d{2}:\d{2})$/.test(raw);
+      // Backend stores bare timestamps as IST wall-clock (no tz suffix).
+      const normalized = !hasExplicitTimezone && raw.includes("T") ? `${raw}+05:30` : raw;
+      const parsed = new Date(normalized);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    const formatIstDate = (value: string | Date | undefined | null): string => {
+      const parsed = parseServerDate(value);
+      if (!parsed) return "-";
+      return new Intl.DateTimeFormat("en-IN", {
+        timeZone: IST_TIMEZONE,
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(parsed);
+    };
+
+    const formatIstTime = (value: string | Date | undefined | null): string => {
+      const parsed = parseServerDate(value);
+      if (!parsed) return "-";
+      return new Intl.DateTimeFormat("en-IN", {
+        timeZone: IST_TIMEZONE,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      }).format(parsed);
+    };
+
+    const formatIstDateTime = (value: string | Date | undefined | null): string => {
+      const parsed = parseServerDate(value);
+      if (!parsed) return "-";
+      return new Intl.DateTimeFormat("en-IN", {
+        timeZone: IST_TIMEZONE,
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      }).format(parsed);
     };
 
     const safeInvoice = {
@@ -54,57 +127,92 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
       cgst: invoice.cgst || 0,
       sgst: invoice.sgst || 0,
       taxAmount: invoice.taxAmount || 0,
-      items:
-        invoice.items?.map((item) => ({
-          ...item,
-          price: item.price || 0,
-          total: item.total || 0,
-          quantity: item.quantity || 0,
-        })) || [],
+      items: invoice.items?.map((item) => ({
+        ...item,
+        price: item.price || 0,
+        total: item.total || 0,
+        quantity: item.quantity || 0,
+      })) || [],
     };
 
-    const itemRows = safeInvoice.items.map((item) => {
+    // Returned items sit in the POS cart as negative "replacement_credit"
+    // lines -- they belong in the Replacement section, not the item table.
+    const isCreditLine = (item: any) => item?.lineType === "replacement_credit";
+    const saleItems = safeInvoice.items.filter((item) => !isCreditLine(item));
+    const creditLines = safeInvoice.items.filter(isCreditLine);
+
+    // One row per returned item. Saved bills pass replacementSummary (the
+    // replacements table rows), where the credit is backed out of the
+    // recorded swap numbers (new amount − charged) rather than re-derived
+    // from live tax rates, so it always reconciles with what was paid. A
+    // bill still being rung up at the POS only has its credit lines.
+    const replacementSummary = Array.isArray(invoice.replacementSummary) ? invoice.replacementSummary : [];
+    const replacementRows = replacementSummary.length > 0
+      ? replacementSummary.map((rep) => {
+          const qty = Number(rep?.quantity || 0);
+          const creditAmount = rep?.credit_amount != null
+            ? Number(rep.credit_amount)
+            : Math.round((Number(rep?.price || 0) * qty - Number(rep?.final_amount || 0)) * 100) / 100;
+          return {
+            id: rep?.id,
+            qty,
+            creditAmount,
+            originalBillId: String(rep?.original_bill_id || ""),
+            replacedName: rep?.replaced_product?.name || rep?.replaced_product_id || "",
+            replacedBarcode: String(rep?.replaced_product?.barcode || "").split(",")[0].trim(),
+            reason: rep?.damage_reason || "",
+          };
+        })
+      : creditLines.map((line: any) => ({
+          id: line.id,
+          qty: Number(line.quantity || 0),
+          creditAmount: Math.abs(Number(line.total || 0)),
+          originalBillId: String(line.replacementMeta?.originalBillId || ""),
+          replacedName:
+            line.replacementMeta?.originalProductName ||
+            String(line.name || "").replace(/ \(Replacement Credit\)$/, ""),
+          replacedBarcode: String(line.barcodes || line.barcode || "").split(",")[0].trim(),
+          reason: "",
+        }));
+    const totalReturnCredit = Math.round(replacementRows.reduce((s, r) => s + r.creditAmount, 0) * 100) / 100;
+
+    const itemRows = saleItems.map((item) => {
       const quantity = Number(item.quantity || 0);
       const itemTotal = Number(item.total || 0);
       const taxPercent = Number(item.taxPercentage || 0);
       const totalTax = Math.round((itemTotal * taxPercent) / 100 * 100) / 100;
       const lineTotalAfterTax = Math.round((itemTotal + totalTax) * 100) / 100;
-      const unitAmountAfterTax =
-        quantity > 0 ? Math.round((lineTotalAfterTax / quantity) * 100) / 100 : 0;
-
-      return {
-        ...item,
-        quantity,
-        taxPercent,
-        totalTax,
-        unitAmountAfterTax,
-        lineTotalAfterTax,
-      };
+      const unitAmountAfterTax = quantity > 0
+        ? Math.round((lineTotalAfterTax / quantity) * 100) / 100
+        : 0;
+      return { ...item, quantity, taxPercent, totalTax, unitAmountAfterTax, lineTotalAfterTax };
     });
 
-    const totalQuantity = itemRows.reduce((sum, row) => sum + row.quantity, 0);
-    const totalAfterTax = itemRows.reduce((sum, row) => sum + row.lineTotalAfterTax, 0);
+    const totalQuantity = itemRows.reduce((sum, r) => sum + r.quantity, 0);
+    const totalAfterTax = itemRows.reduce((sum, r) => sum + r.lineTotalAfterTax, 0);
     const totalAfterTaxRounded = Math.round(totalAfterTax * 100) / 100;
+    // A replacement bill's stored subtotal is net of the return credit, which
+    // would contradict the gross item lines above it -- use the items there.
     const totalBeforeTax =
-      Number(safeInvoice.subtotal || 0) > 0
+      replacementRows.length === 0 && Number(safeInvoice.subtotal || 0) > 0
         ? Number(safeInvoice.subtotal || 0)
-        : Math.round(itemRows.reduce((sum, row) => sum + Number(row.total || 0), 0) * 100) / 100;
+        : Math.round(itemRows.reduce((sum, r) => sum + Number(r.total || 0), 0) * 100) / 100;
 
-    const taxGroupMap = new Map<
-      string,
-      { hsnCode: string; gst: number; totalQuantity: number; taxableAmount: number; cgst: number; sgst: number; igst: number; totalTax: number; totalAfterTax: number }
-    >();
+    const taxGroupMap = new Map<string, {
+      hsnCode: string; gst: number; totalQuantity: number;
+      taxableAmount: number; cgst: number; sgst: number;
+      igst: number; totalTax: number; totalAfterTax: number;
+    }>();
 
     itemRows.forEach((row) => {
       const hsnCode = row.hsnCode || "-";
       const gst = row.taxPercent;
       const key = `${hsnCode}|${gst}`;
-      const taxableAmount = row.total;
+      const taxableAmount = Number(row.total || 0);
       const totalTax = row.totalTax;
       const cgst = Math.round((totalTax / 2) * 100) / 100;
       const sgst = Math.round((totalTax / 2) * 100) / 100;
       const totalAfterTaxByHsn = Math.round((taxableAmount + totalTax) * 100) / 100;
-
       const existing = taxGroupMap.get(key);
       if (existing) {
         existing.totalQuantity += row.quantity;
@@ -115,36 +223,45 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
         existing.totalAfterTax += totalAfterTaxByHsn;
       } else {
         taxGroupMap.set(key, {
-          hsnCode,
-          gst,
-          totalQuantity: row.quantity,
-          taxableAmount,
-          cgst,
-          sgst,
-          igst: 0,
-          totalTax,
+          hsnCode, gst, totalQuantity: row.quantity,
+          taxableAmount, cgst, sgst, igst: 0, totalTax,
           totalAfterTax: totalAfterTaxByHsn,
         });
       }
     });
 
-    const taxClassificationRows = Array.from(taxGroupMap.values()).map((row) => ({
-      ...row,
-      totalQuantity: Math.round(row.totalQuantity * 100) / 100,
-      taxableAmount: Math.round(row.taxableAmount * 100) / 100,
-      cgst: Math.round(row.cgst * 100) / 100,
-      sgst: Math.round(row.sgst * 100) / 100,
-      totalTax: Math.round(row.totalTax * 100) / 100,
-      totalAfterTax: Math.round(row.totalAfterTax * 100) / 100,
+    const taxRows = Array.from(taxGroupMap.values()).map((r) => ({
+      ...r,
+      totalQuantity: Math.round(r.totalQuantity * 100) / 100,
+      taxableAmount: Math.round(r.taxableAmount * 100) / 100,
+      cgst: Math.round(r.cgst * 100) / 100,
+      sgst: Math.round(r.sgst * 100) / 100,
+      totalTax: Math.round(r.totalTax * 100) / 100,
+      totalAfterTax: Math.round(r.totalAfterTax * 100) / 100,
     }));
 
-    const groupedTotalQty = taxClassificationRows.reduce((sum, row) => sum + row.totalQuantity, 0);
-    const groupedTaxableTotal = taxClassificationRows.reduce((sum, row) => sum + row.taxableAmount, 0);
-    const totalCGST = taxClassificationRows.reduce((sum, row) => sum + row.cgst, 0);
-    const totalSGST = taxClassificationRows.reduce((sum, row) => sum + row.sgst, 0);
-    const totalIGST = taxClassificationRows.reduce((sum, row) => sum + row.igst, 0);
-    const totalTaxAmount = taxClassificationRows.reduce((sum, row) => sum + row.totalTax, 0);
-    const groupedTotalAfterTax = taxClassificationRows.reduce((sum, row) => sum + row.totalAfterTax, 0);
+    const gTotalQty = taxRows.reduce((s, r) => s + r.totalQuantity, 0);
+    const gTaxable  = taxRows.reduce((s, r) => s + r.taxableAmount, 0);
+    const computedCGST = taxRows.reduce((s, r) => s + r.cgst, 0);
+    const computedSGST = taxRows.reduce((s, r) => s + r.sgst, 0);
+    const gIGST     = taxRows.reduce((s, r) => s + r.igst, 0);
+    const computedTotalTax = taxRows.reduce((s, r) => s + r.totalTax, 0);
+    const invoiceCGST = Number(safeInvoice.cgst || 0);
+    const invoiceSGST = Number(safeInvoice.sgst || 0);
+    const invoiceTaxAmount = Number(safeInvoice.taxAmount || 0);
+    const gCGST = computedCGST > 0 ? computedCGST : invoiceCGST;
+    const gSGST = computedSGST > 0 ? computedSGST : invoiceSGST;
+    const gTotalTax = computedTotalTax > 0 ? computedTotalTax : (invoiceTaxAmount || (gCGST + gSGST));
+    const gAfterTax = taxRows.reduce((s, r) => s + r.totalAfterTax, 0);
+
+    const printedAtRaw = safeInvoice.timestamp || safeInvoice.createdAt || new Date().toISOString();
+
+    const divider = (
+      <div style={{ borderTop: "1px dashed #000", margin: "5px 0" }} />
+    );
+
+    const isThermalPaper = paperSize.includes("Thermal");
+    const wrapperPadding = isThermalPaper ? "0" : "2mm";
 
     return (
       <>
@@ -153,271 +270,265 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
           ref={ref}
           style={{
             width: "100%",
-            maxWidth: "80mm",
             margin: "0 auto",
-            padding: "0",
+            padding: wrapperPadding,
             boxSizing: "border-box",
             background: "#fff",
+            fontFamily: "'Courier New', Courier, monospace",
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "#000",
+            lineHeight: "1.5",
           }}
         >
-          <div
-            className="invoice-content"
-            style={{
-              width: "100%",
-              padding: "0 3mm",
-              boxSizing: "border-box",
-              fontSize: 13,
-              lineHeight: 1.6,
-              fontWeight: 650,
-              fontFamily: "Courier New, monospace",
-              color: "#0b0b0b",
-            }}
-          >
-            <div style={{ textAlign: "center", marginBottom: 5 }}>
-              <div style={{ fontWeight: "bold", fontSize: 18 }}>
-                {safeInvoice.companyName}
-              </div>
-              <div style={{ fontSize: 12 }}>
-                {safeInvoice.storeAddress || safeInvoice.companyAddress}
-              </div>
-              <div style={{ fontSize: 12 }}>Ph: {safeInvoice.companyPhone}</div>
-              <div style={{ fontSize: 12 }}>Email: {safeInvoice.companyEmail}</div>
-              {safeInvoice.gstin && (
-                <div style={{ fontSize: 12 }}>GSTIN: {safeInvoice.gstin}</div>
-              )}
+
+          {/* ── HEADER ── */}
+          <div style={{ textAlign: "center", marginBottom: "6px" }}>
+            <div style={{ fontWeight: 800, fontSize: "17px", letterSpacing: "0.5px" }}>
+              {safeInvoice.companyName}
             </div>
-
-            <div style={{ borderTop: "1px dashed #000", margin: "5px 0" }} />
-
-            <div style={{ fontSize: 12, marginBottom: 7 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Invoice #{safeInvoice.id}</span>
-                <span>
-                  {safeInvoice.timestamp
-                    ? new Date(safeInvoice.timestamp).toLocaleDateString()
-                    : ""}
-                </span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Time: {new Date().toLocaleTimeString()}</span>
-                <span>Payment: {safeInvoice.paymentMethod}</span>
-              </div>
-              <div>Customer: {safeInvoice.customerName}</div>
-              {safeInvoice.customerPhone && (
-                <div>Phone: {safeInvoice.customerPhone}</div>
-              )}
-              <div>Billed by: {safeInvoice.billedBy || "N/A"}</div>
+            <div style={{ fontSize: "11px", marginTop: "2px" }}>
+              {safeInvoice.storeAddress || safeInvoice.companyAddress}
             </div>
+            <div style={{ fontSize: "11px" }}>Ph: {safeInvoice.storePhone || safeInvoice.companyPhone}</div>
+            <div style={{ fontSize: "11px" }}>Email: {safeInvoice.companyEmail}</div>
+            {safeInvoice.gstin && (
+              <div style={{ fontSize: "11px" }}>GSTIN: {safeInvoice.gstin}</div>
+            )}
+          </div>
 
-            <div style={{ borderTop: "1px dashed #000", margin: "5px 0" }} />
+          {divider}
 
-            <div style={{ fontSize: 12, marginBottom: 7 }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  borderBottom: "1px dashed #000",
-                  paddingBottom: 2,
-                  marginBottom: 3,
-                  fontSize: 10,
-                }}
-              >
-                <span style={{ width: "8%" }}>S.No</span>
-                <span style={{ width: "36%" }}>Product</span>
-                <span style={{ width: "28%", textAlign: "right" }}>Qty x Amt (After Tax)</span>
-                <span style={{ width: "28%", textAlign: "right" }}>Total</span>
-              </div>
-              {itemRows.map((item, i) => (
-                <div key={i} style={{ marginBottom: 3 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: 1,
-                      fontSize: 11,
-                    }}
-                  >
-                    <span style={{ width: "8%" }}>{i + 1}</span>
-                    <span style={{ width: "36%" }}>{item.name}</span>
-                    <span style={{ width: "28%", textAlign: "right" }}>
-                      {item.quantity} x ₹{formatNumber(item.unitAmountAfterTax)}
-                    </span>
-                    <span style={{ width: "28%", textAlign: "right" }}>
-                      ₹{formatNumber(item.lineTotalAfterTax)}
-                    </span>
+          {/* ── INVOICE META ── */}
+          <div style={{ fontSize: "11px", marginBottom: "6px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Invoice #{safeInvoice.id}</span>
+              <span>{formatIstDate(printedAtRaw)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Time: {formatIstTime(printedAtRaw)}</span>
+              <span>Payment: {safeInvoice.paymentMethod}</span>
+            </div>
+            <div>Customer: {safeInvoice.customerName}</div>
+            {safeInvoice.customerPhone && (
+              <div>Phone: {safeInvoice.customerPhone}</div>
+            )}
+            <div>Billed by: {safeInvoice.billedBy || "N/A"}</div>
+          </div>
+
+          {divider}
+
+          {/* ── ITEMS TABLE ── */}
+          <div style={{ fontSize: "11px", marginBottom: "6px" }}>
+            <div style={{
+              display: "flex",
+              borderBottom: "1px dashed #000",
+              paddingBottom: "2px",
+              marginBottom: "3px",
+              fontSize: "10px",
+              fontWeight: 700,
+            }}>
+              <span style={{ width: "8%",  flexShrink: 0 }}>#</span>
+              <span style={{ flex: 1 }}>Product</span>
+              <span style={{ width: "32%", flexShrink: 0, textAlign: "right" }}>Qty × Amt</span>
+              <span style={{ width: "22%", flexShrink: 0, textAlign: "right" }}>Total</span>
+            </div>
+            {itemRows.map((item, i) => (
+              <div key={i} style={{ marginBottom: "2px" }}>
+                <div style={{ display: "flex", fontSize: "11px" }}>
+                  <span style={{ width: "8%", flexShrink: 0 }}>{i + 1}</span>
+                  <span style={{ flex: 1, wordBreak: "break-word" }}>{item.name}</span>
+                  <span style={{ width: "32%", flexShrink: 0, textAlign: "right" }}>
+                    {item.quantity} × ₹{fmt(item.unitAmountAfterTax)}
+                  </span>
+                  <span style={{ width: "22%", flexShrink: 0, textAlign: "right" }}>
+                    ₹{fmt(item.lineTotalAfterTax)}
+                  </span>
+                </div>
+                <div style={{ fontSize: "9px", color: "#222", paddingLeft: "8%" }}>
+                  Barcode: {String(item.barcode || "").split(",")[0].trim() || "-"} | HSN: {item.hsnCode || "-"}
+                </div>
+                {item.replacementTag && (
+                  <div style={{ fontSize: "10px", fontWeight: 700, paddingLeft: "8%" }}>
+                    {item.replacementTag}
                   </div>
-                  {item.replacementTag && (
-                    <div style={{ fontSize: 10, fontWeight: "bold", marginLeft: "8%" }}>{item.replacementTag}</div>
-                  )}
-                </div>
-              ))}
-              <div
-                style={{
-                  borderTop: "1px dashed #000",
-                  marginTop: 3,
-                  paddingTop: 3,
-                  fontSize: 11,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>Total Quantity</span>
-                  <span>{formatNumber(totalQuantity)}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>Total (After Tax)</span>
-                  <span>₹{formatNumber(totalAfterTaxRounded)}</span>
-                </div>
+                )}
               </div>
-            </div>
-
-            <div style={{ borderTop: "1px dashed #000", margin: "5px 0" }} />
-
-            <div style={{ fontSize: 12, marginBottom: 6 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
-                <span>Total Amount Before Tax</span>
-                <span>₹{formatNumber(totalBeforeTax)}</span>
+            ))}
+            <div style={{ borderTop: "1px dashed #000", paddingTop: "3px", marginTop: "3px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Total Quantity</span>
+                <span>{fmt(totalQuantity)}</span>
               </div>
-            </div>
-
-            <div style={{ borderTop: "1px dashed #000", margin: "5px 0" }} />
-
-            <div style={{ fontSize: 10, marginTop: 7, marginBottom: 7 }}>
-              <div style={{ fontWeight: "bold", marginBottom: 3, fontSize: 11 }}>
-                Tax Classification
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  borderBottom: "1px dashed #000",
-                  paddingBottom: 2,
-                  marginBottom: 2,
-                }}
-              >
-                <span style={{ width: "17%", fontSize: 9 }}>HSN</span>
-                <span style={{ width: "11%", fontSize: 9, textAlign: "right" }}>Qty</span>
-                <span style={{ width: "18%", fontSize: 9, textAlign: "right" }}>Taxable</span>
-                <span style={{ width: "14%", fontSize: 9, textAlign: "right" }}>CGST</span>
-                <span style={{ width: "14%", fontSize: 9, textAlign: "right" }}>SGST</span>
-                <span style={{ width: "10%", fontSize: 9, textAlign: "right" }}>IGST</span>
-                <span style={{ width: "16%", fontSize: 9, textAlign: "right" }}>Total</span>
-              </div>
-              {taxClassificationRows.map((row, index) => (
-                <div
-                  key={index}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 2,
-                  }}
-                >
-                  <span style={{ width: "17%", fontSize: 9 }}>
-                    <div>{row.hsnCode}</div>
-                    <div style={{ fontSize: 8 }}>GST {formatNumber(row.gst)}%</div>
-                  </span>
-                  <span style={{ width: "11%", fontSize: 9, textAlign: "right" }}>
-                    {formatNumber(row.totalQuantity)}
-                  </span>
-                  <span style={{ width: "18%", fontSize: 9, textAlign: "right" }}>
-                    ₹{formatNumber(row.taxableAmount)}
-                  </span>
-                  <span style={{ width: "14%", fontSize: 9, textAlign: "right" }}>
-                    ₹{formatNumber(row.cgst)}
-                  </span>
-                  <span style={{ width: "14%", fontSize: 9, textAlign: "right" }}>
-                    ₹{formatNumber(row.sgst)}
-                  </span>
-                  <span style={{ width: "10%", fontSize: 9, textAlign: "right" }}>
-                    ₹{formatNumber(row.igst)}
-                  </span>
-                  <span style={{ width: "16%", fontSize: 9, textAlign: "right" }}>
-                    ₹{formatNumber(row.totalAfterTax)}
-                  </span>
-                </div>
-              ))}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  borderTop: "1px dashed #000",
-                  paddingTop: 2,
-                  marginTop: 2,
-                  fontWeight: "bold",
-                }}
-              >
-                <span style={{ width: "17%", fontSize: 9 }}>Total</span>
-                <span style={{ width: "11%", fontSize: 9, textAlign: "right" }}>{formatNumber(groupedTotalQty)}</span>
-                <span style={{ width: "18%", fontSize: 9, textAlign: "right" }}>₹{formatNumber(groupedTaxableTotal)}</span>
-                <span style={{ width: "14%", fontSize: 9, textAlign: "right" }}>₹{formatNumber(totalCGST)}</span>
-                <span style={{ width: "14%", fontSize: 9, textAlign: "right" }}>₹{formatNumber(totalSGST)}</span>
-                <span style={{ width: "10%", fontSize: 9, textAlign: "right" }}>₹{formatNumber(totalIGST)}</span>
-                <span style={{ width: "16%", fontSize: 9, textAlign: "right" }}>₹{formatNumber(groupedTotalAfterTax)}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3, fontWeight: "bold" }}>
-                <span>Total Tax Amount</span>
-                <span>₹{formatNumber(totalTaxAmount)}</span>
-              </div>
-            </div>
-
-            <div style={{ borderTop: "1px dashed #000", margin: "5px 0" }} />
-
-            <div style={{ fontSize: 12, marginTop: 7 }}>
-              {safeInvoice.discountPercentage > 0 && (
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>Discount ({safeInvoice.discountPercentage}%)</span>
-                  <span>-₹{formatNumber(safeInvoice.discountAmount)}</span>
-                </div>
-              )}
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontWeight: "bold",
-                  marginTop: 5,
-                  fontSize: 17,
-                }}
-              >
-                <span>Grand Total</span>
-                <span>₹{formatNumber(safeInvoice.total)}</span>
-              </div>
-            </div>
-
-            <div style={{ borderTop: "1px dashed #000", margin: "5px 0" }} />
-
-            <div style={{ textAlign: "left", fontSize: 10, marginTop: 7, lineHeight: 1.5 }}>
-              <div style={{ fontWeight: "bold", marginBottom: 2 }}>Terms and Conditions:</div>
-              <div>* NO GURANTEE, NO RETURN</div>
-              <div>* GOODS Once Sold Cannot be exchanged</div>
-              <div>* Total amount Inclusive of GST</div>
-            </div>
-
-            <div style={{ borderTop: "1px dashed #000", margin: "5px 0" }} />
-
-            <div style={{ textAlign: "center", fontSize: 12, marginTop: 7 }}>
-              {(invoice as any).isReplacementBill && (
-                <div style={{ fontWeight: "bold", marginBottom: 4 }}>
-                  THIS IS A BILL FOR REPLACEMENT
-                </div>
-              )}
-              <div>This is a computer-generated invoice</div>
-
-              {safeInvoice.discountPercentage > 0 && safeInvoice.discountAmount > 0 && (
-                <div style={{ fontWeight: "bold", marginTop: 3, marginBottom: 3 }}>
-                  You have saved ₹{formatNumber(safeInvoice.discountAmount)} by shopping here!
-                </div>
-              )}
-
-              <div style={{ marginTop: 5 }}>
-                <div style={{ fontWeight: "bold" }}>Thank You!</div>
-                <div>Please visit us again</div>
-              </div>
-
-              <div style={{ marginTop: 3, fontSize: 8 }}>
-                {new Date().toLocaleString()}
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Total (After Tax)</span>
+                <span>₹{fmt(totalAfterTaxRounded)}</span>
               </div>
             </div>
           </div>
+
+          {divider}
+
+          {/* ── TOTAL BEFORE TAX ── */}
+          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: "12px", marginBottom: "4px" }}>
+            <span>Total Amount Before Tax</span>
+            <span>₹{fmt(totalBeforeTax)}</span>
+          </div>
+
+          {divider}
+
+          {/* ── TAX CLASSIFICATION ── */}
+          <div style={{ fontSize: "10px", marginBottom: "6px" }}>
+            <div style={{ fontWeight: 800, fontSize: "12px", marginBottom: "3px" }}>
+              Tax Classification
+            </div>
+            <div style={{
+              display: "flex",
+              borderBottom: "1px dashed #000",
+              paddingBottom: "2px",
+              marginBottom: "2px",
+              fontWeight: 700,
+              fontSize: "9px",
+            }}>
+              <span style={{ width: "20%", flexShrink: 0 }}>HSN</span>
+              <span style={{ width: "10%", flexShrink: 0, textAlign: "right" }}>Qty</span>
+              <span style={{ width: "20%", flexShrink: 0, textAlign: "right" }}>Taxable</span>
+              <span style={{ width: "14%", flexShrink: 0, textAlign: "right" }}>CGST</span>
+              <span style={{ width: "14%", flexShrink: 0, textAlign: "right" }}>SGST</span>
+              <span style={{ width: "10%", flexShrink: 0, textAlign: "right" }}>IGST</span>
+              <span style={{ width: "12%", flexShrink: 0, textAlign: "right" }}>Total</span>
+            </div>
+            {taxRows.map((row, i) => (
+              <div key={i} style={{ display: "flex", marginBottom: "2px", fontSize: "9px" }}>
+                <span style={{ width: "20%", flexShrink: 0 }}>
+                  <div>{row.hsnCode}</div>
+                  <div style={{ fontSize: "8px" }}>GST {fmt(row.gst)}%</div>
+                </span>
+                <span style={{ width: "10%", flexShrink: 0, textAlign: "right" }}>{fmt(row.totalQuantity)}</span>
+                <span style={{ width: "20%", flexShrink: 0, textAlign: "right" }}>₹{fmt(row.taxableAmount)}</span>
+                <span style={{ width: "14%", flexShrink: 0, textAlign: "right" }}>₹{fmt(row.cgst)}</span>
+                <span style={{ width: "14%", flexShrink: 0, textAlign: "right" }}>₹{fmt(row.sgst)}</span>
+                <span style={{ width: "10%", flexShrink: 0, textAlign: "right" }}>₹{fmt(row.igst)}</span>
+                <span style={{ width: "12%", flexShrink: 0, textAlign: "right" }}>₹{fmt(row.totalAfterTax)}</span>
+              </div>
+            ))}
+            <div style={{
+              display: "flex",
+              borderTop: "1px dashed #000",
+              paddingTop: "2px",
+              marginTop: "2px",
+              fontWeight: 800,
+              fontSize: "9px",
+            }}>
+              <span style={{ width: "20%", flexShrink: 0 }}>Total</span>
+              <span style={{ width: "10%", flexShrink: 0, textAlign: "right" }}>{fmt(gTotalQty)}</span>
+              <span style={{ width: "20%", flexShrink: 0, textAlign: "right" }}>₹{fmt(gTaxable)}</span>
+              <span style={{ width: "14%", flexShrink: 0, textAlign: "right" }}>₹{fmt(gCGST)}</span>
+              <span style={{ width: "14%", flexShrink: 0, textAlign: "right" }}>₹{fmt(gSGST)}</span>
+              <span style={{ width: "10%", flexShrink: 0, textAlign: "right" }}>₹{fmt(gIGST)}</span>
+              <span style={{ width: "12%", flexShrink: 0, textAlign: "right" }}>₹{fmt(gAfterTax)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "3px", fontWeight: 700 }}>
+              <span>Total Tax Amount</span>
+              <span>₹{fmt(gTotalTax)}</span>
+            </div>
+          </div>
+
+          {divider}
+
+          {/* ── REPLACEMENT / RETURN CREDIT ── before the grand total, so the
+             receipt shows exactly how the bill amount is reduced. */}
+          {replacementRows.length > 0 && (
+            <>
+              <div style={{ fontSize: "10px", marginBottom: "6px" }}>
+                <div style={{ fontWeight: 800, fontSize: "12px", marginBottom: "3px" }}>
+                  Replacement / Return Credit
+                </div>
+                {replacementRows.map((r, idx) => (
+                  <div
+                    key={r.id || idx}
+                    style={{ borderBottom: "1px dashed #000", paddingBottom: "3px", marginBottom: "3px" }}
+                  >
+                    <div style={{ fontWeight: 700 }}>Returned: {r.replacedName}</div>
+                    <div>Barcode: {r.replacedBarcode || "-"}</div>
+                    {r.originalBillId && <div>From bill: {r.originalBillId}</div>}
+                    {r.reason && <div>Reason: {r.reason}</div>}
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>
+                        Price ({r.qty} × ₹{fmt(r.qty > 0 ? Math.round((r.creditAmount / r.qty) * 100) / 100 : r.creditAmount)})
+                      </span>
+                      <span>-₹{fmt(r.creditAmount)}</span>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Bill amount (After Tax)</span>
+                  <span>₹{fmt(totalAfterTaxRounded)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
+                  <span>Less: Return credit</span>
+                  <span>-₹{fmt(totalReturnCredit)}</span>
+                </div>
+              </div>
+
+              {divider}
+            </>
+          )}
+
+          {/* ── GRAND TOTAL ── */}
+          <div style={{ marginTop: "4px", marginBottom: "4px" }}>
+            {safeInvoice.discountPercentage > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+                <span>Discount ({safeInvoice.discountPercentage}%)</span>
+                <span>-₹{fmt(safeInvoice.discountAmount)}</span>
+              </div>
+            )}
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontWeight: 800,
+              fontSize: "17px",
+              marginTop: "4px",
+            }}>
+              <span>Grand Total</span>
+              <span>₹{fmt(safeInvoice.total)}</span>
+            </div>
+          </div>
+
+          {divider}
+
+          {/* ── TERMS ── */}
+          <div style={{ fontSize: "10px", lineHeight: "1.5", marginBottom: "4px" }}>
+            <div style={{ fontWeight: 800, marginBottom: "2px" }}>Terms and Conditions:</div>
+            <div>* NO GURANTEE, NO RETURN</div>
+            <div>* GOODS Once Sold Cannot be exchanged</div>
+            <div>* Total amount Inclusive of GST</div>
+          </div>
+
+          {divider}
+
+          {/* ── FOOTER ── */}
+          <div style={{ textAlign: "center", fontSize: "11px", paddingBottom: "6mm" }}>
+            {invoice.isReplacementBill && (
+              <div style={{ fontWeight: 800, marginBottom: "4px" }}>
+                THIS IS A BILL FOR REPLACEMENT
+              </div>
+            )}
+            <div>This is a computer-generated invoice</div>
+            {safeInvoice.discountPercentage > 0 && safeInvoice.discountAmount > 0 && (
+              <div style={{ fontWeight: 800, margin: "3px 0" }}>
+                You saved ₹{fmt(safeInvoice.discountAmount)} today!
+              </div>
+            )}
+            <div style={{ marginTop: "6px" }}>
+              <div style={{ fontWeight: 800, fontSize: "14px" }}>Thank You!</div>
+              <div>Please visit us again</div>
+            </div>
+            <div style={{ marginTop: "4px", fontSize: "9px" }}>
+              {formatIstDateTime(printedAtRaw)}
+            </div>
+          </div>
+
         </div>
 
         <style jsx global>{`
@@ -439,9 +550,6 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
               padding: 0;
               page-break-after: avoid;
               break-after: avoid-page;
-            }
-            .invoice-content {
-              padding: 0 3mm;
             }
           }
         `}</style>

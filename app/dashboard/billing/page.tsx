@@ -124,15 +124,13 @@ interface ReplacementRow {
   newProductBarcode?: string;
   quantity?: number;
   price?: number;
-  // Effective diff the customer paid for this swap — backend recomputes
-  // from (newUnitPrice − originalUnitPrice) × qty whenever the original
-  // price can be looked up from the source bill, else falls back to the
-  // stored final_amount.
+  // What the customer paid for this swap -- the stored replacements
+  // final_amount, treated as the source of truth.
   finalAmount?: number;
   // Raw stored value from the replacements row (kept for audit).
   storedFinalAmount?: number;
-  // Per-line credit (original price × qty) and new-side amount (new price ×
-  // qty) — let the UI show "− credit / + new = diff" clearly.
+  // creditAmount is backed out as newAmount − finalAmount (not re-derived
+  // from live tax rates), so "new − credit = paid" always reconciles.
   creditAmount?: number;
   newAmount?: number;
   originalUnitPrice?: number;
@@ -2198,9 +2196,21 @@ export default function BillingPage() {
         total,
         taxPercentage,
         hsnCode,
+        barcode: String(item.barcode ?? item.barcodes ?? item.bar_code ?? ""),
         replacementTag,
       };
     });
+
+    const replacementSummary = (Array.isArray(bill.replacementItems) ? bill.replacementItems : []).map((row) => ({
+      id: row.id,
+      quantity: toNumber(row.quantity),
+      price: toNumber(row.price),
+      final_amount: toNumber(row.finalAmount),
+      original_bill_id: row.originalBillId || "",
+      replaced_product_id: row.replacedProductId,
+      replaced_product: { name: row.replacedProductName, barcode: row.replacedProductBarcode },
+      damage_reason: row.damageReason ?? null,
+    }));
 
     const billedBy =
       bill.createdBy ||
@@ -2234,6 +2244,7 @@ export default function BillingPage() {
       taxAmount: computedTaxAmount,
       items,
       isReplacementBill: Boolean((bill as any).isReplacement ?? (bill as any).is_replacement),
+      replacementSummary,
     };
   };
 
