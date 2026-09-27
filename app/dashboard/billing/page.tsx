@@ -51,7 +51,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw, ArrowUpDown, Pencil, RotateCcw, CalendarIcon, SlidersHorizontal, X, Ban } from "lucide-react";
+import { Plus, Receipt, Trash2, Eye, Search, Percent, Printer, RefreshCw, ArrowUpDown, Pencil, RotateCcw, CalendarIcon, SlidersHorizontal, X, Ban, ArrowUp } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Upload } from "lucide-react";
 import { unifiedPrint } from "@/app/utils/printUtils";
@@ -290,6 +290,7 @@ export default function BillingPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [billSearchTerm, setBillSearchTerm] = useState("");
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -459,6 +460,20 @@ export default function BillingPage() {
 
   const [billFormats, setBillFormats] = useState<Record<string, BillFormat>>({});
   const [selectedBillFormat, setSelectedBillFormat] = useState("A4");
+
+  // Toggles the floating "scroll to top" button once the page (this
+  // layout scrolls at the window level, not an inner container) has been
+  // scrolled down a bit.
+  useEffect(() => {
+    const handleScroll = () => setShowScrollTop(window.scrollY > 300);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // Initial load
   useEffect(() => {
@@ -4377,6 +4392,17 @@ export default function BillingPage() {
           />
         )}
       </div>
+      {showScrollTop && (
+        <Button
+          onClick={scrollToTop}
+          size="icon"
+          className="fixed bottom-6 right-6 z-50 h-11 w-11 rounded-full shadow-lg"
+          aria-label="Scroll to top"
+          title="Scroll to top"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </Button>
+      )}
     </DashboardLayout>
   );
 }
