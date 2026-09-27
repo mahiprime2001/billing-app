@@ -2131,6 +2131,14 @@ export default function BillingPage() {
         const full = list[0];
         if (full) {
           setSelectedBill((prev) => (prev?.id === normalized.id ? normalizeBillForDisplay(full) : prev));
+          // Also feed the raw row into extraBills (the same store "load
+          // more" pages land in) so currentBills/filteredBills pick it up
+          // with real items/discount too -- otherwise the dialog shows the
+          // fix but the table row behind it keeps showing "0" items and
+          // "—" discount from the summary row it was never replaced.
+          setExtraBills((prev) =>
+            prev.some((b: any) => String(b?.id) === String(full.id)) ? prev : [...prev, full],
+          );
         }
       } catch (err) {
         console.error("Failed to load full bill details", normalized.id, err);
