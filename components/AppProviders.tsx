@@ -107,6 +107,12 @@ export default function AppProviders({
   // ever run.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // runInitialSync's local mirror (lib/local-db.ts) needs tauri-plugin-sql,
+    // which is desktop-only and never registered when the app is just
+    // opened in a plain browser tab (e.g. `npm run dev` without the Tauri
+    // shell). Without this guard, invoke("get_exe_dir") throws "Cannot read
+    // properties of undefined (reading 'invoke')" on every such load.
+    if (!("__TAURI__" in window)) return;
     if (localStorage.getItem("adminLoggedIn") === "true") {
       runInitialSyncOnce("mount");
     }

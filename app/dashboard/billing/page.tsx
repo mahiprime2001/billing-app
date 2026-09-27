@@ -1051,6 +1051,14 @@ export default function BillingPage() {
     let cancelled = false;
     const PAGE_SIZE = 500;
     const MAX_PAGES = 200;
+    // Gap between stats pages so a filter change (which restarts this loop
+    // from page 1) can't burst-fire dozens of heavy 500-row/joined requests
+    // back-to-back. Same fix as the History tab's chunked loader in
+    // Siri-billing-app: without a pause, this can trip nginx's gateway
+    // timeout and knock over every other in-flight request (bills,
+    // products, heartbeat) at once, which then surfaces in the browser as
+    // unrelated-looking CORS/network errors on completely different endpoints.
+    const PAGE_INTERVAL_MS = 1000;
     setStatsComplete(false);
 
     (async () => {
@@ -1089,6 +1097,8 @@ export default function BillingPage() {
               break;
             }
             page += 1;
+            await new Promise((resolve) => setTimeout(resolve, PAGE_INTERVAL_MS));
+            if (cancelled) break;
           } catch (err) {
             console.error("Failed to load stats page", page, err);
             break;
