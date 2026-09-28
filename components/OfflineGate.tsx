@@ -31,7 +31,9 @@ export default function OfflineGate() {
         // Must be an /api/* path — the Flask backend only sets CORS headers
         // on /api/* routes, and a CORS-blocked response looks like "offline".
         const res = await fetch(`${API_BASE}/api/sync/status`, { cache: "no-store" })
-        if (!cancelled) setOffline(!res.ok)
+        // Any response means the server is reachable -- a 401 before login
+        // is expected. Only a 5xx (e.g. nginx 502 with the API down) counts.
+        if (!cancelled) setOffline(res.status >= 500)
       } catch {
         if (!cancelled) setOffline(true)
       }
