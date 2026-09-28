@@ -4,6 +4,13 @@ import { API_BASE } from "@/lib/api-base"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { Product as ProductType } from "@/lib/types"
 import { getLocalProducts, type LocalProduct } from "@/lib/resilient-client"
+import { getFreshCache, setFreshCache, invalidateFreshCache } from "@/lib/api-cache"
+
+// Cross-page cache key for the fully-assembled products list -- shared with
+// any other page that also wants the full catalog. Keyed by pageSize since
+// a different page size means a different set of individual page requests
+// even though the assembled result is the same list.
+const FULL_LIST_CACHE_KEY = (pageSize: number) => `products:full:${pageSize}`
 
 // The local mirror only stores what lib/local-db.ts's products table has --
 // no createdAt/updatedAt/batchid. synced_at (when this row was last pulled)
@@ -154,6 +161,21 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
     setTotalCount(null)
     setIsOfflineFallback(false)
 
+    // A page revisited within the freshness window (see lib/api-cache.ts)
+    // reuses the last fully-assembled list instantly instead of re-running
+    // the whole multi-page network load -- e.g. Dashboard -> Products ->
+    // Dashboard -> Products in under 45s only really fetches once.
+    const fullListCacheKey = FULL_LIST_CACHE_KEY(pageSize)
+    const cachedFullList = getFreshCache<ProductType[]>(fullListCacheKey)
+    if (cachedFullList !== undefined) {
+      setData(cachedFullList)
+      setTotalCount(cachedFullList.length)
+      setLoadedPages(1)
+      setIsLoading(false)
+      setIsStreaming(false)
+      return cachedFullList
+    }
+
     const baseUrl = API_BASE
     const pageBuckets: ProductType[][] = []
     let firstPageApplied = false
@@ -201,6 +223,7 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
 
       const hasMoreInitial = Boolean(firstPayload.hasMore) && firstItems.length > 0
       if (!hasMoreInitial) {
+        setFreshCache(fullListCacheKey, firstItems)
         return firstItems
       }
 
@@ -248,6 +271,7 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
 
       const final: ProductType[] = []
       for (const bucket of pageBuckets) if (bucket) final.push(...bucket)
+      setFreshCache(fullListCacheKey, final)
       return final
     } catch (err) {
       const fallback: ProductType[] = []
@@ -307,11 +331,15 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
         }
       }
       if (shouldRevalidate(options)) {
+        // An explicit revalidate (e.g. after creating/editing a product)
+        // must see live data -- bypass the freshness cache instead of
+        // handing back whatever was cached moments ago.
+        invalidateFreshCache(FULL_LIST_CACHE_KEY(pageSize))
         return fetchAll()
       }
       return data
     },
-    [fetchAll, data],
+    [fetchAll, data, pageSize],
   )
 
   const progress = totalCount && totalCount > 0

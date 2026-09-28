@@ -27,6 +27,39 @@ export function withResolvers(setState: (stale: boolean) => void) {
   };
 }
 
+// Shared, in-memory, cross-page "this was just fetched" cache. Lives at
+// module scope so it survives page navigation within the same app session
+// (unlike component state, which is destroyed on unmount) but not a full
+// reload -- the SQLite cache below already handles that longer-lived case.
+// Without this, navigating Dashboard -> Products -> Dashboard re-fetches
+// everything from scratch every time even if you were on Dashboard 10
+// seconds ago and nothing could plausibly have changed.
+const FRESHNESS_WINDOW_MS = 45_000;
+const freshCache = new Map<string, { data: unknown; ts: number }>();
+
+/** Returns the cached value for `key` if it was stored within the last
+ * FRESHNESS_WINDOW_MS, else undefined. `key` need not be a URL -- callers
+ * with their own multi-request result (e.g. the fully-assembled products
+ * list) can use any stable string. */
+export function getFreshCache<T>(key: string): T | undefined {
+  const entry = freshCache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() - entry.ts > FRESHNESS_WINDOW_MS) return undefined;
+  return entry.data as T;
+}
+
+export function setFreshCache<T>(key: string, data: T): void {
+  freshCache.set(key, { data, ts: Date.now() });
+}
+
+/** Call after a mutation (create/update/delete) so the next fetch for this
+ * key bypasses the freshness window instead of handing back what's now
+ * stale data -- e.g. after saving a store, invalidate "/api/stores" so the
+ * edit is visible immediately rather than for up to 45s. */
+export function invalidateFreshCache(key: string): void {
+  freshCache.delete(key);
+}
+
 async function authedFetch(path: string): Promise<Response> {
   const token = typeof window !== "undefined" ? localStorage.getItem("adminToken") : null;
   return fetch(`${API_BASE}${path}`, {
@@ -106,6 +139,16 @@ export async function fetchWithBackgroundRefresh<T>(
   onData: (result: CachedFetchResult<T>) => void,
   onStale?: (err: unknown) => void
 ): Promise<void> {
+  // Skip everything (SQLite read, network) if any page fetched this exact
+  // endpoint within the last FRESHNESS_WINDOW_MS -- treated as authoritative
+  // ("network" source) since it basically is, just reused instead of
+  // re-requested.
+  const fresh = getFreshCache<T>(path);
+  if (fresh !== undefined) {
+    onData({ data: fresh, source: "network" });
+    return;
+  }
+
   const cached = await readCache<T>(path);
   if (cached) {
     onData({ data: cached.data, source: "cache", cachedAt: cached.cachedAt });
@@ -116,6 +159,7 @@ export async function fetchWithBackgroundRefresh<T>(
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = (await response.json()) as T;
     void writeCache(path, data);
+    setFreshCache(path, data);
     onData({ data, source: "network" });
   } catch (err) {
     if (!cached) throw err;

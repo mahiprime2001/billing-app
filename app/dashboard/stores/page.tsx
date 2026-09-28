@@ -2,6 +2,7 @@
 import { API_BASE } from "@/lib/api-base"
 import { createStoreOffline, updateStoreOffline } from "@/lib/store-write"
 import { getLocalStores, type LocalStore } from "@/lib/resilient-client"
+import { fetchWithBackgroundRefresh, invalidateFreshCache } from "@/lib/api-cache"
 import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import type React from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -924,7 +925,8 @@ export default function StoresPage() {
   const router = useRouter()
   const [stores, setStores] = useState<StoreType[]>([])
   const [isStoresOfflineFallback, setIsStoresOfflineFallback] = useState(false)
-  const [bills, setBills] = useState<any[]>([])
+  const [isLoadingStores, setIsLoadingStores] = useState(true)
+  const [billsSummary, setBillsSummary] = useState<{ totalRevenue: number; totalCount: number } | null>(null)
   const [gstRegistrations, setGstRegistrations] = useState<GstRegistration[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -1007,54 +1009,58 @@ export default function StoresPage() {
         .catch(() => {})
     }
 
-    // Fetch stores immediately — don't block on bills
-    fetch(`${API}/api/stores`)
-      .then(async (storesResponse) => {
-        if (!storesResponse.ok) throw new Error(`HTTP ${storesResponse.status}`);
-        const storesData: any[] = await storesResponse.json();
-        const seenIds = new Set<string>();
-        const uniqueStores = storesData.map((store: any) => {
-          let uniqueId = store.id || store.ID || store._id;
-          if (!uniqueId || seenIds.has(uniqueId)) {
-            uniqueId = crypto.randomUUID();
-          }
-          seenIds.add(uniqueId);
-          return { ...store, id: uniqueId } as StoreType;
-        });
-
-        setIsStoresOfflineFallback(false)
-        if (assignedStoreId) {
-          const filtered = uniqueStores.filter(store => normalizeStoreId(store.id) === assignedStoreId);
-          setStores(filtered);
-        } else {
-          setStores(uniqueStores);
+    // Fetch stores immediately — don't block on bills. Goes through the
+    // shared cache helper so a page revisited within the freshness window
+    // (see lib/api-cache.ts) reuses whatever Dashboard/another page already
+    // fetched instead of hitting the network again.
+    const applyStoresData = (storesData: any[]) => {
+      const seenIds = new Set<string>();
+      const uniqueStores = storesData.map((store: any) => {
+        let uniqueId = store.id || store.ID || store._id;
+        if (!uniqueId || seenIds.has(uniqueId)) {
+          uniqueId = crypto.randomUUID();
         }
-      })
-      .catch(async (error) => {
-        console.error("Error loading stores, trying local mirror:", error);
-        try {
-          const localStores = await getLocalStores();
-          if (localStores.length > 0) {
-            const mapped = localStores.map(localStoreToStoreType);
-            const filtered = assignedStoreId
-              ? mapped.filter((store) => normalizeStoreId(store.id) === assignedStoreId)
-              : mapped;
-            setStores(filtered);
-            setIsStoresOfflineFallback(true);
-          }
-        } catch {
-          // Not running in Tauri / no local mirror -- nothing more to do.
-        }
+        seenIds.add(uniqueId);
+        return { ...store, id: uniqueId } as StoreType;
       });
 
-    // Fetch bills separately — slow Supabase retries won't block the stores list
-    fetch(`${API}/api/bills`)
-      .then(async (billsResponse) => {
-        if (!billsResponse.ok) return;
-        const billsData = await billsResponse.json();
-        setBills(billsData);
-      })
-      .catch((error) => console.error("Error loading bills:", error));
+      setIsStoresOfflineFallback(false)
+      setIsLoadingStores(false)
+      if (assignedStoreId) {
+        const filtered = uniqueStores.filter(store => normalizeStoreId(store.id) === assignedStoreId);
+        setStores(filtered);
+      } else {
+        setStores(uniqueStores);
+      }
+    };
+
+    fetchWithBackgroundRefresh<any[]>(
+      "/api/stores",
+      (r) => applyStoresData(Array.isArray(r.data) ? r.data : []),
+    ).catch(async (error) => {
+      console.error("Error loading stores, trying local mirror:", error);
+      setIsLoadingStores(false)
+      try {
+        const localStores = await getLocalStores();
+        if (localStores.length > 0) {
+          const mapped = localStores.map(localStoreToStoreType);
+          const filtered = assignedStoreId
+            ? mapped.filter((store) => normalizeStoreId(store.id) === assignedStoreId)
+            : mapped;
+          setStores(filtered);
+          setIsStoresOfflineFallback(true);
+        }
+      } catch {
+        // Not running in Tauri / no local mirror -- nothing more to do.
+      }
+    });
+
+    // Bills summary (just totals, not every bill) — slow Supabase retries
+    // won't block the stores list.
+    fetchWithBackgroundRefresh<{ totalRevenue: number; totalCount: number }>(
+      "/api/bills/summary",
+      (r) => setBillsSummary(r.data),
+    ).catch((error) => console.error("Error loading bills summary:", error));
 
     // GST registrations populate the dropdown in the store form.
     fetch(`${API}/api/gst-registrations`)
@@ -1067,20 +1073,6 @@ export default function StoresPage() {
   }
 
   
-  const calculateStoreAnalytics = (storeId: string) => {
-    const storeBills = bills
-      .filter((bill) => normalizeStoreId(bill.storeId) === normalizeStoreId(storeId))
-      .filter((bill) => !isCancelledBill(bill))
-    const totalRevenue = storeBills.reduce((sum, bill) => sum + (bill.total || 0), 0)
-    const totalBills = storeBills.length
-    const lastBillDate = storeBills.length > 0
-      ? storeBills.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date
-      : ""
-
-    return { totalRevenue, totalBills, lastBillDate }
-  }
-
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name || !formData.address) {
@@ -1119,6 +1111,7 @@ export default function StoresPage() {
       }
 
       if (response.ok) {
+        invalidateFreshCache("/api/stores")
         await loadData()
         resetForm()
         setIsDialogOpen(false)
@@ -1145,6 +1138,7 @@ export default function StoresPage() {
           // list until it syncs and a real refetch succeeds -- same
           // disclosed gap as offline-created bills not showing in the bills
           // list until synced. The alert below is the only feedback for now.
+          invalidateFreshCache("/api/stores")
           await loadData()
           resetForm()
           setIsDialogOpen(false)
@@ -1177,9 +1171,24 @@ export default function StoresPage() {
 
   const handleDelete = async (id: string) => {
     const normalizedId = normalizeStoreId(id);
-    const storeBills = bills.filter((bill) => normalizeStoreId(bill.storeId) === normalizedId)
-    if (storeBills.length > 0) {
-      alert(`Cannot delete store. It has ${storeBills.length} associated bills. Please deactivate instead.`)
+    // On-demand, single-store check instead of scanning a full bills list
+    // that's no longer even loaded eagerly -- pageSize=1 with paginate=1
+    // just needs the `total` count, not the rows.
+    try {
+      const guardResponse = await fetch(
+        `${API}/api/bills?storeId=${encodeURIComponent(normalizedId || "")}&page=1&pageSize=1&paginate=1&details=0`,
+      )
+      if (guardResponse.ok) {
+        const guardData = await guardResponse.json()
+        const billCount = typeof guardData?.total === "number" ? guardData.total : 0
+        if (billCount > 0) {
+          alert(`Cannot delete store. It has ${billCount} associated bills. Please deactivate instead.`)
+          return
+        }
+      }
+    } catch (error) {
+      console.error("Error checking store bills before delete:", error)
+      alert("Could not verify this store has no bills — try again.")
       return
     }
 
@@ -1187,6 +1196,7 @@ export default function StoresPage() {
       try {
         const response = await fetch(`${API}/api/stores/${id}`, { method: "DELETE" })
         if (response.ok) {
+          invalidateFreshCache("/api/stores")
           await loadData()
         } else {
           const errorData = await response.json()
@@ -1212,6 +1222,7 @@ export default function StoresPage() {
       })
 
       if (response.ok) {
+        invalidateFreshCache("/api/stores")
         await loadData()
       } else {
         const errorData = await response.json()
@@ -1258,9 +1269,11 @@ export default function StoresPage() {
     );
   })
 
-  const countableBills = bills.filter((bill) => !isCancelledBill(bill));
-  const totalRevenue = countableBills.reduce((sum, bill) => sum + (bill.total || 0), 0);
-  const totalBills = countableBills.length;
+  // billsSummary (/api/bills/summary) already excludes cancelled bills
+  // server-side -- no client-side filtering needed like the old full-list
+  // download required.
+  const totalRevenue = billsSummary?.totalRevenue ?? 0;
+  const totalBills = billsSummary?.totalCount ?? 0;
   const activeStores = stores.filter((store) => store.status === "active").length;
 
   return (
@@ -1414,8 +1427,14 @@ export default function StoresPage() {
               <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stores.length}</div>
-              <p className="text-xs text-muted-foreground">{activeStores} active stores</p>
+              {isLoadingStores && stores.length === 0 ? (
+                <div className="h-8 w-16 animate-pulse rounded bg-gray-200" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stores.length}</div>
+                  <p className="text-xs text-muted-foreground">{activeStores} active stores</p>
+                </>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -1424,8 +1443,14 @@ export default function StoresPage() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{totalRevenue.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">Across all stores</p>
+              {billsSummary === null ? (
+                <div className="h-8 w-24 animate-pulse rounded bg-gray-200" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">₹{totalRevenue.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground">Across all stores</p>
+                </>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -1434,8 +1459,14 @@ export default function StoresPage() {
               <Receipt className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalBills}</div>
-              <p className="text-xs text-muted-foreground">Bills generated</p>
+              {billsSummary === null ? (
+                <div className="h-8 w-16 animate-pulse rounded bg-gray-200" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{totalBills}</div>
+                  <p className="text-xs text-muted-foreground">Bills generated</p>
+                </>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -1444,10 +1475,16 @@ export default function StoresPage() {
               <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                ₹{activeStores > 0 ? (totalRevenue / activeStores).toFixed(2) : "0.00"}
-              </div>
-              <p className="text-xs text-muted-foreground">Revenue per active store</p>
+              {billsSummary === null || (isLoadingStores && stores.length === 0) ? (
+                <div className="h-8 w-24 animate-pulse rounded bg-gray-200" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">
+                    ₹{activeStores > 0 ? (totalRevenue / activeStores).toFixed(2) : "0.00"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Revenue per active store</p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -1474,7 +1511,13 @@ export default function StoresPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {filteredStores.length > 0 ? (
+            {isLoadingStores && stores.length === 0 ? (
+              <div className="space-y-3">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-16 animate-pulse rounded-lg bg-gray-100" />
+                ))}
+              </div>
+            ) : filteredStores.length > 0 ? (
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
