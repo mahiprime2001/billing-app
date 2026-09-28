@@ -56,9 +56,21 @@ interface PageResponse {
 const DEFAULT_PAGE_SIZE = 200
 const SAFETY_PAGE_CAP = 500
 // After the first page lands we know the total, so we can fan out the
-// remaining page requests in parallel. Higher concurrency = faster total
-// load; cap kept reasonable so we don't stampede Supabase.
-const PARALLEL_FETCH_CONCURRENCY = 8
+// remaining page requests in parallel. Kept low (not the old 8) because
+// the backend only runs 8 worker slots total (2 gunicorn workers x 4
+// threads) shared across every user and every other page -- firing 8
+// products pages at once could alone fill every slot and starve
+// everything else (bills, heartbeat, other tabs) until they all time out.
+const PARALLEL_FETCH_CONCURRENCY = 2
+// A page can fail transiently (cold cache computation, brief DB hiccup)
+// without the whole catalog needing to fail -- retry a few times with a
+// short backoff before giving up on that page.
+const PAGE_RETRY_ATTEMPTS = 3
+const PAGE_RETRY_DELAY_MS = 1000
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 function shouldRevalidate(options?: MutateOptions): boolean {
   if (options === undefined) return true
@@ -95,6 +107,30 @@ async function fetchProductsPage(
   } finally {
     clearTimeout(timeoutId)
   }
+}
+
+// Wraps fetchProductsPage with a few retries -- a page can fail from a
+// transient backend hiccup (worker slots briefly all busy, cold cache
+// computation) without the rest of the catalog needing to fail with it.
+// Previously a single failed page meant those products just never showed
+// up, with no retry and often no visible error either.
+async function fetchProductsPageWithRetry(
+  baseUrl: string,
+  page: number,
+  pageSize: number,
+): Promise<PageResponse> {
+  let lastErr: unknown
+  for (let attempt = 1; attempt <= PAGE_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      return await fetchProductsPage(baseUrl, page, pageSize)
+    } catch (err) {
+      lastErr = err
+      if (attempt < PAGE_RETRY_ATTEMPTS) {
+        await delay(PAGE_RETRY_DELAY_MS * attempt)
+      }
+    }
+  }
+  throw lastErr
 }
 
 export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): IncrementalProductsResult {
@@ -155,7 +191,7 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
 
     try {
       // Step 1: fetch page 1 to learn `total` and `hasMore`.
-      const firstPayload = await fetchProductsPage(baseUrl, 1, pageSize)
+      const firstPayload = await fetchProductsPageWithRetry(baseUrl, 1, pageSize)
       if (fetchVersionRef.current !== myVersion) return []
       const firstItems = Array.isArray(firstPayload.data) ? firstPayload.data : []
       if (typeof firstPayload.total === "number") {
@@ -186,7 +222,7 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
           while (cursor < remaining.length) {
             if (fetchVersionRef.current !== myVersion) return
             const pageNumber = remaining[cursor++]
-            const payload = await fetchProductsPage(baseUrl, pageNumber, pageSize)
+            const payload = await fetchProductsPageWithRetry(baseUrl, pageNumber, pageSize)
             if (fetchVersionRef.current !== myVersion) return
             const items = Array.isArray(payload.data) ? payload.data : []
             applyPage(pageNumber, items)
@@ -201,7 +237,7 @@ export function useIncrementalProducts(pageSize: number = DEFAULT_PAGE_SIZE): In
         let hasMore: boolean = hasMoreInitial
         while (hasMore && page <= SAFETY_PAGE_CAP) {
           if (fetchVersionRef.current !== myVersion) return []
-          const payload = await fetchProductsPage(baseUrl, page, pageSize)
+          const payload = await fetchProductsPageWithRetry(baseUrl, page, pageSize)
           if (fetchVersionRef.current !== myVersion) return []
           const items = Array.isArray(payload.data) ? payload.data : []
           applyPage(page, items)
