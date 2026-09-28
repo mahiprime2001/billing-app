@@ -1,14 +1,13 @@
 "use client"
 
-import { API_BASE } from "@/lib/api-base"
-import { readCache, writeCache } from "@/lib/api-cache"
+import { fetchWithBackgroundRefresh, withResolvers } from "@/lib/api-cache"
 import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { formatDisplayDate, toValidDate } from "@/app/utils/formatDate"
+import { formatDisplayDate } from "@/app/utils/formatDate"
 import {
   BarChart3,
   TrendingUp,
@@ -21,35 +20,43 @@ import {
   DollarSign,
 } from "lucide-react"
 
+// Each card below fetches only what it displays, independently, instead of
+// the old approach of downloading the ENTIRE bills/products/stores/users
+// lists on every load (and every 60s poll) just to compute a handful of
+// numbers client-side. That was the single heaviest thing hitting the
+// backend -- with ~11,850 bills (each carrying full item details), it could
+// alone fill every one of the backend's 8 worker slots for 30-60+ seconds,
+// starving every other request (including other users' POS traffic) at the
+// same time. See /api/bills/summary, /api/products/summary and
+// /api/products/top-sold on the backend for the lightweight equivalents.
+
 interface ProductSale {
+  productId: string
   name: string
   quantity: number
   revenue: number
 }
 
-interface BillItem {
-  productId: string
-  productName: string
-  quantity: number
-  total: number
-}
-
 interface Bill {
   id: string
-  date: string
+  date?: string
+  timestamp?: string
+  createdAt?: string
+  customerName?: string
   total: number
-  items?: BillItem[]
+  items?: unknown[]
 }
 
-// Bills come straight from the API, which may carry the date under several
-// field names — toValidDate handles resolving + parsing.
-const resolveBillDate = (bill: any): Date | null => toValidDate(bill)
+interface BillsSummary {
+  totalCount: number
+  totalRevenue: number
+  todayCount: number
+  todayRevenue: number
+}
 
-interface Product {
-  id: string
-  name: string
-  stock: number
-  minStock: number
+interface ProductsSummary {
+  totalCount: number
+  lowStockCount: number
 }
 
 interface StoreType {
@@ -58,7 +65,7 @@ interface StoreType {
   status: string
 }
 
-interface User {
+interface UserType {
   id: string
   name: string
   isActive?: boolean
@@ -68,216 +75,92 @@ interface User {
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [stats, setStats] = useState({
-    totalRevenue: 0,
-    totalBills: 0,
-    totalProducts: 0,
-    totalStores: 0,
-    totalUsers: 0,
-    lowStockProducts: 0,
-    recentBills: [] as Bill[],
-    topProducts: [] as ProductSale[],
-  })
+
+  const [billsSummary, setBillsSummary] = useState<BillsSummary | null>(null)
+  const [productsSummary, setProductsSummary] = useState<ProductsSummary | null>(null)
+  const [totalStores, setTotalStores] = useState<number | null>(null)
+  const [totalUsers, setTotalUsers] = useState<number | null>(null)
+  const [recentBills, setRecentBills] = useState<Bill[] | null>(null)
+  const [topProducts, setTopProducts] = useState<ProductSale[] | null>(null)
+  const [isStale, setIsStale] = useState(false)
 
   useEffect(() => {
-    // dummy user for now
+    // dummy user for now (unchanged from before this rewrite -- not part of
+    // the loading-performance fix, so left exactly as it was)
     setUser({ name: "Admin", role: "super_admin" })
+  }, [])
 
-    // Instant paint from whatever's cached (if anything) so revisiting the
-    // dashboard doesn't sit on the spinner while all 4 endpoints re-fetch --
-    // loadDashboardData() below overwrites this with live data moments later.
-    const paintFromCache = async () => {
-      const baseUrl = API_BASE
-      const [bills, products, stores, users] = await Promise.all([
-        readCache<Bill[]>(`${baseUrl}/api/bills`),
-        readCache<Product[]>(`${baseUrl}/api/products`),
-        readCache<StoreType[]>(`${baseUrl}/api/stores`),
-        readCache<User[]>(`${baseUrl}/api/users`),
-      ])
-      if (!bills && !products && !stores && !users) return
-      applyStats(bills?.data ?? [], products?.data ?? [], stores?.data ?? [], users?.data ?? [])
-      setLoading(false)
-    }
+  const loadDashboardData = async () => {
+    const staleBy = withResolvers(setIsStale)
 
-    const loadData = async () => {
-      try {
-        setError(null)
-        await Promise.all([paintFromCache(), loadDashboardData()])
-      } catch (err) {
-        console.error("Error loading dashboard data:", err)
-        setError("Failed to load dashboard data. Please try again later.")
-      } finally {
-        setLoading(false)
-      }
-    }
+    const calls: Promise<void>[] = [
+      fetchWithBackgroundRefresh<BillsSummary>(
+        "/api/bills/summary",
+        (r) => { setBillsSummary(r.data); staleBy.set("bills", r.source === "cache") },
+        () => staleBy.set("bills", true),
+      ),
+      fetchWithBackgroundRefresh<ProductsSummary>(
+        "/api/products/summary",
+        (r) => { setProductsSummary(r.data); staleBy.set("products", r.source === "cache") },
+        () => staleBy.set("products", true),
+      ),
+      fetchWithBackgroundRefresh<StoreType[]>(
+        "/api/stores",
+        (r) => {
+          const list = Array.isArray(r.data) ? r.data : []
+          setTotalStores(list.filter((s) => s.status === "active").length)
+          staleBy.set("stores", r.source === "cache")
+        },
+        () => staleBy.set("stores", true),
+      ),
+      fetchWithBackgroundRefresh<Bill[] | { data: Bill[] }>(
+        "/api/bills?paginate=1&page=1&pageSize=5&details=1",
+        (r) => {
+          const raw: any = r.data
+          const list: Bill[] = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : []
+          setRecentBills(list)
+          staleBy.set("recentBills", r.source === "cache")
+        },
+        () => staleBy.set("recentBills", true),
+      ),
+      fetchWithBackgroundRefresh<ProductSale[]>(
+        "/api/products/top-sold?limit=5",
+        (r) => { setTopProducts(Array.isArray(r.data) ? r.data : []); staleBy.set("topProducts", r.source === "cache") },
+        () => staleBy.set("topProducts", true),
+      ),
+    ]
 
-    loadData()
-  }, [router])
-
-  useBackgroundPoll(() => loadDashboardData(true))
-
-  // Without a timeout, a slow/stalled response on any one of these (e.g. a
-  // cold server-side aggregation cache under real production data volume)
-  // leaves the dashboard spinning forever with no error -- same failure
-  // mode fixed on the Products page's loader.
-  const fetchWithTimeout = (url: string, timeoutMs = 30000) => {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-    return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timeoutId))
-  }
-
-  // Each of the 4 is fetched independently and defaults to an empty list on
-  // its OWN failure -- previously a single failing endpoint (bills'
-  // unbounded enrichment is the heaviest and most likely to still hiccup
-  // under real data volume) threw and blanked the WHOLE dashboard, even
-  // when the other 3 had already succeeded. Successful fetches are cached
-  // for the next visit's instant paint (see paintFromCache above).
-  const fetchListSafe = async <T,>(label: string, url: string): Promise<T[]> => {
-    try {
-      const response = await fetchWithTimeout(url)
-      if (!response.ok) {
-        console.error(`Failed to fetch ${label}: ${response.status} ${response.statusText}`)
-        return []
-      }
-      const raw = await response.json()
-      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : []
-      void writeCache(url, list)
-      return list
-    } catch (err) {
-      console.error(`Error fetching ${label}:`, err)
-      return []
-    }
-  }
-
-  const loadDashboardData = async (isBackground = false) => {
-    try {
-      const baseUrl = API_BASE
-
-      const [bills, products, stores, users] = await Promise.all([
-        fetchListSafe<Bill>("bills", `${baseUrl}/api/bills`),
-        fetchListSafe<Product>("products", `${baseUrl}/api/products`),
-        fetchListSafe<StoreType>("stores", `${baseUrl}/api/stores`),
-        fetchListSafe<User>("users", `${baseUrl}/api/users`),
-      ])
-
-      console.log("📊 Dashboard data:", {
-        bills: bills.length,
-        products: products.length,
-        stores: stores.length,
-        users: users.length,
-      })
-
-      applyStats(bills, products, stores, users)
-    } catch (error) {
-      console.error("Error loading dashboard data:", error)
-      if (!isBackground) throw error
-    }
-  }
-
-  const applyStats = (bills: Bill[], products: Product[], stores: StoreType[], users: User[]) => {
-      // -------- OVERALL STATS --------
-      const totalRevenue = bills.reduce(
-        (sum, bill) => sum + (bill.total || 0),
-        0,
+    // Users card is super_admin-only -- don't fetch it for a store-scoped
+    // billing user who can't see it anyway.
+    if (user?.role === "super_admin") {
+      calls.push(
+        fetchWithBackgroundRefresh<UserType[]>(
+          "/api/users",
+          (r) => {
+            const list = Array.isArray(r.data) ? r.data : []
+            const active = list.filter(
+              (u) => u.isActive === true || u.is_active === true || (u.isActive === undefined && u.is_active === undefined),
+            )
+            setTotalUsers(active.length)
+            staleBy.set("users", r.source === "cache")
+          },
+          () => staleBy.set("users", true),
+        ),
       )
-      const totalBills = bills.length
-      const totalProducts = products.length
-      const totalStores = stores.filter(
-        (store) => store.status === "active",
-      ).length
-
-      // active users: if isActive/is_active missing, treat as active
-      const activeUsers = users.filter(
-        (u) =>
-          u.isActive === true ||
-          u.is_active === true ||
-          (u.isActive === undefined && u.is_active === undefined),
-      )
-      const totalUsers = activeUsers.length
-
-      const lowStockProducts = products.filter(
-        (product) => product.stock <= product.minStock,
-      ).length
-
-      // -------- RECENT BILLS --------
-      const recentBills = [...bills]
-        .sort(
-          (a, b) =>
-            (resolveBillDate(b)?.getTime() ?? 0) -
-            (resolveBillDate(a)?.getTime() ?? 0),
-        )
-        .slice(0, 5)
-
-// -------- TOP PRODUCTS (by quantity sold) --------
-const productSales: Record<string, ProductSale> = {}
-
-bills.forEach((bill: any) => {
-  // bill.items may be nested or named differently; normalize a bit
-  const rawItems =
-    bill.items ||
-    bill.bill_items ||
-    bill.BillItems ||
-    bill.items_json ||
-    []
-
-  if (!Array.isArray(rawItems)) return
-
-  rawItems.forEach((raw: any) => {
-    const productId =
-      raw.productId || raw.product_id || raw.productid || raw.id
-    if (!productId) return
-
-    const quantity = Number(raw.quantity ?? raw.qty ?? 0)
-    const lineTotal = Number(
-      raw.total ??
-        raw.line_total ??
-        raw.amount ??
-        (raw.price ?? 0) * quantity,
-    )
-    const name =
-      raw.productName ||
-      raw.product_name ||
-      raw.productname ||
-      raw.name ||
-      "Unknown product"
-
-    if (productSales[productId]) {
-      productSales[productId].quantity += quantity
-      productSales[productId].revenue += lineTotal
-    } else {
-      productSales[productId] = {
-        name,
-        quantity,
-        revenue: lineTotal,
-      }
     }
-  })
-})
 
-const topProducts = Object.values(productSales)
-  .sort((a, b) => b.quantity - a.quantity)
-  .slice(0, 5)
-
-console.log("✅ Aggregated:", {
-  topProducts,
-})
-
-setStats((prev) => ({
-  ...prev,
-  totalRevenue,
-  totalBills,
-  totalProducts,
-  totalStores,
-  totalUsers,
-  lowStockProducts,
-  recentBills,
-  topProducts,
-}))
+    await Promise.allSettled(calls)
   }
 
-  if (loading) {
+  useEffect(() => {
+    if (!user) return
+    loadDashboardData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  useBackgroundPoll(() => { if (user) loadDashboardData() })
+
+  if (!user) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
@@ -286,6 +169,8 @@ setStats((prev) => ({
       </DashboardLayout>
     )
   }
+
+  const cardSkeleton = <div className="h-8 w-20 animate-pulse rounded bg-gray-200" />
 
   return (
     <DashboardLayout>
@@ -297,10 +182,12 @@ setStats((prev) => ({
           </h1>
           <p className="text-gray-600 mt-2">
             Here&apos;s what&apos;s happening with your jewelry business today.
+            {isStale && <span className="ml-2 text-xs text-amber-600">(showing last synced data)</span>}
           </p>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards -- each one renders as soon as ITS OWN data lands,
+            not waiting on the slowest of the bunch. */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -308,12 +195,12 @@ setStats((prev) => ({
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                ₹{stats.totalRevenue.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                From {stats.totalBills} bills
-              </p>
+              {billsSummary ? (
+                <>
+                  <div className="text-2xl font-bold">₹{billsSummary.totalRevenue.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground">From {billsSummary.totalCount} bills</p>
+                </>
+              ) : cardSkeleton}
             </CardContent>
           </Card>
           <Card>
@@ -322,8 +209,14 @@ setStats((prev) => ({
               <Receipt className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalBills}</div>
-              <p className="text-xs text-muted-foreground">Bills generated</p>
+              {billsSummary ? (
+                <>
+                  <div className="text-2xl font-bold">{billsSummary.totalCount}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {billsSummary.todayCount} today (₹{billsSummary.todayRevenue.toFixed(2)})
+                  </p>
+                </>
+              ) : cardSkeleton}
             </CardContent>
           </Card>
           <Card>
@@ -332,15 +225,18 @@ setStats((prev) => ({
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalProducts}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats.lowStockProducts > 0 && (
-                  <span className="text-yellow-600">
-                    {stats.lowStockProducts} low stock
-                  </span>
-                )}
-                {stats.lowStockProducts === 0 && "All in stock"}
-              </p>
+              {productsSummary ? (
+                <>
+                  <div className="text-2xl font-bold">{productsSummary.totalCount}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {productsSummary.lowStockCount > 0 ? (
+                      <span className="text-yellow-600">{productsSummary.lowStockCount} low stock</span>
+                    ) : (
+                      "All in stock"
+                    )}
+                  </p>
+                </>
+              ) : cardSkeleton}
             </CardContent>
           </Card>
           {user.role === "super_admin" && (
@@ -350,15 +246,19 @@ setStats((prev) => ({
                 <Store className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalStores}</div>
-                <p className="text-xs text-muted-foreground">Store locations</p>
+                {totalStores !== null ? (
+                  <>
+                    <div className="text-2xl font-bold">{totalStores}</div>
+                    <p className="text-xs text-muted-foreground">Store locations</p>
+                  </>
+                ) : cardSkeleton}
               </CardContent>
             </Card>
           )}
         </div>
 
         {/* Alerts */}
-        {stats.lowStockProducts > 0 && (
+        {productsSummary && productsSummary.lowStockCount > 0 && (
           <Card className="border-yellow-200 bg-yellow-50">
             <CardHeader>
               <CardTitle className="text-yellow-800 flex items-center">
@@ -368,7 +268,7 @@ setStats((prev) => ({
             </CardHeader>
             <CardContent>
               <p className="text-yellow-700">
-                You have {stats.lowStockProducts} products with low stock levels.
+                You have {productsSummary.lowStockCount} products with low stock levels.
                 Consider restocking these items soon.
               </p>
             </CardContent>
@@ -386,38 +286,31 @@ setStats((prev) => ({
               <CardDescription>Latest billing activity</CardDescription>
             </CardHeader>
             <CardContent>
-              {stats.recentBills.length > 0 ? (
+              {recentBills === null ? (
                 <div className="space-y-4">
-                  {stats.recentBills.map((bill: any) => (
-                    <div
-                      key={bill.id}
-                      className="flex items-center justify-between"
-                    >
+                  {[0, 1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded bg-gray-100" />)}
+                </div>
+              ) : recentBills.length > 0 ? (
+                <div className="space-y-4">
+                  {recentBills.map((bill: any) => (
+                    <div key={bill.id} className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">#{bill.id}</p>
-                        <p className="text-sm text-gray-500">
-                          {bill.customerName}
-                        </p>
+                        <p className="text-sm text-gray-500">{bill.customerName}</p>
                         <p className="text-xs text-gray-400 flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
                           {formatDisplayDate(bill)}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold">
-                          ₹{(bill.total || 0).toFixed(2)}
-                        </p>
-                        <Badge variant="secondary">
-                          {bill.items ? bill.items.length : 0} items
-                        </Badge>
+                        <p className="font-bold">₹{(bill.total || 0).toFixed(2)}</p>
+                        <Badge variant="secondary">{bill.items ? bill.items.length : 0} items</Badge>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">
-                  No bills created yet
-                </p>
+                <p className="text-gray-500 text-center py-8">No bills created yet</p>
               )}
             </CardContent>
           </Card>
@@ -432,32 +325,27 @@ setStats((prev) => ({
               <CardDescription>Best performing jewelry items</CardDescription>
             </CardHeader>
             <CardContent>
-              {stats.topProducts.length > 0 ? (
+              {topProducts === null ? (
                 <div className="space-y-4">
-                  {stats.topProducts.map((product: any, index: number) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between"
-                    >
+                  {[0, 1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded bg-gray-100" />)}
+                </div>
+              ) : topProducts.length > 0 ? (
+                <div className="space-y-4">
+                  {topProducts.map((product, index: number) => (
+                    <div key={product.productId || index} className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">{product.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {product.quantity} units sold
-                        </p>
+                        <p className="text-sm text-gray-500">{product.quantity} units sold</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold">
-                          ₹{product.revenue.toFixed(2)}
-                        </p>
+                        <p className="font-bold">₹{product.revenue.toFixed(2)}</p>
                         <Badge variant="outline">#{index + 1}</Badge>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">
-                  No sales data available
-                </p>
+                <p className="text-gray-500 text-center py-8">No sales data available</p>
               )}
             </CardContent>
           </Card>
@@ -474,10 +362,12 @@ setStats((prev) => ({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalUsers}</div>
-                <p className="text-sm text-gray-500">
-                  Active users in system
-                </p>
+                {totalUsers !== null ? (
+                  <>
+                    <div className="text-2xl font-bold">{totalUsers}</div>
+                    <p className="text-sm text-gray-500">Active users in system</p>
+                  </>
+                ) : cardSkeleton}
               </CardContent>
             </Card>
             <Card>
@@ -488,15 +378,14 @@ setStats((prev) => ({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  ₹
-                  {stats.totalStores > 0
-                    ? (stats.totalRevenue / stats.totalStores).toFixed(2)
-                    : "0.00"}
-                </div>
-                <p className="text-sm text-gray-500">
-                  Average revenue per store
-                </p>
+                {billsSummary && totalStores !== null ? (
+                  <>
+                    <div className="text-2xl font-bold">
+                      ₹{totalStores > 0 ? (billsSummary.totalRevenue / totalStores).toFixed(2) : "0.00"}
+                    </div>
+                    <p className="text-sm text-gray-500">Average revenue per store</p>
+                  </>
+                ) : cardSkeleton}
               </CardContent>
             </Card>
             <Card>
@@ -507,13 +396,14 @@ setStats((prev) => ({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  ₹
-                  {stats.totalBills > 0
-                    ? (stats.totalRevenue / stats.totalBills).toFixed(2)
-                    : "0.00"}
-                </div>
-                <p className="text-sm text-gray-500">Average bill value</p>
+                {billsSummary ? (
+                  <>
+                    <div className="text-2xl font-bold">
+                      ₹{billsSummary.totalCount > 0 ? (billsSummary.totalRevenue / billsSummary.totalCount).toFixed(2) : "0.00"}
+                    </div>
+                    <p className="text-sm text-gray-500">Average bill value</p>
+                  </>
+                ) : cardSkeleton}
               </CardContent>
             </Card>
           </div>
