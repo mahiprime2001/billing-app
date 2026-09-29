@@ -48,7 +48,6 @@ import {
   Search,
   MapPin,
   Phone,
-  User,
   TrendingUp,
   Receipt,
   Building,
@@ -63,7 +62,6 @@ interface StoreType {
   name: string
   address: string
   phone: string
-  manager: string
   storecode?: string
   status: "active" | "inactive"
   createdAt: string
@@ -457,12 +455,6 @@ function StoreInsightModal({
                     <span className="inline-flex items-center gap-1">
                       <Phone className="h-3 w-3" />
                       {store.phone}
-                    </span>
-                  )}
-                  {store.manager && (
-                    <span className="inline-flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      {store.manager}
                     </span>
                   )}
                 </div>
@@ -935,7 +927,6 @@ export default function StoresPage() {
     name: "",
     address: "",
     phone: "",
-    manager: "",
     storecode: "",
     status: "active" as "active" | "inactive",
     gstRegistrationId: "",
@@ -973,8 +964,7 @@ export default function StoresPage() {
   useBackgroundPoll(() => loadData(assignedStoreIdRef.current))
 
   // Local mirror only has what lib/local-db.ts's stores table stores --
-  // no server-computed totalRevenue/totalBills/lastBillDate/productCount,
-  // and no `manager` (siri-api drops it server-side, see lib/store-write.ts).
+  // no server-computed totalRevenue/totalBills/lastBillDate/productCount.
   // Those default to empty/zero when falling back offline rather than being
   // silently wrong -- an offline store list is for identifying/finding a
   // store, not for trusting its revenue stats.
@@ -983,7 +973,6 @@ export default function StoresPage() {
     name: s.name,
     address: s.address ?? "",
     phone: s.phone ?? "",
-    manager: "",
     storecode: s.storecode,
     status: (s.status === "inactive" ? "inactive" : "active") as "active" | "inactive",
     createdAt: s.createdat ?? s.synced_at ?? "",
@@ -1088,7 +1077,6 @@ export default function StoresPage() {
       name: formData.name,
       address: formData.address,
       phone: formData.phone,
-      manager: formData.manager,
       storecode: formData.storecode.trim().toUpperCase(),
       status: formData.status,
       gstRegistrationId: formData.gstRegistrationId,
@@ -1126,10 +1114,9 @@ export default function StoresPage() {
       // catch is already exactly the "we're offline" case.
       if (error instanceof TypeError) {
         try {
-          const { manager, ...offlineInput } = storeData
           const offlineResult = editingStore
-            ? await updateStoreOffline(editingStore.id, offlineInput)
-            : await createStoreOffline(offlineInput)
+            ? await updateStoreOffline(editingStore.id, storeData)
+            : await createStoreOffline(storeData)
           if (!offlineResult.success) {
             throw new Error(offlineResult.error || "Failed to save store offline")
           }
@@ -1161,7 +1148,6 @@ export default function StoresPage() {
       name: store.name,
       address: store.address,
       phone: store.phone,
-      manager: store.manager,
       storecode: store.storecode || "",
       status: store.status,
       gstRegistrationId: store.gstRegistrationId || "",
@@ -1239,7 +1225,6 @@ export default function StoresPage() {
       name: "",
       address: "",
       phone: "",
-      manager: "",
       storecode: "",
       status: "active",
       gstRegistrationId: "",
@@ -1264,8 +1249,7 @@ export default function StoresPage() {
     const searchTermLower = searchTerm.toLowerCase();
     return (
       store.name?.toLowerCase().includes(searchTermLower) ||
-      store.address?.toLowerCase().includes(searchTermLower) ||
-      store.manager?.toLowerCase().includes(searchTermLower)
+      store.address?.toLowerCase().includes(searchTermLower)
     );
   })
 
@@ -1381,28 +1365,17 @@ export default function StoresPage() {
                       The GST printed on this store&apos;s invoices.
                     </p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="manager">Store Manager</Label>
-                      <Input
-                        id="manager"
-                        value={formData.manager}
-                        onChange={(e) => setFormData({ ...formData, manager: e.target.value })}
-                        placeholder="Enter manager name"
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Store Status</Label>
+                    <div className="flex items-center space-x-2 pt-2">
+                      <Switch
+                        id="status"
+                        checked={formData.status === "active"}
+                        onCheckedChange={(checked) =>
+                          setFormData({ ...formData, status: checked ? "active" : "inactive" })
+                        }
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="status">Store Status</Label>
-                      <div className="flex items-center space-x-2 pt-2">
-                        <Switch
-                          id="status"
-                          checked={formData.status === "active"}
-                          onCheckedChange={(checked) =>
-                            setFormData({ ...formData, status: checked ? "active" : "inactive" })
-                          }
-                        />
-                        <Label htmlFor="status">Store is active</Label>
-                      </div>
+                      <Label htmlFor="status">Store is active</Label>
                     </div>
                   </div>
                 </div>
@@ -1551,12 +1524,6 @@ export default function StoresPage() {
                               <div className="text-sm flex items-center">
                                 <Phone className="h-3 w-3 mr-1 text-gray-400" />
                                 {store.phone}
-                              </div>
-                            )}
-                            {store.manager && (
-                              <div className="text-sm flex items-center">
-                                <User className="h-3 w-3 mr-1 text-gray-400" />
-                                {store.manager}
                               </div>
                             )}
                             {store.storecode && (
