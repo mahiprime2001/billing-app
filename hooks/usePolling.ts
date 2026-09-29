@@ -4,13 +4,19 @@ interface UsePollingOptions<T> {
   interval?: number; // Polling interval in milliseconds
   enabled?: boolean; // Whether polling is enabled
   initialData?: () => T | undefined; // Synchronous hydrator (e.g. read from localStorage)
+  // Delay before the FIRST fetch only (subsequent interval ticks are
+  // unaffected). Lets a page with several polling hooks stagger their
+  // startup requests instead of all firing in the same instant -- see
+  // billing/page.tsx, where 3 of these plus 3 one-off mount fetches used to
+  // fire together and pile up against the backend's limited worker slots.
+  initialDelayMs?: number;
 }
 
 const usePolling = <T>(
   fetcher: () => Promise<T>,
   options?: UsePollingOptions<T>
 ) => {
-  const { interval = 5000, enabled = true, initialData } = options || {};
+  const { interval = 5000, enabled = true, initialData, initialDelayMs = 0 } = options || {};
   const [data, setData] = useState<T | undefined>(() => initialData?.());
   // If we hydrated from cache, the UI already has something to show — don't
   // gate it behind a loading spinner while we refresh in the background.
@@ -49,13 +55,16 @@ const usePolling = <T>(
       }
     };
 
-    fetchData(); // Initial fetch
+    const initialTimeoutId = setTimeout(fetchData, initialDelayMs);
 
     const intervalId = setInterval(() => {
       fetchData();
     }, interval);
 
-    return () => clearInterval(intervalId); // Cleanup on unmount or dependency change
+    return () => {
+      clearTimeout(initialTimeoutId);
+      clearInterval(intervalId);
+    }; // Cleanup on unmount or dependency change
   }, [interval, enabled]);
 
   const refetch = () => {

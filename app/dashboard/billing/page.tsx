@@ -337,20 +337,25 @@ export default function BillingPage() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const res = await api.get("/api/stores");
-        const payload = res?.data;
-        const list: any[] = Array.isArray(payload) ? payload : payload?.data || [];
-        const mapped = list
-          .map((s: any) => ({ id: String(s.id || s.storeId || s.store_id || ""), name: String(s.name || "Unnamed") }))
-          .filter((s) => s.id);
-        if (!cancelled) setStoresList(mapped);
-      } catch (err) {
-        console.warn("Failed to load stores list", err);
-      }
-    })();
-    return () => { cancelled = true; };
+    // Staggered (see usePolling's initialDelayMs above) so this doesn't
+    // fire in the same instant as the products/bills/customers polling
+    // hooks and the settings/users mount fetches below.
+    const timeoutId = setTimeout(() => {
+      (async () => {
+        try {
+          const res = await api.get("/api/stores");
+          const payload = res?.data;
+          const list: any[] = Array.isArray(payload) ? payload : payload?.data || [];
+          const mapped = list
+            .map((s: any) => ({ id: String(s.id || s.storeId || s.store_id || ""), name: String(s.name || "Unnamed") }))
+            .filter((s) => s.id);
+          if (!cancelled) setStoresList(mapped);
+        } catch (err) {
+          console.warn("Failed to load stores list", err);
+        }
+      })();
+    }, 900);
+    return () => { cancelled = true; clearTimeout(timeoutId); };
   }, []);
 
   const dateRange: DateRange | undefined = useMemo(() => {
@@ -488,26 +493,29 @@ export default function BillingPage() {
       }
     }
 
-    // Load system settings
-    fetch(`${API_BASE}/api/settings`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.systemSettings) {
-          const settings = data.systemSettings;
-          const normalizedSettings = {
-            taxPercentage: settings.taxPercentage || settings.tax_percentage || 0,
-            companyName: settings.companyName || settings.company_name || settings.companyname || "",
-            companyAddress: settings.companyAddress || settings.company_address || settings.companyaddress || "",
-            companyPhone: settings.companyPhone || settings.company_phone || settings.companyphone || "",
-            companyEmail: settings.companyEmail || settings.company_email || settings.companyemail || "",
-          };
-          setSystemSettings(normalizedSettings);
-        }
-        if (data.billFormats) {
-          setBillFormats(data.billFormats);
-        }
-      })
-      .catch((error) => console.error("Failed to load system settings and bill formats", error));
+    // Load system settings -- staggered (see usePolling's initialDelayMs
+    // above) so the startup fetches on this page don't all fire together.
+    const settingsTimeoutId = setTimeout(() => {
+      fetch(`${API_BASE}/api/settings`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.systemSettings) {
+            const settings = data.systemSettings;
+            const normalizedSettings = {
+              taxPercentage: settings.taxPercentage || settings.tax_percentage || 0,
+              companyName: settings.companyName || settings.company_name || settings.companyname || "",
+              companyAddress: settings.companyAddress || settings.company_address || settings.companyaddress || "",
+              companyPhone: settings.companyPhone || settings.company_phone || settings.companyphone || "",
+              companyEmail: settings.companyEmail || settings.company_email || settings.companyemail || "",
+            };
+            setSystemSettings(normalizedSettings);
+          }
+          if (data.billFormats) {
+            setBillFormats(data.billFormats);
+          }
+        })
+        .catch((error) => console.error("Failed to load system settings and bill formats", error));
+    }, 1200);
 
     const isLoggedIn = localStorage.getItem("adminLoggedIn");
     if (isLoggedIn !== "true") {
@@ -520,6 +528,7 @@ export default function BillingPage() {
     window.addEventListener("offline", () => setIsOnline(false));
 
     return () => {
+      clearTimeout(settingsTimeoutId);
       window.removeEventListener("online", () => setIsOnline(true));
       window.removeEventListener("offline", () => setIsOnline(false));
     };
@@ -536,9 +545,13 @@ export default function BillingPage() {
   // Tauri desktop shell (e.g. plain browser dev), it fails silently and the
   // page behaves exactly as it did before this wiring existed.
   useEffect(() => {
-    Promise.all([pullProductsForBilling(), pullTaxPercentage()]).catch((err) => {
-      console.warn("Offline product/tax mirror pull skipped:", err);
-    });
+    // Staggered -- see usePolling's initialDelayMs comment above.
+    const timeoutId = setTimeout(() => {
+      Promise.all([pullProductsForBilling(), pullTaxPercentage()]).catch((err) => {
+        console.warn("Offline product/tax mirror pull skipped:", err);
+      });
+    }, 1800);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
@@ -559,7 +572,9 @@ export default function BillingPage() {
       }
     };
 
-    void loadUsers();
+    // Staggered -- see usePolling's initialDelayMs comment above.
+    const timeoutId = setTimeout(() => { void loadUsers(); }, 1500);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
@@ -604,7 +619,6 @@ export default function BillingPage() {
     async (
       supabaseEndpoint: string,
       localStorageEndpoint: string,
-      updateLocalStorageEndpoint: string,
       dataType: string
     ) => {
       try {
@@ -668,9 +682,6 @@ export default function BillingPage() {
             return localRows;
           }
         }
-
-        // Silent background update
-        api.post(updateLocalStorageEndpoint, processedData).catch(() => {});
 
         if (dataType === "customers") {
           setIsCustomersOfflineFallback(false);
@@ -741,7 +752,7 @@ export default function BillingPage() {
   );
 
   const fetchProducts = useCallback(
-    () => fetchData("/api/supabase/products-for-billing", "/api/local/products-for-billing", "/api/local/products/update", "products"),
+    () => fetchData("/api/supabase/products-for-billing", "/api/local/products-for-billing", "products"),
     [fetchData]
   );
 
@@ -916,19 +927,24 @@ export default function BillingPage() {
   }, [adminUser, buildBillsQuery]);
 
   const fetchCustomers = useCallback(
-    () => fetchData("/api/supabase/customers", "/api/local/customers", "/api/local/customers/update", "customers"),
+    () => fetchData("/api/supabase/customers", "/api/local/customers", "customers"),
     [fetchData]
   );
 
-  // Use slower polling to reduce backend/Supabase pressure.
-  const { data: productsData, loading: productsLoading, error: productsError, refetch: refetchProducts } = usePolling<Product[]>(fetchProducts, { interval: BILLING_POLL_INTERVAL_MS });
+  // Use slower polling to reduce backend/Supabase pressure. initialDelayMs
+  // staggers these 3 hooks' first fetch (plus the 3 one-off mount effects
+  // below) instead of all ~6 firing in the same instant on page load --
+  // see lib/initial-sync.ts for the matching fix on AppProviders' side.
+  const { data: productsData, loading: productsLoading, error: productsError, refetch: refetchProducts } = usePolling<Product[]>(fetchProducts, { interval: BILLING_POLL_INTERVAL_MS, initialDelayMs: 0 });
   const { data: billsData, loading: billsLoading, error: billsError, refetch: refetchBills } = usePolling<Bill[]>(fetchBills, {
     interval: BILLS_POLL_INTERVAL_MS,
     initialData: () => readBillsCache() as Bill[] | undefined,
+    initialDelayMs: 300,
   });
   const { data: customersData, loading: customersLoading, error: customersError, refetch: refetchCustomers } = usePolling<Customer[]>(fetchCustomers, {
     interval: BILLING_POLL_INTERVAL_MS,
     initialData: () => readCustomersCache() as Customer[] | undefined,
+    initialDelayMs: 600,
   });
 
   // Manual refresh function
