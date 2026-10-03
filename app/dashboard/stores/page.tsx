@@ -1281,7 +1281,7 @@ export default function StoresPage() {
                 Add New Store
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-2xl flex items-center">
                   <Building className="h-6 w-6 mr-2 text-blue-600" />
