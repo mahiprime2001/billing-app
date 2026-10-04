@@ -83,7 +83,11 @@ export default function AppProviders({
   installAuthenticatedFetch();
 
   const [backendStatus, setBackendStatus] = useState<'online' | 'offline' | 'checking'>('checking');
-  const [retryCount, setRetryCount] = useState(0);
+  // Consecutive failed heartbeats. Only flips the UI to "offline" after
+  // OFFLINE_AFTER_FAILURES in a row, so one slow/dropped request (common
+  // right at app start, before the network is up) doesn't flash the banner.
+  const consecutiveFailuresRef = useRef(0);
+  const OFFLINE_AFTER_FAILURES = 3;
 
   // TEMPORARY Phase-2 diagnostic: proves the local SQLite plugin actually
   // works end-to-end (desktop only). Logs to console, touches nothing else.
@@ -179,22 +183,20 @@ export default function AppProviders({
           // interceptor above already redirects to login for that case).
           // Either way this isn't a connectivity problem, so it shouldn't
           // log as an error or flip the backend status to "offline".
+          consecutiveFailuresRef.current = 0;
           setBackendStatus('online');
-          setRetryCount(0);
         } else if (!response.ok) {
           console.error(`Heartbeat failed: ${response.status} ${response.statusText}`);
-          setBackendStatus('offline');
-          previousBackendStatusRef.current = 'offline';
-          setRetryCount(prev => prev + 1);
+          markHeartbeatFailure();
         } else {
           const data = await response.json();
           console.log("✅ Backend heartbeat:", data);
+          consecutiveFailuresRef.current = 0;
           setBackendStatus('online');
           if (previousBackendStatusRef.current !== 'online') {
             previousBackendStatusRef.current = 'online';
             void triggerReconnectSync();
           }
-          setRetryCount(0);
         }
       } catch (error) {
         clearTimeout(timeoutId);
@@ -208,9 +210,15 @@ export default function AppProviders({
           console.error("❌ Unknown heartbeat error:", error);
         }
 
+        markHeartbeatFailure();
+      }
+    };
+
+    const markHeartbeatFailure = () => {
+      consecutiveFailuresRef.current += 1;
+      if (consecutiveFailuresRef.current >= OFFLINE_AFTER_FAILURES) {
         setBackendStatus('offline');
         previousBackendStatusRef.current = 'offline';
-        setRetryCount(prev => prev + 1);
       }
     };
 
@@ -235,7 +243,7 @@ export default function AppProviders({
         heartbeatIntervalRef.current = null;
       }
     };
-  }, [retryCount]); // Keep retryCount dependency for retry logic
+  }, []);
 
   return (
     <>
