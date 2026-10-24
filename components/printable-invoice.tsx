@@ -261,11 +261,6 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
     );
 
     const isThermalPaper = paperSize.includes("Thermal");
-    const is58mmPaper = paperSize === "Thermal 58mm";
-    // TEST: full paper width again (was narrowed to 72mm/52mm) to see
-    // exactly where this printer's real cutoff point is -- narrowing +
-    // centering didn't fix it, so we're isolating width from centering.
-    const wrapperWidth = isThermalPaper ? (is58mmPaper ? "58mm" : "80mm") : "100%";
     const wrapperPadding = isThermalPaper ? "0" : "2mm";
 
     return (
@@ -274,7 +269,7 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
           className="invoice-wrapper"
           ref={ref}
           style={{
-            width: wrapperWidth,
+            width: "100%",
             margin: "0 auto",
             padding: wrapperPadding,
             boxSizing: "border-box",
