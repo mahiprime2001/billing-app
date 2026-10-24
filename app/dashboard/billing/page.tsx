@@ -2186,8 +2186,12 @@ export default function BillingPage() {
       return Number.isFinite(num) ? num : 0;
     };
     const settingsAny = systemSettings as any;
+    // Store name first -- the receipt header should identify which store
+    // the sale happened at, not the overall company name (bill.companyName
+    // is set from systemSettings at creation time, so it was always
+    // populated and storeName never actually won before this).
     const companyName =
-      bill.companyName || bill.storeName || systemSettings.companyName || settingsAny.company_name || settingsAny.companyname || "UNDEFINED";
+      bill.storeName || bill.companyName || systemSettings.companyName || settingsAny.company_name || settingsAny.companyname || "UNDEFINED";
     const companyAddress =
       bill.companyAddress || bill.storeAddress || systemSettings.companyAddress || settingsAny.company_address || settingsAny.companyaddress || "";
     const companyPhone =
@@ -2274,8 +2278,12 @@ export default function BillingPage() {
       maximumFractionDigits: 2,
     });
     const settingsAny = systemSettings as any;
+    // Store name first -- the receipt header should identify which store
+    // the sale happened at, not the overall company name (bill.companyName
+    // is set from systemSettings at creation time, so it was always
+    // populated and storeName never actually won before this).
     const companyName =
-      bill.companyName || bill.storeName || systemSettings.companyName || settingsAny.company_name || settingsAny.companyname || "UNDEFINED";
+      bill.storeName || bill.companyName || systemSettings.companyName || settingsAny.company_name || settingsAny.companyname || "UNDEFINED";
     const companyAddress =
       bill.companyAddress || bill.storeAddress || systemSettings.companyAddress || settingsAny.company_address || settingsAny.companyaddress || "";
     const companyPhone =
