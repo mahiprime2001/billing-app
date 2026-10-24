@@ -261,6 +261,12 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
     );
 
     const isThermalPaper = paperSize.includes("Thermal");
+    const is58mmPaper = paperSize === "Thermal 58mm";
+    // 80mm/58mm thermal paper's PRINTABLE width is narrower than the paper
+    // itself (the print head physically can't reach the full edge) --
+    // content laid out at the full page width runs past that and gets cut
+    // off on the right. Same convention as Siri-billing-app's matching fix.
+    const wrapperWidth = isThermalPaper ? (is58mmPaper ? "52mm" : "72mm") : "100%";
     const wrapperPadding = isThermalPaper ? "0" : "2mm";
 
     return (
@@ -269,7 +275,7 @@ const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps>(
           className="invoice-wrapper"
           ref={ref}
           style={{
-            width: "100%",
+            width: wrapperWidth,
             margin: "0 auto",
             padding: wrapperPadding,
             boxSizing: "border-box",
