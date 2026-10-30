@@ -167,3 +167,24 @@
   z-index: 1000;
   pointer-events: none; /* Allows clicks to pass through */
 }
+
+
+/* Analytics page: calmer tables. Scoped to .analytics-skin so no other page changes. */
+.analytics-skin table thead th {
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.analytics-skin table tbody tr {
+  transition: background-color 120ms ease;
+}
+.analytics-skin table tbody tr:hover {
+  background: #f8fafc;
+}
+.analytics-skin table td {
+  font-variant-numeric: tabular-nums;
+}

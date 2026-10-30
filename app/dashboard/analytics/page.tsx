@@ -1,13 +1,24 @@
 'use client'
 
 import { API_BASE } from "@/lib/api-base"
-import { fetchWithBackgroundRefresh, withResolvers } from "@/lib/api-cache"
+import { fetchWithBackgroundRefresh, invalidateFreshCache, withResolvers } from "@/lib/api-cache"
 import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { differenceInCalendarDays, endOfDay, format, startOfDay, subDays } from 'date-fns'
 import { formatDisplayDate, formatDisplayDateTime } from '@/app/utils/formatDate'
 import AttendanceEmployees from '@/components/attendance-employees'
+import AnalyticsOrders from '@/components/analytics-orders'
+import AnalyticsReplacements from '@/components/analytics-replacements'
+import {
+  AXIS_PROPS,
+  CHART_PALETTE,
+  GRID_STROKE,
+  LEGEND_PROPS,
+  MetricCard,
+  TOOLTIP_PROPS,
+  TabSkeleton,
+} from '@/components/analytics-ui'
 import * as XLSX from 'xlsx'
 import {
   AlertTriangle,
@@ -29,6 +40,8 @@ import {
   Store,
   TrendingDown,
   TrendingUp,
+  Truck,
+  Repeat2,
   Users,
 } from 'lucide-react'
 import {
@@ -255,27 +268,29 @@ interface MetricSummary {
   avgBill: number
 }
 
-const CHART_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#f97316', '#dc2626', '#7c3aed']
+const CHART_COLORS = CHART_PALETTE
 const LOW_STOCK_THRESHOLD = 10
 const RETURN_IMPACT_STATUSES = new Set(['approved', 'completed'])
 // Cancelled/voided bills are not sales and must be excluded from every metric.
 const CANCELLED_BILL_STATUSES = new Set(['cancelled', 'canceled', 'void', 'voided'])
 const isCancelledBill = (bill: any): boolean =>
   CANCELLED_BILL_STATUSES.has(String(bill?.status || '').trim().toLowerCase())
-const PANEL_CARD_CLASS = 'border-slate-200/80 shadow-sm bg-white/90 backdrop-blur'
-const KPI_CARD_CLASS =
-  'relative overflow-hidden border-slate-200/80 shadow-sm bg-gradient-to-br from-white to-slate-50'
-const RANGE_PRESETS = [30, 45, 90, 150, 365] as const
+const PANEL_CARD_CLASS = 'rounded-2xl border-slate-200/70 bg-white shadow-sm'
+const KPI_CARD_CLASS = 'relative overflow-hidden rounded-2xl border-slate-200/70 bg-white shadow-sm'
+const RANGE_PRESETS = [15, 30, 45, 90, 150, 365] as const
+
+type SourceKey = 'bills' | 'stores' | 'products' | 'returns' | 'batches' | 'orders'
 
 type TabValue =
   | 'overview'
+  | 'orders'
   | 'revenue'
   | 'stores'
   | 'products'
   | 'profit'
   | 'batches'
   | 'inventory'
-  | 'returns'
+  | 'replacements'
   | 'employees'
 
 const formatCurrency = (value: number): string =>
@@ -339,6 +354,38 @@ const getEffectiveBillTotal = (bill: Bill): number => {
     return bill.replacementFinalAmount || 0
   }
   return bill.total || 0
+}
+
+// Whole catalog via /api/products/page (stable order), retrying each page.
+// Throws if a page keeps failing or the count doesn't match the server's total,
+// so the caller never mistakes a partial list for the full catalog.
+const fetchAllProductPages = async (): Promise<any[]> => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+  const pageSize = 500
+  const rows: any[] = []
+  let total: number | null = null
+  for (let page = 1; page <= 200; page += 1) {
+    let body: any = null
+    for (let attempt = 0; attempt < 3 && !body; attempt += 1) {
+      try {
+        const response = await fetch(`${API_BASE}/api/products/page?page=${page}&page_size=${pageSize}`, { headers })
+        if (response.ok) body = await response.json()
+        else console.warn(`[analytics] products page ${page} attempt ${attempt + 1}: HTTP ${response.status}`, (await response.text()).slice(0, 300))
+      } catch (error) {
+        console.warn(`[analytics] products page ${page} attempt ${attempt + 1} threw`, error)
+      }
+      if (!body) await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)))
+    }
+    if (!body) throw new Error(`products page ${page} failed`)
+    rows.push(...(Array.isArray(body.data) ? body.data : []))
+    if (typeof body.total === 'number') total = body.total
+    if (!body.hasMore) break
+  }
+  if (total !== null && new Set(rows.map((row) => row?.id)).size < total) {
+    throw new Error(`products incomplete: ${rows.length}/${total}`)
+  }
+  return rows
 }
 
 const normalizeStores = (rawStores: any[]): StoreRecord[] => {
@@ -780,107 +827,6 @@ const appendTotalRow = (
   return [...rows, totalRow]
 }
 
-type AccentColor = 'blue' | 'emerald' | 'amber' | 'violet' | 'rose' | 'sky'
-
-const ACCENT_STYLES: Record<AccentColor, { bar: string; iconBg: string; cardBg: string }> = {
-  blue: {
-    bar: 'bg-gradient-to-b from-blue-500 to-sky-400',
-    iconBg: 'bg-blue-50 text-blue-700',
-    cardBg: 'from-blue-50/40 to-white',
-  },
-  emerald: {
-    bar: 'bg-gradient-to-b from-emerald-500 to-green-400',
-    iconBg: 'bg-emerald-50 text-emerald-700',
-    cardBg: 'from-emerald-50/40 to-white',
-  },
-  amber: {
-    bar: 'bg-gradient-to-b from-amber-500 to-orange-400',
-    iconBg: 'bg-amber-50 text-amber-700',
-    cardBg: 'from-amber-50/40 to-white',
-  },
-  violet: {
-    bar: 'bg-gradient-to-b from-violet-500 to-purple-400',
-    iconBg: 'bg-violet-50 text-violet-700',
-    cardBg: 'from-violet-50/40 to-white',
-  },
-  rose: {
-    bar: 'bg-gradient-to-b from-rose-500 to-pink-400',
-    iconBg: 'bg-rose-50 text-rose-700',
-    cardBg: 'from-rose-50/40 to-white',
-  },
-  sky: {
-    bar: 'bg-gradient-to-b from-sky-500 to-cyan-400',
-    iconBg: 'bg-sky-50 text-sky-700',
-    cardBg: 'from-sky-50/40 to-white',
-  },
-}
-
-interface MetricCardProps {
-  title: string
-  value: string
-  icon: React.ReactNode
-  change?: number | null
-  subtitle?: string
-  accent?: AccentColor
-  progress?: number
-}
-
-const MetricCard = ({
-  title,
-  value,
-  icon,
-  change,
-  subtitle,
-  accent = 'blue',
-  progress,
-}: MetricCardProps) => {
-  const styles = ACCENT_STYLES[accent]
-  return (
-    <Card
-      className={`relative overflow-hidden border-slate-200/80 shadow-sm bg-gradient-to-br ${styles.cardBg} transition-shadow hover:shadow-md`}
-    >
-      <div className={`absolute left-0 top-0 h-full w-1 ${styles.bar}`} />
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2 pl-4">
-        <CardTitle className="text-xs font-medium uppercase tracking-wide text-slate-600">
-          {title}
-        </CardTitle>
-        <div className={`rounded-md p-1.5 ${styles.iconBg}`}>{icon}</div>
-      </CardHeader>
-      <CardContent className="pl-4">
-        <div className="text-2xl font-bold tracking-tight break-all leading-tight text-slate-900">
-          {value}
-        </div>
-        {subtitle && (
-          <p className="mt-1 text-xs font-medium text-slate-500">{subtitle}</p>
-        )}
-        {typeof progress === 'number' && (
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-            <div
-              className={`h-full ${styles.bar}`}
-              style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
-            />
-          </div>
-        )}
-        {change !== undefined && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            {change === null && 'No previous period data'}
-            {change !== null && change === 0 && 'No change vs previous period'}
-            {change !== null && change > 0 && (
-              <span className="text-green-600">
-                <TrendingUp className="mr-1 inline h-3 w-3" />+{change}% vs previous period
-            </span>
-          )}
-          {change !== null && change < 0 && (
-            <span className="text-red-600">
-              <TrendingDown className="mr-1 inline h-3 w-3" />{change}% vs previous period
-            </span>
-          )}
-        </p>
-      )}
-    </CardContent>
-  </Card>
-  )
-}
 
 export default function AnalyticsPage() {
   const router = useRouter()
@@ -892,6 +838,7 @@ export default function AnalyticsPage() {
   const [products, setProducts] = useState<ProductRecord[]>([])
   const [returns, setReturns] = useState<ReturnItem[]>([])
   const [batches, setBatches] = useState<BatchRecord[]>([])
+  const [orders, setOrders] = useState<any[]>([])
   const [selectedStore, setSelectedStore] = useState('all')
   const [selectedDaysPreset, setSelectedDaysPreset] = useState('30')
   const [rangeFrom, setRangeFrom] = useState(format(subDays(new Date(), 29), 'yyyy-MM-dd'))
@@ -900,6 +847,20 @@ export default function AnalyticsPage() {
   const [exportStore, setExportStore] = useState('all')
   const [activeTab, setActiveTab] = useState<TabValue>('overview')
   const [loading, setLoading] = useState(true)
+  // Which data sources have delivered at least once, so each card can show its
+  // own loading state instead of the whole page waiting on the slowest request.
+  const [loaded, setLoaded] = useState<Record<SourceKey, boolean>>({
+    bills: false,
+    stores: false,
+    products: false,
+    returns: false,
+    batches: false,
+    orders: false,
+  })
+  const markLoaded = useCallback(
+    (key: SourceKey) => setLoaded((prev) => (prev[key] ? prev : { ...prev, [key]: true })),
+    [],
+  )
   const [isOfflineFallback, setIsOfflineFallback] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -940,29 +901,54 @@ export default function AnalyticsPage() {
           setBills(normalized.filter((bill) => !isCancelledBill(bill)))
           setCancelledBills(normalized.filter((bill) => isCancelledBill(bill)))
           staleBy.set("bills", r.source === "cache")
-        }, () => staleBy.set("bills", true)),
+          if (r.source !== 'cache') markLoaded('bills')
+        }, () => { staleBy.set("bills", true); markLoaded('bills') }),
         fetchWithBackgroundRefresh<any>("/api/stores", (r) => {
           setStores(normalizeStores(Array.isArray(r.data) ? r.data : []))
           staleBy.set("stores", r.source === "cache")
-        }, () => staleBy.set("stores", true)),
-        fetchWithBackgroundRefresh<any>("/api/products", (r) => {
-          setProducts(normalizeProducts(Array.isArray(r.data) ? r.data : []))
-          staleBy.set("products", r.source === "cache")
-        }, () => staleBy.set("products", true)),
+          if (r.source !== 'cache') markLoaded('stores')
+        }, () => { staleBy.set("stores", true); markLoaded('stores') }),
+        // /api/products has been returning a truncated catalog (cost prices for the
+        // missing products count as 0, inflating profit), so read it page by page
+        // and only fall back to the single-shot endpoint if paging fails.
+        fetchAllProductPages()
+          .then((all) => {
+            setProducts(normalizeProducts(all))
+            staleBy.set("products", false)
+            markLoaded('products')
+          })
+          .catch(() =>
+            fetchWithBackgroundRefresh<any>("/api/products", (r) => {
+              setProducts(normalizeProducts(Array.isArray(r.data) ? r.data : []))
+              staleBy.set("products", r.source === "cache")
+              if (r.source !== 'cache') markLoaded('products')
+            }, () => { staleBy.set("products", true); markLoaded('products') }),
+          )
+          .catch(() => { staleBy.set("products", true); markLoaded('products') }),
         fetchWithBackgroundRefresh<any>("/api/returns", (r) => {
           setReturns(normalizeReturns(Array.isArray(r.data) ? r.data : []))
           staleBy.set("returns", r.source === "cache")
-        }, () => staleBy.set("returns", true)),
+          if (r.source !== 'cache') markLoaded('returns')
+        }, () => { staleBy.set("returns", true); markLoaded('returns') }),
         fetchWithBackgroundRefresh<any>("/api/batches", (r) => {
           setBatches(normalizeBatches(Array.isArray(r.data) ? r.data : []))
           staleBy.set("batches", r.source === "cache")
-        }, () => staleBy.set("batches", true)).catch(() => {}),
+          if (r.source !== 'cache') markLoaded('batches')
+        }, () => { staleBy.set("batches", true); markLoaded('batches') }).catch(() => {}),
+        // Same path the Orders page uses, so the shared freshness cache serves
+        // whichever page loads second. Non-fatal: the other tabs don't need it.
+        fetchWithBackgroundRefresh<any>("/api/orders?storeId=all&limit=1000", (r) => {
+          setOrders(Array.isArray(r.data) ? r.data : [])
+          staleBy.set("orders", r.source === "cache")
+          if (r.source !== 'cache') markLoaded('orders')
+        }, () => { staleBy.set("orders", true); markLoaded('orders') }).catch(() => {}),
       ])
       setLastUpdated(new Date())
     } catch (error) {
       console.error('Failed to load analytics data', error)
     } finally {
       setLoading(false)
+      setLoaded({ bills: true, stores: true, products: true, returns: true, batches: true, orders: true })
     }
   }, [backendUrl])
 
@@ -972,6 +958,20 @@ export default function AnalyticsPage() {
     }
   }, [authChecked, fetchAllData])
   useBackgroundPoll(() => fetchAllData(true), 60_000, authChecked)
+
+  // A manual refresh should really refetch. Without this, fetchWithBackgroundRefresh
+  // hands back the in-page copy fetched under 45s ago and the button appears to do nothing.
+  const refreshNow = useCallback(() => {
+    ;[
+      '/api/bills',
+      '/api/stores',
+      '/api/products',
+      '/api/returns',
+      '/api/batches',
+      '/api/orders?storeId=all&limit=1000',
+    ].forEach(invalidateFreshCache)
+    return fetchAllData()
+  }, [fetchAllData])
 
   const dateWindows = useMemo(() => {
     const now = new Date()
@@ -1543,11 +1543,14 @@ export default function AnalyticsPage() {
   }, [inventoryAnalytics, products])
 
   const currentProfitSummary = useMemo(() => {
-    let revenue = 0
+    // Revenue is the same figure as the Revenue card (sum of bill totals), so
+    // profit is always Revenue - COGS. COGS only covers lines tied to a product.
+    const revenue = summarizeBills(filteredBills).revenue
     let cogs = 0
+    let unpricedProducts = 0
     currentSalesMap.forEach((stats) => {
-      revenue += stats.revenue
       cogs += stats.cogs
+      if (!(stats.costPrice > 0)) unpricedProducts += 1
     })
     const profit = revenue - cogs
     return {
@@ -1555,8 +1558,9 @@ export default function AnalyticsPage() {
       cogs,
       profit,
       marginPct: revenue > 0 ? (profit / revenue) * 100 : 0,
+      unpricedProducts,
     }
-  }, [currentSalesMap])
+  }, [currentSalesMap, filteredBills])
 
   // Inventory turnover: how many times stock "turned over" (sold and was
   // replaced) during the selected date range. No historical stock snapshots
@@ -1579,12 +1583,11 @@ export default function AnalyticsPage() {
   }, [currentProfitSummary, inventorySummary, dateWindows])
 
   const previousProfitSummary = useMemo(() => {
-    let revenue = 0
+    const revenue = summarizeBills(previousPeriodBills).revenue
     let cogs = 0
     previousPeriodBills.forEach((bill) => {
       bill.items.forEach((item) => {
         if (!item.productId) return
-        revenue += item.total
         const cost = productCostMap.get(item.productId) || 0
         cogs += cost * item.quantity
       })
@@ -2063,15 +2066,42 @@ export default function AnalyticsPage() {
     setRangeFrom(format(subDays(endDate, Math.max(days - 1, 0)), 'yyyy-MM-dd'))
   }, [])
 
+  // "Lifetime" = from the earliest bill / order / return we have data for, to today.
+  const earliestDataDate = useMemo(() => {
+    let earliest = Number.POSITIVE_INFINITY
+    const consider = (value: unknown) => {
+      const time = value ? new Date(String(value)).getTime() : Number.NaN
+      if (Number.isFinite(time) && time < earliest) earliest = time
+    }
+    bills.forEach((bill) => consider(bill.createdAt || bill.timestamp))
+    cancelledBills.forEach((bill) => consider(bill.createdAt || bill.timestamp))
+    returns.forEach((item) => consider(item.createdAt))
+    orders.forEach((order) => consider(order?.createdAt ?? order?.created_at))
+    return Number.isFinite(earliest) ? new Date(earliest) : subDays(new Date(), 365)
+  }, [bills, cancelledBills, returns, orders])
+
+  const applyLifetimeRange = useCallback(() => {
+    setRangeFrom(format(earliestDataDate, 'yyyy-MM-dd'))
+    setRangeTo(format(new Date(), 'yyyy-MM-dd'))
+  }, [earliestDataDate])
+
   const handleMainPresetChange = useCallback(
     (value: string) => {
       setSelectedDaysPreset(value)
-      if (value !== 'custom') {
+      if (value === 'lifetime') {
+        applyLifetimeRange()
+      } else if (value !== 'custom') {
         applyPresetRange(Number(value))
       }
     },
-    [applyPresetRange],
+    [applyPresetRange, applyLifetimeRange],
   )
+
+  // Data arrives piece by piece, so keep a selected Lifetime range pinned to the
+  // earliest date as more of it loads.
+  useEffect(() => {
+    if (selectedDaysPreset === 'lifetime') applyLifetimeRange()
+  }, [selectedDaysPreset, applyLifetimeRange])
 
   // Stores / Batches / Inventory show global (cross-store) data, so they are
   // hidden when a single store is selected — kick back to Overview if needed.
@@ -2927,7 +2957,7 @@ export default function AnalyticsPage() {
     inventoryAnalytics,
   ])
 
-  if (!authChecked || loading) {
+  if (!authChecked) {
     return (
       <DashboardLayout>
         <div className="flex h-screen items-center justify-center">
@@ -2937,51 +2967,60 @@ export default function AnalyticsPage() {
     )
   }
 
+  const coreReady = loaded.bills && loaded.stores && loaded.products && loaded.returns
+
   return (
     <DashboardLayout>
-      <div className="space-y-6 p-6 max-w-full overflow-x-auto bg-gradient-to-b from-slate-50/70 to-white">
+      <div className="analytics-skin space-y-6 px-6 py-6 lg:px-8 max-w-full overflow-x-auto bg-slate-50/60">
         {isOfflineFallback && (
           <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800" aria-live="polite">
             Showing analytics data from the last sync — no connection right now.
           </div>
         )}
-        <Card className="border-slate-200/80 bg-gradient-to-r from-sky-50 to-emerald-50 shadow-md">
-          <CardContent className="p-5">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-              <div>
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Advanced Analytics</h1>
-                <p className="text-sm text-slate-600">
-                  Deep reporting with sales breakdown, store performance, inventory valuation, and audit-ready exports.
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {`Showing ${selectedRangeDays} day window (${format(
-                    dateWindows.currentStart,
-                    'dd MMM yyyy',
-                  )} - ${format(
-                    dateWindows.currentEnd,
-                    'dd MMM yyyy',
-                  )}) | Store: ${selectedStoreName}`}
-                </p>
-              </div>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Analytics</h1>
+            <p className="mt-0.5 text-sm text-slate-500">
+              {`${format(dateWindows.currentStart, 'dd MMM')} – ${format(
+                dateWindows.currentEnd,
+                'dd MMM yyyy',
+              )}  ·  ${selectedStoreName}  ·  Data loaded ${
+                lastUpdated ? format(lastUpdated, 'hh:mm:ss a') : '...'
+              }`}
+            </p>
+          </div>
 
-              <div className="flex flex-wrap gap-2">
-                <Select
-                  value={selectedDaysPreset}
-                  onValueChange={handleMainPresetChange}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-xl border border-slate-200/70 bg-white p-1 shadow-sm">
+              {(
+                [
+                  ['15', '15D'],
+                  ['30', '30D'],
+                  ['45', '45D'],
+                  ['90', '90D'],
+                  ['150', '150D'],
+                  ['365', '1Y'],
+                  ['lifetime', 'Lifetime'],
+                  ['custom', 'Custom'],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => handleMainPresetChange(value)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    selectedDaysPreset === value
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
                 >
-                  <SelectTrigger className="w-[150px] border-slate-300 bg-white text-slate-800">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="30">Last 30 Days</SelectItem>
-                    <SelectItem value="45">Last 45 Days</SelectItem>
-                    <SelectItem value="90">Last 90 Days</SelectItem>
-                    <SelectItem value="150">Last 150 Days</SelectItem>
-                    <SelectItem value="365">Last 365 Days</SelectItem>
-                    <SelectItem value="custom">Custom</SelectItem>
-                  </SelectContent>
-                </Select>
+                  {label}
+                </button>
+              ))}
+            </div>
 
+            {selectedDaysPreset === 'custom' && (
+              <>
                 <Input
                   type="date"
                   value={rangeFrom}
@@ -2989,9 +3028,8 @@ export default function AnalyticsPage() {
                     setRangeFrom(e.target.value)
                     setSelectedDaysPreset('custom')
                   }}
-                  className="w-[170px] border-slate-300 bg-white text-slate-800"
+                  className="h-9 w-[150px] rounded-xl border-slate-200 bg-white text-sm"
                 />
-
                 <Input
                   type="date"
                   value={rangeTo}
@@ -2999,51 +3037,87 @@ export default function AnalyticsPage() {
                     setRangeTo(e.target.value)
                     setSelectedDaysPreset('custom')
                   }}
-                  className="w-[170px] border-slate-300 bg-white text-slate-800"
+                  className="h-9 w-[150px] rounded-xl border-slate-200 bg-white text-sm"
                 />
+              </>
+            )}
 
-                <Select value={selectedStore} onValueChange={setSelectedStore}>
-                  <SelectTrigger className="w-[190px] border-slate-300 bg-white text-slate-800">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Stores</SelectItem>
-                    {stores.map((store) => (
-                      <SelectItem key={store.id} value={store.id}>
-                        <div>
-                          <span>{store.name}</span>
-                          {store.address && (
-                            <span className="ml-2 text-xs text-muted-foreground">{store.address}</span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <Select value={selectedStore} onValueChange={setSelectedStore}>
+              <SelectTrigger className="h-9 w-[210px] rounded-xl border-slate-200/70 bg-white text-sm shadow-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stores</SelectItem>
+                {stores.map((store) => (
+                  <SelectItem key={store.id} value={store.id}>
+                    <div>
+                      <span>{store.name}</span>
+                      {store.address && (
+                        <span className="ml-2 text-xs text-muted-foreground">{store.address}</span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-                <Button
-                  variant="outline"
-                  onClick={() => fetchAllData()}
-                  className="border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Refresh data"
+              title="Refresh data"
+              onClick={() => refreshNow()}
+              className="h-9 w-9 rounded-xl border-slate-200/70 bg-white shadow-sm"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+
+            <Button
+              onClick={() => {
+                setExportStore(selectedStore)
+                setExportDialogOpen(true)
+              }}
+              className="h-9 rounded-xl bg-indigo-600 px-4 text-sm text-white shadow-sm hover:bg-indigo-500"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+          </div>
+        </div>
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as TabValue)}
+          className="space-y-6"
+        >
+          <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-2xl border border-slate-200/70 bg-white p-1.5 shadow-sm">
+            {(
+              [
+                ['overview', 'Overview', BarChart3, true],
+                ['orders', 'Orders', Truck, true],
+                ['revenue', 'Revenue', DollarSign, true],
+                ['stores', 'Stores', Store, !isSingleStore],
+                ['products', 'Products', Package, true],
+                ['profit', 'Profit', TrendingUp, true],
+                ['batches', 'Batches', Layers, !isSingleStore],
+                ['inventory', 'Inventory', Boxes, !isSingleStore],
+                ['replacements', 'Replacements', Repeat2, true],
+                ['employees', 'Employees', Users, true],
+              ] as const
+            )
+              .filter(([, , , visible]) => visible)
+              .map(([value, label, Icon]) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="gap-2 rounded-xl px-3.5 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
                 >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh
-                </Button>
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </TabsTrigger>
+              ))}
+          </TabsList>
 
-                <Button
-                  onClick={() => {
-                    setExportStore(selectedStore)
-                    setExportDialogOpen(true)
-                  }}
-                  className="bg-emerald-500 text-slate-900 hover:bg-emerald-400"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export Full Excel
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
           <DialogContent className="sm:max-w-md">
@@ -3235,24 +3309,24 @@ export default function AnalyticsPage() {
 
                     <Card className="border-slate-200">
                       <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-sm">
+                        <CardTitle className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
                           <Store className="h-4 w-4" /> Sales by Store
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         <ResponsiveContainer width="100%" height={260}>
                           <BarChart data={dialogStoreStats} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" />
-                            <YAxis dataKey="storeName" type="category" width={140} />
-                            <Tooltip
+                            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                            <XAxis {...AXIS_PROPS} type="number" />
+                            <YAxis {...AXIS_PROPS} dataKey="storeName" type="category" width={140} />
+                            <Tooltip {...TOOLTIP_PROPS}
                               formatter={(value, name) =>
                                 name === 'Revenue' ? formatCurrency(Number(value)) : value
                               }
                             />
-                            <Legend />
-                            <Bar dataKey="quantity" fill="#2563eb" name="Qty Sold" />
-                            <Bar dataKey="revenue" fill="#16a34a" name="Revenue" />
+                            <Legend {...LEGEND_PROPS} />
+                            <Bar dataKey="quantity" fill="#4f46e5" name="Qty Sold" />
+                            <Bar dataKey="revenue" fill="#10b981" name="Revenue" />
                           </BarChart>
                         </ResponsiveContainer>
 
@@ -3397,7 +3471,7 @@ export default function AnalyticsPage() {
                 {/* Per-variant breakdown (different barcodes / batches) */}
                 <Card className="border-slate-200">
                   <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-sm">
+                    <CardTitle className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
                       <Package className="h-4 w-4" /> Variants in this product
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">
@@ -3483,24 +3557,24 @@ export default function AnalyticsPage() {
 
                     <Card className="border-slate-200">
                       <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-sm">
+                        <CardTitle className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
                           <Store className="h-4 w-4" /> Sales by Store
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         <ResponsiveContainer width="100%" height={260}>
                           <BarChart data={dialogGroupStoreStats} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" />
-                            <YAxis dataKey="storeName" type="category" width={140} />
-                            <Tooltip
+                            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                            <XAxis {...AXIS_PROPS} type="number" />
+                            <YAxis {...AXIS_PROPS} dataKey="storeName" type="category" width={140} />
+                            <Tooltip {...TOOLTIP_PROPS}
                               formatter={(value, name) =>
                                 name === 'Revenue' ? formatCurrency(Number(value)) : value
                               }
                             />
-                            <Legend />
-                            <Bar dataKey="quantity" fill="#2563eb" name="Qty Sold" />
-                            <Bar dataKey="revenue" fill="#16a34a" name="Revenue" />
+                            <Legend {...LEGEND_PROPS} />
+                            <Bar dataKey="quantity" fill="#4f46e5" name="Qty Sold" />
+                            <Bar dataKey="revenue" fill="#10b981" name="Revenue" />
                           </BarChart>
                         </ResponsiveContainer>
 
@@ -3649,7 +3723,7 @@ export default function AnalyticsPage() {
 
                 <Card className="border-emerald-200 bg-emerald-50/30">
                   <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-sm text-emerald-800">
+                    <CardTitle className="flex items-center gap-2 text-emerald-800 text-[15px] font-semibold">
                       <TrendingUp className="h-4 w-4" /> Top Sellers in this Batch
                     </CardTitle>
                   </CardHeader>
@@ -3699,7 +3773,7 @@ export default function AnalyticsPage() {
                 {dialogBatchProducts.sold.length > 1 && (
                   <Card className="border-amber-200 bg-amber-50/30">
                     <CardHeader className="pb-2">
-                      <CardTitle className="flex items-center gap-2 text-sm text-amber-800">
+                      <CardTitle className="flex items-center gap-2 text-amber-800 text-[15px] font-semibold">
                         <TrendingDown className="h-4 w-4" /> Slowest Movers (sold but few units)
                       </CardTitle>
                     </CardHeader>
@@ -3743,7 +3817,7 @@ export default function AnalyticsPage() {
                 {dialogBatchProducts.unsold.length > 0 && (
                   <Card className="border-rose-200 bg-rose-50/30">
                     <CardHeader className="pb-2">
-                      <CardTitle className="flex items-center gap-2 text-sm text-rose-800">
+                      <CardTitle className="flex items-center gap-2 text-rose-800 text-[15px] font-semibold">
                         <Boxes className="h-4 w-4" /> Not Sold in this Period (
                         {dialogBatchProducts.unsold.length})
                       </CardTitle>
@@ -3804,10 +3878,10 @@ export default function AnalyticsPage() {
           </DialogContent>
         </Dialog>
 
+        <TabsContent value="overview" className="space-y-6">
         <section className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className="h-5 w-1.5 rounded-full bg-gradient-to-b from-blue-500 to-sky-400" />
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+            <h2 className="text-[13px] font-semibold tracking-wide text-slate-900">
               Sales Performance
             </h2>
             <span className="text-xs text-slate-500">
@@ -3817,6 +3891,8 @@ export default function AnalyticsPage() {
           <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
             <MetricCard
               title="Revenue"
+              loading={!loaded.bills}
+              spark={dailyStats.map((day) => day.revenue)}
               value={formatCurrency(currentSummary.revenue)}
               icon={<DollarSign className="h-4 w-4" />}
               change={revenueChange}
@@ -3825,6 +3901,8 @@ export default function AnalyticsPage() {
             />
             <MetricCard
               title="Bills"
+              loading={!loaded.bills}
+              spark={dailyStats.map((day) => day.bills)}
               value={currentSummary.bills.toLocaleString('en-IN')}
               icon={<ShoppingCart className="h-4 w-4" />}
               change={billsChange}
@@ -3833,6 +3911,7 @@ export default function AnalyticsPage() {
             />
             <MetricCard
               title="Items Sold"
+              loading={!loaded.bills}
               value={currentSummary.items.toLocaleString('en-IN')}
               icon={<Package className="h-4 w-4" />}
               change={itemsChange}
@@ -3841,6 +3920,7 @@ export default function AnalyticsPage() {
             />
             <MetricCard
               title="Customers"
+              loading={!loaded.bills}
               value={currentSummary.customers.toLocaleString('en-IN')}
               icon={<Users className="h-4 w-4" />}
               change={customerChange}
@@ -3853,6 +3933,7 @@ export default function AnalyticsPage() {
             />
             <MetricCard
               title="Average Bill"
+              loading={!loaded.bills}
               value={formatCurrency(currentSummary.avgBill)}
               icon={<Calendar className="h-4 w-4" />}
               subtitle={
@@ -3867,8 +3948,7 @@ export default function AnalyticsPage() {
 
         <section className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className="h-5 w-1.5 rounded-full bg-gradient-to-b from-emerald-500 to-green-400" />
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+            <h2 className="text-[13px] font-semibold tracking-wide text-slate-900">
               Profitability
             </h2>
             <span className="text-xs text-slate-500">
@@ -3878,6 +3958,8 @@ export default function AnalyticsPage() {
           <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
             <MetricCard
               title="Cost of Goods Sold"
+              loading={!(loaded.bills && loaded.products)}
+              invertDelta
               value={formatCurrency(currentProfitSummary.cogs)}
               icon={<Package className="h-4 w-4" />}
               change={cogsChange}
@@ -3887,6 +3969,7 @@ export default function AnalyticsPage() {
             />
             <MetricCard
               title="Total Profit"
+              loading={!(loaded.bills && loaded.products)}
               value={formatCurrency(currentProfitSummary.profit)}
               icon={<TrendingUp className="h-4 w-4" />}
               change={profitChange}
@@ -3895,12 +3978,17 @@ export default function AnalyticsPage() {
             />
             <MetricCard
               title="Profit Margin"
+              loading={!(loaded.bills && loaded.products)}
               value={`${currentProfitSummary.marginPct.toFixed(1)}%`}
               icon={<Percent className="h-4 w-4" />}
               change={marginChange}
-              subtitle={`${formatCurrency(currentProfitSummary.profit)} earned on ${formatCurrency(
-                currentProfitSummary.revenue,
-              )}`}
+              subtitle={
+                currentProfitSummary.unpricedProducts > 0
+                  ? `${currentProfitSummary.unpricedProducts} sold product(s) have no cost price, so profit may be overstated`
+                  : `${formatCurrency(currentProfitSummary.profit)} earned on ${formatCurrency(
+                      currentProfitSummary.revenue,
+                    )}`
+              }
               accent="emerald"
               progress={currentProfitSummary.marginPct}
             />
@@ -3909,8 +3997,7 @@ export default function AnalyticsPage() {
 
         <section className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className="h-5 w-1.5 rounded-full bg-gradient-to-b from-violet-500 to-purple-400" />
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+            <h2 className="text-[13px] font-semibold tracking-wide text-slate-900">
               Adjustments &amp; Net Position
             </h2>
             <span className="text-xs text-slate-500">
@@ -3920,6 +4007,7 @@ export default function AnalyticsPage() {
           <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
             <MetricCard
               title="Replacement Amount"
+              loading={!loaded.bills}
               value={formatCurrency(currentReplacementAmount)}
               icon={<RefreshCw className="h-4 w-4" />}
               change={replacementChange}
@@ -3930,6 +4018,8 @@ export default function AnalyticsPage() {
             />
             <MetricCard
               title="Returns Amount"
+              loading={!(loaded.bills && loaded.returns)}
+              invertDelta
               value={formatCurrency(currentReturnsAmount)}
               icon={<TrendingDown className="h-4 w-4" />}
               change={returnsAmountChange}
@@ -3941,6 +4031,7 @@ export default function AnalyticsPage() {
             />
             <MetricCard
               title="Net Revenue"
+              loading={!(loaded.bills && loaded.returns)}
               value={formatCurrency(currentNetRevenue)}
               icon={<DollarSign className="h-4 w-4" />}
               change={netRevenueChange}
@@ -3950,6 +4041,8 @@ export default function AnalyticsPage() {
             />
             <MetricCard
               title="Cancelled Bills"
+              loading={!loaded.bills}
+              invertDelta
               value={formatCurrency(cancelledSummary.amount)}
               icon={<Ban className="h-4 w-4" />}
               change={cancelledAmountChange}
@@ -3959,196 +4052,18 @@ export default function AnalyticsPage() {
           </div>
         </section>
 
-        <div className={`grid gap-4 ${isSingleStore ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
-          <Card className={PANEL_CARD_CLASS}>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <BarChart3 className="h-4 w-4 text-blue-600" />
-                Data Coverage
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Bills (selected)</span>
-                <span className="font-medium">{filteredBills.length}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Bills (previous)</span>
-                <span className="font-medium">{previousPeriodBills.length}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Cancelled bills (selected)</span>
-                <span className="font-medium text-rose-600">
-                  {cancelledSummary.count} · {formatCurrency(cancelledSummary.amount)}
-                </span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Replacement amount</span>
-                <span className="font-medium">{formatCurrency(currentReplacementAmount)}</span>
-              </div>
-              <div
-                className={`flex justify-between ${isSingleStore ? '' : 'border-b border-slate-100 pb-1.5'}`}
-              >
-                <span className="text-muted-foreground">Net after returns</span>
-                <span className="font-medium text-emerald-700">{formatCurrency(currentNetRevenue)}</span>
-              </div>
-              {!isSingleStore && (
-                <>
-                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                    <span className="text-muted-foreground">Products</span>
-                    <span className="font-medium">{products.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Stores</span>
-                    <span className="font-medium">{stores.length}</span>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {!isSingleStore && (
-          <Card className={PANEL_CARD_CLASS}>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Package className="h-4 w-4 text-emerald-600" />
-                Inventory Snapshot
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Total cost value</span>
-                <span className="font-medium">{formatCurrency(inventorySummary.totalCostValue)}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Potential sales</span>
-                <span className="font-medium">{formatCurrency(inventorySummary.totalPotentialSalesValue)}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Potential profit</span>
-                <span className="font-medium text-emerald-700">{formatCurrency(inventorySummary.totalPotentialProfit)}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Non-selling (90d)</span>
-                <span className="font-medium text-amber-700">{nonSellingProducts90Days.length}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Low stock</span>
-                <span className="font-medium text-amber-700">{inventorySummary.lowStockCount}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Out of stock</span>
-                <span className="font-medium text-red-600">{inventorySummary.outOfStockCount}</span>
-              </div>
-              <div
-                className="flex justify-between border-b border-slate-100 pb-1.5"
-                title="Estimated from current stock value vs. cost of goods sold in the selected range, annualized. Not based on a period-average inventory snapshot."
-              >
-                <span className="text-muted-foreground">Inventory turnover (annualized)</span>
-                <span className="font-medium">
-                  {turnoverMetrics.annualizedTurnover !== null
-                    ? `${turnoverMetrics.annualizedTurnover.toFixed(1)}x / yr`
-                    : 'N/A'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Days of stock remaining</span>
-                <span className="font-medium">
-                  {turnoverMetrics.daysOfStockRemaining !== null
-                    ? `${turnoverMetrics.daysOfStockRemaining.toFixed(0)}d`
-                    : 'N/A'}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-          )}
-
-          <Card className={PANEL_CARD_CLASS}>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Store className="h-4 w-4 text-violet-600" />
-                System Snapshot
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Selected store</span>
-                <span className="font-medium truncate max-w-[60%] text-right">{selectedStoreName}</span>
-              </div>
-              {!isSingleStore && (
-                <>
-                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                    <span className="text-muted-foreground">Active stores</span>
-                    <span className="font-medium">{stores.filter((store) => store.status !== 'inactive').length}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                    <span className="text-muted-foreground">Inactive stores</span>
-                    <span className="font-medium text-amber-700">{stores.filter((store) => store.status === 'inactive').length}</span>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-muted-foreground">Pending returns</span>
-                <span className="font-medium text-amber-700">
-                  {returns.filter(
-                    (item) =>
-                      item.status === 'pending' &&
-                      (!isSingleStore || item.storeId === selectedStore),
-                  ).length}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Last updated</span>
-                <span className="font-medium text-xs">{formatDisplayDateTime(lastUpdated, 'N/A')}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)}>
-          <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-            <TabsTrigger value="overview" className="rounded-lg">
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="revenue" className="rounded-lg">
-              Revenue
-            </TabsTrigger>
-            {!isSingleStore && (
-              <TabsTrigger value="stores" className="rounded-lg">
-                Stores
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="products" className="rounded-lg">
-              Products
-            </TabsTrigger>
-            <TabsTrigger value="profit" className="rounded-lg">
-              Profit
-            </TabsTrigger>
-            {!isSingleStore && (
-              <TabsTrigger value="batches" className="rounded-lg">
-                Batches
-              </TabsTrigger>
-            )}
-            {!isSingleStore && (
-              <TabsTrigger value="inventory" className="rounded-lg">
-                Inventory
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="returns" className="rounded-lg">
-              Returns
-            </TabsTrigger>
-            <TabsTrigger value="employees" className="rounded-lg">
-              Employees
-            </TabsTrigger>
-          </TabsList>
+        </TabsContent>
 
           <TabsContent value="overview" className="space-y-4">
+          {!(coreReady) ? (
+            <TabSkeleton />
+          ) : (
+          <>
             <div
               className={`grid gap-3 md:grid-cols-2 ${isSingleStore ? 'xl:grid-cols-3' : 'xl:grid-cols-4'}`}
             >
               {!isSingleStore && (
-                <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
+                <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
@@ -4168,7 +4083,7 @@ export default function AnalyticsPage() {
                 </Card>
               )}
 
-              <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white">
+              <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
@@ -4187,7 +4102,7 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white">
+              <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
@@ -4208,7 +4123,7 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-violet-200 bg-gradient-to-br from-violet-50 to-white">
+              <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
@@ -4232,7 +4147,7 @@ export default function AnalyticsPage() {
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle>Revenue Composition</CardTitle>
+                <CardTitle className="text-[15px] font-semibold text-slate-900">Revenue Composition</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-3 text-sm md:grid-cols-3">
                 <div className="rounded-md border border-violet-100 bg-violet-50/50 p-3">
@@ -4253,7 +4168,7 @@ export default function AnalyticsPage() {
             <div className="grid gap-4 lg:grid-cols-2">
               <Card className={PANEL_CARD_CLASS}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
                     <BarChart3 className="h-4 w-4" /> Daily Revenue Trend
                   </CardTitle>
                 </CardHeader>
@@ -4262,21 +4177,21 @@ export default function AnalyticsPage() {
                     <AreaChart data={dailyStats}>
                       <defs>
                         <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.7} />
-                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0.05} />
+                          <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.7} />
+                          <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.05} />
                         </linearGradient>
                         <linearGradient id="profitFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#16a34a" stopOpacity={0.5} />
-                          <stop offset="95%" stopColor="#16a34a" stopOpacity={0.05} />
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.5} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" tickFormatter={(value) => format(new Date(value), 'dd MMM')} />
-                      <YAxis />
-                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                      <Legend />
-                      <Area type="monotone" dataKey="revenue" stroke="#2563eb" fill="url(#revenueFill)" name="Revenue" />
-                      <Area type="monotone" dataKey="netRevenue" stroke="#16a34a" fill="url(#profitFill)" name="Net Revenue" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                      <XAxis {...AXIS_PROPS} dataKey="date" tickFormatter={(value) => format(new Date(value), 'dd MMM')} />
+                      <YAxis {...AXIS_PROPS} />
+                      <Tooltip {...TOOLTIP_PROPS} formatter={(value) => formatCurrency(Number(value))} />
+                      <Legend {...LEGEND_PROPS} />
+                      <Area type="monotone" dataKey="revenue" stroke="#4f46e5" fill="url(#revenueFill)" name="Revenue" />
+                      <Area type="monotone" dataKey="netRevenue" stroke="#10b981" fill="url(#profitFill)" name="Net Revenue" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -4284,17 +4199,17 @@ export default function AnalyticsPage() {
 
               <Card className={PANEL_CARD_CLASS}>
                 <CardHeader>
-                  <CardTitle>Top Trending Products</CardTitle>
+                  <CardTitle className="text-[15px] font-semibold text-slate-900">Top Trending Products</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={320}>
                     <BarChart data={topTrending.slice(0, 8)}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="productName" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="currentQty" fill="#16a34a" name="Current Qty" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                      <XAxis {...AXIS_PROPS} dataKey="productName" />
+                      <YAxis {...AXIS_PROPS} />
+                      <Tooltip {...TOOLTIP_PROPS} />
+                      <Legend {...LEGEND_PROPS} />
+                      <Bar dataKey="currentQty" fill="#10b981" name="Current Qty" />
                       <Bar dataKey="previousQty" fill="#94a3b8" name="Previous Qty" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -4305,7 +4220,7 @@ export default function AnalyticsPage() {
             {!isSingleStore && (
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle>Store Revenue Share</CardTitle>
+                <CardTitle className="text-[15px] font-semibold text-slate-900">Store Revenue Share</CardTitle>
                 <p className="text-xs text-muted-foreground">Each store&apos;s contribution to total revenue</p>
               </CardHeader>
               <CardContent>
@@ -4315,7 +4230,7 @@ export default function AnalyticsPage() {
                   <div className="grid gap-4 lg:grid-cols-2">
                     <ResponsiveContainer width="100%" height={300}>
                       <PieChart>
-                        <Pie
+                        <Pie stroke="none"
                           data={storeAnalytics.filter((s) => s.revenue > 0)}
                           dataKey="revenue"
                           nameKey="storeName"
@@ -4329,8 +4244,8 @@ export default function AnalyticsPage() {
                               <Cell key={entry.storeId} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                             ))}
                         </Pie>
-                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                        <Legend />
+                        <Tooltip {...TOOLTIP_PROPS} formatter={(value) => formatCurrency(Number(value))} />
+                        <Legend {...LEGEND_PROPS} />
                       </PieChart>
                     </ResponsiveContainer>
                     <Table>
@@ -4363,9 +4278,180 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
             )}
+                    </>
+          )}
+          </TabsContent>
+
+          <TabsContent value="overview" className="space-y-4">
+          {!(coreReady) ? (
+            <TabSkeleton />
+          ) : (
+          <>
+            <div className={`grid gap-4 ${isSingleStore ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+              <Card className={PANEL_CARD_CLASS}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
+                    <BarChart3 className="h-4 w-4 text-blue-600" />
+                    Data Coverage
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Bills (selected)</span>
+                    <span className="font-medium">{filteredBills.length}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Bills (previous)</span>
+                    <span className="font-medium">{previousPeriodBills.length}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Cancelled bills (selected)</span>
+                    <span className="font-medium text-rose-600">
+                      {cancelledSummary.count} · {formatCurrency(cancelledSummary.amount)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Replacement amount</span>
+                    <span className="font-medium">{formatCurrency(currentReplacementAmount)}</span>
+                  </div>
+                  <div
+                    className={`flex justify-between ${isSingleStore ? '' : 'border-b border-slate-100 pb-1.5'}`}
+                  >
+                    <span className="text-muted-foreground">Net after returns</span>
+                    <span className="font-medium text-emerald-700">{formatCurrency(currentNetRevenue)}</span>
+                  </div>
+                  {!isSingleStore && (
+                    <>
+                      <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                        <span className="text-muted-foreground">Products</span>
+                        <span className="font-medium">{products.length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Stores</span>
+                        <span className="font-medium">{stores.length}</span>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {!isSingleStore && (
+              <Card className={PANEL_CARD_CLASS}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
+                    <Package className="h-4 w-4 text-emerald-600" />
+                    Inventory Snapshot
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Total cost value</span>
+                    <span className="font-medium">{formatCurrency(inventorySummary.totalCostValue)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Potential sales</span>
+                    <span className="font-medium">{formatCurrency(inventorySummary.totalPotentialSalesValue)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Potential profit</span>
+                    <span className="font-medium text-emerald-700">{formatCurrency(inventorySummary.totalPotentialProfit)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Non-selling (90d)</span>
+                    <span className="font-medium text-amber-700">{nonSellingProducts90Days.length}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Low stock</span>
+                    <span className="font-medium text-amber-700">{inventorySummary.lowStockCount}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Out of stock</span>
+                    <span className="font-medium text-red-600">{inventorySummary.outOfStockCount}</span>
+                  </div>
+                  <div
+                    className="flex justify-between border-b border-slate-100 pb-1.5"
+                    title="Estimated from current stock value vs. cost of goods sold in the selected range, annualized. Not based on a period-average inventory snapshot."
+                  >
+                    <span className="text-muted-foreground">Inventory turnover (annualized)</span>
+                    <span className="font-medium">
+                      {turnoverMetrics.annualizedTurnover !== null
+                        ? `${turnoverMetrics.annualizedTurnover.toFixed(1)}x / yr`
+                        : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Days of stock remaining</span>
+                    <span className="font-medium">
+                      {turnoverMetrics.daysOfStockRemaining !== null
+                        ? `${turnoverMetrics.daysOfStockRemaining.toFixed(0)}d`
+                        : 'N/A'}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+              )}
+
+              <Card className={PANEL_CARD_CLASS}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
+                    <Store className="h-4 w-4 text-violet-600" />
+                    System Snapshot
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Selected store</span>
+                    <span className="font-medium truncate max-w-[60%] text-right">{selectedStoreName}</span>
+                  </div>
+                  {!isSingleStore && (
+                    <>
+                      <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                        <span className="text-muted-foreground">Active stores</span>
+                        <span className="font-medium">{stores.filter((store) => store.status !== 'inactive').length}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                        <span className="text-muted-foreground">Inactive stores</span>
+                        <span className="font-medium text-amber-700">{stores.filter((store) => store.status === 'inactive').length}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                    <span className="text-muted-foreground">Pending returns</span>
+                    <span className="font-medium text-amber-700">
+                      {returns.filter(
+                        (item) =>
+                          item.status === 'pending' &&
+                          (!isSingleStore || item.storeId === selectedStore),
+                      ).length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Last updated</span>
+                    <span className="font-medium text-xs">{formatDisplayDateTime(lastUpdated, 'N/A')}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+                    </>
+          )}
+          </TabsContent>
+
+          <TabsContent value="orders" className="space-y-4">
+            <AnalyticsOrders
+              orders={orders}
+              stores={stores}
+              selectedStore={selectedStore}
+              rangeFrom={rangeFrom}
+              rangeTo={rangeTo}
+              loading={!loaded.orders || !loaded.stores}
+            />
           </TabsContent>
 
           <TabsContent value="revenue" className="space-y-4">
+          {!(coreReady) ? (
+            <TabSkeleton />
+          ) : (
+          <>
             {/* Month/Year Navigator */}
             <div className="flex items-center justify-center gap-3">
               <Button variant="outline" size="icon" onClick={handleRevenuePrevMonth} disabled={isAtMinMonth}>
@@ -4403,30 +4489,30 @@ export default function AnalyticsPage() {
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle>Revenue, Bills and Items by Day</CardTitle>
+                <CardTitle className="text-[15px] font-semibold text-slate-900">Revenue, Bills and Items by Day</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={360}>
                   <LineChart data={filteredDailyStats}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tickFormatter={(value) => format(new Date(value), 'dd MMM')} />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip />
-                    <Legend />
-                    <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#2563eb" name="Revenue" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                    <XAxis {...AXIS_PROPS} dataKey="date" tickFormatter={(value) => format(new Date(value), 'dd MMM')} />
+                    <YAxis {...AXIS_PROPS} yAxisId="left" />
+                    <YAxis {...AXIS_PROPS} yAxisId="right" orientation="right" />
+                    <Tooltip {...TOOLTIP_PROPS} />
+                    <Legend {...LEGEND_PROPS} />
+                    <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#4f46e5" name="Revenue" />
                     <Line
                       yAxisId="left"
                       type="monotone"
                       dataKey="replacementAmount"
-                      stroke="#7c3aed"
+                      stroke="#8b5cf6"
                       name="Replacement Amount"
                     />
                     <Line
                       yAxisId="left"
                       type="monotone"
                       dataKey="returnsAmount"
-                      stroke="#dc2626"
+                      stroke="#ef4444"
                       name="Returns Amount"
                     />
                     <Line
@@ -4436,7 +4522,7 @@ export default function AnalyticsPage() {
                       stroke="#0f766e"
                       name="Net Revenue"
                     />
-                    <Line yAxisId="right" type="monotone" dataKey="bills" stroke="#16a34a" name="Bills" />
+                    <Line yAxisId="right" type="monotone" dataKey="bills" stroke="#10b981" name="Bills" />
                     <Line yAxisId="right" type="monotone" dataKey="items" stroke="#f59e0b" name="Items" />
                   </LineChart>
                 </ResponsiveContainer>
@@ -4445,7 +4531,7 @@ export default function AnalyticsPage() {
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle>Daily Revenue Table</CardTitle>
+                <CardTitle className="text-[15px] font-semibold text-slate-900">Daily Revenue Table</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -4485,29 +4571,35 @@ export default function AnalyticsPage() {
                 </Table>
               </CardContent>
             </Card>
+                    </>
+          )}
           </TabsContent>
 
           <TabsContent value="stores" className="space-y-4">
+          {!(coreReady) ? (
+            <TabSkeleton />
+          ) : (
+          <>
             <div className="grid gap-4 lg:grid-cols-3">
               <Card className={`${PANEL_CARD_CLASS} lg:col-span-2`}>
                 <CardHeader>
-                  <CardTitle>Store Revenue Comparison</CardTitle>
+                  <CardTitle className="text-[15px] font-semibold text-slate-900">Store Revenue Comparison</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={340}>
                     <BarChart data={topStores}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="storeName" />
-                      <YAxis yAxisId="left" />
-                      <YAxis yAxisId="right" orientation="right" />
-                      <Tooltip
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                      <XAxis {...AXIS_PROPS} dataKey="storeName" />
+                      <YAxis {...AXIS_PROPS} yAxisId="left" />
+                      <YAxis {...AXIS_PROPS} yAxisId="right" orientation="right" />
+                      <Tooltip {...TOOLTIP_PROPS}
                         formatter={(value, name) =>
                           name === 'Revenue' ? formatCurrency(Number(value)) : value
                         }
                       />
-                      <Legend />
-                      <Bar yAxisId="left" dataKey="revenue" fill="#2563eb" name="Revenue" />
-                      <Bar yAxisId="right" dataKey="bills" fill="#16a34a" name="Bills" />
+                      <Legend {...LEGEND_PROPS} />
+                      <Bar yAxisId="left" dataKey="revenue" fill="#4f46e5" name="Revenue" />
+                      <Bar yAxisId="right" dataKey="bills" fill="#10b981" name="Bills" />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -4515,7 +4607,7 @@ export default function AnalyticsPage() {
 
               <Card className={PANEL_CARD_CLASS}>
                 <CardHeader>
-                  <CardTitle>Revenue Share</CardTitle>
+                  <CardTitle className="text-[15px] font-semibold text-slate-900">Revenue Share</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {storeAnalytics.every((s) => s.revenue === 0) ? (
@@ -4523,7 +4615,7 @@ export default function AnalyticsPage() {
                   ) : (
                     <ResponsiveContainer width="100%" height={300}>
                       <PieChart>
-                        <Pie
+                        <Pie stroke="none"
                           data={storeAnalytics.filter((s) => s.revenue > 0)}
                           dataKey="revenue"
                           nameKey="storeName"
@@ -4536,7 +4628,7 @@ export default function AnalyticsPage() {
                               <Cell key={entry.storeId} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                             ))}
                         </Pie>
-                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                        <Tooltip {...TOOLTIP_PROPS} formatter={(value) => formatCurrency(Number(value))} />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
@@ -4546,7 +4638,7 @@ export default function AnalyticsPage() {
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle>Store Performance Table</CardTitle>
+                <CardTitle className="text-[15px] font-semibold text-slate-900">Store Performance Table</CardTitle>
                 <p className="text-xs text-muted-foreground">
                   Per-store revenue, bills, items, distinct products sold, and the leading product.
                 </p>
@@ -4594,15 +4686,21 @@ export default function AnalyticsPage() {
                 </Table>
               </CardContent>
             </Card>
+                    </>
+          )}
           </TabsContent>
 
           <TabsContent value="products" className="space-y-4">
+          {!(coreReady) ? (
+            <TabSkeleton />
+          ) : (
+          <>
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle>Search Products In Analytics</CardTitle>
+                <CardTitle className="text-[15px] font-semibold text-slate-900">Search Products In Analytics</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="relative max-w-md">
+                <div className="relative max-w-2xl">
                   <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     value={productSearch}
@@ -4617,16 +4715,16 @@ export default function AnalyticsPage() {
             <div className="grid gap-4 lg:grid-cols-2">
               <Card className={PANEL_CARD_CLASS}>
                 <CardHeader>
-                  <CardTitle>Top Products by Revenue</CardTitle>
+                  <CardTitle className="text-[15px] font-semibold text-slate-900">Top Products by Revenue</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={320}>
                     <BarChart data={topProducts.slice(0, 10)} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis dataKey="productName" type="category" width={130} />
-                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                      <Bar dataKey="revenue" fill="#2563eb" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                      <XAxis {...AXIS_PROPS} type="number" />
+                      <YAxis {...AXIS_PROPS} dataKey="productName" type="category" width={130} />
+                      <Tooltip {...TOOLTIP_PROPS} formatter={(value) => formatCurrency(Number(value))} />
+                      <Bar dataKey="revenue" fill="#4f46e5" />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -4634,17 +4732,17 @@ export default function AnalyticsPage() {
 
               <Card className={PANEL_CARD_CLASS}>
                 <CardHeader>
-                  <CardTitle>Trending Products (Current vs Previous)</CardTitle>
+                  <CardTitle className="text-[15px] font-semibold text-slate-900">Trending Products (Current vs Previous)</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={320}>
                     <BarChart data={topTrending.slice(0, 10)}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="productName" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="currentQty" fill="#16a34a" name="Current Qty" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                      <XAxis {...AXIS_PROPS} dataKey="productName" />
+                      <YAxis {...AXIS_PROPS} />
+                      <Tooltip {...TOOLTIP_PROPS} />
+                      <Legend {...LEGEND_PROPS} />
+                      <Bar dataKey="currentQty" fill="#10b981" name="Current Qty" />
                       <Bar dataKey="previousQty" fill="#9ca3af" name="Previous Qty" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -4654,7 +4752,7 @@ export default function AnalyticsPage() {
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle>Product Sales Table</CardTitle>
+                <CardTitle className="text-[15px] font-semibold text-slate-900">Product Sales Table</CardTitle>
                 <p className="text-xs text-muted-foreground">
                   Products with the same name and selling price are grouped into one row. Click a row to see its variants (barcodes / batches) and store-by-store sales. Search supports product name, price, category, barcode and batch number / place.
                 </p>
@@ -4748,10 +4846,16 @@ export default function AnalyticsPage() {
                 )}
               </CardContent>
             </Card>
+                    </>
+          )}
           </TabsContent>
 
 
           <TabsContent value="profit" className="space-y-4">
+          {!(coreReady) ? (
+            <TabSkeleton />
+          ) : (
+          <>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <MetricCard
                 title="Revenue (Sold)"
@@ -4760,18 +4864,22 @@ export default function AnalyticsPage() {
               />
               <MetricCard
                 title="Cost of Goods Sold"
+              loading={!(loaded.bills && loaded.products)}
+              invertDelta
                 value={formatCurrency(currentProfitSummary.cogs)}
                 icon={<Package className="h-4 w-4 text-muted-foreground" />}
                 change={cogsChange}
               />
               <MetricCard
                 title="Total Profit"
+              loading={!(loaded.bills && loaded.products)}
                 value={formatCurrency(currentProfitSummary.profit)}
                 icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
                 change={profitChange}
               />
               <MetricCard
                 title="Profit Margin"
+              loading={!(loaded.bills && loaded.products)}
                 value={`${currentProfitSummary.marginPct.toFixed(1)}%`}
                 icon={<Percent className="h-4 w-4 text-muted-foreground" />}
                 change={marginChange}
@@ -4780,7 +4888,7 @@ export default function AnalyticsPage() {
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle>How profit is calculated</CardTitle>
+                <CardTitle className="text-[15px] font-semibold text-slate-900">How profit is calculated</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-1">
                 <p>
@@ -4797,19 +4905,19 @@ export default function AnalyticsPage() {
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle>Top 10 Profitable Products</CardTitle>
+                <CardTitle className="text-[15px] font-semibold text-slate-900">Top 10 Profitable Products</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={340}>
                   <BarChart data={topProfitableProducts} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="productName" type="category" width={140} />
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                    <Legend />
-                    <Bar dataKey="revenue" fill="#2563eb" name="Revenue" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                    <XAxis {...AXIS_PROPS} type="number" />
+                    <YAxis {...AXIS_PROPS} dataKey="productName" type="category" width={140} />
+                    <Tooltip {...TOOLTIP_PROPS} formatter={(value) => formatCurrency(Number(value))} />
+                    <Legend {...LEGEND_PROPS} />
+                    <Bar dataKey="revenue" fill="#4f46e5" name="Revenue" />
                     <Bar dataKey="cogs" fill="#94a3b8" name="COGS" />
-                    <Bar dataKey="profit" fill="#16a34a" name="Profit" />
+                    <Bar dataKey="profit" fill="#10b981" name="Profit" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -4818,7 +4926,7 @@ export default function AnalyticsPage() {
             {lossMakers.length > 0 && (
               <Card className="border-red-200 bg-red-50/30 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-red-700">
+                  <CardTitle className="flex items-center gap-2 text-red-700 text-[15px] font-semibold">
                     <AlertTriangle className="h-4 w-4" />
                     Loss-Making Products
                   </CardTitle>
@@ -4864,7 +4972,7 @@ export default function AnalyticsPage() {
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle>Profit by Product</CardTitle>
+                <CardTitle className="text-[15px] font-semibold text-slate-900">Profit by Product</CardTitle>
                 <p className="text-xs text-muted-foreground">Click any row for store-by-store breakdown</p>
               </CardHeader>
               <CardContent>
@@ -4919,12 +5027,18 @@ export default function AnalyticsPage() {
                 </Table>
               </CardContent>
             </Card>
+                    </>
+          )}
           </TabsContent>
 
           <TabsContent value="batches" className="space-y-4">
+          {!(coreReady && loaded.batches) ? (
+            <TabSkeleton />
+          ) : (
+          <>
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
                   <Layers className="h-4 w-4" /> Batch Overview
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">
@@ -5018,7 +5132,7 @@ export default function AnalyticsPage() {
               <div className="grid gap-4 lg:grid-cols-2">
                 <Card className={PANEL_CARD_CLASS}>
                   <CardHeader>
-                    <CardTitle>Top Batches by Revenue</CardTitle>
+                    <CardTitle className="text-[15px] font-semibold text-slate-900">Top Batches by Revenue</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={320}>
@@ -5026,13 +5140,13 @@ export default function AnalyticsPage() {
                         data={batchAnalytics.filter((b) => b.revenue > 0).slice(0, 10)}
                         layout="vertical"
                       >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" />
-                        <YAxis dataKey="batchNumber" type="category" width={140} />
-                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                        <Legend />
-                        <Bar dataKey="revenue" fill="#2563eb" name="Revenue" />
-                        <Bar dataKey="profit" fill="#16a34a" name="Profit" />
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis {...AXIS_PROPS} type="number" />
+                        <YAxis {...AXIS_PROPS} dataKey="batchNumber" type="category" width={140} />
+                        <Tooltip {...TOOLTIP_PROPS} formatter={(value) => formatCurrency(Number(value))} />
+                        <Legend {...LEGEND_PROPS} />
+                        <Bar dataKey="revenue" fill="#4f46e5" name="Revenue" />
+                        <Bar dataKey="profit" fill="#10b981" name="Profit" />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -5040,7 +5154,7 @@ export default function AnalyticsPage() {
 
                 <Card className={PANEL_CARD_CLASS}>
                   <CardHeader>
-                    <CardTitle>Batch Sell-Through Rate</CardTitle>
+                    <CardTitle className="text-[15px] font-semibold text-slate-900">Batch Sell-Through Rate</CardTitle>
                     <p className="text-xs text-muted-foreground">
                       % of products in each batch that had at least one sale
                     </p>
@@ -5060,20 +5174,26 @@ export default function AnalyticsPage() {
                           .slice(0, 10)}
                         layout="vertical"
                       >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" domain={[0, 100]} unit="%" />
-                        <YAxis dataKey="batchNumber" type="category" width={140} />
-                        <Tooltip formatter={(value) => `${value}%`} />
-                        <Bar dataKey="sellThrough" fill="#16a34a" name="Sell-through %" />
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis {...AXIS_PROPS} type="number" domain={[0, 100]} unit="%" />
+                        <YAxis {...AXIS_PROPS} dataKey="batchNumber" type="category" width={140} />
+                        <Tooltip {...TOOLTIP_PROPS} formatter={(value) => `${value}%`} />
+                        <Bar dataKey="sellThrough" fill="#10b981" name="Sell-through %" />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
               </div>
             )}
+                    </>
+          )}
           </TabsContent>
 
           <TabsContent value="inventory" className="space-y-4">
+          {!(coreReady) ? (
+            <TabSkeleton />
+          ) : (
+          <>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <MetricCard
                 title="Total Cost Value"
@@ -5099,18 +5219,18 @@ export default function AnalyticsPage() {
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle>Cost vs Selling Price by Product</CardTitle>
+                <CardTitle className="text-[15px] font-semibold text-slate-900">Cost vs Selling Price by Product</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={350}>
                   <BarChart data={marginComparisonData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="productName" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                    <Legend />
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                    <XAxis {...AXIS_PROPS} dataKey="productName" />
+                    <YAxis {...AXIS_PROPS} />
+                    <Tooltip {...TOOLTIP_PROPS} formatter={(value) => formatCurrency(Number(value))} />
+                    <Legend {...LEGEND_PROPS} />
                     <Bar dataKey="costPrice" fill="#64748b" name="Cost Price" />
-                    <Bar dataKey="sellingPrice" fill="#2563eb" name="Selling Price" />
+                    <Bar dataKey="sellingPrice" fill="#4f46e5" name="Selling Price" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -5118,7 +5238,7 @@ export default function AnalyticsPage() {
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
-                <CardTitle>Inventory Margin Table</CardTitle>
+                <CardTitle className="text-[15px] font-semibold text-slate-900">Inventory Margin Table</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -5155,225 +5275,21 @@ export default function AnalyticsPage() {
                 </Table>
               </CardContent>
             </Card>
+                    </>
+          )}
           </TabsContent>
 
 
-          <TabsContent value="returns" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Card className="border-amber-200 bg-amber-50/40">
-                <CardContent className="p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Pending</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {returnsInPeriod.filter((item) => item.status === 'pending').length}
-                  </p>
-                  <p className="text-xs text-amber-600">Awaiting approval</p>
-                </CardContent>
-              </Card>
-              <Card className="border-emerald-200 bg-emerald-50/40">
-                <CardContent className="p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Approved</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {returnsInPeriod.filter((item) => item.status === 'approved' || item.status === 'completed').length}
-                  </p>
-                  <p className="text-xs text-emerald-600">
-                    {formatCurrency(currentReturnsAmount)} refunded
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="border-rose-200 bg-rose-50/40">
-                <CardContent className="p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-rose-700">Rejected</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {returnsInPeriod.filter((item) => item.status === 'rejected').length}
-                  </p>
-                  <p className="text-xs text-rose-600">Refund denied</p>
-                </CardContent>
-              </Card>
-              <Card className="border-violet-200 bg-violet-50/40">
-                <CardContent className="p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-violet-700">Replacements</p>
-                  <p className="text-2xl font-bold text-slate-900">{headlineMetrics.replacementBillsCount}</p>
-                  <p className="text-xs text-violet-600">
-                    {formatCurrency(currentReplacementAmount)} issued
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card className={PANEL_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Returns by Status</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {returnStatusData.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No returns in this period.</p>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={320}>
-                      <PieChart>
-                        <Pie data={returnStatusData} dataKey="value" nameKey="name" outerRadius={100} label>
-                          {returnStatusData.map((entry, index) => (
-                            <Cell key={`${entry.name}-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className={PANEL_CARD_CLASS}>
-                <CardHeader>
-                  <CardTitle>Returns by Store</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {returnsByStore.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No store returns in this period.</p>
-                  ) : (
-                    <>
-                      <ResponsiveContainer width="100%" height={260}>
-                        <BarChart data={returnsByStore.slice(0, 8)} layout="vertical">
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis type="number" />
-                          <YAxis dataKey="storeName" type="category" width={140} />
-                          <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                          <Bar dataKey="amount" fill="#dc2626" name="Return Amount" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Store</TableHead>
-                            <TableHead className="text-right">Returns</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {returnsByStore.slice(0, 8).map((row) => (
-                            <TableRow key={row.storeId}>
-                              <TableCell className="font-medium">{row.storeName}</TableCell>
-                              <TableCell className="text-right">{row.count}</TableCell>
-                              <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className={PANEL_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Most Returned Products</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  Identify problem products driving the largest refund amounts
-                </p>
-              </CardHeader>
-              <CardContent>
-                {topReturnedProducts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No returns in this period.</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Return Count</TableHead>
-                        <TableHead className="text-right">Total Refund</TableHead>
-                        <TableHead className="text-right">Avg per Return</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {topReturnedProducts.slice(0, 15).map((row) => (
-                        <TableRow
-                          key={row.productId}
-                          onClick={() => row.productId !== 'unknown' && setDialogProductId(row.productId)}
-                          className={row.productId !== 'unknown' ? 'cursor-pointer hover:bg-slate-50' : ''}
-                        >
-                          <TableCell className="font-medium">{row.productName}</TableCell>
-                          <TableCell className="text-right">{row.count}</TableCell>
-                          <TableCell className="text-right text-red-600 font-medium">
-                            {formatCurrency(row.amount)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(row.count > 0 ? row.amount / row.count : 0)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className={PANEL_CARD_CLASS}>
-              <CardHeader>
-                <CardTitle>Recent Returns</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Return ID</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Store</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {returnsInPeriod.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
-                          No returns in this period.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {returnsInPeriod
-                      .slice()
-                      .sort(
-                        (a, b) =>
-                          (parseDate(b.createdAt)?.getTime() || 0) -
-                          (parseDate(a.createdAt)?.getTime() || 0),
-                      )
-                      .slice(0, 30)
-                      .map((item) => {
-                        const productName =
-                          products.find((p) => p.id === item.productId)?.name || item.productId || '—'
-                        const sname = storeNameMap.get(item.storeId || '') || '—'
-                        return (
-                          <TableRow key={item.returnId}>
-                            <TableCell>
-                              {formatDisplayDate(item.createdAt, 'N/A')}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs">{item.returnId}</TableCell>
-                            <TableCell>{productName}</TableCell>
-                            <TableCell>{sname}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(item.returnAmount)}</TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  item.status === 'approved' || item.status === 'completed'
-                                    ? 'default'
-                                    : item.status === 'pending'
-                                    ? 'secondary'
-                                    : 'destructive'
-                                }
-                              >
-                                {item.status}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+          <TabsContent value="replacements" className="space-y-4">
+            <AnalyticsReplacements
+              bills={bills}
+              cancelledBills={cancelledBills}
+              stores={stores}
+              selectedStore={selectedStore}
+              rangeFrom={rangeFrom}
+              rangeTo={rangeTo}
+              loading={!loaded.bills || !loaded.stores}
+            />
           </TabsContent>
 
           <TabsContent value="employees" className="space-y-4">
