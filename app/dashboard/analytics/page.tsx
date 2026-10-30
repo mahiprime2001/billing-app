@@ -5293,7 +5293,7 @@ export default function AnalyticsPage() {
           </TabsContent>
 
           <TabsContent value="employees" className="space-y-4">
-            <AttendanceEmployees showCharts />
+            <AttendanceEmployees showCharts storeFilter={selectedStore} />
           </TabsContent>
         </Tabs>
       </div>

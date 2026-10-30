@@ -851,15 +851,38 @@ const handleDeleteProduct = async (productId: string) => {
     }
 
     try {
-      const updatePromises = selectedProducts.map(productId =>
-        fetch(`${API_BASE}/api/products/${productId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ hsnCode: hsnValue }),
+      // A few requests at a time, each retried on a server/connection error.
+      // Firing one PUT per product all at once floods the server and the
+      // gateway in front of the database drops some connections. Setting the
+      // same HSN code twice is harmless, so retrying is safe.
+      const updateOne = async (productId: string): Promise<Response> => {
+        let last: Response | null = null;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          try {
+            const res = await fetch(`${API_BASE}/api/products/${productId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ hsnCode: hsnValue }),
+            });
+            if (res.ok || res.status < 500) return res;
+            last = res;
+          } catch (err) {
+            if (attempt === 2) throw err;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+        }
+        return last as Response;
+      };
+
+      const responses: Response[] = [];
+      const queue = [...selectedProducts];
+      await Promise.all(
+        Array.from({ length: Math.min(4, queue.length) }, async () => {
+          for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+            responses.push(await updateOne(id));
+          }
         })
       );
-
-      const responses = await Promise.all(updatePromises);
       const failed = responses.filter((r) => !r.ok);
       if (failed.length > 0) {
         let message = `Failed to update HSN code for ${failed.length} product(s)`;

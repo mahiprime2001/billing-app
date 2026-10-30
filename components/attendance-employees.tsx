@@ -189,11 +189,17 @@ const tsToMinutes = (ts: string): number => {
 
 export default function AttendanceEmployees({
   showCharts = false,
+  storeFilter,
 }: {
   showCharts?: boolean
+  // When given (the Analytics page passes its main store filter), this component
+  // follows it instead of showing its own store picker. "all" = every store.
+  storeFilter?: string
 }) {
   const [stores, setStores] = useState<AttendanceStore[]>([])
-  const [storeId, setStoreId] = useState<string>("")
+  const [innerStoreId, setStoreId] = useState<string>("")
+  const storeId = storeFilter ?? innerStoreId
+  const allStores = storeId === "all"
   const [employees, setEmployees] = useState<AttendanceEmployeeRow[]>([])
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -292,22 +298,25 @@ export default function AttendanceEmployees({
       setLoading(true)
     }
     try {
-      const [empRes, recRes] = await Promise.all([
-        // Roaming employees (e.g. an auditor) show up at every store they
-        // can actually mark attendance at, not just their home store.
-        supabase
-          .from("attendance_employees")
-          .select("id, store_id, name, status, enroll_status, photo_url, created_at, is_roaming")
-          .or(`store_id.eq.${storeId},is_roaming.eq.true`)
-          .order("name", { ascending: true }),
-        supabase
-          .from("attendance_records")
-          .select("id, employee_id, type, ts, match_score, photo_url")
-          .eq("store_id", storeId)
-          .gte("ts", `${fromKey}T00:00:00`)
-          .lte("ts", `${toKey}T23:59:59`)
-          .order("ts", { ascending: true }),
-      ])
+      // Roaming employees (e.g. an auditor) show up at every store they
+      // can actually mark attendance at, not just their home store.
+      // "All stores" skips the store filters entirely.
+      let empQuery = supabase
+        .from("attendance_employees")
+        .select("id, store_id, name, status, enroll_status, photo_url, created_at, is_roaming")
+        .order("name", { ascending: true })
+      if (!allStores) empQuery = empQuery.or(`store_id.eq.${storeId},is_roaming.eq.true`)
+      let recQuery = supabase
+        .from("attendance_records")
+        .select("id, employee_id, type, ts, match_score, photo_url")
+        .gte("ts", `${fromKey}T00:00:00`)
+        .lte("ts", `${toKey}T23:59:59`)
+        .order("ts", { ascending: true })
+        // Supabase caps a response at 1000 rows by default; all stores for a
+        // month is well past that.
+        .limit(100000)
+      if (!allStores) recQuery = recQuery.eq("store_id", storeId)
+      const [empRes, recRes] = await Promise.all([empQuery, recQuery])
       if (empRes.error) throw empRes.error
       if (recRes.error) throw recRes.error
       const employeesData = (empRes.data ?? []) as AttendanceEmployeeRow[]
@@ -335,7 +344,7 @@ export default function AttendanceEmployees({
     } finally {
       setLoading(false)
     }
-  }, [storeId, fromKey, toKey])
+  }, [storeId, allStores, fromKey, toKey])
   useBackgroundPoll(() => loadData(), 60_000, Boolean(storeId))
 
   useEffect(() => {
@@ -360,26 +369,17 @@ export default function AttendanceEmployees({
       clearTimeout(timer)
       timer = setTimeout(() => loadDataRef.current(), 600)
     }
+    const storeScope = allStores ? {} : { filter: `store_id=eq.${storeId}` }
     const channel = supabase
       .channel(`attendance-store-${storeId}`)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "attendance_records",
-          filter: `store_id=eq.${storeId}`,
-        },
+        { event: "*", schema: "public", table: "attendance_records", ...storeScope },
         debouncedReload
       )
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "attendance_employees",
-          filter: `store_id=eq.${storeId}`,
-        },
+        { event: "*", schema: "public", table: "attendance_employees", ...storeScope },
         debouncedReload
       )
       .subscribe()
@@ -387,7 +387,7 @@ export default function AttendanceEmployees({
       clearTimeout(timer)
       supabase.removeChannel(channel)
     }
-  }, [storeId])
+  }, [storeId, allStores])
 
   // ---- employee management ----
 
@@ -681,7 +681,7 @@ export default function AttendanceEmployees({
     setExporting(true)
     try {
       const XLSX = await import("xlsx")
-      const storeName = stores.find((s) => s.id === storeId)?.name ?? "store"
+      const storeName = allStores ? "All stores" : stores.find((s) => s.id === storeId)?.name ?? "store"
       const dates = listReportDates()
       const wb = XLSX.utils.book_new()
       const safe = (v: string) =>
@@ -782,13 +782,13 @@ export default function AttendanceEmployees({
         // store once they've actually scanned there — they're not
         // "assigned" to every shop, so no point listing them with nothing
         // but leaves.
-        if (emp.is_roaming && emp.store_id !== storeId) {
+        if (!allStores && emp.is_roaming && emp.store_id !== storeId) {
           return (byEmp.get(emp.id) ?? []).length > 0
         }
         return true
       })
       .map((emp) => {
-      const awayFromHome = emp.is_roaming && emp.store_id !== storeId
+      const awayFromHome = !allStores && emp.is_roaming && emp.store_id !== storeId
       const recs = byEmp.get(emp.id) ?? []
       const dayMap = new Map<string, EmpDay>()
       for (const r of recs) {
@@ -866,7 +866,7 @@ export default function AttendanceEmployees({
         stillIn,
       }
     })
-  }, [employees, records, fromKey, toKey, singleDay])
+  }, [employees, records, fromKey, toKey, singleDay, storeId, allStores])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -931,6 +931,7 @@ export default function AttendanceEmployees({
       )}
       {/* row 1: store + search */}
       <div className="flex flex-wrap items-center gap-3">
+        {storeFilter === undefined && (
         <div className="flex items-center gap-2">
           <StoreIcon className="h-4 w-4 text-muted-foreground" />
           <Select value={storeId} onValueChange={setStoreId}>
@@ -946,6 +947,7 @@ export default function AttendanceEmployees({
             </SelectContent>
           </Select>
         </div>
+        )}
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -956,11 +958,22 @@ export default function AttendanceEmployees({
           />
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" onClick={() => setAddOpen(true)}>
+          <Button
+            size="sm"
+            onClick={() => setAddOpen(true)}
+            disabled={allStores}
+            title={allStores ? "Pick a single store to add an employee" : undefined}
+          >
             <Plus className="mr-1.5 h-4 w-4" />
             Add Employee
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setDevicesOpen(true)}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setDevicesOpen(true)}
+            disabled={allStores}
+            title={allStores ? "Pick a single store to manage devices" : undefined}
+          >
             <Smartphone className="mr-1.5 h-4 w-4" />
             Devices
           </Button>
@@ -1192,6 +1205,11 @@ export default function AttendanceEmployees({
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{s.emp.name}</p>
+                    {allStores && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {stores.find((st) => st.id === s.emp.store_id)?.name ?? "Unknown store"}
+                      </p>
+                    )}
                     <div className="mt-1 flex flex-wrap gap-1">
                       <Badge
                         variant={s.emp.status === "active" ? "default" : "destructive"}
@@ -1355,7 +1373,7 @@ export default function AttendanceEmployees({
                     <div className="min-w-0">
                       <p className="text-lg font-semibold">{selected.emp.name}</p>
                       <p className="text-sm font-normal text-muted-foreground">
-                        {selectedStore?.name}
+                        {allStores ? stores.find((s) => s.id === selected.emp.store_id)?.name : selectedStore?.name}
                         {selected.emp.created_at
                           ? ` · joined ${format(
                               parseISO(selected.emp.created_at),
@@ -1550,7 +1568,7 @@ export default function AttendanceEmployees({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="store">
-                    Entire store — {stores.find((s) => s.id === storeId)?.name}
+                    {allStores ? "All stores" : `Entire store — ${stores.find((s) => s.id === storeId)?.name ?? ""}`}
                   </SelectItem>
                   {employees.map((e) => (
                     <SelectItem key={e.id} value={e.id}>
