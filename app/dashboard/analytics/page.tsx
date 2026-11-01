@@ -8,6 +8,12 @@ import { useRouter } from 'next/navigation'
 import { differenceInCalendarDays, endOfDay, format, startOfDay, subDays } from 'date-fns'
 import { formatDisplayDate, formatDisplayDateTime } from '@/app/utils/formatDate'
 import AttendanceEmployees from '@/components/attendance-employees'
+import { supabase } from '@/lib/supabase-browser'
+import {
+  buildAttendanceReport,
+  type AttendanceEmployee,
+  type AttendanceRecord,
+} from '@/lib/attendance-report'
 import AnalyticsOrders from '@/components/analytics-orders'
 import AnalyticsReplacements from '@/components/analytics-replacements'
 import {
@@ -2941,6 +2947,80 @@ export default function AnalyticsPage() {
       'All Bills',
     )
 
+    // ── Employees: attendance summary + day-by-day register for the same store and dates ──
+    try {
+      const fromKey = format(dateWindows.currentStart, 'yyyy-MM-dd')
+      const toKey = format(dateWindows.currentEnd, 'yyyy-MM-dd')
+      const allExpStores = exportStore === 'all'
+      let empQuery = supabase
+        .from('attendance_employees')
+        .select('id, store_id, name, status, created_at, is_roaming')
+        .order('name', { ascending: true })
+      if (!allExpStores) empQuery = empQuery.or(`store_id.eq.${exportStore},is_roaming.eq.true`)
+      let recQuery = supabase
+        .from('attendance_records')
+        .select('employee_id, type, ts')
+        .gte('ts', `${fromKey}T00:00:00`)
+        .lte('ts', `${toKey}T23:59:59`)
+        .order('ts', { ascending: true })
+        .limit(100000)
+      if (!allExpStores) recQuery = recQuery.eq('store_id', exportStore)
+      const [empRes, recRes] = await Promise.all([empQuery, recQuery])
+      if (empRes.error) throw empRes.error
+      if (recRes.error) throw recRes.error
+
+      const storeNames: Record<string, string> = {}
+      stores.forEach((s) => {
+        storeNames[s.id] = s.name
+      })
+      const { summary, matrix } = buildAttendanceReport({
+        employees: (empRes.data ?? []) as AttendanceEmployee[],
+        records: (recRes.data ?? []) as AttendanceRecord[],
+        from: fromKey,
+        to: toKey,
+        today: format(new Date(), 'yyyy-MM-dd'),
+        storeId: exportStore,
+        storeNames,
+      })
+      XLSX.utils.book_append_sheet(
+        workbook,
+        buildSheet(summary, {
+          title: 'Employee Attendance Summary',
+          subtitle: `${expStoreName} | ${rangeLabel} | ${summary.length} employees`,
+          hasTotalRow: false,
+          notes: [
+            'Working Days counts from the later of the period start and the day the employee joined, up to today.',
+            'Leaves = working days with no attendance scan.',
+          ],
+        }),
+        'Employees',
+      )
+      XLSX.utils.book_append_sheet(
+        workbook,
+        buildSheet(matrix, {
+          title: 'Attendance Register',
+          subtitle: `${expStoreName} | ${rangeLabel} | ${summary.length} employees`,
+          hasTotalRow: false,
+          notes: [
+            'P = present, A = absent, — = not applicable (before the employee joined, or a store they only visit).',
+            'The last row counts how many employees were present on each day.',
+          ],
+        }),
+        'Attendance Register',
+      )
+    } catch (err) {
+      // Attendance lives in Supabase and needs a connection; the rest of the report is still good.
+      console.warn('Employee attendance could not be added to the export:', err)
+      XLSX.utils.book_append_sheet(
+        workbook,
+        buildSheet(
+          [{ note: 'Employee attendance could not be loaded (no connection?). Export again when online.' }],
+          { title: 'Employee Attendance', hasTotalRow: false },
+        ),
+        'Employees',
+      )
+    }
+
     const safeStoreName = expStoreName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30)
     const safeRange = `${format(dateWindows.currentStart, 'ddMMMyyyy')}-${format(dateWindows.currentEnd, 'ddMMMyyyy')}`
     XLSX.writeFile(workbook, `Sales_Report_${safeStoreName}_${safeRange}_${timestamp}.xlsx`, {
@@ -2994,6 +3074,7 @@ export default function AnalyticsPage() {
             <div className="inline-flex rounded-xl border border-slate-200/70 bg-white p-1 shadow-sm">
               {(
                 [
+                  ['1', 'Today'],
                   ['15', '15D'],
                   ['30', '30D'],
                   ['45', '45D'],
@@ -3158,6 +3239,7 @@ export default function AnalyticsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="1">Today</SelectItem>
                     {RANGE_PRESETS.map((days) => (
                       <SelectItem key={days} value={days.toString()}>{`Last ${days} Days`}</SelectItem>
                     ))}
@@ -5293,7 +5375,14 @@ export default function AnalyticsPage() {
           </TabsContent>
 
           <TabsContent value="employees" className="space-y-4">
-            <AttendanceEmployees showCharts storeFilter={selectedStore} />
+            {/* Follows the page's store + date filters, so it has none of its own and no export (the Excel export covers it). */}
+            <AttendanceEmployees
+              showCharts
+              storeFilter={selectedStore}
+              range={{ from: rangeFrom, to: rangeTo }}
+              hideExport
+              hideManage
+            />
           </TabsContent>
         </Tabs>
       </div>

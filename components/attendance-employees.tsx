@@ -1,17 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import {
-  addMonths,
-  endOfMonth,
-  format,
-  isSameMonth,
-  parseISO,
-  startOfMonth,
-  subDays,
-} from "date-fns"
-import type { DateRange } from "react-day-picker"
+import { format, parseISO, subDays } from "date-fns"
 import { supabase } from "@/lib/supabase-browser"
+import { buildAttendanceReport } from "@/lib/attendance-report"
 import { readCache, writeCache } from "@/lib/api-cache"
 import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -42,7 +34,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,8 +45,6 @@ import {
   AlertCircle,
   CalendarDays,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   Copy,
   Download,
@@ -146,7 +135,7 @@ interface EmpSummary {
   stillIn: boolean
 }
 
-type FilterMode = "today" | "yesterday" | "month" | "custom"
+type FilterMode = "today" | "15" | "30" | "45" | "custom"
 
 const dateKey = (d: Date): string => format(d, "yyyy-MM-dd")
 const todayKey = (): string => dateKey(new Date())
@@ -190,14 +179,24 @@ const tsToMinutes = (ts: string): number => {
 export default function AttendanceEmployees({
   showCharts = false,
   storeFilter,
+  range,
+  hideExport = false,
+  hideManage = false,
 }: {
   showCharts?: boolean
   // When given (the Analytics page passes its main store filter), this component
   // follows it instead of showing its own store picker. "all" = every store.
   storeFilter?: string
+  // When given (yyyy-MM-dd), the dates come from the caller and the component's own
+  // Today / Yesterday / month / calendar filters are hidden.
+  range?: { from: string; to: string }
+  hideExport?: boolean
+  // Hides the Add Employee and Devices buttons (the Analytics view only reports).
+  hideManage?: boolean
 }) {
   const [stores, setStores] = useState<AttendanceStore[]>([])
-  const [innerStoreId, setStoreId] = useState<string>("")
+  // Starts on "All stores"; the dropdown can narrow it to one store.
+  const [innerStoreId, setStoreId] = useState<string>("all")
   const storeId = storeFilter ?? innerStoreId
   const allStores = storeId === "all"
   const [employees, setEmployees] = useState<AttendanceEmployeeRow[]>([])
@@ -221,10 +220,11 @@ export default function AttendanceEmployees({
 
   // ---- date filtering ----
   const [mode, setMode] = useState<FilterMode>("today")
-  const [monthAnchor, setMonthAnchor] = useState<Date>(startOfMonth(new Date()))
   const [from, setFrom] = useState<Date>(new Date())
   const [to, setTo] = useState<Date>(new Date())
-  const [pickerRange, setPickerRange] = useState<DateRange | undefined>()
+  // Custom range: the text boxes hold yyyy-MM-dd; they only move the report once both are a valid range.
+  const [customFrom, setCustomFrom] = useState(() => dateKey(new Date()))
+  const [customTo, setCustomTo] = useState(() => dateKey(new Date()))
 
   const applyToday = () => {
     const now = new Date()
@@ -232,29 +232,40 @@ export default function AttendanceEmployees({
     setFrom(now)
     setTo(now)
   }
-  const applyYesterday = () => {
-    const y = subDays(new Date(), 1)
-    setMode("yesterday")
-    setFrom(y)
-    setTo(y)
+  // Last N days, today included (same meaning as the Analytics presets).
+  const applyDays = (days: 15 | 30 | 45) => {
+    const now = new Date()
+    setMode(String(days) as FilterMode)
+    setFrom(subDays(now, days - 1))
+    setTo(now)
   }
-  const applyMonth = (anchor: Date) => {
-    setMode("month")
-    setMonthAnchor(anchor)
-    setFrom(startOfMonth(anchor))
-    setTo(endOfMonth(anchor))
-  }
-  const applyPicker = (r: DateRange | undefined) => {
-    setPickerRange(r)
-    if (r?.from) {
-      setMode("custom")
-      setFrom(r.from)
-      setTo(r.to ?? r.from)
+  const customRangeError =
+    !customFrom || !customTo
+      ? "Pick both dates."
+      : customFrom > customTo
+        ? "From date must be on or before the To date."
+        : null
+  const applyCustom = (nextFrom: string, nextTo: string) => {
+    setCustomFrom(nextFrom)
+    setCustomTo(nextTo)
+    setMode("custom")
+    if (nextFrom && nextTo && nextFrom <= nextTo) {
+      setFrom(parseISO(nextFrom))
+      setTo(parseISO(nextTo))
     }
   }
 
-  const fromKey = dateKey(from)
-  const toKey = dateKey(to)
+  // A caller-supplied range wins over the component's own filter state. A half-typed
+  // date (empty / invalid) falls back to the own state instead of crashing format().
+  const dateOr = (value: string | undefined, fallback: Date): Date => {
+    if (!value) return fallback
+    const parsed = parseISO(value)
+    return Number.isNaN(parsed.getTime()) ? fallback : parsed
+  }
+  const effFrom = range ? dateOr(range.from, from) : from
+  const effTo = range ? dateOr(range.to, to) : to
+  const fromKey = dateKey(effFrom)
+  const toKey = dateKey(effTo)
   const singleDay = fromKey === toKey
   const rangeIncludesToday = fromKey <= todayKey() && todayKey() <= toKey
 
@@ -271,7 +282,6 @@ export default function AttendanceEmployees({
       }
       const list = (data ?? []) as AttendanceStore[]
       setStores(list)
-      if (list.length) setStoreId((prev) => prev || list[0].id)
     }
     loadStores()
   }, [])
@@ -688,38 +698,48 @@ export default function AttendanceEmployees({
         v.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-")
 
       if (exportTarget === "store") {
-        // Sheet 1 — store summary
-        const summaryRows = summaries.map((s) => ({
-          Employee: s.emp.name,
-          Status: s.emp.status === "active" ? "Active" : "Disabled",
-          "Days Present": s.daysPresent,
-          "Working Days": s.totalDays,
+        // Same report as the Analytics export, so both sheets always agree.
+        const storeNames: Record<string, string> = {}
+        stores.forEach((s) => {
+          storeNames[s.id] = s.name ?? ""
+        })
+        const report = buildAttendanceReport({
+          employees,
+          records,
+          from: fromKey,
+          to: toKey,
+          today: todayKey(),
+          storeId,
+          storeNames,
+        })
+
+        // Sheet 1 — one row per employee
+        const summaryRows = report.summary.map((s) => ({
+          Employee: s.employee,
+          Store: s.store,
+          Status: s.status,
+          "Days Present": s.days_present,
+          "Working Days": s.working_days,
           Leaves: s.leaves,
-          "Total Hours": fmtMs(s.totalMs),
-          "Avg IN": s.avgInLabel,
-          "Avg OUT": s.avgOutLabel,
+          "Total Hours": s.total_hours,
+          "Avg IN": s.avg_in,
+          "Avg OUT": s.avg_out,
         }))
         const ws1 = XLSX.utils.json_to_sheet(summaryRows)
         ws1["!cols"] = [
-          { wch: 22 }, { wch: 10 }, { wch: 13 }, { wch: 13 },
+          { wch: 22 }, { wch: 18 }, { wch: 10 }, { wch: 13 }, { wch: 13 },
           { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 10 },
         ]
         XLSX.utils.book_append_sheet(wb, ws1, "Summary")
 
-        // Sheet 2 — full register: every employee, every day
-        const registerRows = dates.flatMap((date) =>
-          summaries.map((s) => ({
-            Date: date,
-            Day: format(parseISO(date), "EEE"),
-            Employee: s.emp.name,
-            ...registerRow(s, date),
-          }))
-        )
-        const ws2 = XLSX.utils.json_to_sheet(registerRows)
-        ws2["!cols"] = [
-          { wch: 12 }, { wch: 6 }, { wch: 22 },
-          { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
-        ]
+        // Sheet 2 — register as a grid: employees down, days across (P present, A absent,
+        // — not applicable), then Present / Absent / Total Hours, and a "Total present" row.
+        const ws2 = XLSX.utils.json_to_sheet(report.matrix)
+        const columns = report.matrix.length ? Object.keys(report.matrix[0]) : []
+        ws2["!cols"] = columns.map((name) => ({
+          wch: name === "Employee" ? 22 : name === "Store" ? 18 : name === "Total Hours" ? 12 : 13,
+        }))
+        ws2["!freeze"] = { xSplit: 2, ySplit: 1 }
         XLSX.utils.book_append_sheet(wb, ws2, "Register")
 
         XLSX.writeFile(
@@ -891,7 +911,7 @@ export default function AttendanceEmployees({
 
   const periodLabel = singleDay
     ? fmtDay(fromKey)
-    : `${format(from, "dd MMM")} – ${format(to, "dd MMM yyyy")}`
+    : `${format(effFrom, "dd MMM")} – ${format(effTo, "dd MMM yyyy")}`
 
   // ---- chart data (analytics view) ----
   const presencePerDay = useMemo(() => {
@@ -939,6 +959,7 @@ export default function AttendanceEmployees({
               <SelectValue placeholder="Select store" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All stores</SelectItem>
               {stores.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.name || s.id}
@@ -958,34 +979,40 @@ export default function AttendanceEmployees({
           />
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => setAddOpen(true)}
-            disabled={allStores}
-            title={allStores ? "Pick a single store to add an employee" : undefined}
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add Employee
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setDevicesOpen(true)}
-            disabled={allStores}
-            title={allStores ? "Pick a single store to manage devices" : undefined}
-          >
-            <Smartphone className="mr-1.5 h-4 w-4" />
-            Devices
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={loading || !summaries.length}
-            onClick={() => setExportOpen(true)}
-          >
-            <Download className="mr-1.5 h-4 w-4" />
-            Export
-          </Button>
+          {!hideManage && (
+            <>
+              <Button
+                size="sm"
+                onClick={() => setAddOpen(true)}
+                disabled={allStores}
+                title={allStores ? "Pick a single store to add an employee" : undefined}
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add Employee
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setDevicesOpen(true)}
+                disabled={allStores}
+                title={allStores ? "Pick a single store to manage devices" : undefined}
+              >
+                <Smartphone className="mr-1.5 h-4 w-4" />
+                Devices
+              </Button>
+            </>
+          )}
+          {!hideExport && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={loading || !summaries.length}
+              onClick={() => setExportOpen(true)}
+            >
+              <Download className="mr-1.5 h-4 w-4" />
+              Export
+            </Button>
+          )}
           <Button variant="outline" size="icon" onClick={loadData}>
             <RefreshCcw className="h-4 w-4" />
           </Button>
@@ -994,6 +1021,8 @@ export default function AttendanceEmployees({
 
       {/* row 2: date filters */}
       <div className="flex flex-wrap items-center gap-2">
+        {!range && (
+        <>
         <Button
           size="sm"
           variant={mode === "today" ? "default" : "outline"}
@@ -1001,47 +1030,51 @@ export default function AttendanceEmployees({
         >
           Today
         </Button>
+        {([15, 30, 45] as const).map((days) => (
+          <Button
+            key={days}
+            size="sm"
+            variant={mode === String(days) ? "default" : "outline"}
+            onClick={() => applyDays(days)}
+          >
+            {days} days
+          </Button>
+        ))}
         <Button
           size="sm"
-          variant={mode === "yesterday" ? "default" : "outline"}
-          onClick={applyYesterday}
+          variant={mode === "custom" ? "default" : "outline"}
+          onClick={() => applyCustom(customFrom, customTo)}
         >
-          Yesterday
+          Custom
         </Button>
 
-        {/* month stepper */}
-        <div
-          className={`flex items-center rounded-md border ${
-            mode === "month" ? "border-primary bg-primary/5" : ""
-          }`}
-        >
-          <Button
-            size="sm"
-            variant="ghost"
-            className="px-2"
-            onClick={() => applyMonth(addMonths(monthAnchor, -1))}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <button
-            className="min-w-[7.5rem] px-1 text-center text-sm font-medium"
-            onClick={() => applyMonth(monthAnchor)}
-          >
-            {format(monthAnchor, "MMMM yyyy")}
-          </button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="px-2"
-            disabled={isSameMonth(monthAnchor, new Date())}
-            onClick={() => applyMonth(addMonths(monthAnchor, 1))}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* specific range calendar */}
-        <DatePickerWithRange date={pickerRange} setDate={applyPicker} />
+        {mode === "custom" && (
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              From
+              <Input
+                type="date"
+                value={customFrom}
+                max={customTo || undefined}
+                onChange={(e) => applyCustom(e.target.value, customTo)}
+                className="h-9 w-[150px]"
+              />
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              To
+              <Input
+                type="date"
+                value={customTo}
+                min={customFrom || undefined}
+                onChange={(e) => applyCustom(customFrom, e.target.value)}
+                className="h-9 w-[150px]"
+              />
+            </label>
+            {customRangeError && <span className="text-xs text-red-600">{customRangeError}</span>}
+          </div>
+        )}
+        </>
+        )}
 
         <Badge variant="secondary" className="ml-auto gap-1.5 font-normal">
           <CalendarDays className="h-3 w-3" />

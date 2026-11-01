@@ -4,6 +4,7 @@ import { API_BASE } from "@/lib/api-base"
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
+import AuditReportDialog from "@/components/audit-report-dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -43,6 +44,7 @@ import {
   Trash2,
   Users,
   WifiOff,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -136,6 +138,9 @@ function StoreAuditView() {
   // When non-null, the scan panel is active and seeded from this mode.
   const [mode, setMode] = useState<Mode | null>(null)
   const [hasSavedDraft, setHasSavedDraft] = useState(false)
+  // The report popup (Print / Close): opened from History, or right after finishing an audit.
+  const [reportAudit, setReportAudit] = useState<AuditRecord | null>(null)
+  const [reportJustFinished, setReportJustFinished] = useState(false)
   // An audit someone (maybe on another computer) is counting right now.
   const [openSession, setOpenSession] = useState<SessionSummary | null>(null)
 
@@ -266,11 +271,31 @@ function StoreAuditView() {
     router.push(`/dashboard/audit/summary?auditId=${encodeURIComponent(auditId)}`)
   }
 
+  const openSummary = (auditId: string) =>
+    router.push(`/dashboard/audit/summary?auditId=${encodeURIComponent(auditId)}`)
+
+  // Audit just finished: offer Print / Close first, then carry on to the summary page.
   const handleAuditSaved = async (record: AuditRecord) => {
     clearDraft(storeId)
     clearOutbox(storeId)
     setHasSavedDraft(false)
-    router.push(`/dashboard/audit/summary?auditId=${encodeURIComponent(record.id)}`)
+    setHistory((prev) => [record, ...prev.filter((a) => a.id !== record.id)])
+    setReportJustFinished(true)
+    setReportAudit(record)
+  }
+
+  const closeReport = () => {
+    const finished = reportJustFinished && reportAudit
+    setReportAudit(null)
+    setReportJustFinished(false)
+    if (finished) openSummary(finished.id)
+  }
+
+  // Leave the counting screen but keep the audit going (unlike Cancel, nothing is discarded).
+  const closeScanner = () => {
+    setHasSavedDraft(!!getDraft(storeId))
+    setMode(null)
+    setTab("overview")
   }
 
   // The scan panel has already confirmed with the user and told the server.
@@ -378,9 +403,15 @@ function StoreAuditView() {
         <TabsContent value="history" className="mt-4">
           <HistoryTab
             history={history}
-            onOpen={(id) =>
-              router.push(`/dashboard/audit/summary?auditId=${encodeURIComponent(id)}`)
-            }
+            onOpen={(id) => {
+              const picked = history.find((a) => a.id === id)
+              if (picked) {
+                setReportJustFinished(false)
+                setReportAudit(picked)
+              } else {
+                openSummary(id)
+              }
+            }}
           />
         </TabsContent>
 
@@ -396,6 +427,7 @@ function StoreAuditView() {
               catalogByBarcode={catalogByBarcode}
               onSaved={handleAuditSaved}
               onCancel={cancelAudit}
+              onClose={closeScanner}
               onOpenAudit={finishedElsewhere}
             />
           ) : (
@@ -426,6 +458,8 @@ function StoreAuditView() {
           )}
         </TabsContent>
       </Tabs>
+
+      <AuditReportDialog audit={reportAudit} onClose={closeReport} onOpenFull={openSummary} />
     </div>
   )
 }
@@ -629,6 +663,7 @@ function ScanPanel({
   catalogByBarcode,
   onSaved,
   onCancel,
+  onClose,
   onOpenAudit,
 }: {
   storeId: string
@@ -638,6 +673,7 @@ function ScanPanel({
   catalogByBarcode: React.MutableRefObject<Map<string, any>>
   onSaved: (record: AuditRecord) => void
   onCancel: () => void
+  onClose: () => void
   onOpenAudit: (auditId: string) => void
 }) {
   // Seed from draft (resume) or from base inventory (fresh / join).
@@ -929,6 +965,20 @@ function ScanPanel({
     }
   }
 
+  // Close leaves the counting screen WITHOUT discarding anything: the draft stays on this
+  // device and the shared audit stays open, so it can be resumed or joined again. First push
+  // out any scans still waiting, so other devices see them while this one is away.
+  const handleClose = async () => {
+    setIsSaving(true)
+    try {
+      await syncRef.current?.syncNow()
+    } catch {
+      // Offline is fine: the scans are in the saved draft and the outbox, and go out on resume.
+    }
+    syncRef.current?.stop()
+    onClose()
+  }
+
   // Cancel discards the shared audit for every device counting this store.
   const handleCancel = async () => {
     const sync = syncRef.current
@@ -951,10 +1001,16 @@ function ScanPanel({
     const countedValue =
       rightItems.reduce((s, it) => s + it.price * it.countedQty, 0) +
       leftItems.reduce((s, it) => s + it.price * it.countedQty, 0)
+    // Stock (units) behind each item count, and what is still to be found.
+    const stillToFind = (it: LiveItem) => Math.max(0, it.systemQty - it.countedQty)
     return {
       verifiedLines: rightItems.length,
+      verifiedStock: rightItems.reduce((s, it) => s + it.countedQty, 0),
       missingLines: missing.length,
+      remainingStock: missing.reduce((s, it) => s + stillToFind(it), 0),
+      remainingValue: missing.reduce((s, it) => s + stillToFind(it) * it.price, 0),
       foundLines: found.length,
+      foundStock: found.reduce((s, it) => s + it.countedQty, 0),
       scannedUnits,
       countedValue,
     }
@@ -1075,12 +1131,36 @@ function ScanPanel({
       {/* Live stats */}
       <Card>
         <CardContent className="py-4">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">
-            <Stat icon={ScanLine} label="Scanned units" value={stats.scannedUnits} />
-            <Stat icon={CheckCircle2} label="Verified" value={stats.verifiedLines} tone="ok" />
-            <Stat icon={AlertTriangle} label="Remaining" value={stats.missingLines} tone="warn" />
-            <Stat icon={Sparkles} label="Newly found" value={stats.foundLines} tone="found" />
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-center">
+            <Stat icon={ScanLine} label="Scanned stock" value={stats.scannedUnits} />
+            <Stat
+              icon={CheckCircle2}
+              label="Verified"
+              value={stats.verifiedLines}
+              sub={`${stats.verifiedStock} stock`}
+              tone="ok"
+            />
+            <Stat
+              icon={AlertTriangle}
+              label="Remaining"
+              value={stats.missingLines}
+              sub={`${stats.remainingStock} stock`}
+              tone="warn"
+            />
+            <Stat
+              icon={Sparkles}
+              label="Newly found"
+              value={stats.foundLines}
+              sub={`${stats.foundStock} stock`}
+              tone="found"
+            />
             <Stat icon={IndianRupee} label="Counted value" value={`₹${formatCurrency(stats.countedValue)}`} />
+            <Stat
+              icon={IndianRupee}
+              label="Remaining stock value"
+              value={`₹${formatCurrency(stats.remainingValue)}`}
+              tone="warn"
+            />
           </div>
         </CardContent>
       </Card>
@@ -1112,6 +1192,14 @@ function ScanPanel({
             </div>
             <Button variant="outline" onClick={handleReset} disabled={!!ended}>
               <RotateCcw className="h-4 w-4 mr-1" /> Reset
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              disabled={isSaving || !!ended}
+              title="Leave this screen and keep the audit — you can resume it later"
+            >
+              <LogOut className="h-4 w-4 mr-1" /> Close
             </Button>
             <Button onClick={handleDone} disabled={isSaving || !!ended}>
               {isSaving ? (
@@ -1244,11 +1332,14 @@ function Stat({
   icon: Icon,
   label,
   value,
+  sub,
   tone,
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   value: React.ReactNode
+  // Smaller line under the value, e.g. the stock behind an item count.
+  sub?: React.ReactNode
   tone?: "ok" | "warn" | "found"
 }) {
   return (
@@ -1262,6 +1353,7 @@ function Stat({
         )}
       />
       <div className="mt-1 text-lg font-semibold tabular-nums">{value}</div>
+      {sub != null && <div className="text-xs font-medium tabular-nums text-muted-foreground">{sub}</div>}
       <div className="text-[11px] text-muted-foreground">{label}</div>
     </div>
   )
