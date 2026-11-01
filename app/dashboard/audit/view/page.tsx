@@ -41,9 +41,24 @@ import {
   Minus,
   Plus,
   Trash2,
+  Users,
+  WifiOff,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
+  AuditSync,
+  type PanelState,
+  type SessionEnd,
+  type SessionSummary,
+  type SyncStatus,
+  applyRemoteEvents,
+  cancelSession,
+  clearOutbox,
+  getDeviceId,
+  getOpenSession,
+} from "@/lib/audit-session"
+import {
+  AuditSessionEndedError,
   type AuditItem,
   type AuditRecord,
   type UnscannedAs,
@@ -100,7 +115,9 @@ function getAuditorName(): string {
   }
 }
 
-type Mode = "fresh" | "resume"
+// fresh = blank start, resume = continue this device's saved draft,
+// join = blank start that fills in from an audit already being counted elsewhere.
+type Mode = "fresh" | "resume" | "join"
 
 function StoreAuditView() {
   const router = useRouter()
@@ -119,6 +136,32 @@ function StoreAuditView() {
   // When non-null, the scan panel is active and seeded from this mode.
   const [mode, setMode] = useState<Mode | null>(null)
   const [hasSavedDraft, setHasSavedDraft] = useState(false)
+  // An audit someone (maybe on another computer) is counting right now.
+  const [openSession, setOpenSession] = useState<SessionSummary | null>(null)
+
+  // Watch for a shared audit while on the overview (the scan panel has its own sync).
+  useEffect(() => {
+    if (!storeId || mode) return
+    let cancelled = false
+    const check = async () => {
+      const s = await getOpenSession(storeId)
+      if (cancelled || s === undefined) return // server unreachable -- keep what we know
+      setOpenSession(s)
+      // A saved draft whose session was finished/cancelled elsewhere can't be resumed.
+      const d = getDraft(storeId)
+      if (d?.sessionId && d.sessionId !== s?.id) {
+        clearDraft(storeId)
+        clearOutbox(storeId)
+        setHasSavedDraft(false)
+      }
+    }
+    check()
+    const timer = setInterval(check, 8000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [storeId, mode])
 
   useEffect(() => {
     if (!storeId) {
@@ -189,8 +232,18 @@ function StoreAuditView() {
 
   const lastAudit = history[0] || null
 
-  const startFresh = () => {
+  const startFresh = async () => {
+    if (openSession) {
+      const ok = window.confirm(
+        `An audit is already being counted for this store (started by ${openSession.startedBy || "someone"}, ` +
+          `${openSession.scannedUnits} units so far).\n\nStarting a new one discards it for everyone. Continue?`,
+      )
+      if (!ok) return
+      await cancelSession(openSession.id)
+      setOpenSession(null)
+    }
     clearDraft(storeId)
+    clearOutbox(storeId)
     setHasSavedDraft(false)
     setMode("fresh")
     setTab("new")
@@ -201,15 +254,29 @@ function StoreAuditView() {
     setTab("new")
   }
 
+  const joinSession = () => {
+    setMode("join")
+    setTab("new")
+  }
+
+  const finishedElsewhere = (auditId: string) => {
+    clearDraft(storeId)
+    clearOutbox(storeId)
+    setHasSavedDraft(false)
+    router.push(`/dashboard/audit/summary?auditId=${encodeURIComponent(auditId)}`)
+  }
+
   const handleAuditSaved = async (record: AuditRecord) => {
     clearDraft(storeId)
+    clearOutbox(storeId)
     setHasSavedDraft(false)
     router.push(`/dashboard/audit/summary?auditId=${encodeURIComponent(record.id)}`)
   }
 
+  // The scan panel has already confirmed with the user and told the server.
   const cancelAudit = () => {
-    if (!window.confirm("Cancel this audit? Any progress will be discarded.")) return
     clearDraft(storeId)
+    clearOutbox(storeId)
     setHasSavedDraft(false)
     setMode(null)
     setTab("overview")
@@ -300,8 +367,10 @@ function StoreAuditView() {
             lastAudit={lastAudit}
             hasSavedDraft={hasSavedDraft}
             draftSavedAt={getDraft(storeId)?.savedAt}
+            openSession={openSession}
             onStart={startFresh}
             onResume={resumeDraft}
+            onJoin={joinSession}
           />
         </TabsContent>
 
@@ -327,15 +396,25 @@ function StoreAuditView() {
               catalogByBarcode={catalogByBarcode}
               onSaved={handleAuditSaved}
               onCancel={cancelAudit}
+              onOpenAudit={finishedElsewhere}
             />
           ) : (
             <Card>
               <CardContent className="py-16 text-center space-y-4">
-                <p className="text-muted-foreground">Ready to count this store.</p>
+                <p className="text-muted-foreground">
+                  {openSession
+                    ? `An audit is already being counted for this store (${openSession.scannedUnits} units so far).`
+                    : "Ready to count this store."}
+                </p>
                 <div className="flex items-center justify-center gap-3">
                   {hasSavedDraft && (
                     <Button variant="outline" onClick={resumeDraft}>
                       <Play className="h-4 w-4 mr-1" /> Resume saved audit
+                    </Button>
+                  )}
+                  {openSession && !hasSavedDraft && (
+                    <Button onClick={joinSession}>
+                      <Users className="h-4 w-4 mr-1" /> Join audit in progress
                     </Button>
                   )}
                   <Button onClick={startFresh}>
@@ -360,19 +439,46 @@ function OverviewTab({
   lastAudit,
   hasSavedDraft,
   draftSavedAt,
+  openSession,
   onStart,
   onResume,
+  onJoin,
 }: {
   store: StoreType | null
   lastAudit: AuditRecord | null
   hasSavedDraft: boolean
   draftSavedAt?: string
+  openSession: SessionSummary | null
   onStart: () => void
   onResume: () => void
+  onJoin: () => void
 }) {
   return (
     <div className="space-y-4">
-      {hasSavedDraft && (
+      {openSession && (
+        <Card className="border-sky-400/50 bg-sky-50/50">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div className="flex items-center gap-2 text-sm text-sky-900">
+              <Users className="h-4 w-4" />
+              <span>
+                Audit in progress{openSession.startedBy ? ` — started by ${openSession.startedBy}` : ""} ·{" "}
+                {openSession.devices.length} device{openSession.devices.length === 1 ? "" : "s"} ·{" "}
+                {openSession.scannedUnits} units counted
+              </span>
+            </div>
+            {hasSavedDraft ? (
+              <Button size="sm" onClick={onResume}>
+                <Play className="h-4 w-4 mr-1" /> Continue counting
+              </Button>
+            ) : (
+              <Button size="sm" onClick={onJoin}>
+                <Users className="h-4 w-4 mr-1" /> Join
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+      {hasSavedDraft && !openSession && (
         <Card className="border-amber-400/50 bg-amber-50/50">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
             <div className="flex items-center gap-2 text-sm text-amber-800">
@@ -523,6 +629,7 @@ function ScanPanel({
   catalogByBarcode,
   onSaved,
   onCancel,
+  onOpenAudit,
 }: {
   storeId: string
   store: StoreType | null
@@ -531,8 +638,9 @@ function ScanPanel({
   catalogByBarcode: React.MutableRefObject<Map<string, any>>
   onSaved: (record: AuditRecord) => void
   onCancel: () => void
+  onOpenAudit: (auditId: string) => void
 }) {
-  // Seed from draft (resume) or from base inventory (fresh).
+  // Seed from draft (resume) or from base inventory (fresh / join).
   const seed = useMemo(() => {
     if (mode === "resume") {
       const d = getDraft(storeId)
@@ -541,6 +649,8 @@ function ScanPanel({
           left: d.leftItems.map((it) => ({ ...it, unexpected: it.outcome === "found" })) as LiveItem[],
           right: d.rightItems.map((it) => ({ ...it, unexpected: false })) as LiveItem[],
           startedAt: d.startedAt,
+          sessionId: d.sessionId ?? null,
+          lastSeq: d.lastSeq ?? 0,
         }
       }
     }
@@ -548,6 +658,8 @@ function ScanPanel({
       left: baseItems.map((it) => ({ ...it, countedQty: 0, outcome: "missing" as const })),
       right: [] as LiveItem[],
       startedAt: new Date().toISOString(),
+      sessionId: null as string | null,
+      lastSeq: 0,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, storeId])
@@ -555,6 +667,94 @@ function ScanPanel({
   const [leftItems, setLeftItems] = useState<LiveItem[]>(seed.left)
   const [rightItems, setRightItems] = useState<LiveItem[]>(seed.right)
   const startedAtRef = useRef<string>(seed.startedAt)
+
+  // ---- shared session (several devices counting this store) ----
+  // stateRef always holds the newest panels so syncing and "Done" never read stale closures.
+  const stateRef = useRef<PanelState>({ left: seed.left, right: seed.right })
+  useEffect(() => {
+    stateRef.current = { left: leftItems, right: rightItems }
+  }, [leftItems, rightItems])
+  const syncRef = useRef<AuditSync | null>(null)
+  const endedRef = useRef<SessionEnd | null>(null)
+  const [ended, setEnded] = useState<SessionEnd | null>(null)
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
+    online: true,
+    pending: 0,
+    devices: [],
+    sessionId: null,
+  })
+
+  useEffect(() => {
+    const auditor = getAuditorName()
+    const sync = new AuditSync({
+      storeId,
+      deviceId: getDeviceId(),
+      label: auditor,
+      startedBy: auditor,
+      draftSessionId: seed.sessionId,
+      draftLastSeq: seed.lastSeq,
+      // Fresh/join start blank, so the server's whole history (including ours) is replayed.
+      replayAll: mode !== "resume",
+      onRemote: (events, lastSeq) => {
+        const next = applyRemoteEvents(stateRef.current, events)
+        stateRef.current = next
+        // Save the panels together with the high-water mark so they can never disagree.
+        saveDraft({
+          storeId,
+          leftItems: next.left,
+          rightItems: next.right,
+          lastScan: null,
+          startedAt: startedAtRef.current,
+          savedAt: new Date().toISOString(),
+          sessionId: sync.sessionId,
+          lastSeq,
+        })
+        setLeftItems(next.left)
+        setRightItems(next.right)
+      },
+      onRebase: () => {
+        const blank = baseItems.map((it) => ({ ...it, countedQty: 0, outcome: "missing" as const }))
+        stateRef.current = { left: blank, right: [] }
+        setLeftItems(blank)
+        setRightItems([])
+      },
+      onEnded: (end) => {
+        endedRef.current = end
+        setEnded(end)
+      },
+      onStatus: setSyncStatus,
+    })
+    syncRef.current = sync
+    // An unfinished audit saved before shared sessions existed has counts the server has
+    // never seen. Send them once as events so other devices can join and see them.
+    if (mode === "resume" && !seed.sessionId) {
+      for (const it of [...seed.left, ...seed.right]) {
+        if (it.countedQty > 0) {
+          sync.emit({
+            type: "delta",
+            key: it.productId,
+            delta: it.countedQty,
+            meta: it.unexpected
+              ? { name: it.name, barcode: it.barcode, barcodes: it.barcodes, price: it.price }
+              : null,
+          })
+        }
+      }
+    }
+    sync.start()
+    return () => {
+      sync.stop()
+      syncRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId])
+
+  // Tell the other devices about a change made here (saved locally first, sent in the background).
+  const metaOf = (it: LiveItem) => ({ name: it.name, barcode: it.barcode, barcodes: it.barcodes, price: it.price })
+  const emit = (it: LiveItem, delta: number) => {
+    if (delta === 0) return
+    syncRef.current?.emit({ type: "delta", key: it.productId, delta, meta: it.unexpected ? metaOf(it) : null })
+  }
 
   const [scanValue, setScanValue] = useState("")
   const [lastScan, setLastScan] = useState<{ text: string; tone: "ok" | "found" | "warn" } | null>(null)
@@ -572,7 +772,10 @@ function ScanPanel({
       lastScan,
       startedAt: startedAtRef.current,
       savedAt: new Date().toISOString(),
+      sessionId: syncRef.current?.sessionId ?? seed.sessionId,
+      lastSeq: syncRef.current?.lastSeq ?? seed.lastSeq,
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, leftItems, rightItems, lastScan])
 
   const focusScan = () => scanInputRef.current?.focus()
@@ -580,7 +783,7 @@ function ScanPanel({
   const handleScan = () => {
     const code = scanValue.trim()
     setScanValue("")
-    if (!code) return
+    if (!code || endedRef.current) return
 
     const rightIdx = rightItems.findIndex(
       (it) => (it.barcodes || []).includes(code) || it.barcode === code,
@@ -590,6 +793,7 @@ function ScanPanel({
         prev.map((it, i) => (i === rightIdx ? { ...it, countedQty: it.countedQty + 1 } : it)),
       )
       setLastScan({ text: `Over-count: ${rightItems[rightIdx].name}`, tone: "warn" })
+      emit(rightItems[rightIdx], 1)
       focusScan()
       return
     }
@@ -600,6 +804,7 @@ function ScanPanel({
     if (leftIdx !== -1) {
       const item = leftItems[leftIdx]
       const nextCount = item.countedQty + 1
+      emit(item, 1)
 
       if (!item.unexpected && nextCount >= item.systemQty) {
         setLeftItems((prev) => prev.filter((_, i) => i !== leftIdx))
@@ -642,6 +847,7 @@ function ScanPanel({
         }
     setLeftItems((prev) => [newItem, ...prev])
     setLastScan({ text: `Not in store: ${newItem.name}`, tone: "found" })
+    emit(newItem, 1)
     focusScan()
   }
 
@@ -651,15 +857,34 @@ function ScanPanel({
       prev.filter((it) => !it.unexpected).map((it) => ({ ...it, countedQty: 0 })),
     )
     setLastScan(null)
+    syncRef.current?.emit({ type: "reset" })
     focusScan()
   }
 
-  // Clicking Done: if some system lines were never scanned, ask how to record
-  // them first; otherwise finish straight away.
-  const handleDone = () => {
-    const unscanned = countUnscanned(leftItems)
+  // Clicking Done: first catch up with the other devices, then, if some system lines
+  // were never scanned, ask how to record them; otherwise finish straight away.
+  const handleDone = async () => {
+    if (endedRef.current) return
+    setIsSaving(true)
+    const sync = syncRef.current
+    const synced = sync ? await sync.syncNow() : true
+    if (endedRef.current) {
+      setIsSaving(false)
+      return
+    }
+    if (sync?.sessionId && !synced) {
+      const goOn = window.confirm(
+        "Couldn't reach the server, so scans from other devices may be missing from this count. Finish anyway?",
+      )
+      if (!goOn) {
+        setIsSaving(false)
+        return
+      }
+    }
+    const unscanned = countUnscanned(stateRef.current.left)
     if (unscanned > 0) {
       setPendingUnscanned(unscanned)
+      setIsSaving(false)
       return
     }
     finalize("unscanned")
@@ -669,7 +894,14 @@ function ScanPanel({
     setPendingUnscanned(0)
     setIsSaving(true)
     try {
-      const { items, totals } = buildAuditResult(leftItems, rightItems, unscannedAs)
+      // Pick up anything another device scanned while the dialog was open.
+      await syncRef.current?.syncNow()
+      if (endedRef.current) {
+        setIsSaving(false)
+        return
+      }
+      const { left, right } = stateRef.current
+      const { items, totals } = buildAuditResult(left, right, unscannedAs)
       const record = await saveAudit({
         storeId,
         storeName: store?.name || "Store",
@@ -678,12 +910,36 @@ function ScanPanel({
         startedAt: startedAtRef.current,
         totals,
         items,
+        sessionId: syncRef.current?.sessionId ?? null,
       })
+      syncRef.current?.stop()
+      clearOutbox(storeId)
       onSaved(record)
     } catch (err) {
-      console.error("Error saving audit:", err)
+      if (err instanceof AuditSessionEndedError) {
+        // Another device pressed Done first -- its audit is the one that counts.
+        syncRef.current?.stop()
+        const end = { status: err.status, auditId: err.auditId }
+        endedRef.current = end
+        setEnded(end)
+      } else {
+        console.error("Error saving audit:", err)
+      }
       setIsSaving(false)
     }
+  }
+
+  // Cancel discards the shared audit for every device counting this store.
+  const handleCancel = async () => {
+    const sync = syncRef.current
+    if (!endedRef.current) {
+      if (!window.confirm("Cancel this audit? Progress is discarded for everyone counting this store.")) return
+      if (sync?.sessionId && !(await cancelSession(sync.sessionId))) {
+        window.alert("Couldn't reach the server, so other devices may still be counting. Cancelled on this device only.")
+      }
+    }
+    sync?.stop()
+    onCancel()
   }
 
   const stats = useMemo(() => {
@@ -709,6 +965,7 @@ function ScanPanel({
     const item = leftItems[idx]
     if (!item) return
     const nextCount = item.countedQty + 1
+    emit(item, 1)
     if (!item.unexpected && nextCount >= item.systemQty) {
       setLeftItems((prev) => prev.filter((_, i) => i !== idx))
       setRightItems((prev) => [{ ...item, countedQty: nextCount }, ...prev])
@@ -726,6 +983,7 @@ function ScanPanel({
   const removeRightItem = (idx: number) => {
     const item = rightItems[idx]
     if (!item) return
+    emit(item, -item.countedQty)
     setRightItems((prev) => prev.filter((_, i) => i !== idx))
     setLeftItems((prev) => [{ ...item, countedQty: 0 }, ...prev])
     setLastScan({ text: `Unverified: ${item.name}`, tone: "warn" })
@@ -738,6 +996,7 @@ function ScanPanel({
       `Un-verify all ${rightItems.length} item${rightItems.length === 1 ? "" : "s"}? They will be sent back to the system list to recount.`,
     )
     if (!ok) return
+    rightItems.forEach((it) => emit(it, -it.countedQty))
     setLeftItems((prev) => [...rightItems.map((it) => ({ ...it, countedQty: 0 })), ...prev])
     setRightItems([])
     setLastScan({ text: "Cleared all verified items", tone: "warn" })
@@ -748,6 +1007,7 @@ function ScanPanel({
     const item = rightItems[idx]
     if (!item) return
     const nextCount = Math.max(0, item.countedQty + delta)
+    emit(item, nextCount - item.countedQty)
     if (nextCount < item.systemQty) {
       setRightItems((prev) => prev.filter((_, i) => i !== idx))
       setLeftItems((prev) => [{ ...item, countedQty: nextCount }, ...prev])
@@ -762,8 +1022,56 @@ function ScanPanel({
     }
   }
 
+  // Devices that pinged the server recently (this one included).
+  const activeDevices = syncStatus.devices.filter((d) => {
+    const t = Date.parse(d.lastSeen)
+    return Number.isFinite(t) && Date.now() - t < 30_000
+  })
+
   return (
     <div className="space-y-5">
+      {ended ? (
+        <Card className="border-amber-400/60 bg-amber-50/60">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div className="flex items-center gap-2 text-sm text-amber-800">
+              <AlertTriangle className="h-4 w-4" />
+              {ended.status === "completed"
+                ? "This audit was finished on another device."
+                : "This audit was cancelled."}
+            </div>
+            <div className="flex gap-2">
+              {ended.status === "completed" && ended.auditId && (
+                <Button size="sm" onClick={() => onOpenAudit(ended.auditId as string)}>
+                  View report
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={handleCancel}>
+                Close
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Users className="h-3.5 w-3.5" />
+            {syncStatus.sessionId
+              ? `Shared audit · ${activeDevices.length || 1} device${activeDevices.length > 1 ? "s" : ""} counting${
+                  activeDevices.length > 1
+                    ? ` (${activeDevices.map((d) => d.label || "device").join(", ")})`
+                    : ""
+                }`
+              : "Counting on this device — connecting to the shared audit…"}
+          </span>
+          {!syncStatus.online && (
+            <span className="flex items-center gap-1 text-amber-600">
+              <WifiOff className="h-3.5 w-3.5" /> Offline — scans are saved on this device
+            </span>
+          )}
+          {syncStatus.pending > 0 && <span>{syncStatus.pending} waiting to sync</span>}
+        </div>
+      )}
+
       {/* Live stats */}
       <Card>
         <CardContent className="py-4">
@@ -789,6 +1097,7 @@ function ScanPanel({
                   ref={scanInputRef}
                   autoFocus
                   placeholder="Scan a product (Enter)"
+                  disabled={!!ended}
                   value={scanValue}
                   onChange={(e) => setScanValue(e.target.value)}
                   onKeyDown={(e) => {
@@ -801,10 +1110,10 @@ function ScanPanel({
                 />
               </div>
             </div>
-            <Button variant="outline" onClick={handleReset}>
+            <Button variant="outline" onClick={handleReset} disabled={!!ended}>
               <RotateCcw className="h-4 w-4 mr-1" /> Reset
             </Button>
-            <Button onClick={handleDone} disabled={isSaving}>
+            <Button onClick={handleDone} disabled={isSaving || !!ended}>
               {isSaving ? (
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               ) : (
@@ -812,7 +1121,7 @@ function ScanPanel({
               )}
               Done the audit
             </Button>
-            <Button variant="destructive" onClick={onCancel} disabled={isSaving}>
+            <Button variant="destructive" onClick={handleCancel} disabled={isSaving || !!ended}>
               <X className="h-4 w-4 mr-1" /> Cancel
             </Button>
           </div>
@@ -832,7 +1141,7 @@ function ScanPanel({
       </Card>
 
       {/* Panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className={cn("grid grid-cols-1 lg:grid-cols-2 gap-4", ended && "pointer-events-none opacity-60")}>
         <Panel
           title="In store (system)"
           subtitle="Expected — tap a card to count one unit. Green = newly found, not in system."

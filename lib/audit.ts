@@ -219,6 +219,10 @@ export interface AuditDraft {
   lastScan: { text: string; tone: "ok" | "found" | "warn" } | null
   startedAt: string
   savedAt: string
+  // Shared-session bookkeeping (see lib/audit-session.ts). Absent on old drafts and
+  // on drafts counted entirely offline before the session could be joined.
+  sessionId?: string | null
+  lastSeq?: number
 }
 
 const DRAFT_PREFIX = "audit-draft:"
@@ -398,15 +402,30 @@ export function hasDraft(storeId: string): boolean {
 
 const API = API_BASE
 
+// Thrown when another device already finished (or cancelled) the shared audit.
+export class AuditSessionEndedError extends Error {
+  constructor(
+    public status: string,
+    public auditId: string | null,
+  ) {
+    super(`This audit was already ${status} on another device`)
+  }
+}
+
 // Save a completed audit. POST /api/stores/:id/audits
+// `sessionId` ties it to the shared counting session so only one device can finish it.
 export async function saveAudit(
-  record: Omit<AuditRecord, "id" | "completedAt"> & { completedAt?: string },
+  record: Omit<AuditRecord, "id" | "completedAt"> & { completedAt?: string; sessionId?: string | null },
 ): Promise<AuditRecord> {
   const res = await fetch(`${API}/api/stores/${encodeURIComponent(record.storeId)}/audits`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(record),
   })
+  if (res.status === 409) {
+    const body = await res.json().catch(() => null)
+    throw new AuditSessionEndedError(body?.status ?? "completed", body?.auditId ?? null)
+  }
   if (!res.ok) throw new Error(`Failed to save audit (${res.status})`)
   return (await res.json()) as AuditRecord
 }
@@ -448,6 +467,11 @@ export async function saveReconciliation(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ resolutions, reconciledBy }),
   })
+  if (res.status === 409) {
+    // Another device (or a double click) already reconciled this audit. The stock changes
+    // are not repeatable, so show the result that was recorded instead of applying twice.
+    return await getAudit(auditId)
+  }
   if (!res.ok) throw new Error(`Failed to reconcile (${res.status})`)
   const data = await res.json()
   return (data?.audit ?? null) as AuditRecord | null
