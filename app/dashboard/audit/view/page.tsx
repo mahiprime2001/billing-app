@@ -45,7 +45,9 @@ import {
   Users,
   WifiOff,
   LogOut,
+  Printer,
 } from "lucide-react"
+import { printAuditReport } from "@/lib/audit-report"
 import { cn } from "@/lib/utils"
 import {
   AuditSync,
@@ -979,6 +981,29 @@ function ScanPanel({
     onClose()
   }
 
+  // Print the count so far, without finishing the audit. Products not scanned yet are
+  // listed as "Not scanned" (neutral), and "Completed" shows the time it was printed.
+  const handlePrint = () => {
+    const { left, right } = stateRef.current
+    const { items, totals } = buildAuditResult(left, right, "unscanned")
+    try {
+      printAuditReport({
+        id: "in-progress",
+        storeId,
+        storeName: store?.name || "Store",
+        storeCode: store?.storecode || "",
+        auditedBy: getAuditorName(),
+        startedAt: startedAtRef.current,
+        completedAt: new Date().toISOString(),
+        totals,
+        items,
+      })
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Could not print the report")
+    }
+    focusScan()
+  }
+
   // Cancel discards the shared audit for every device counting this store.
   const handleCancel = async () => {
     const sync = syncRef.current
@@ -1200,6 +1225,9 @@ function ScanPanel({
               title="Leave this screen and keep the audit — you can resume it later"
             >
               <LogOut className="h-4 w-4 mr-1" /> Close
+            </Button>
+            <Button variant="outline" onClick={handlePrint} title="Print the audit as counted so far">
+              <Printer className="h-4 w-4 mr-1" /> Print
             </Button>
             <Button onClick={handleDone} disabled={isSaving || !!ended}>
               {isSaving ? (

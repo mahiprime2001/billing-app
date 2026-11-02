@@ -1,5 +1,6 @@
-// Printable audit report: a table of the items that were found, a table of the items that
-// are missing (name, barcode, price, quantity, value) and a totals block.
+// Printable audit report: separate tables for verified items, over-counted items, newly found
+// products (not in the system) and missing items (name, barcode, price, quantity, value), then a
+// totals block.
 //
 // The numbers are worked out in `buildAuditReport` (pure, no DOM) so the popup and the
 // printed page always agree. `printAuditReport` renders it to a hidden iframe and prints
@@ -13,7 +14,7 @@ export interface ReportLine {
   price: number
   expected: number
   counted: number
-  // Completed table: counted units. Missing table: units short.
+  // Verified / new tables: counted units. Over-count table: extra units. Missing table: units short.
   qty: number
   // qty x price.
   value: number
@@ -32,9 +33,17 @@ export interface AuditReport {
   startedAt: string
   completedAt: string
   accuracyPct: number
+  // Everything that was counted (verified + over + new), for the summary popup.
   completed: ReportLine[]
+  verified: ReportLine[]
+  over: ReportLine[]
+  found: ReportLine[]
   missing: ReportLine[]
   completedTotal: ReportTotals
+  verifiedTotal: ReportTotals
+  // Extra units / value beyond the system qty.
+  overTotal: ReportTotals
+  foundTotal: ReportTotals
   missingTotal: ReportTotals
   // Everything the system said the store should hold.
   expectedTotal: ReportTotals
@@ -81,6 +90,9 @@ const byName = (a: ReportLine, b: ReportLine) => a.name.localeCompare(b.name)
 
 export function buildAuditReport(audit: AuditRecord): AuditReport {
   const completed: ReportLine[] = []
+  const verified: ReportLine[] = []
+  const over: ReportLine[] = []
+  const found: ReportLine[] = []
   const missing: ReportLine[] = []
   const notScanned: ReportLine[] = []
 
@@ -92,11 +104,14 @@ export function buildAuditReport(audit: AuditRecord): AuditReport {
       missing.push(line)
       if (it.outcome === "unscanned") notScanned.push(line)
     } else if (num(it.countedQty) > 0) {
-      completed.push(toLine(it, num(it.countedQty), COMPLETED_LABEL[it.outcome] || "Verified"))
+      const line = toLine(it, num(it.countedQty), COMPLETED_LABEL[it.outcome] || "Verified")
+      completed.push(line)
+      if (it.outcome === "found") found.push(line)
+      else if (it.outcome === "over") over.push(toLine(it, num(it.countedQty) - num(it.systemQty), line.status))
+      else verified.push(line)
     }
   }
-  completed.sort(byName)
-  missing.sort(byName)
+  for (const rows of [completed, verified, over, found, missing]) rows.sort(byName)
 
   const expectedTotal: ReportTotals = {
     stock: (audit.items || []).reduce((s, it) => s + num(it.systemQty), 0),
@@ -115,8 +130,14 @@ export function buildAuditReport(audit: AuditRecord): AuditReport {
     completedAt: audit.completedAt,
     accuracyPct: audit.totals?.accuracyPct ?? 0,
     completed,
+    verified,
+    over,
+    found,
     missing,
     completedTotal: totalsOf(completed),
+    verifiedTotal: totalsOf(verified),
+    overTotal: totalsOf(over),
+    foundTotal: totalsOf(found),
     missingTotal: totalsOf(missing),
     expectedTotal,
     countedTotal,
@@ -140,9 +161,17 @@ const dateTime = (iso: string) => {
     : new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(d)
 }
 
-function table(title: string, lines: ReportLine[], mode: "completed" | "missing", total: ReportTotals): string {
-  const qtyHead = mode === "completed" ? "Counted" : "Missing qty"
-  const valueHead = mode === "completed" ? "Value" : "Missing value"
+const HEADS = {
+  counted: ["Counted", "Value"],
+  over: ["Extra qty", "Extra value"],
+  missing: ["Missing qty", "Missing value"],
+} as const
+
+function table(title: string, lines: ReportLine[], mode: keyof typeof HEADS, total: ReportTotals): string {
+  const [qtyHead, valueHead] = HEADS[mode]
+  // In the counted tables the qty column already is the counted qty, so don't show it twice.
+  const showCounted = mode !== "counted"
+  const cols = showCounted ? 9 : 8
   const body = lines.length
     ? lines
         .map(
@@ -152,25 +181,24 @@ function table(title: string, lines: ReportLine[], mode: "completed" | "missing"
   <td class="mono">${escapeHtml(l.barcode) || "&mdash;"}</td>
   <td class="r">${money(l.price)}</td>
   <td class="r">${whole(l.expected)}</td>
-  <td class="r">${whole(l.counted)}</td>
-  <td class="r b">${whole(l.qty)}</td>
+${showCounted ? `  <td class="r">${whole(l.counted)}</td>\n` : ""}  <td class="r b">${whole(l.qty)}</td>
   <td class="r b">${money(l.value)}</td>
   <td>${escapeHtml(l.status)}</td>
 </tr>`,
         )
         .join("\n")
-    : `<tr><td colspan="9" class="empty">None</td></tr>`
+    : `<tr><td colspan="${cols}" class="empty">None</td></tr>`
   return `<h2>${escapeHtml(title)} <span class="count">(${lines.length} item${lines.length === 1 ? "" : "s"})</span></h2>
 <table>
 <thead><tr>
   <th class="n">#</th><th>Product</th><th>Barcode</th><th class="r">Price</th>
-  <th class="r">System qty</th><th class="r">Counted</th><th class="r">${qtyHead}</th><th class="r">${valueHead}</th><th>Status</th>
+  <th class="r">System qty</th>${showCounted ? `<th class="r">Counted</th>` : ""}<th class="r">${qtyHead}</th><th class="r">${valueHead}</th><th>Status</th>
 </tr></thead>
 <tbody>
 ${body}
 </tbody>
 <tfoot><tr>
-  <td colspan="6" class="r">Total</td>
+  <td colspan="${cols - 3}" class="r">Total</td>
   <td class="r">${whole(total.stock)}</td>
   <td class="r">${money(total.value)}</td>
   <td></td>
@@ -197,6 +225,9 @@ export function auditReportHtml(report: AuditReport): string {
   thead th { background: #eee; text-align: left; }
   thead { display: table-header-group; }
   tr { page-break-inside: avoid; }
+  /* Print the total once, after the last row -- not repeated at the foot of every page. */
+  tfoot { display: table-row-group; }
+  tfoot tr { page-break-inside: avoid; }
   tfoot td { background: #f4f4f4; font-weight: bold; }
   .r { text-align: right; } .n { width: 28px; text-align: right; } .b { font-weight: bold; }
   .mono { font-family: Consolas, monospace; }
@@ -209,7 +240,9 @@ export function auditReportHtml(report: AuditReport): string {
 <div class="meta"><b>${escapeHtml(report.storeName)}</b>${report.storeCode ? ` (${escapeHtml(report.storeCode)})` : ""}</div>
 <div class="meta">Audited by ${escapeHtml(report.auditedBy || "-")} &middot; Started ${escapeHtml(dateTime(report.startedAt))} &middot; Completed ${escapeHtml(dateTime(report.completedAt))} &middot; Accuracy ${report.accuracyPct}%</div>
 
-${table("Completed items", report.completed, "completed", report.completedTotal)}
+${table("Verified items", report.verified, "counted", report.verifiedTotal)}
+${table("Over-count items", report.over, "over", report.overTotal)}
+${table("New products (not in system)", report.found, "counted", report.foundTotal)}
 ${table("Missing items", report.missing, "missing", report.missingTotal)}
 
 <h2>Totals</h2>
@@ -218,6 +251,8 @@ ${table("Missing items", report.missing, "missing", report.missingTotal)}
 <tbody>
 ${totalsRow("System stock (expected)", report.expectedTotal)}
 ${totalsRow("Counted stock", report.countedTotal)}
+${report.overTotal.stock > 0 ? totalsRow("&nbsp;&nbsp;of which over-count (extra)", report.overTotal) : ""}
+${report.foundTotal.stock > 0 ? totalsRow("&nbsp;&nbsp;of which new products", report.foundTotal) : ""}
 ${totalsRow("Missing stock", report.missingTotal, "grand")}
 ${report.notScannedTotal.stock > 0 ? totalsRow("&nbsp;&nbsp;of which never scanned", report.notScannedTotal) : ""}
 </tbody>
