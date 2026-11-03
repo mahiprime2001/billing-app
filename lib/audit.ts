@@ -426,7 +426,12 @@ export async function saveAudit(
     const body = await res.json().catch(() => null)
     throw new AuditSessionEndedError(body?.status ?? "completed", body?.auditId ?? null)
   }
-  if (!res.ok) throw new Error(`Failed to save audit (${res.status})`)
+  if (!res.ok) {
+    // Keep the server's own explanation: "(500)" alone tells nobody what went wrong.
+    const body = await res.json().catch(() => null)
+    const reason = body?.detail || body?.error
+    throw new Error(`Failed to save audit (${res.status})${reason ? `: ${reason}` : ""}`)
+  }
   return (await res.json()) as AuditRecord
 }
 

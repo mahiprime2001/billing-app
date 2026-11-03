@@ -9,8 +9,9 @@ import DashboardLayout from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Store, Package, Boxes, IndianRupee, Search, Loader2, ChevronRight, Clock, Gauge } from "lucide-react"
+import { Store, Package, Boxes, IndianRupee, Search, Loader2, ChevronRight, Clock, Gauge, PauseCircle, Users } from "lucide-react"
 import { hasDraft, listAudits, formatDateTime, type AuditRecord } from "@/lib/audit"
+import { listOpenSessions, type OpenSession } from "@/lib/audit-session"
 
 const API = API_BASE
 
@@ -72,6 +73,24 @@ export default function AuditPage() {
   }, [])
   useBackgroundPoll(() => loadStores(true))
 
+  // Stores with an audit running right now (and whether their billing app is paused). Polled on
+  // its own, quickly, because a pause is something you want to see change.
+  const [openByStore, setOpenByStore] = useState<Record<string, OpenSession>>({})
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      const rows = await listOpenSessions()
+      if (!alive || rows === undefined) return // server unreachable: keep what we show
+      setOpenByStore(Object.fromEntries(rows.map((r) => [r.storeId, r])))
+    }
+    void load()
+    const timer = setInterval(() => void load(), 10_000)
+    return () => {
+      alive = false
+      clearInterval(timer)
+    }
+  }, [])
+
   const filteredStores = stores.filter((store) => {
     const q = searchTerm.toLowerCase()
     return (
@@ -132,6 +151,15 @@ export default function AuditPage() {
                         {store.name}
                       </CardTitle>
                       <div className="flex items-center gap-1.5">
+                        {openByStore[store.id]?.billingPaused ? (
+                          <Badge className="bg-amber-600 hover:bg-amber-600 gap-1" title="The store's billing app is blocked until the audit is finished">
+                            <PauseCircle className="h-3 w-3" /> Billing paused
+                          </Badge>
+                        ) : openByStore[store.id] ? (
+                          <Badge variant="outline" className="gap-1 border-sky-400 text-sky-700">
+                            <Users className="h-3 w-3" /> Audit running
+                          </Badge>
+                        ) : null}
                         {auditMeta[store.id]?.inProgress && (
                           <Badge className="bg-amber-500 hover:bg-amber-500 gap-1">
                             <Clock className="h-3 w-3" /> In progress

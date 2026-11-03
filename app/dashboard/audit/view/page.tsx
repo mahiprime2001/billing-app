@@ -5,6 +5,8 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation"
 import DashboardLayout from "@/components/dashboard-layout"
 import AuditReportDialog from "@/components/audit-report-dialog"
+import BillingPauseSwitch from "@/components/billing-pause-switch"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -140,6 +142,9 @@ function StoreAuditView() {
   // When non-null, the scan panel is active and seeded from this mode.
   const [mode, setMode] = useState<Mode | null>(null)
   const [hasSavedDraft, setHasSavedDraft] = useState(false)
+  // "Pause billing at this store while I count" -- ticked by default. Only a NEW audit takes it;
+  // joining or resuming one never changes its pause (use the switch in the header for that).
+  const [pauseBilling, setPauseBilling] = useState(true)
   // The report popup (Print / Close): opened from History, or right after finishing an audit.
   const [reportAudit, setReportAudit] = useState<AuditRecord | null>(null)
   const [reportJustFinished, setReportJustFinished] = useState(false)
@@ -360,11 +365,14 @@ function StoreAuditView() {
                 )}
               </div>
             </div>
-            {store?.status && (
-              <Badge variant={store.status === "active" ? "default" : "secondary"}>
-                {store.status}
-              </Badge>
-            )}
+            <div className="flex flex-col items-end gap-2">
+              {store?.status && (
+                <Badge variant={store.status === "active" ? "default" : "secondary"}>
+                  {store.status}
+                </Badge>
+              )}
+              <BillingPauseSwitch storeId={storeId} storeName={store?.name || ""} />
+            </div>
           </div>
         </CardHeader>
       </Card>
@@ -396,6 +404,8 @@ function StoreAuditView() {
             draftSavedAt={getDraft(storeId)?.savedAt}
             openSession={openSession}
             onStart={startFresh}
+            pauseBilling={pauseBilling}
+            onPauseBillingChange={setPauseBilling}
             onResume={resumeDraft}
             onJoin={joinSession}
           />
@@ -425,6 +435,7 @@ function StoreAuditView() {
               storeId={storeId}
               store={store}
               mode={mode}
+              pauseBilling={pauseBilling}
               baseItems={baseItems}
               catalogByBarcode={catalogByBarcode}
               onSaved={handleAuditSaved}
@@ -455,6 +466,7 @@ function StoreAuditView() {
                     <ScanLine className="h-4 w-4 mr-1" /> Start new audit
                   </Button>
                 </div>
+                <PauseBillingTick checked={pauseBilling} onChange={setPauseBilling} className="justify-center" />
               </CardContent>
             </Card>
           )}
@@ -463,6 +475,29 @@ function StoreAuditView() {
 
       <AuditReportDialog audit={reportAudit} onClose={closeReport} onOpenFull={openSummary} />
     </div>
+  )
+}
+
+// The tick box next to "Start new audit".
+function PauseBillingTick({
+  checked,
+  onChange,
+  className,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  className?: string
+}) {
+  return (
+    <label className={cn("flex cursor-pointer items-start gap-2 text-sm", className)}>
+      <Checkbox checked={checked} onCheckedChange={(v) => onChange(v === true)} className="mt-0.5" />
+      <span className="text-left">
+        Pause billing at this store while I count
+        <span className="block text-xs text-muted-foreground">
+          Its billing app is blocked until the audit is finished or cancelled.
+        </span>
+      </span>
+    </label>
   )
 }
 
@@ -477,11 +512,15 @@ function OverviewTab({
   draftSavedAt,
   openSession,
   onStart,
+  pauseBilling,
+  onPauseBillingChange,
   onResume,
   onJoin,
 }: {
   store: StoreType | null
   lastAudit: AuditRecord | null
+  pauseBilling: boolean
+  onPauseBillingChange: (v: boolean) => void
   hasSavedDraft: boolean
   draftSavedAt?: string
   openSession: SessionSummary | null
@@ -555,6 +594,7 @@ function OverviewTab({
             <Button className="w-full" onClick={onStart}>
               <ScanLine className="h-4 w-4 mr-1" /> Start new audit
             </Button>
+            <PauseBillingTick checked={pauseBilling} onChange={onPauseBillingChange} />
             {hasSavedDraft && (
               <Button variant="outline" className="w-full" onClick={onResume}>
                 <Play className="h-4 w-4 mr-1" /> Resume saved
@@ -661,6 +701,7 @@ function ScanPanel({
   storeId,
   store,
   mode,
+  pauseBilling,
   baseItems,
   catalogByBarcode,
   onSaved,
@@ -671,6 +712,7 @@ function ScanPanel({
   storeId: string
   store: StoreType | null
   mode: Mode
+  pauseBilling: boolean
   baseItems: LiveItem[]
   catalogByBarcode: React.MutableRefObject<Map<string, any>>
   onSaved: (record: AuditRecord) => void
@@ -729,6 +771,8 @@ function ScanPanel({
       deviceId: getDeviceId(),
       label: auditor,
       startedBy: auditor,
+      // Only meaningful when this device STARTS the session (fresh); the server ignores it on join/resume.
+      pauseBilling: mode === "fresh" && pauseBilling,
       draftSessionId: seed.sessionId,
       draftLastSeq: seed.lastSeq,
       // Fresh/join start blank, so the server's whole history (including ours) is replayed.
@@ -962,6 +1006,12 @@ function ScanPanel({
         setEnded(end)
       } else {
         console.error("Error saving audit:", err)
+        // Saying nothing looked like "the button does nothing". The counts are still on this
+        // device and the shared session is released, so Done can simply be pressed again.
+        window.alert(
+          `The audit could not be saved.\n\n${err instanceof Error ? err.message : "Unknown error"}\n\n` +
+            "Your counts are safe on this device. Try Done again, or tell the admin the message above.",
+        )
       }
       setIsSaving(false)
     }

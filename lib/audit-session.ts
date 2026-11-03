@@ -68,6 +68,22 @@ export interface SessionSummary {
   devices: SessionDevice[]
   scannedUnits: number
   countedLines: number
+  // "Pause billing at this store while this audit runs" -- the store's billing app asks siri-api
+  // about this every ~30 s and blocks new bills while it is true. Ends with the audit.
+  billingPaused?: boolean
+  billingPausedBy?: string | null
+  billingPausedAt?: string | null
+}
+
+// One row of GET /api/audit-sessions/open: a store with a live audit.
+export interface OpenSession {
+  sessionId: string
+  storeId: string
+  startedBy?: string | null
+  startedAt: string
+  billingPaused: boolean
+  billingPausedBy?: string | null
+  billingPausedAt?: string | null
 }
 
 export interface SessionEnd {
@@ -145,6 +161,32 @@ export async function getOpenSession(storeId: string): Promise<SessionSummary | 
   )
   if (!r.ok) return undefined
   return r.data?.session ?? null
+}
+
+/** Every store that has a live audit right now (`undefined` if the server couldn't be reached). */
+export async function listOpenSessions(): Promise<OpenSession[] | undefined> {
+  const r = await call<{ sessions: OpenSession[] }>("/api/audit-sessions/open")
+  if (!r.ok) return undefined
+  return Array.isArray(r.data?.sessions) ? r.data!.sessions : []
+}
+
+/**
+ * Turn "pause billing at this store" on or off for a live audit (admins only on the server).
+ * Returns the updated session, or an `error` message to show.
+ */
+export async function setBillingPause(
+  sessionId: string,
+  paused: boolean,
+): Promise<{ session?: SessionSummary; error?: string }> {
+  const r = await call<{ session?: SessionSummary; error?: string }>(
+    `/api/audit-sessions/${encodeURIComponent(sessionId)}/billing-pause`,
+    { method: "PUT", body: JSON.stringify({ paused }) },
+  )
+  if (r.ok && r.data?.session) return { session: r.data.session }
+  if (r.status === 0) return { error: "Couldn't reach the server. Nothing was changed." }
+  if (r.status === 403) return { error: "Only an admin can pause or resume billing." }
+  if (r.status === 409) return { error: "This audit has already ended, so there is nothing to change." }
+  return { error: r.data?.error || `Couldn't change it (${r.status}).` }
 }
 
 /** Discard the session for every device. */
@@ -277,6 +319,8 @@ export interface SyncOptions {
   deviceId: string
   label: string
   startedBy: string
+  /** Start this audit with billing paused at the store. Only a NEW session takes it; joining never changes it. */
+  pauseBilling?: boolean
   /** Session id saved in this device's draft (resume), if any. */
   draftSessionId?: string | null
   /** Highest server event already applied to the draft. */
@@ -399,6 +443,7 @@ export class AuditSync {
           deviceId: this.o.deviceId,
           deviceLabel: this.o.label,
           startedBy: this.o.startedBy,
+          pauseBilling: this.o.pauseBilling === true,
         }),
       },
     )
