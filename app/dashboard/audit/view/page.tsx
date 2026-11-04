@@ -75,6 +75,7 @@ import {
   clearDraft,
   saveAudit,
   listAudits,
+  getAudit,
   formatCurrency,
   formatDateTime,
 } from "@/lib/audit"
@@ -417,12 +418,11 @@ function StoreAuditView() {
             history={history}
             onOpen={(id) => {
               const picked = history.find((a) => a.id === id)
-              if (picked) {
-                setReportJustFinished(false)
-                setReportAudit(picked)
-              } else {
-                openSummary(id)
-              }
+              if (!picked) return openSummary(id)
+              setReportJustFinished(false)
+              // The history list comes without the item lines, so fetch the full record first.
+              if (picked.items && picked.items.length > 0) return setReportAudit(picked)
+              getAudit(id).then((full) => (full ? setReportAudit(full) : openSummary(id)))
             }}
           />
         </TabsContent>
