@@ -187,7 +187,7 @@ function StoreAuditView() {
       try {
         const [storeRes, invRes, prodRes] = await Promise.all([
           fetch(`${API}/api/stores/${storeId}`),
-          fetch(`${API}/api/stores/${storeId}/assigned-products`),
+          fetch(`${API}/api/stores/${storeId}/audit-stock`),
           fetch(`${API}/api/products`),
         ])
 
@@ -843,7 +843,59 @@ function ScanPanel({
   const [isSaving, setIsSaving] = useState(false)
   // When > 0, the "mark as missing or unscanned?" dialog is shown before saving.
   const [pendingUnscanned, setPendingUnscanned] = useState(0)
+  // A scanned barcode that isn't in this store's stock, waiting for "add as newly found" or "ignore".
+  const [pendingNew, setPendingNew] = useState<LiveItem | null>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
+
+  // Bills and returns change the stock while counting, so re-read it now and then and move each
+  // product's expected quantity with it (a product that is now fully counted becomes verified).
+  useEffect(() => {
+    let stopped = false
+    const refresh = async () => {
+      if (endedRef.current) return
+      try {
+        const res = await fetch(`${API}/api/stores/${storeId}/audit-stock`)
+        if (!res.ok || stopped) return
+        const rows: any[] = await res.json()
+        const stock = new Map<string, number>()
+        for (const row of Array.isArray(rows) ? rows : []) {
+          const id = String(row.productId ?? row.productid ?? "")
+          if (id) stock.set(id, Math.max(0, Math.trunc(Number(row.quantity) || 0)))
+        }
+        const { left, right } = stateRef.current
+        const expected = (it: LiveItem) => (it.unexpected ? it.systemQty : stock.get(it.productId) ?? 0)
+        if (![...left, ...right].some((it) => expected(it) !== it.systemQty)) return
+
+        const all = [...left, ...right].map((it) => ({ ...it, systemQty: expected(it) }))
+        const nextLeft = all.filter((it) => it.unexpected || it.countedQty < it.systemQty)
+        const nextRight = all.filter(
+          (it) => !it.unexpected && it.countedQty >= it.systemQty && it.countedQty > 0,
+        )
+        // Keep each card where it already was; only cards that changed side move.
+        const leftIds = new Set(left.map((it) => it.productId))
+        const byId = new Map(all.map((it) => [it.productId, it]))
+        const orderedLeft = [
+          ...left.map((it) => byId.get(it.productId)!).filter((it) => nextLeft.includes(it)),
+          ...nextLeft.filter((it) => !leftIds.has(it.productId)),
+        ]
+        const rightIds = new Set(right.map((it) => it.productId))
+        const orderedRight = [
+          ...nextRight.filter((it) => !rightIds.has(it.productId)),
+          ...right.map((it) => byId.get(it.productId)!).filter((it) => nextRight.includes(it)),
+        ]
+        stateRef.current = { left: orderedLeft, right: orderedRight }
+        setLeftItems(orderedLeft)
+        setRightItems(orderedRight)
+      } catch {
+        // offline: keep counting with what we have
+      }
+    }
+    const timer = setInterval(refresh, 20_000)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+    }
+  }, [storeId])
 
   // Auto-save draft on every change to the panels.
   useEffect(() => {
@@ -927,9 +979,24 @@ function ScanPanel({
           outcome: "found",
           unexpected: true,
         }
-    setLeftItems((prev) => [newItem, ...prev])
-    setLastScan({ text: `Not in store: ${newItem.name}`, tone: "found" })
-    emit(newItem, 1)
+    // Not in this store's stock: could be a mis-scan, so ask before recording it as "newly found".
+    setPendingNew(newItem)
+  }
+
+  const confirmNewItem = () => {
+    const item = pendingNew
+    setPendingNew(null)
+    if (item && !endedRef.current) {
+      setLeftItems((prev) => [item, ...prev])
+      setLastScan({ text: `Not in store: ${item.name}`, tone: "found" })
+      emit(item, 1)
+    }
+    focusScan()
+  }
+
+  const ignoreNewItem = () => {
+    if (pendingNew) setLastScan({ text: `Ignored: ${pendingNew.barcode}`, tone: "warn" })
+    setPendingNew(null)
     focusScan()
   }
 
@@ -1352,6 +1419,28 @@ function ScanPanel({
       </div>
 
       {/* Done confirmation when some products were never scanned */}
+      <AlertDialog open={!!pendingNew} onOpenChange={(o) => !o && ignoreNewItem()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Not in this store's stock</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingNew?.name === "Unknown barcode"
+                ? `Barcode ${pendingNew.barcode} doesn't match any product.`
+                : `${pendingNew?.name} (${pendingNew?.barcode}) isn't assigned to this store.`}{" "}
+              Add it to this audit as a newly found product, or ignore it if it was a mis-scan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button autoFocus variant="outline" onClick={ignoreNewItem}>
+              Ignore
+            </Button>
+            <Button className="bg-green-600 hover:bg-green-700" onClick={confirmNewItem}>
+              Add as newly found
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={pendingUnscanned > 0} onOpenChange={(o) => !o && setPendingUnscanned(0)}>
         <AlertDialogContent>
           <AlertDialogHeader>
