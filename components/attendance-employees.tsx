@@ -1747,8 +1747,8 @@ export default function AttendanceEmployees({
                 ) : !shown.length ? (
                   <p className="py-6 text-center text-sm text-muted-foreground">No store matches.</p>
                 ) : (
-                  <ScrollArea className="max-h-[60vh]">
-                    <div className="space-y-3 pr-3">
+                  <div className="max-h-[60vh] overflow-y-auto pr-2">
+                    <div className="space-y-3">
                       {shown.map((st) => {
                         const list = byStore.get(st.id) ?? []
                         return (
@@ -1854,7 +1854,7 @@ export default function AttendanceEmployees({
                         )
                       })}
                     </div>
-                  </ScrollArea>
+                  </div>
                 )}
               </div>
             )
