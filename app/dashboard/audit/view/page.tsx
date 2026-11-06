@@ -943,7 +943,7 @@ function ScanPanel({
       if (inRight) setLastScan({ text: `Over-count: ${hit.name}`, tone: "warn" })
       else if (!hit.unexpected && nextCount >= hit.systemQty)
         setLastScan({ text: `Verified: ${hit.name}`, tone: "ok" })
-      else setLastScan({ text: `${hit.name} — ${nextCount}/${hit.systemQty || "?"}`, tone: "ok" })
+      else setLastScan({ text: `${hit.name} â€” ${nextCount}/${hit.systemQty || "?"}`, tone: "ok" })
       focusScan()
       return
     }
@@ -1160,7 +1160,7 @@ function ScanPanel({
     if (!item.unexpected && nextCount >= item.systemQty) {
       setLastScan({ text: `Verified: ${item.name}`, tone: "ok" })
     } else {
-      setLastScan({ text: `${item.name} — ${nextCount}/${item.systemQty || "?"}`, tone: "ok" })
+      setLastScan({ text: `${item.name} â€” ${nextCount}/${item.systemQty || "?"}`, tone: "ok" })
     }
   }
 
@@ -1191,7 +1191,7 @@ function ScanPanel({
     const nextCount = Math.max(0, item.countedQty + delta)
     count(item, nextCount - item.countedQty)
     if (nextCount < item.systemQty) {
-      setLastScan({ text: `${item.name} — ${nextCount}/${item.systemQty}`, tone: "warn" })
+      setLastScan({ text: `${item.name} â€” ${nextCount}/${item.systemQty}`, tone: "warn" })
     } else {
       setLastScan(
         nextCount > item.systemQty
