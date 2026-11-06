@@ -216,7 +216,8 @@ export default function AttendanceEmployees({
   const [devicesOpen, setDevicesOpen] = useState(false)
   const [devices, setDevices] = useState<AttendanceDevice[]>([])
   const [loadingDevices, setLoadingDevices] = useState(false)
-  const [creatingDevice, setCreatingDevice] = useState(false)
+  const [creatingDevice, setCreatingDevice] = useState<string | null>(null) // store id being given a code
+  const [deviceSearch, setDeviceSearch] = useState("")
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
   // ---- date filtering ----
@@ -527,13 +528,11 @@ export default function AttendanceEmployees({
   // ---- device management ----
 
   const loadDevices = useCallback(async () => {
-    if (!storeId) return
     setLoadingDevices(true)
     try {
       const { data, error: err } = await supabase
         .from("attendance_devices")
         .select("id, store_id, name, activation_code, status, device_info, last_seen, app_version")
-        .eq("store_id", storeId)
         .order("created_at", { ascending: false })
       if (err) throw err
       setDevices((data ?? []) as AttendanceDevice[])
@@ -542,7 +541,7 @@ export default function AttendanceEmployees({
     } finally {
       setLoadingDevices(false)
     }
-  }, [storeId])
+  }, [])
 
   useEffect(() => {
     if (devicesOpen) loadDevices()
@@ -554,21 +553,20 @@ export default function AttendanceEmployees({
   }, [loadDevices])
 
   useEffect(() => {
-    if (!devicesOpen || !storeId) return
+    if (!devicesOpen) return
     let timer: ReturnType<typeof setTimeout> | undefined
     const debouncedReload = () => {
       clearTimeout(timer)
       timer = setTimeout(() => loadDevicesRef.current(), 600)
     }
     const channel = supabase
-      .channel(`attendance-devices-${storeId}`)
+      .channel("attendance-devices-all")
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "attendance_devices",
-          filter: `store_id=eq.${storeId}`,
         },
         debouncedReload
       )
@@ -577,20 +575,28 @@ export default function AttendanceEmployees({
       clearTimeout(timer)
       supabase.removeChannel(channel)
     }
-  }, [devicesOpen, storeId])
+  }, [devicesOpen])
+
+  // Keep "Online" honest while the dialog stays open (a phone stops being online with no database change).
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    if (!devicesOpen) return
+    const t = setInterval(() => setTick((n) => n + 1), 30_000)
+    return () => clearInterval(t)
+  }, [devicesOpen])
 
   const genCode = (): string => {
     // Simple 6-digit code — quick to type on a phone's numpad.
     return String(Math.floor(100000 + Math.random() * 900000))
   }
 
-  const createDevice = async () => {
-    if (!storeId) return
-    setCreatingDevice(true)
+  const createDevice = async (forStoreId: string) => {
+    if (!forStoreId) return
+    setCreatingDevice(forStoreId)
     try {
-      const storeName = stores.find((s) => s.id === storeId)?.name ?? "Shop"
+      const storeName = stores.find((s) => s.id === forStoreId)?.name ?? "Shop"
       const { error: err } = await supabase.from("attendance_devices").insert({
-        store_id: storeId,
+        store_id: forStoreId,
         name: `${storeName} phone`,
         activation_code: genCode(),
         status: "unclaimed",
@@ -600,7 +606,7 @@ export default function AttendanceEmployees({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create device")
     } finally {
-      setCreatingDevice(false)
+      setCreatingDevice(null)
     }
   }
 
@@ -1027,8 +1033,7 @@ export default function AttendanceEmployees({
                 size="sm"
                 variant="outline"
                 onClick={() => setDevicesOpen(true)}
-                disabled={allStores}
-                title={allStores ? "Pick a single store to manage devices" : undefined}
+                title="Add, pair and manage the attendance phones of every store"
               >
                 <Smartphone className="mr-1.5 h-4 w-4" />
                 Devices
@@ -1695,119 +1700,165 @@ export default function AttendanceEmployees({
         </DialogContent>
       </Dialog>
 
-      {/* ---------- devices dialog ---------- */}
+      {/* ---------- devices dialog (every store) ---------- */}
       <Dialog open={devicesOpen} onOpenChange={setDevicesOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Smartphone className="h-4 w-4" />
-              Devices · {selectedStore?.name}
+              Attendance phones · all stores
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <Button
-              className="w-full"
-              disabled={creatingDevice}
-              onClick={createDevice}
-            >
-              <Plus className="mr-1.5 h-4 w-4" />
-              {creatingDevice ? "Generating…" : "New activation code"}
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              Enter the code once in the app on this shop's phone. One code = one phone.
-            </p>
-
-            {loadingDevices ? (
-              <div className="space-y-2">
-                <Skeleton className="h-16 rounded-lg" />
-                <Skeleton className="h-16 rounded-lg" />
-              </div>
-            ) : !devices.length ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                No phone for this shop yet — generate a code above.
-              </p>
-            ) : (
-              <ScrollArea className="max-h-[45vh]">
-                <div className="space-y-2 pr-3">
-                  {devices.map((d) => (
-                    <div
-                      key={d.id}
-                      className="flex items-center gap-3 rounded-lg border p-3"
-                    >
-                      <div
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                          isOnline(d)
-                            ? "bg-green-100 text-green-600"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        <Smartphone className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">
-                          {d.name || "Shop phone"}
-                        </p>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {d.device_info || "Not activated yet"}
-                          {d.app_version ? ` · v${d.app_version}` : ""}
-                        </p>
-                        {d.status === "unclaimed" && d.activation_code && (
-                          <button
-                            className="mt-1 inline-flex items-center gap-1.5 rounded-md border bg-muted px-2 py-0.5 font-mono text-xs hover:border-primary"
-                            onClick={() => copyCode(d.activation_code!)}
-                          >
-                            {d.activation_code}
-                            {copiedCode === d.activation_code ? (
-                              <CheckCircle2 className="h-3 w-3 text-green-600" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1.5">
-                        <Badge
-                          variant={
-                            d.status === "unclaimed"
-                              ? "outline"
-                              : isOnline(d)
-                                ? "default"
-                                : "secondary"
-                          }
-                          className="text-[10px]"
-                        >
-                          {d.status === "unclaimed"
-                            ? "Waiting"
-                            : isOnline(d)
-                              ? "Online"
-                              : "Offline"}
-                        </Badge>
-                        {d.status !== "unclaimed" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => repairDevice(d)}
-                          >
-                            Pair again
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs text-red-600 hover:text-red-600"
-                          onClick={() => removeDevice(d)}
-                        >
-                          <Trash2 className="mr-1 h-3 w-3" />
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+          {(() => {
+            const byStore = new Map<string, AttendanceDevice[]>()
+            for (const d of devices) byStore.set(d.store_id, [...(byStore.get(d.store_id) ?? []), d])
+            const q = deviceSearch.trim().toLowerCase()
+            const shown = stores
+              .filter((st) => !q || (st.name ?? "").toLowerCase().includes(q))
+              .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""))
+            const paired = devices.filter((d) => d.status !== "unclaimed")
+            const online = paired.filter(isOnline).length
+            const waiting = devices.length - paired.length
+            const withoutPhone = stores.filter((st) => !byStore.get(st.id)?.length).length
+            return (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <Badge variant="default">{online} online</Badge>
+                  <Badge variant="secondary">{paired.length - online} offline</Badge>
+                  <Badge variant="outline">{waiting} waiting for a code</Badge>
+                  <Badge variant="outline">{withoutPhone} stores without a phone</Badge>
+                  <Input
+                    value={deviceSearch}
+                    onChange={(e) => setDeviceSearch(e.target.value)}
+                    placeholder="Find a store…"
+                    className="ml-auto h-8 w-48"
+                  />
                 </div>
-              </ScrollArea>
-            )}
-          </div>
+                <p className="text-xs text-muted-foreground">
+                  To pair a phone: press <b>New code</b> (or <b>Pair again</b>) for its store, read the 6-digit
+                  code to the shop, and they type it into the app. One code = one phone.
+                </p>
+
+                {loadingDevices && !devices.length ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-16 rounded-lg" />
+                    <Skeleton className="h-16 rounded-lg" />
+                  </div>
+                ) : !shown.length ? (
+                  <p className="py-6 text-center text-sm text-muted-foreground">No store matches.</p>
+                ) : (
+                  <ScrollArea className="max-h-[60vh]">
+                    <div className="space-y-3 pr-3">
+                      {shown.map((st) => {
+                        const list = byStore.get(st.id) ?? []
+                        return (
+                          <div key={st.id} className="rounded-lg border">
+                            <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
+                              <p className="min-w-0 flex-1 truncate text-sm font-semibold">
+                                {st.name || "Store"}
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs"
+                                disabled={creatingDevice === st.id}
+                                onClick={() => createDevice(st.id)}
+                              >
+                                <Plus className="mr-1 h-3 w-3" />
+                                {creatingDevice === st.id ? "Generating…" : "New code"}
+                              </Button>
+                            </div>
+                            {!list.length ? (
+                              <p className="px-3 py-3 text-xs text-muted-foreground">
+                                No phone yet - press New code.
+                              </p>
+                            ) : (
+                              <div className="divide-y">
+                                {list.map((d) => (
+                                  <div key={d.id} className="flex items-center gap-3 p-3">
+                                    <div
+                                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                                        d.status !== "unclaimed" && isOnline(d)
+                                          ? "bg-green-100 text-green-600"
+                                          : "bg-muted text-muted-foreground"
+                                      }`}
+                                    >
+                                      <Smartphone className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-sm font-medium">{d.name || "Shop phone"}</p>
+                                      <p className="truncate text-[11px] text-muted-foreground">
+                                        {d.device_info || "Not paired yet"}
+                                        {d.app_version ? ` · v${d.app_version}` : ""}
+                                        {d.status !== "unclaimed" && d.last_seen
+                                          ? ` · seen ${format(new Date(d.last_seen), "d MMM, h:mm a")}`
+                                          : ""}
+                                      </p>
+                                      {d.status === "unclaimed" && d.activation_code && (
+                                        <button
+                                          className="mt-1 inline-flex items-center gap-1.5 rounded-md border bg-muted px-2 py-0.5 font-mono text-sm tracking-widest hover:border-primary"
+                                          onClick={() => copyCode(d.activation_code!)}
+                                          title="Click to copy"
+                                        >
+                                          {d.activation_code}
+                                          {copiedCode === d.activation_code ? (
+                                            <CheckCircle2 className="h-3 w-3 text-green-600" />
+                                          ) : (
+                                            <Copy className="h-3 w-3" />
+                                          )}
+                                        </button>
+                                      )}
+                                    </div>
+                                    <Badge
+                                      variant={
+                                        d.status === "unclaimed"
+                                          ? "outline"
+                                          : isOnline(d)
+                                            ? "default"
+                                            : "secondary"
+                                      }
+                                      className="shrink-0 text-[10px]"
+                                    >
+                                      {d.status === "unclaimed"
+                                        ? "Waiting for code"
+                                        : isOnline(d)
+                                          ? "Online"
+                                          : "Offline"}
+                                    </Badge>
+                                    <div className="flex shrink-0 gap-1">
+                                      {d.status !== "unclaimed" && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 px-2 text-xs"
+                                          onClick={() => repairDevice(d)}
+                                        >
+                                          Pair again
+                                        </Button>
+                                      )}
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 px-2 text-xs text-red-600 hover:text-red-600"
+                                        onClick={() => removeDevice(d)}
+                                      >
+                                        <Trash2 className="mr-1 h-3 w-3" />
+                                        Remove
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </ScrollArea>
+                )}
+              </div>
+            )
+          })()}
         </DialogContent>
       </Dialog>
 
