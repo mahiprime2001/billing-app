@@ -57,6 +57,8 @@ import {
   type SessionEnd,
   type SessionSummary,
   type SyncStatus,
+  applyCountDelta,
+  applyReset,
   applyRemoteEvents,
   cancelSession,
   clearOutbox,
@@ -838,6 +840,18 @@ function ScanPanel({
     syncRef.current?.emit({ type: "delta", key: it.productId, delta, meta: it.unexpected ? metaOf(it) : null })
   }
 
+  // Every local count change goes through here: applied to the NEWEST panels by product id (never by
+  // list position, which a second scan or another device's update can shift before React re-renders).
+  const count = (it: LiveItem, delta: number) => {
+    if (delta === 0) return
+    const meta = it.unexpected ? metaOf(it) : null
+    const next = applyCountDelta(stateRef.current, it.productId, delta, meta)
+    stateRef.current = next
+    setLeftItems(next.left)
+    setRightItems(next.right)
+    syncRef.current?.emit({ type: "delta", key: it.productId, delta, meta })
+  }
+
   const [scanValue, setScanValue] = useState("")
   const [lastScan, setLastScan] = useState<{ text: string; tone: "ok" | "found" | "warn" } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -919,38 +933,17 @@ function ScanPanel({
     setScanValue("")
     if (!code || endedRef.current) return
 
-    const rightIdx = rightItems.findIndex(
-      (it) => (it.barcodes || []).includes(code) || it.barcode === code,
-    )
-    if (rightIdx !== -1) {
-      setRightItems((prev) =>
-        prev.map((it, i) => (i === rightIdx ? { ...it, countedQty: it.countedQty + 1 } : it)),
-      )
-      setLastScan({ text: `Over-count: ${rightItems[rightIdx].name}`, tone: "warn" })
-      emit(rightItems[rightIdx], 1)
-      focusScan()
-      return
-    }
-
-    const leftIdx = leftItems.findIndex(
-      (it) => (it.barcodes || []).includes(code) || it.barcode === code,
-    )
-    if (leftIdx !== -1) {
-      const item = leftItems[leftIdx]
-      const nextCount = item.countedQty + 1
-      emit(item, 1)
-
-      if (!item.unexpected && nextCount >= item.systemQty) {
-        setLeftItems((prev) => prev.filter((_, i) => i !== leftIdx))
-        setRightItems((prev) => [{ ...item, countedQty: nextCount }, ...prev])
-        setLastScan({ text: `Verified: ${item.name}`, tone: "ok" })
-      } else {
-        setLeftItems((prev) => [
-          { ...item, countedQty: nextCount },
-          ...prev.filter((_, i) => i !== leftIdx),
-        ])
-        setLastScan({ text: `${item.name} â€” ${nextCount}/${item.systemQty || "?"}`, tone: "ok" })
-      }
+    const { left, right } = stateRef.current
+    const matches = (it: LiveItem) => it.barcode === code || (it.barcodes || []).includes(code)
+    const inRight = right.find(matches)
+    const hit = inRight ?? left.find(matches)
+    if (hit) {
+      const nextCount = hit.countedQty + 1
+      count(hit, 1)
+      if (inRight) setLastScan({ text: `Over-count: ${hit.name}`, tone: "warn" })
+      else if (!hit.unexpected && nextCount >= hit.systemQty)
+        setLastScan({ text: `Verified: ${hit.name}`, tone: "ok" })
+      else setLastScan({ text: `${hit.name} — ${nextCount}/${hit.systemQty || "?"}`, tone: "ok" })
       focusScan()
       return
     }
@@ -987,9 +980,8 @@ function ScanPanel({
     const item = pendingNew
     setPendingNew(null)
     if (item && !endedRef.current) {
-      setLeftItems((prev) => [item, ...prev])
+      count(item, 1)
       setLastScan({ text: `Not in store: ${item.name}`, tone: "found" })
-      emit(item, 1)
     }
     focusScan()
   }
@@ -1001,10 +993,11 @@ function ScanPanel({
   }
 
   const handleReset = () => {
-    setRightItems([])
-    setLeftItems((prev) =>
-      prev.filter((it) => !it.unexpected).map((it) => ({ ...it, countedQty: 0 })),
-    )
+    // Everything back to zero and back on the system list (verified cards used to vanish here).
+    const next = applyReset(stateRef.current)
+    stateRef.current = next
+    setLeftItems(next.left)
+    setRightItems(next.right)
     setLastScan(null)
     syncRef.current?.emit({ type: "reset" })
     focusScan()
@@ -1160,58 +1153,46 @@ function ScanPanel({
 
   // Clicking a left card = manually verify one unit of that product (same effect as scanning it).
   const selectLeftItem = (idx: number) => {
-    const item = leftItems[idx]
+    const item = stateRef.current.left[idx]
     if (!item) return
     const nextCount = item.countedQty + 1
-    emit(item, 1)
+    count(item, 1)
     if (!item.unexpected && nextCount >= item.systemQty) {
-      setLeftItems((prev) => prev.filter((_, i) => i !== idx))
-      setRightItems((prev) => [{ ...item, countedQty: nextCount }, ...prev])
       setLastScan({ text: `Verified: ${item.name}`, tone: "ok" })
     } else {
-      setLeftItems((prev) => [
-        { ...item, countedQty: nextCount },
-        ...prev.filter((_, i) => i !== idx),
-      ])
-      setLastScan({ text: `${item.name} â€” ${nextCount}/${item.systemQty || "?"}`, tone: "ok" })
+      setLastScan({ text: `${item.name} — ${nextCount}/${item.systemQty || "?"}`, tone: "ok" })
     }
   }
 
   // Close on a verified card = un-verify it entirely, sending it back to the left panel to recount.
   const removeRightItem = (idx: number) => {
-    const item = rightItems[idx]
+    const item = stateRef.current.right[idx]
     if (!item) return
-    emit(item, -item.countedQty)
-    setRightItems((prev) => prev.filter((_, i) => i !== idx))
-    setLeftItems((prev) => [{ ...item, countedQty: 0 }, ...prev])
+    count(item, -item.countedQty)
     setLastScan({ text: `Unverified: ${item.name}`, tone: "warn" })
   }
 
   // Clears every card from the verified (right) panel â€” sent back left to recount, none deleted.
   const clearAllRight = () => {
-    if (rightItems.length === 0) return
+    const verified = stateRef.current.right
+    if (verified.length === 0) return
     const ok = window.confirm(
-      `Un-verify all ${rightItems.length} item${rightItems.length === 1 ? "" : "s"}? They will be sent back to the system list to recount.`,
+      `Un-verify all ${verified.length} item${verified.length === 1 ? "" : "s"}? They will be sent back to the system list to recount.`,
     )
     if (!ok) return
-    rightItems.forEach((it) => emit(it, -it.countedQty))
-    setLeftItems((prev) => [...rightItems.map((it) => ({ ...it, countedQty: 0 })), ...prev])
-    setRightItems([])
+    stateRef.current.right.slice().forEach((it) => count(it, -it.countedQty))
     setLastScan({ text: "Cleared all verified items", tone: "warn" })
   }
 
   // +/- on a verified card manually adjusts its counted qty; dropping below the expected qty sends it back left.
   const adjustRightQty = (idx: number, delta: number) => {
-    const item = rightItems[idx]
+    const item = stateRef.current.right[idx]
     if (!item) return
     const nextCount = Math.max(0, item.countedQty + delta)
-    emit(item, nextCount - item.countedQty)
+    count(item, nextCount - item.countedQty)
     if (nextCount < item.systemQty) {
-      setRightItems((prev) => prev.filter((_, i) => i !== idx))
-      setLeftItems((prev) => [{ ...item, countedQty: nextCount }, ...prev])
-      setLastScan({ text: `${item.name} â€” ${nextCount}/${item.systemQty}`, tone: "warn" })
+      setLastScan({ text: `${item.name} — ${nextCount}/${item.systemQty}`, tone: "warn" })
     } else {
-      setRightItems((prev) => prev.map((it, i) => (i === idx ? { ...it, countedQty: nextCount } : it)))
       setLastScan(
         nextCount > item.systemQty
           ? { text: `Over-count: ${item.name}`, tone: "warn" }

@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Store, Package, Boxes, IndianRupee, Search, Loader2, ChevronRight, Clock, Gauge, PauseCircle, Users } from "lucide-react"
-import { hasDraft, listAudits, formatDateTime, type AuditRecord } from "@/lib/audit"
+import { getDraft, clearDraft, listAudits, formatDateTime, type AuditRecord } from "@/lib/audit"
 import { listOpenSessions, type OpenSession } from "@/lib/audit-session"
 
 const API = API_BASE
@@ -54,7 +54,7 @@ export default function AuditPage() {
           await Promise.all(
             list.map(async (s) => {
               const audits = await listAudits(s.id)
-              meta[s.id] = { last: audits[0] || null, inProgress: hasDraft(s.id) }
+              meta[s.id] = { last: audits[0] || null, inProgress: false }
             }),
           )
           setAuditMeta(meta)
@@ -76,12 +76,14 @@ export default function AuditPage() {
   // Stores with an audit running right now (and whether their billing app is paused). Polled on
   // its own, quickly, because a pause is something you want to see change.
   const [openByStore, setOpenByStore] = useState<Record<string, OpenSession>>({})
+  const [openLoaded, setOpenLoaded] = useState(false)
   useEffect(() => {
     let alive = true
     const load = async () => {
       const rows = await listOpenSessions()
       if (!alive || rows === undefined) return // server unreachable: keep what we show
       setOpenByStore(Object.fromEntries(rows.map((r) => [r.storeId, r])))
+      setOpenLoaded(true)
     }
     void load()
     const timer = setInterval(() => void load(), 10_000)
@@ -90,6 +92,18 @@ export default function AuditPage() {
       clearInterval(timer)
     }
   }, [])
+
+  // "In progress" = this browser holds an unfinished count. If that count belonged to a shared audit that has
+  // since been finished or cancelled (from another device), the saved copy is stale: don't show it, drop it.
+  const hasLiveDraft = (storeId: string): boolean => {
+    const d = getDraft(storeId)
+    if (!d) return false
+    if (!d.sessionId) return true // saved before shared audits existed: can't tell
+    if (!openLoaded) return false
+    if (openByStore[storeId]?.sessionId === d.sessionId) return true
+    clearDraft(storeId)
+    return false
+  }
 
   const filteredStores = stores.filter((store) => {
     const q = searchTerm.toLowerCase()
@@ -160,7 +174,7 @@ export default function AuditPage() {
                             <Users className="h-3 w-3" /> Audit running
                           </Badge>
                         ) : null}
-                        {auditMeta[store.id]?.inProgress && (
+                        {hasLiveDraft(store.id) && (
                           <Badge className="bg-amber-500 hover:bg-amber-500 gap-1">
                             <Clock className="h-3 w-3" /> In progress
                           </Badge>

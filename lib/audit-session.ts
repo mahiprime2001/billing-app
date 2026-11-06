@@ -118,7 +118,14 @@ export function getDeviceId(): string {
       id = newId()
       window.localStorage.setItem("audit-device-id", id)
     }
-    return id
+    // Two tabs of one browser share localStorage; without a per-tab part each would ignore the
+    // other's scans as "its own". sessionStorage survives a reload but is private to the tab.
+    let tab = window.sessionStorage.getItem("audit-tab-id")
+    if (!tab) {
+      tab = newId().slice(0, 6)
+      window.sessionStorage.setItem("audit-tab-id", tab)
+    }
+    return `${id}:${tab}`
   } catch {
     return "device-unknown"
   }
