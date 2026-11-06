@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { format, parseISO, subDays } from "date-fns"
 import { supabase } from "@/lib/supabase-browser"
+import { API_BASE } from "@/lib/api-base"
 import { buildAttendanceReport } from "@/lib/attendance-report"
 import { readCache, writeCache } from "@/lib/api-cache"
 import { useBackgroundPoll } from "@/hooks/useBackgroundPoll"
@@ -622,6 +623,38 @@ export default function AttendanceEmployees({
       if (e2) throw e2
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to remove device")
+    }
+    await loadDevices()
+  }
+
+  // Pair a phone again: the same phone row gets a fresh 6-digit code and goes back to "Waiting".
+  // Its old login (if it has one) is cancelled first, so the old app stops working at once and the
+  // phone shows the code screen. Attendance already recorded stays.
+  const repairDevice = async (d: AttendanceDevice) => {
+    if (
+      !confirm(
+        "Pair this phone again? It stops working until someone types the new 6-digit code into it. Attendance history stays.",
+      )
+    )
+      return
+    try {
+      // A phone paired the old way has no login to cancel (the server answers 404): that is fine.
+      await fetch(`${API_BASE}/api/attendance/admin/devices/${encodeURIComponent(d.id)}/revoke`, {
+        method: "POST",
+      }).catch(() => undefined)
+      const { error: err } = await supabase
+        .from("attendance_devices")
+        .update({
+          status: "unclaimed",
+          activation_code: genCode(),
+          device_info: null,
+          activated_at: null,
+          created_at: new Date().toISOString(),
+        })
+        .eq("id", d.id)
+      if (err) throw err
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to start pairing again")
     }
     await loadDevices()
   }
@@ -1749,6 +1782,16 @@ export default function AttendanceEmployees({
                               ? "Online"
                               : "Offline"}
                         </Badge>
+                        {d.status !== "unclaimed" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => repairDevice(d)}
+                          >
+                            Pair again
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
