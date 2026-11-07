@@ -1,12 +1,6 @@
 node_modules
 .next/
 !src-tauri/
-backend/.venv
-backend/__pycache__/
-backend/dist/
-backend/*.spec
-backend/build/
 GEMINI.md
-backend/data/
 **/__pycache__/
 **/*.pyc

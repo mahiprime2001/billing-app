@@ -127,31 +127,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install pip
-        run: python -m ensurepip --upgrade
-
-      - name: Install uv
-        run: pip install uv
-
-      - name: Sync Python dependencies
-        run: uv sync
-        working-directory: backend
-
-      - name: Run PyInstaller
-        run: uv run pyinstaller --clean --name "Siriadmin-backend-x86_64-pc-windows-msvc" --runtime-tmpdir . --onefile --add-data "scripts:scripts" --add-data "utils:utils" --add-data "routes:routes" --add-data "services:services" --add-data "config.py:." --add-data ".env:." app.py
-        working-directory: backend
-
-      - name: Copy Python executable to Tauri binaries
-        run: |
-          if (-not (Test-Path src-tauri/binaries)) { New-Item -ItemType Directory -Path src-tauri/binaries | Out-Null }
-          Copy-Item backend/dist/Siriadmin-backend-x86_64-pc-windows-msvc.exe src-tauri/binaries/ -Force
-
-
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
