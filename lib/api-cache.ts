@@ -60,11 +60,29 @@ export function invalidateFreshCache(key: string): void {
   freshCache.delete(key);
 }
 
-async function authedFetch(path: string): Promise<Response> {
+async function authedFetchOnce(path: string): Promise<Response> {
   const token = typeof window !== "undefined" ? localStorage.getItem("adminToken") : null;
   return fetch(`${API_BASE}${path}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
+}
+
+// A single hiccup (a dropped connection, a 502/503/504 while the server restarts or a heavy page is
+// being assembled) used to flip a whole page to "no connection, showing last sync". Try a couple more
+// times with a short pause first. Real answers (4xx, including a logged-out 401) are returned at once.
+const RETRY_PAUSES_MS = [1000, 3000];
+
+async function authedFetch(path: string): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const response = await authedFetchOnce(path);
+      const transient = response.status === 500 || response.status === 502 || response.status === 503 || response.status === 504;
+      if (!transient || attempt >= RETRY_PAUSES_MS.length) return response;
+    } catch (err) {
+      if (attempt >= RETRY_PAUSES_MS.length) throw err;
+    }
+    await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSES_MS[attempt]));
+  }
 }
 
 export async function readCache<T>(cacheKey: string): Promise<{ data: T; cachedAt: string } | null> {
