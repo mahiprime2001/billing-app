@@ -251,7 +251,7 @@ export default function ProductsPage() {
   // Product store-distribution panel state
   const [distributionProduct, setDistributionProduct] = useState<Product | null>(null)
   const [distributionRows, setDistributionRows] = useState<
-    { storeId: string; name: string; storecode: string; quantity: number }[]
+    { storeId: string; name: string; storecode: string; quantity: number; soldQuantity: number | null }[]
   >([])
   const [distributionLoading, setDistributionLoading] = useState(false)
   const [distributionError, setDistributionError] = useState<string | null>(null)
@@ -959,27 +959,44 @@ const handleDeleteProduct = async (productId: string) => {
       // Aggregate by store so each store appears once (the inventory table can
       // hold more than one row per store) — sums their quantities and keeps the
       // React key (storeId) unique.
-      const byStore = new Map<string, { storeId: string; name: string; storecode: string; quantity: number }>()
-      for (const row of rawRows) {
-        const storeId = String(row.storeid ?? row.storeId ?? "")
-        const quantity = Number(row.quantity ?? 0)
-        const existing = byStore.get(storeId)
-        if (existing) {
-          existing.quantity += quantity
-        } else {
-          const info = storeInfoMap.get(storeId)
-          byStore.set(storeId, {
-            storeId,
-            name: info?.name || storeId || "Unknown store",
-            storecode: info?.storecode || "",
-            quantity,
-          })
+      // The server now sends one ready row per store (name, code, units on the
+      // shelf, units sold). Older answers only had the raw inventory rows, so
+      // keep the old per-store aggregation as a fallback.
+      let rows: { storeId: string; name: string; storecode: string; quantity: number; soldQuantity: number | null }[]
+      if (Array.isArray(payload?.stores)) {
+        rows = payload.stores.map((s: any) => ({
+          storeId: String(s.storeId ?? ""),
+          name: s.name || storeInfoMap.get(String(s.storeId))?.name || "Unknown store",
+          storecode: s.storecode || storeInfoMap.get(String(s.storeId))?.storecode || "",
+          quantity: Number(s.quantity ?? 0),
+          soldQuantity: s.soldQuantity === null || s.soldQuantity === undefined ? null : Number(s.soldQuantity),
+        }))
+      } else {
+        const byStore = new Map<string, { storeId: string; name: string; storecode: string; quantity: number; soldQuantity: number | null }>()
+        for (const row of rawRows) {
+          const storeId = String(row.storeid ?? row.storeId ?? "")
+          const quantity = Number(row.quantity ?? 0)
+          const existing = byStore.get(storeId)
+          if (existing) {
+            existing.quantity += quantity
+          } else {
+            const info = storeInfoMap.get(storeId)
+            byStore.set(storeId, {
+              storeId,
+              name: info?.name || storeId || "Unknown store",
+              storecode: info?.storecode || "",
+              quantity,
+              soldQuantity: null,
+            })
+          }
         }
+        rows = Array.from(byStore.values())
       }
-      const rows = Array.from(byStore.values())
-        // Hide stores that have sold out (no stock currently in that store).
-        .filter((row) => row.quantity > 0)
-        .sort((a, b) => b.quantity - a.quantity)
+      // Show a store while it holds stock OR has sold this product (a store that
+      // sold its last unit still belongs in the list, with its sold count).
+      rows = rows
+        .filter((row) => row.quantity > 0 || (row.soldQuantity ?? 0) > 0)
+        .sort((a, b) => b.quantity - a.quantity || (b.soldQuantity ?? 0) - (a.soldQuantity ?? 0))
       setDistributionRows(rows)
     } catch (error) {
       console.error("Error fetching product distribution:", error)
@@ -1433,14 +1450,23 @@ const handleDeleteProduct = async (productId: string) => {
   const godownStats = useMemo(() => {
     let items = 0;
     let stock = 0;
+    let costValue = 0;
+    let sellingValue = 0;
     for (const p of filteredProducts) {
       const available = Number(
         (p as any).availableStock ?? (p as any).globalStock ?? p.stock ?? 0
       );
       if (available > 0) items += 1;
       stock += available;
+      // Value of what is sitting in the godown: units x cost price, and units x selling price.
+      const cost = Number(p.price ?? 0);
+      const selling = Number(
+        (p as any).sellingPrice ?? (p as any).selling_price ?? (p as any).displayPrice ?? p.price ?? 0
+      );
+      if (available > 0 && !isNaN(cost)) costValue += available * cost;
+      if (available > 0 && !isNaN(selling)) sellingValue += available * selling;
     }
-    return { items, stock };
+    return { items, stock, costValue, sellingValue };
   }, [filteredProducts]);
 
   const soldStats = useMemo(() => {
@@ -2052,6 +2078,12 @@ const handleDeleteProduct = async (productId: string) => {
                 {godownStats.items}
               </p>
               <p className="text-xs text-gray-500">{godownStats.stock} in stock</p>
+              <p className="text-xs text-gray-500">
+                Stock value: ₹{godownStats.costValue.toLocaleString("en-IN", { maximumFractionDigits: 2 })} cost
+              </p>
+              <p className="text-xs text-gray-500">
+                ₹{godownStats.sellingValue.toLocaleString("en-IN", { maximumFractionDigits: 2 })} at selling price
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -3092,7 +3124,7 @@ return (
             }
           }}
         >
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Store className="h-4 w-4" />
@@ -3103,8 +3135,11 @@ return (
                 {!distributionLoading && !distributionError && distributionRows.length > 0 && (
                   <>
                     {" — "}
-                    In {distributionRows.length} store{distributionRows.length === 1 ? "" : "s"} ·{" "}
-                    {distributionRows.reduce((sum, r) => sum + r.quantity, 0)} units
+                    {distributionRows.length} store{distributionRows.length === 1 ? "" : "s"} ·{" "}
+                    {distributionRows.reduce((sum, r) => sum + r.quantity, 0)} in stock ·{" "}
+                    {distributionRows.every((r) => r.soldQuantity === null)
+                      ? "sold unavailable"
+                      : `${distributionRows.reduce((sum, r) => sum + (r.soldQuantity ?? 0), 0)} sold`}
                   </>
                 )}
               </DialogDescription>
@@ -3130,7 +3165,8 @@ return (
                     <tr className="border-b text-left text-muted-foreground">
                       <th className="py-2 pr-4 font-medium">Store</th>
                       <th className="py-2 pr-4 font-medium">Code</th>
-                      <th className="py-2 text-right font-medium">Qty</th>
+                      <th className="py-2 pr-4 text-right font-medium">Qty</th>
+                      <th className="py-2 text-right font-medium">Sold Quantity</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3140,7 +3176,8 @@ return (
                         <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">
                           {row.storecode || "—"}
                         </td>
-                        <td className="py-2 text-right tabular-nums">{row.quantity}</td>
+                        <td className="py-2 pr-4 text-right tabular-nums">{row.quantity}</td>
+                        <td className="py-2 text-right tabular-nums">{row.soldQuantity ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>
