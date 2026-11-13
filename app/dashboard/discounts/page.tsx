@@ -128,6 +128,9 @@ function DiscountRequests() {
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
       if (usersTimerRef.current) clearInterval(usersTimerRef.current)
       abortControllerRef.current?.abort()
+      // The aborted request never gets to clear this itself. Left set, the next mount's first load (React's
+      // dev double-mount, or going back to this tab) was skipped as "already loading" and the list spun forever.
+      inFlightRef.current = false
     }
   }, [])
 
@@ -186,9 +189,11 @@ function DiscountRequests() {
         MAX_POLL_INTERVAL,
       )
     } finally {
+      // Only the newest request may release the "already loading" flag (an older, aborted one must not
+      // release a newer one's), and only a request that was not aborted may touch the screen.
+      if (abortControllerRef.current === controller) inFlightRef.current = false
       if (!signal.aborted) {
         setLoading(false)
-        inFlightRef.current = false
         scheduleNextPoll()
       }
     }
