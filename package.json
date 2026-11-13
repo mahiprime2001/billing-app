@@ -1,6 +1,6 @@
 {
   "name": "Siri-Admin-app",
-  "version": "0.8.16",
+  "version": "0.8.17",
   "private": true,
   "scripts": {
     "tauri": "tauri",
