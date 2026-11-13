@@ -9,7 +9,8 @@
 
 const DOTS_PER_MM = 8 // 203 DPI
 
-export type DiscountMode = "percent" | "amount"
+/** percent = % off, amount = rupees off, final = the new price itself */
+export type DiscountMode = "percent" | "amount" | "final"
 
 export interface DiscountResult {
   ok: boolean
@@ -58,15 +59,19 @@ export function parseNumber(text: string): number {
   return /^\d+(\.\d+)?$/.test(t) ? Number(t) : NaN
 }
 
-/** The discounted price from the selling price and either a percentage or a rupee amount off. */
-export function computeDiscount(original: number, mode: DiscountMode, value: number): DiscountResult {
+/**
+ * The discounted price from the selling price and a percentage off, rupees off, or the new price itself.
+ * `roundWhole` rounds the new price to a whole rupee (the % off shown is then worked out from that price).
+ */
+export function computeDiscount(original: number, mode: DiscountMode, value: number, roundWhole = false): DiscountResult {
   const empty = { original, final: original, amountOff: 0, percentOff: 0 }
   if (!(original > 0)) return { ok: false, error: "This product has no selling price", ...empty }
-  if (!(value > 0)) return { ok: false, error: "Enter a discount", ...empty }
+  if (!(value > 0)) return { ok: false, error: mode === "final" ? "Enter the new price" : "Enter a discount", ...empty }
   if (mode === "percent" && value >= 100) return { ok: false, error: "A percentage must be below 100", ...empty }
-  const final = round2(mode === "percent" ? original * (1 - value / 100) : original - value)
+  let final = round2(mode === "percent" ? original * (1 - value / 100) : mode === "amount" ? original - value : value)
+  if (roundWhole) final = Math.round(final)
   if (!(final > 0)) return { ok: false, error: "The discount is as big as the price", ...empty }
-  if (final >= original) return { ok: false, error: "The discounted price must be lower than the selling price", ...empty }
+  if (final >= original) return { ok: false, error: "The new price must be lower than the selling price", ...empty }
   const amountOff = round2(original - final)
   const percentOff = round2((amountOff / original) * 100)
   return { ok: true, original, final, amountOff, percentOff }
