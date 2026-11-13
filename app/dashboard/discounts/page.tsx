@@ -6,12 +6,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { formatDisplayDate, formatDisplayDateTime } from "@/app/utils/formatDate"
 import DashboardLayout from "@/components/dashboard-layout"
+import DiscountRules from "@/components/discount-rules"
+import DiscountLabels from "@/components/discount-labels"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Calendar, CheckCircle, Clock, FileText, History as HistoryIcon, Percent, Trash2, User, XCircle } from "lucide-react"
+import { Calendar, CheckCircle, Clock, FileText, History as HistoryIcon, Percent, Printer, Tag, Trash2, User, XCircle } from "lucide-react"
 
 type DiscountStatus = "pending" | "approved" | "rejected"
 
@@ -55,7 +58,8 @@ const DISCOUNTS_FETCH_LIMIT = 500
 // cache-buster that would otherwise make every call a unique cache key.
 const DISCOUNTS_CACHE_KEY = `/api/discounts?mode=merged&limit=${DISCOUNTS_FETCH_LIMIT}`
 
-export default function DiscountsPage() {
+// Per-bill discount requests: a cashier asks, an admin approves or declines.
+function DiscountRequests() {
   const [requests, setRequests] = useState<DiscountRequest[]>([])
   const [userNameById, setUserNameById] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -359,17 +363,14 @@ export default function DiscountsPage() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <div className="space-y-6">
         {isOfflineFallback && (
           <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800" aria-live="polite">
             Showing {requests.length.toLocaleString()} discount requests from the last sync — no connection right now.
           </div>
         )}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Discount Requests</h1>
-          <p className="text-muted-foreground">Approve or decline discount requests tied to invoices.</p>
-        </div>
+        <p className="text-muted-foreground">Approve or decline discount requests tied to invoices.</p>
 
         <Card>
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -647,6 +648,44 @@ export default function DiscountsPage() {
             )}
           </CardContent>
         </Card>
+      </div>
+    </>
+  )
+}
+
+export default function DiscountsPage() {
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Discounts</h1>
+          <p className="text-muted-foreground">
+            Set price cuts for products in chosen stores, and review discount requests raised on invoices.
+          </p>
+        </div>
+
+        <Tabs defaultValue="rules" className="space-y-5">
+          <TabsList>
+            <TabsTrigger value="rules">
+              <Tag className="mr-1.5 h-4 w-4" /> Discount rules
+            </TabsTrigger>
+            <TabsTrigger value="labels">
+              <Printer className="mr-1.5 h-4 w-4" /> Discount labels
+            </TabsTrigger>
+            <TabsTrigger value="requests">
+              <Clock className="mr-1.5 h-4 w-4" /> Approval requests
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="rules">
+            <DiscountRules />
+          </TabsContent>
+          <TabsContent value="labels">
+            <DiscountLabels />
+          </TabsContent>
+          <TabsContent value="requests">
+            <DiscountRequests />
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   )
