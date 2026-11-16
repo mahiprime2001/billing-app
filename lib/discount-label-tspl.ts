@@ -191,7 +191,7 @@ function generate25x25(labels: DiscountLabelItem[], labelProfile?: DiscountLabel
       out.push(`TEXT ${tx},96,"2",0,1,1,"${originalText}"`)
       out.push(`BAR ${tx},105,${originalW},2`)
       const finalText = `Rs.${formatMoney(item.final)}`
-      const finalFont = fitFont(finalText, available, ["4", "3", "2"])
+      const finalFont = fitFont(finalText, available, ["3", "2"])
       out.push(`TEXT ${tx},122,"${finalFont}",0,1,1,"${finalText}"`)
       out.push(`TEXT ${tx},162,"2",0,1,1,"${offTag(item.percentOff)}"`)
       if (item.batch) out.push(`TEXT ${tx},184,"1",0,1,1,"B:${safe(item.batch)}"`)
@@ -226,7 +226,7 @@ function generateStandard(labels: DiscountLabelItem[], labelSize?: DiscountLabel
     const tag = item.batch ? `${offTag(item.percentOff)}  ${safe(item.batch)}` : offTag(item.percentOff)
     out.push(`TEXT ${textX},4,"1",0,1,1,"${tag}"`)
     out.push(`TEXT ${textX},24,"1",0,1,1,"${name}"`)
-    out.push(...priceRow(textX, 78, available, item, ["4", "3", "2"]))
+    out.push(...priceRow(textX, 78, available, item, ["3", "2"]))
     out.push("PRINT 1")
   }
   out.push("FEED 0")

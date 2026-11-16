@@ -22,6 +22,7 @@ import {
   type DiscountMode,
 } from "@/lib/discount-label-tspl"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -179,6 +180,12 @@ export default function DiscountLabels() {
   const { data: products = [], isLoading, isStreaming, totalCount } = useIncrementalProducts(200)
   const [batches, setBatches] = useState<Batch[]>([])
   const [query, setQuery] = useState("")
+  const [addOpen, setAddOpen] = useState(false)
+  const [printOpen, setPrintOpen] = useState(false)
+  const [listQuery, setListQuery] = useState("")
+  const [bulkMode, setBulkMode] = useState<"percent" | "amount">("percent")
+  const [bulkValue, setBulkValue] = useState("")
+  const [pickFilter, setPickFilter] = useState<"all" | "in" | "not">("all")
   const [shown, setShown] = useState(40)
 
   // the print list, and what new items start with
@@ -252,11 +259,13 @@ export default function DiscountLabels() {
   // the name, a barcode, the batch or the selling price.
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase()
+    const inIds = new Set(entries.map((e) => e.id))
+    const keep = (r: Row) => pickFilter === "all" || (pickFilter === "in") === inIds.has(String(r.product.id))
     if (!q) {
-      return [...rows].sort((a, b) => String((b.product as any).createdAt ?? "").localeCompare(String((a.product as any).createdAt ?? "")))
+      return rows.filter(keep).sort((a, b) => String((b.product as any).createdAt ?? "").localeCompare(String((a.product as any).createdAt ?? "")))
     }
     const words = q.split(/\s+/)
-    const hits = rows.filter((r) =>
+    const hits = rows.filter(keep).filter((r) =>
       words.every((w) =>
         r.name.toLowerCase().includes(w) ||
         r.batch.toLowerCase().includes(w) ||
@@ -266,9 +275,16 @@ export default function DiscountLabels() {
     )
     const rank = (r: Row) => (r.barcodes.includes(query.trim()) ? 0 : r.name.toLowerCase().startsWith(q) ? 1 : 2)
     return hits.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
-  }, [rows, query])
-  useEffect(() => setShown(40), [query])
+  }, [rows, query, pickFilter, entries])
+  useEffect(() => setShown(40), [query, pickFilter])
   const results = useMemo(() => matches.slice(0, shown), [matches, shown])
+
+  // what a product would cost with the discount typed in the dialog (shown on each row before it is added)
+  const newPriceHint = (price: number) => {
+    if (!defValue.trim()) return "+ Add"
+    const c = computeDiscount(price, defMode, parseNumber(defValue), roundWhole)
+    return c.ok ? `+ Add · ₹${formatMoney(c.final)} (${formatMoney(c.percentOff)}% off)` : "+ Add"
+  }
 
   // ---------- the print list
   const addProduct = (row: Row) => {
@@ -291,7 +307,7 @@ export default function DiscountLabels() {
     if (entries.length === 0) return
     if (window.confirm(`Remove all ${entries.length} products from the print list?`)) setEntries([])
   }
-  const applyToAll = () => setEntries((prev) => prev.map((e) => ({ ...e, mode: defMode, valueText: defValue })))
+  const applyToAll = () => setEntries((prev) => prev.map((e) => ({ ...e, mode: bulkMode, valueText: bulkValue })))
 
   // Enter after a scan: an exact barcode, or the only match, is added and the box is cleared for the next scan
   const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -320,6 +336,13 @@ export default function DiscountLabels() {
   )
   const totalLabels = entries.reduce((n, e) => n + e.qty, 0)
   const problemCount = computed.filter((c) => !c.calc.ok).length
+  const visibleRows = useMemo(() => {
+    const q = listQuery.trim().toLowerCase()
+    if (!q) return computed
+    return computed.filter((c) => `${c.entry.name} ${c.entry.barcode} ${c.entry.batch}`.toLowerCase().includes(q))
+  }, [computed, listQuery])
+  const okRows = computed.filter((c) => c.calc.ok)
+  const avgPercent = okRows.length ? okRows.reduce((n, c) => n + c.calc.percentOff, 0) / okRows.length : 0
   const size = LABEL_SIZES.find((s) => s.id === sizeId) ?? LABEL_SIZES[0]
 
   const toItem = (c: (typeof computed)[number]): DiscountLabelItem => ({
@@ -357,15 +380,48 @@ export default function DiscountLabels() {
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-5">
-      {/* ================= left: find products ================= */}
-      <Card className="xl:col-span-2">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Search className="h-4 w-4" /> Add products
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+    <div className="space-y-5">
+    <div className="flex flex-wrap items-center gap-3">
+      <Button onClick={() => setAddOpen(true)}>
+        <Plus className="mr-2 h-4 w-4" /> Add products with a discount
+      </Button>
+      <Button variant="outline" onClick={() => { setStatus(null); setPrintOpen(true) }} disabled={entries.length === 0}>
+        <Printer className="mr-2 h-4 w-4" /> Print labels{entries.length > 0 ? ` (${totalLabels})` : ""}
+      </Button>
+      <span className="text-sm text-muted-foreground">
+        {entries.length} product{entries.length === 1 ? "" : "s"} with a discount below. Change a discount, label count or remove a product right in the list.
+      </span>
+    </div>
+
+    <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add products and set their discount</DialogTitle>
+          <DialogDescription>
+            Choose the discount, then scan or click products. Each one is added to the list behind this window with that discount.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 rounded-md border p-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <ModeSwitch value={defMode} onChange={(m) => setDefMode(m as "percent" | "amount")} modes={["percent", "amount"]} />
+              <Input
+                className="w-32"
+                inputMode="decimal"
+                value={defValue}
+                onChange={(e) => setDefValue(e.target.value)}
+                placeholder={defMode === "percent" ? "e.g. 20" : "e.g. 100"}
+                aria-label="Discount for products you add next"
+              />
+              <label className="ml-auto flex cursor-pointer items-center gap-2 text-sm">
+                <input type="checkbox" checked={roundWhole} onChange={(e) => setRoundWhole(e.target.checked)} />
+                Round new price to whole rupees
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Every product you add starts with this discount. You can change any product's discount afterwards in the list.
+            </p>
+        </div>
+        <div className="space-y-3">
           <Input
             ref={searchRef}
             autoFocus
@@ -374,6 +430,13 @@ export default function DiscountLabels() {
             onKeyDown={onSearchKey}
             placeholder="Scan a barcode, or type a name, price or batch..."
           />
+          <div className="flex flex-wrap items-center gap-2">
+            {([["all", "All products"], ["in", "With a discount"], ["not", "Without a discount"]] as const).map(([k, label]) => (
+              <Button key={k} type="button" size="sm" variant={pickFilter === k ? "default" : "outline"} onClick={() => setPickFilter(k)}>
+                {label}
+              </Button>
+            ))}
+          </div>
           <p className="text-xs text-muted-foreground">
             {isLoading || isStreaming
               ? `Loading products... ${products.length}${totalCount ? ` of ${totalCount}` : ""}`
@@ -381,7 +444,7 @@ export default function DiscountLabels() {
                 ? `${matches.length} match${matches.length === 1 ? "" : "es"}. Scan + Enter adds it; click a row to add it.`
                 : `${products.length} products, newest first. Scan or type to find one, click a row to add it.`}
           </p>
-          <div className="max-h-[640px] space-y-1 overflow-y-auto pr-1">
+          <div className="max-h-[360px] space-y-1 overflow-y-auto pr-1">
             {query.trim() && results.length === 0 && !isLoading && !isStreaming && (
               <p className="py-6 text-center text-sm text-muted-foreground">No product matches “{query.trim()}”.</p>
             )}
@@ -402,7 +465,7 @@ export default function DiscountLabels() {
                     <span className="font-mono">{r.barcodes[0] ?? "no barcode"}</span>
                     {r.batch && <span>Batch {r.batch}</span>}
                     <span>Stock {r.stock}</span>
-                    {inList ? <Badge variant="secondary">In list × {inList.qty}</Badge> : <span className="ml-auto text-primary">+ Add</span>}
+                    {inList ? <Badge variant="secondary">Discount set · {inList.valueText ? (inList.mode === "percent" ? `${inList.valueText}%` : inList.mode === "amount" ? `₹${inList.valueText} off` : `₹${inList.valueText}`) : "no value yet"}</Badge> : <span className="ml-auto font-medium text-primary">{newPriceHint(r.price)}</span>}
                   </div>
                 </button>
               )
@@ -413,195 +476,219 @@ export default function DiscountLabels() {
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        <DialogFooter className="items-center sm:justify-between">
+          <span className="text-sm text-muted-foreground">
+            {entries.length} product{entries.length === 1 ? "" : "s"} in the discount list{notice ? ` · ${notice}` : ""}
+          </span>
+          <Button onClick={() => setAddOpen(false)}>Done</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
-      {/* ================= right: the print list ================= */}
-      <div className="space-y-5 xl:col-span-3">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Tag className="h-4 w-4" /> Discount for new items
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <ModeSwitch value={defMode} onChange={(m) => setDefMode(m as "percent" | "amount")} modes={["percent", "amount"]} />
-              <Input
-                className="w-32"
-                inputMode="decimal"
-                value={defValue}
-                onChange={(e) => setDefValue(e.target.value)}
-                placeholder={defMode === "percent" ? "e.g. 20" : "e.g. 100"}
-                aria-label="Discount for products you add next"
-              />
-              <Button variant="outline" size="sm" onClick={applyToAll} disabled={entries.length === 0 || !defValue.trim()}>
-                Apply to all {entries.length || ""} in the list
-              </Button>
-              <label className="ml-auto flex cursor-pointer items-center gap-2 text-sm">
-                <input type="checkbox" checked={roundWhole} onChange={(e) => setRoundWhole(e.target.checked)} />
-                Round new price to whole rupees
-              </label>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Products you add next start with this discount. Change any row below to give it its own.
-            </p>
-          </CardContent>
-        </Card>
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {[
+        { label: "Products with a discount", value: String(entries.length), warn: false },
+        { label: "Labels to print", value: String(totalLabels), warn: false },
+        { label: "Average discount", value: okRows.length ? `${formatMoney(avgPercent)}%` : "–", warn: false },
+        { label: "Need attention", value: String(problemCount), warn: problemCount > 0 },
+      ].map((t) => (
+        <div key={t.label} className="rounded-lg border bg-card px-4 py-3">
+          <div className="text-xs text-muted-foreground">{t.label}</div>
+          <div className={`text-2xl font-semibold tabular-nums ${t.warn ? "text-red-600" : ""}`}>{t.value}</div>
+        </div>
+      ))}
+    </div>
 
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-base">
-              Print list{" "}
-              <span className="font-normal text-muted-foreground">
-                · {entries.length} product{entries.length === 1 ? "" : "s"} · {totalLabels} label{totalLabels === 1 ? "" : "s"}
-              </span>
-            </CardTitle>
-            <div className="flex items-center gap-3">
-              {notice && <span className="text-xs text-green-700">{notice}</span>}
-              <Button variant="ghost" size="sm" onClick={clearList} disabled={entries.length === 0} className="text-red-600 hover:text-red-700">
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Clear list
-              </Button>
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-base">
+          Products with a discount{" "}
+          <span className="font-normal text-muted-foreground">
+            · {entries.length} product{entries.length === 1 ? "" : "s"} · {totalLabels} label{totalLabels === 1 ? "" : "s"}
+          </span>
+        </CardTitle>
+        <div className="flex items-center gap-3">
+          {entries.length > 0 && (
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input className="h-9 w-56 pl-8" value={listQuery} onChange={(e) => setListQuery(e.target.value)} placeholder="Search this list..." />
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {entries.length === 0 ? (
-              <p className="px-6 py-14 text-center text-sm text-muted-foreground">
-                Nothing to print yet. Scan a barcode or click products on the left to add them.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-sm">
-                  <thead>
-                    <tr className="border-y bg-muted/40 text-left text-xs text-muted-foreground">
-                      <th className="px-4 py-2 font-medium">Product</th>
-                      <th className="px-2 py-2 font-medium">Discount</th>
-                      <th className="px-2 py-2 font-medium">New price</th>
-                      <th className="px-2 py-2 text-center font-medium">Labels</th>
-                      <th className="w-10 px-2 py-2" aria-label="Remove" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {computed.map(({ entry: e, original, calc }) => (
-                      <tr
-                        key={e.id}
-                        onClick={() => setPreviewId(e.id)}
-                        className={`cursor-pointer border-b align-top ${previewEntry?.entry.id === e.id ? "bg-accent/50" : "hover:bg-muted/30"}`}
-                      >
-                        <td className="px-4 py-3">
-                          <div className="font-medium leading-tight">{e.name}</div>
-                          <div className="mt-0.5 font-mono text-xs text-muted-foreground">
-                            {e.barcode} {e.batch && <span className="font-sans">· Batch {e.batch}</span>}
+          )}
+          <Button variant="ghost" size="sm" onClick={clearList} disabled={entries.length === 0} className="text-red-600 hover:text-red-700">
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Clear list
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {entries.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 border-t bg-muted/20 px-4 py-2.5">
+            <span className="text-sm font-medium">Same discount for every product:</span>
+            <ModeSwitch value={bulkMode} onChange={(m) => setBulkMode(m as "percent" | "amount")} modes={["percent", "amount"]} />
+            <Input className="h-8 w-24" inputMode="decimal" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)}
+              placeholder={bulkMode === "percent" ? "20" : "100"} aria-label="One discount for every product in the list" />
+            <Button variant="outline" size="sm" onClick={applyToAll} disabled={!bulkValue.trim()}>
+              Apply to all {entries.length}
+            </Button>
+            <label className="ml-auto flex cursor-pointer items-center gap-2 text-sm">
+              <input type="checkbox" checked={roundWhole} onChange={(e) => setRoundWhole(e.target.checked)} />
+              Round new price to whole rupees
+            </label>
+          </div>
+        )}
+        {entries.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+            <Tag className="h-8 w-8 text-muted-foreground" />
+            <div>
+              <p className="font-medium">No products have a discount yet</p>
+              <p className="text-sm text-muted-foreground">Pick the products and the discount, and they show up here ready to print.</p>
+            </div>
+            <Button onClick={() => setAddOpen(true)}><Plus className="mr-2 h-4 w-4" /> Add products with a discount</Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead>
+                <tr className="border-y bg-muted/40 text-left text-xs text-muted-foreground">
+                  <th className="px-4 py-2 font-medium">Product</th>
+                  <th className="px-2 py-2 font-medium">Discount</th>
+                  <th className="px-2 py-2 font-medium">New price</th>
+                  <th className="px-2 py-2 text-center font-medium">Labels</th>
+                  <th className="w-10 px-2 py-2" aria-label="Remove" />
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRows.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No product in the list matches this search.</td></tr>
+                )}
+                {visibleRows.map(({ entry: e, original, calc }) => (
+                  <tr
+                    key={e.id}
+                    onClick={() => setPreviewId(e.id)}
+                    className={`cursor-pointer border-b align-top ${previewEntry?.entry.id === e.id ? "bg-accent/50" : "hover:bg-muted/30"}`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="font-medium leading-tight">{e.name}</div>
+                      <div className="mt-0.5 font-mono text-xs text-muted-foreground">
+                        {e.barcode} {e.batch && <span className="font-sans">· Batch {e.batch}</span>}
+                      </div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">Selling price ₹{formatMoney(original)}</div>
+                    </td>
+                    <td className="px-2 py-3" onClick={(ev) => ev.stopPropagation()}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ModeSwitch value={e.mode} onChange={(m) => patchEntry(e.id, { mode: m })} modes={["percent", "amount", "final"]} />
+                        <Input
+                          className={`h-8 w-24 ${!calc.ok && e.valueText.trim() ? "border-red-400" : ""}`}
+                          inputMode="decimal"
+                          value={e.valueText}
+                          onChange={(ev) => patchEntry(e.id, { valueText: ev.target.value })}
+                          placeholder={e.mode === "percent" ? "20" : e.mode === "amount" ? "100" : "349"}
+                          aria-label={`Discount for ${e.name}`}
+                        />
+                      </div>
+                    </td>
+                    <td className="px-2 py-3">
+                      {calc.ok ? (
+                        <>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xs text-muted-foreground line-through tabular-nums">₹{formatMoney(calc.original)}</span>
+                            <span className="font-bold text-green-700 tabular-nums">₹{formatMoney(calc.final)}</span>
                           </div>
-                          <div className="mt-0.5 text-xs text-muted-foreground">Selling price ₹{formatMoney(original)}</div>
-                        </td>
-                        <td className="px-2 py-3" onClick={(ev) => ev.stopPropagation()}>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <ModeSwitch value={e.mode} onChange={(m) => patchEntry(e.id, { mode: m })} modes={["percent", "amount", "final"]} />
-                            <Input
-                              className={`h-8 w-24 ${!calc.ok && e.valueText.trim() ? "border-red-400" : ""}`}
-                              inputMode="decimal"
-                              value={e.valueText}
-                              onChange={(ev) => patchEntry(e.id, { valueText: ev.target.value })}
-                              placeholder={e.mode === "percent" ? "20" : e.mode === "amount" ? "100" : "349"}
-                              aria-label={`Discount for ${e.name}`}
-                            />
-                          </div>
-                        </td>
-                        <td className="px-2 py-3">
-                          {calc.ok ? (
-                            <>
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-xs text-muted-foreground line-through tabular-nums">₹{formatMoney(calc.original)}</span>
-                                <span className="font-bold text-green-700 tabular-nums">₹{formatMoney(calc.final)}</span>
-                              </div>
-                              <div className="text-xs text-muted-foreground">{formatMoney(calc.percentOff)}% off · ₹{formatMoney(calc.amountOff)} less</div>
-                            </>
-                          ) : (
-                            <span className="text-xs text-red-600">{calc.error}</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-3" onClick={(ev) => ev.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-1">
-                            <Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label="One fewer label"
-                              onClick={() => patchEntry(e.id, { qty: clampQty(e.qty - 1) })} disabled={e.qty <= 1}>
-                              <Minus className="h-3.5 w-3.5" />
-                            </Button>
-                            <Input
-                              className="h-8 w-14 text-center"
-                              inputMode="numeric"
-                              value={e.qty}
-                              onChange={(ev) => patchEntry(e.id, { qty: clampQty(Number(ev.target.value.replace(/\D/g, ""))) })}
-                              aria-label={`Number of labels for ${e.name}`}
-                            />
-                            <Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label="One more label"
-                              onClick={() => patchEntry(e.id, { qty: clampQty(e.qty + 1) })} disabled={e.qty >= MAX_QTY}>
-                              <Plus className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </td>
-                        <td className="px-2 py-3" onClick={(ev) => ev.stopPropagation()}>
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700"
-                            onClick={() => removeEntry(e.id)} aria-label={`Remove ${e.name}`} title="Remove from the list">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                          <div className="text-xs text-muted-foreground">{formatMoney(calc.percentOff)}% off · ₹{formatMoney(calc.amountOff)} less</div>
+                        </>
+                      ) : (
+                        <span className="text-xs text-red-600">{calc.error}</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-3" onClick={(ev) => ev.stopPropagation()}>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label="One fewer label"
+                          onClick={() => patchEntry(e.id, { qty: clampQty(e.qty - 1) })} disabled={e.qty <= 1}>
+                          <Minus className="h-3.5 w-3.5" />
+                        </Button>
+                        <Input
+                          className="h-8 w-14 text-center"
+                          inputMode="numeric"
+                          value={e.qty}
+                          onChange={(ev) => patchEntry(e.id, { qty: clampQty(Number(ev.target.value.replace(/\D/g, ""))) })}
+                          aria-label={`Number of labels for ${e.name}`}
+                        />
+                        <Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label="One more label"
+                          onClick={() => patchEntry(e.id, { qty: clampQty(e.qty + 1) })} disabled={e.qty >= MAX_QTY}>
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                    <td className="px-2 py-3" onClick={(ev) => ev.stopPropagation()}>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700"
+                        onClick={() => removeEntry(e.id)} aria-label={`Remove ${e.name}`} title="Remove from the list">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
 
-        <Card>
-          <CardContent className="space-y-5 p-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="dl-size">Label size</Label>
-                <Select value={sizeId} onValueChange={setSizeId}>
-                  <SelectTrigger id="dl-size"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {LABEL_SIZES.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dl-printer">Printer</Label>
-                <Select value={printer} onValueChange={setPrinter} disabled={printers.length === 0}>
-                  <SelectTrigger id="dl-printer"><SelectValue placeholder={isTauri() ? "No printer found" : "Desktop app only"} /></SelectTrigger>
-                  <SelectContent>
-                    {printers.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+    <Dialog open={printOpen} onOpenChange={setPrintOpen}>
+      <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Print discount labels</DialogTitle>
+          <DialogDescription>
+            {entries.length} product{entries.length === 1 ? "" : "s"} · {totalLabels} label{totalLabels === 1 ? "" : "s"}. Choose the label size and printer, check the preview, then print.
+          </DialogDescription>
+        </DialogHeader>
 
-            <div className="space-y-2">
-              <Label>Label preview {previewEntry && <span className="font-normal text-muted-foreground">· {previewEntry.entry.name} (click a row to preview another)</span>}</Label>
-              {previewEntry ? (
-                <LabelPreview tspl={previewTspl} sizeId={sizeId} />
-              ) : (
-                <div className="flex h-24 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
-                  The label appears here once a product has a valid discount.
-                </div>
-              )}
-            </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="dl-size">Label size</Label>
+            <Select value={sizeId} onValueChange={setSizeId}>
+              <SelectTrigger id="dl-size"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {LABEL_SIZES.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="dl-printer">Printer</Label>
+            <Select value={printer} onValueChange={setPrinter} disabled={printers.length === 0}>
+              <SelectTrigger id="dl-printer"><SelectValue placeholder={isTauri() ? "No printer found" : "Desktop app only"} /></SelectTrigger>
+              <SelectContent>
+                {printers.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <Button onClick={print} disabled={printing || entries.length === 0 || problemCount > 0}>
-                <Printer className="mr-2 h-4 w-4" />
-                {printing ? "Printing..." : `Print ${totalLabels} label${totalLabels === 1 ? "" : "s"}`}
-              </Button>
-              {problemCount > 0 && (
-                <span className="text-sm text-red-600">{problemCount} product{problemCount === 1 ? "" : "s"} need a valid discount</span>
-              )}
-              {status && <span className={`text-sm ${status.ok ? "text-green-700" : "text-red-600"}`}>{status.text}</span>}
+        <div className="space-y-2">
+          <Label>Label preview {previewEntry && <span className="font-normal text-muted-foreground">· {previewEntry.entry.name}</span>}</Label>
+          {previewEntry ? (
+            <LabelPreview tspl={previewTspl} sizeId={sizeId} />
+          ) : (
+            <div className="flex h-24 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
+              The label appears here once a product has a valid discount.
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </div>
+
+        {problemCount > 0 && (
+          <p className="text-sm text-red-600">{problemCount} product{problemCount === 1 ? "" : "s"} in the list need a valid discount first.</p>
+        )}
+        {status && <p className={`text-sm ${status.ok ? "text-green-700" : "text-red-600"}`}>{status.text}</p>}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setPrintOpen(false)}>Close</Button>
+          <Button onClick={print} disabled={printing || entries.length === 0 || problemCount > 0}>
+            <Printer className="mr-2 h-4 w-4" />
+            {printing ? "Printing..." : `Print ${totalLabels} label${totalLabels === 1 ? "" : "s"}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   )
 }
