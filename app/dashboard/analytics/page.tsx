@@ -871,8 +871,6 @@ export default function AnalyticsPage() {
   const [authChecked, setAuthChecked] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [productSearch, setProductSearch] = useState('')
-  const [revenueMonth, setRevenueMonth] = useState(new Date().getMonth())
-  const [revenueYear, setRevenueYear] = useState(new Date().getFullYear())
   const [dialogProductId, setDialogProductId] = useState<string | null>(null)
   const [dialogGroupKey, setDialogGroupKey] = useState<string | null>(null)
   const [productsLimit, setProductsLimit] = useState(30)
@@ -1188,43 +1186,36 @@ export default function AnalyticsPage() {
     return Array.from(statsByDate.values()).sort((a, b) => a.date.localeCompare(b.date))
   }, [filteredBills, approvedReturnsByDate])
 
-  const revenueYearOptions = useMemo(() => {
-    const currentYear = new Date().getFullYear()
-    const years: number[] = []
-    for (let y = 2025; y <= currentYear; y++) years.push(y)
-    return years
-  }, [])
+  // The Revenue tab follows the page filter (date range / store): dailyStats is built from filteredBills.
+  // Up to 30 days: the days of the range are shown directly. More than 30 days: a month picker appears,
+  // listing only the months inside the range, and the chart/table show the days of the chosen month.
+  const [pickedRevenueMonth, setPickedRevenueMonth] = useState('')
 
-  const filteredDailyStats = useMemo(() => {
-    return dailyStats.filter((row) => {
-      const d = new Date(row.date)
-      return d.getFullYear() === revenueYear && d.getMonth() === revenueMonth
-    })
-  }, [dailyStats, revenueMonth, revenueYear])
-
-  const isAtMinMonth = revenueYear === 2025 && revenueMonth === 0
-  const now = new Date()
-  const isAtMaxMonth = revenueYear === now.getFullYear() && revenueMonth === now.getMonth()
-
-  const handleRevenuePrevMonth = useCallback(() => {
-    if (isAtMinMonth) return
-    if (revenueMonth === 0) {
-      setRevenueYear(revenueYear - 1)
-      setRevenueMonth(11)
-    } else {
-      setRevenueMonth(revenueMonth - 1)
+  const revenueMonths = useMemo(() => {
+    const from = new Date(rangeFrom)
+    const to = new Date(rangeTo)
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return [] as string[]
+    const days = Math.round((to.getTime() - from.getTime()) / 86400000) + 1
+    if (days <= 30) return [] as string[]
+    const months: string[] = []
+    const cursor = new Date(from.getFullYear(), from.getMonth(), 1)
+    while (cursor <= to) {
+      months.push(format(cursor, 'yyyy-MM'))
+      cursor.setMonth(cursor.getMonth() + 1)
     }
-  }, [revenueMonth, revenueYear, isAtMinMonth])
+    return months
+  }, [rangeFrom, rangeTo])
 
-  const handleRevenueNextMonth = useCallback(() => {
-    if (isAtMaxMonth) return
-    if (revenueMonth === 11) {
-      setRevenueYear(revenueYear + 1)
-      setRevenueMonth(0)
-    } else {
-      setRevenueMonth(revenueMonth + 1)
-    }
-  }, [revenueMonth, revenueYear, isAtMaxMonth])
+  const showRevenueMonthPicker = revenueMonths.length > 0
+  const activeRevenueMonth = revenueMonths.includes(pickedRevenueMonth)
+    ? pickedRevenueMonth
+    : revenueMonths[revenueMonths.length - 1] || ''
+  const activeRevenueMonthIndex = revenueMonths.indexOf(activeRevenueMonth)
+
+  const revenueRows = useMemo(
+    () => (showRevenueMonthPicker ? dailyStats.filter((row) => row.date.slice(0, 7) === activeRevenueMonth) : dailyStats),
+    [dailyStats, showRevenueMonthPicker, activeRevenueMonth],
+  )
 
   const storeAnalytics = useMemo((): StoreAnalytics[] => {
     const storeMap = new Map<string, StoreAnalytics>()
@@ -4534,40 +4525,38 @@ export default function AnalyticsPage() {
             <TabSkeleton />
           ) : (
           <>
-            {/* Month/Year Navigator */}
-            <div className="flex items-center justify-center gap-3">
-              <Button variant="outline" size="icon" onClick={handleRevenuePrevMonth} disabled={isAtMinMonth}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="min-w-[120px] text-center text-lg font-semibold">
-                {format(new Date(revenueYear, revenueMonth), 'MMMM')}
-              </span>
-              <Select
-                value={String(revenueYear)}
-                onValueChange={(val) => {
-                  const y = Number(val)
-                  setRevenueYear(y)
-                  const currentNow = new Date()
-                  if (y === currentNow.getFullYear() && revenueMonth > currentNow.getMonth()) {
-                    setRevenueMonth(currentNow.getMonth())
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[100px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {revenueYearOptions.map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button variant="outline" size="icon" onClick={handleRevenueNextMonth} disabled={isAtMaxMonth}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            {showRevenueMonthPicker && (
+              <div className="flex items-center justify-center gap-3">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPickedRevenueMonth(revenueMonths[activeRevenueMonthIndex - 1])}
+                  disabled={activeRevenueMonthIndex <= 0}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Select value={activeRevenueMonth} onValueChange={setPickedRevenueMonth}>
+                  <SelectTrigger className="w-[170px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {revenueMonths.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {format(new Date(`${m}-01`), 'MMMM yyyy')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPickedRevenueMonth(revenueMonths[activeRevenueMonthIndex + 1])}
+                  disabled={activeRevenueMonthIndex >= revenueMonths.length - 1}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
 
             <Card className={PANEL_CARD_CLASS}>
               <CardHeader>
@@ -4575,7 +4564,7 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={360}>
-                  <LineChart data={filteredDailyStats}>
+                  <LineChart data={revenueRows}>
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
                     <XAxis {...AXIS_PROPS} dataKey="date" tickFormatter={(value) => format(new Date(value), 'dd MMM')} />
                     <YAxis {...AXIS_PROPS} yAxisId="left" />
@@ -4630,14 +4619,14 @@ export default function AnalyticsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDailyStats.length === 0 && (
+                    {revenueRows.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center text-muted-foreground">
-                          No revenue data for this month.
+                          No revenue data for this period.
                         </TableCell>
                       </TableRow>
                     )}
-                    {filteredDailyStats.map((row) => (
+                    {revenueRows.map((row) => (
                       <TableRow key={row.date}>
                         <TableCell>{formatDisplayDate(row.date)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
