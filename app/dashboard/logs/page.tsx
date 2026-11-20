@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertTriangle, Info, XCircle, RefreshCw } from "lucide-react"
 import { formatDisplayDateTime } from "@/app/utils/formatDate"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import LogsServerErrors from "@/components/logs-server-errors"
+import LogsStoreHealth from "@/components/logs-store-health"
 
 interface ServerEvent {
   id: string
@@ -102,9 +105,21 @@ export default function LogsPage() {
           <div>
             <h1 className="text-2xl font-semibold">Logs</h1>
             <p className="text-sm text-muted-foreground">
-              What&apos;s happening on the server, in plain English — bills created, and anything that went wrong.
+              What&apos;s happening on the server, in plain English, the technical errors behind it, and how each store app is doing.
             </p>
           </div>
+        </div>
+
+        <Tabs defaultValue="activity" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="errors">Server errors</TabsTrigger>
+            <TabsTrigger value="stores">Store apps</TabsTrigger>
+          </TabsList>
+          <TabsContent value="errors"><LogsServerErrors /></TabsContent>
+          <TabsContent value="stores"><LogsStoreHealth /></TabsContent>
+          <TabsContent value="activity" className="space-y-4">
+        <div className="flex justify-end">
           <Button variant="outline" size="sm" onClick={() => loadEvents()} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -168,6 +183,8 @@ export default function LogsPage() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   )
